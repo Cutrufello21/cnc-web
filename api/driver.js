@@ -1,4 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
+import { fetchRange, MASTER_SHEET_ID, DAILY_SHEETS } from './sheets.js'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 

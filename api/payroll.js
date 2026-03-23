@@ -1,4 +1,4 @@
-import { fetchRange, updateCell, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { fetchRange, updateCell, MASTER_SHEET_ID } from './sheets.js'
 
 // Per-stop rates from cnc-dispatch
 const RATES = {

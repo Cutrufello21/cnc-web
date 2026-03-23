@@ -1,4 +1,4 @@
-import { fetchRange, fetchMultipleRanges, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { fetchRange, fetchMultipleRanges, MASTER_SHEET_ID } from './sheets.js'
 
 // GET /api/hq — returns aggregated data for the HQ dashboard
 export default async function handler(req, res) {

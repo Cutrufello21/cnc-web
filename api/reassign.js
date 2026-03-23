@@ -1,4 +1,4 @@
-import { fetchRange, appendRows, deleteRow, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
+import { fetchRange, appendRows, deleteRow, getSheetTabs, DAILY_SHEETS } from './sheets.js'
 
 // POST /api/reassign
 // Body: { day, fromDriver, toDriver, orderIds }

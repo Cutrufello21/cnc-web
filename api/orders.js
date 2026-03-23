@@ -1,4 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { fetchRange, MASTER_SHEET_ID } from './sheets.js'
 
 // GET /api/orders?page=1&pageSize=100&search=&driver=&pharmacy=&zip=&date=
 export default async function handler(req, res) {
