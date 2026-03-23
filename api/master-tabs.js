@@ -1,4 +1,4 @@
-import { getSheetTabs, MASTER_SHEET_ID } from './sheets.js'
+import { getSheetTabs, MASTER_SHEET_ID } from './_lib/sheets.js'
 
 // GET /api/master-tabs — returns list of all tabs in the Master Sheet
 export default async function handler(req, res) {

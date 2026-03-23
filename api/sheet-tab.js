@@ -1,4 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID } from './sheets.js'
+import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
 
 // GET /api/sheet-tab?tab=Routing Rules&rows=500
 // Returns any tab from the Master Sheet as JSON

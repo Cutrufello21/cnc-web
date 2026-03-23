@@ -1,6 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID } from './sheets.js'
-import { google } from 'googleapis'
-import { readFileSync } from 'fs'
+import { fetchRange, updateCell, MASTER_SHEET_ID } from './_lib/sheets.js'
 
 // Per-stop rates from cnc-dispatch
 const RATES = {
@@ -28,24 +26,6 @@ const FLAT_SALARY = {
   Mark: 1550,
   Dom: 2500,
   Paul: 2000,
-}
-
-function getAuth() {
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_PATH) {
-    const creds = JSON.parse(readFileSync(process.env.GOOGLE_SERVICE_ACCOUNT_PATH, 'utf8'))
-    return new google.auth.GoogleAuth({
-      credentials: creds,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    })
-  }
-  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    const creds = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON)
-    return new google.auth.GoogleAuth({
-      credentials: creds,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    })
-  }
-  throw new Error('No Google credentials configured')
 }
 
 // GET /api/payroll — returns payroll data with calculated pay
@@ -176,17 +156,8 @@ async function handlePost(req, res) {
   if (!col) return res.status(400).json({ error: `Invalid field: ${field}` })
 
   try {
-    const auth = getAuth()
-    const sheets = google.sheets({ version: 'v4', auth })
     const cellRange = `Weekly Stops!${col}${driverRow}`
-
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: MASTER_SHEET_ID,
-      range: cellRange,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: { values: [[value]] },
-    })
-
+    await updateCell(MASTER_SHEET_ID, cellRange, value)
     return res.status(200).json({ success: true, cell: cellRange, value })
   } catch (err) {
     console.error('[payroll POST]', err.message)

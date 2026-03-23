@@ -1,4 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID } from './sheets.js'
+import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
 
 const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
 
