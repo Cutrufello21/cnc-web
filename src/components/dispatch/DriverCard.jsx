@@ -1,0 +1,342 @@
+import { useState, useMemo } from 'react'
+import './DriverCard.css'
+
+const PHARMACY_COLORS = {
+  SHSP: { bg: '#eef4ff', text: '#3b82f6', label: 'SHSP' },
+  Aultman: { bg: '#fef2f2', text: '#dc4a4a', label: 'Aultman' },
+  Both: { bg: '#f0fdf4', text: '#16a34a', label: 'Both' },
+}
+
+const COLUMNS = [
+  { key: 'Order ID', label: 'Order ID' },
+  { key: 'Name', label: 'Name' },
+  { key: 'Address', label: 'Address' },
+  { key: 'City', label: 'City' },
+  { key: 'Zip Code', label: 'ZIP', fallback: 'ZIP' },
+  { key: '_coldChainDisplay', label: 'CC' },
+  { key: 'Pharmacy', label: 'Pharmacy' },
+]
+
+export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, onRefresh }) {
+  const [expanded, setExpanded] = useState(false)
+  const [selected, setSelected] = useState(new Set())
+  const [reassignTo, setReassignTo] = useState('')
+  const [moving, setMoving] = useState(false)
+  const [moveResult, setMoveResult] = useState(null)
+  const [sortCol, setSortCol] = useState(null)
+  const [sortDir, setSortDir] = useState('asc')
+  const [filters, setFilters] = useState({})
+
+  const name = driver['Driver Name'] || '—'
+  const id = driver['Driver Number'] || driver['Driver ID'] || ''
+  const pharmacy = driver['Pharmacy'] || ''
+  const pharma = PHARMACY_COLORS[pharmacy] || PHARMACY_COLORS.SHSP
+  const stops = driver.stops || 0
+  const coldChain = driver.coldChain || 0
+  const rawDetails = driver.stopDetails || []
+  const tabName = driver.tabName || ''
+
+  const otherDrivers = allDrivers.filter((d) =>
+    d['Driver Name'] !== name && d.tabName
+  )
+
+  // Enrich details with display fields
+  const enriched = useMemo(() => rawDetails.map(stop => {
+    const cc = stop['Cold Chain'] || ''
+    const hasColdChain = cc && cc.toLowerCase() !== 'no' && cc.toLowerCase() !== 'n' && cc.trim() !== ''
+    return {
+      ...stop,
+      _coldChainDisplay: hasColdChain ? '❄️' : '',
+      _hasColdChain: hasColdChain,
+    }
+  }), [rawDetails])
+
+  // Filter + sort
+  const details = useMemo(() => {
+    let rows = enriched
+
+    // Apply column filters
+    for (const [col, val] of Object.entries(filters)) {
+      if (val) {
+        const q = val.toLowerCase()
+        rows = rows.filter(row => {
+          const cellVal = row[col] || row[COLUMNS.find(c => c.key === col)?.fallback] || ''
+          return cellVal.toString().toLowerCase().includes(q)
+        })
+      }
+    }
+
+    // Sort
+    if (sortCol) {
+      rows = [...rows].sort((a, b) => {
+        const av = a[sortCol] || a[COLUMNS.find(c => c.key === sortCol)?.fallback] || ''
+        const bv = b[sortCol] || b[COLUMNS.find(c => c.key === sortCol)?.fallback] || ''
+        const an = parseFloat(av.toString().replace(/[,$%]/g, ''))
+        const bn = parseFloat(bv.toString().replace(/[,$%]/g, ''))
+        if (!isNaN(an) && !isNaN(bn)) {
+          return sortDir === 'asc' ? an - bn : bn - an
+        }
+        const cmp = av.toString().localeCompare(bv.toString(), undefined, { numeric: true, sensitivity: 'base' })
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+    }
+
+    return rows
+  }, [enriched, filters, sortCol, sortDir])
+
+  function handleSort(col) {
+    if (sortCol === col) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortCol(col)
+      setSortDir('asc')
+    }
+  }
+
+  function handleFilter(col, value) {
+    setFilters(prev => {
+      const next = { ...prev }
+      if (value) next[col] = value
+      else delete next[col]
+      return next
+    })
+  }
+
+  // Get unique values for dropdowns (columns with few unique values)
+  function getUniqueValues(col) {
+    const vals = new Set()
+    enriched.forEach(row => {
+      const v = (row[col] || row[COLUMNS.find(c => c.key === col)?.fallback] || '').toString().trim()
+      if (v) vals.add(v)
+    })
+    return Array.from(vals).sort()
+  }
+
+  function toggleSelect(orderId) {
+    const next = new Set(selected)
+    if (next.has(orderId)) next.delete(orderId)
+    else next.add(orderId)
+    setSelected(next)
+  }
+
+  function selectAll() {
+    if (selected.size === details.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(details.map((s) => s['Order ID']).filter(Boolean)))
+    }
+  }
+
+  async function handleReassign() {
+    if (!reassignTo || selected.size === 0) return
+    setMoving(true)
+    setMoveResult(null)
+    try {
+      const res = await fetch('/api/reassign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          day: selectedDay,
+          fromDriver: tabName,
+          toDriver: reassignTo,
+          orderIds: Array.from(selected),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setMoveResult(`Moved ${data.moved} stop${data.moved > 1 ? 's' : ''} to ${reassignTo.split(' - ')[0]}`)
+      setSelected(new Set())
+      setReassignTo('')
+      if (onRefresh) setTimeout(onRefresh, 500)
+    } catch (err) {
+      setMoveResult(`Error: ${err.message}`)
+    } finally {
+      setMoving(false)
+    }
+  }
+
+  const activeFilters = Object.keys(filters).length
+
+  return (
+    <div className={`dcard ${inactive ? 'dcard--inactive' : ''} ${expanded ? 'dcard--expanded' : ''}`}>
+      <div className="dcard__header" onClick={() => stops > 0 && setExpanded(!expanded)}>
+        <div className="dcard__name-row">
+          <h3 className="dcard__name">{name}</h3>
+          <span className="dcard__id">#{id}</span>
+        </div>
+        <div className="dcard__header-right">
+          <span
+            className="dcard__pharmacy"
+            style={{ background: pharma.bg, color: pharma.text }}
+          >
+            {pharma.label}
+          </span>
+          {stops > 0 && (
+            <svg
+              className={`dcard__chevron ${expanded ? 'dcard__chevron--open' : ''}`}
+              width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          )}
+        </div>
+      </div>
+
+      <div className="dcard__stats">
+        <div className="dcard__stat">
+          <span className="dcard__stat-value">{stops}</span>
+          <span className="dcard__stat-label">Stops</span>
+        </div>
+        {coldChain > 0 && (
+          <div className="dcard__stat dcard__stat--cold">
+            <span className="dcard__stat-value">{coldChain}</span>
+            <span className="dcard__stat-label">Cold Chain</span>
+          </div>
+        )}
+      </div>
+
+      {expanded && enriched.length > 0 && (
+        <div className="dcard__stops">
+          {/* Reassign toolbar */}
+          {selected.size > 0 && (
+            <div className="dcard__reassign">
+              <span className="dcard__reassign-count">{selected.size} selected</span>
+              <select
+                className="dcard__reassign-select"
+                value={reassignTo}
+                onChange={(e) => setReassignTo(e.target.value)}
+              >
+                <option value="">Move to...</option>
+                {otherDrivers.map((d) => (
+                  <option key={d.tabName} value={d.tabName}>
+                    {d['Driver Name']} ({d.stops} stops)
+                  </option>
+                ))}
+              </select>
+              <button
+                className="dcard__reassign-btn"
+                onClick={handleReassign}
+                disabled={!reassignTo || moving}
+              >
+                {moving ? 'Moving...' : 'Move'}
+              </button>
+            </div>
+          )}
+
+          {moveResult && (
+            <div className={`dcard__move-result ${moveResult.startsWith('Error') ? 'dcard__move-result--err' : ''}`}>
+              {moveResult}
+            </div>
+          )}
+
+          {/* Filter status */}
+          {activeFilters > 0 && (
+            <div className="dcard__filter-bar">
+              <span>{details.length} of {enriched.length} stops shown</span>
+              <button className="dcard__filter-clear" onClick={() => setFilters({})}>
+                Clear filters
+              </button>
+            </div>
+          )}
+
+          <table className="dcard__table">
+            <thead>
+              {/* Sortable headers */}
+              <tr>
+                <th className="dcard__th-check">
+                  <input
+                    type="checkbox"
+                    checked={selected.size === details.length && details.length > 0}
+                    onChange={selectAll}
+                  />
+                </th>
+                <th>#</th>
+                {COLUMNS.map(col => (
+                  <th
+                    key={col.key}
+                    className="dcard__th-sort"
+                    onClick={() => handleSort(col.key)}
+                  >
+                    {col.label}
+                    {sortCol === col.key && (
+                      <span className="dcard__sort-arrow">{sortDir === 'asc' ? ' ↑' : ' ↓'}</span>
+                    )}
+                  </th>
+                ))}
+              </tr>
+              {/* Filter row */}
+              <tr className="dcard__filter-row">
+                <td></td>
+                <td></td>
+                {COLUMNS.map(col => {
+                  const uniques = getUniqueValues(col.key)
+                  const useDropdown = col.key === 'City' || col.key === 'Pharmacy' || col.key === '_coldChainDisplay'
+                  return (
+                    <td key={col.key} className="dcard__filter-cell">
+                      {useDropdown && uniques.length <= 30 ? (
+                        <select
+                          className="dcard__filter-sel"
+                          value={filters[col.key] || ''}
+                          onChange={(e) => handleFilter(col.key, e.target.value)}
+                        >
+                          <option value="">All</option>
+                          {uniques.map(v => (
+                            <option key={v} value={v}>{v}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="dcard__filter-inp"
+                          type="text"
+                          placeholder="Filter..."
+                          value={filters[col.key] || ''}
+                          onChange={(e) => handleFilter(col.key, e.target.value)}
+                        />
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {details.map((stop, i) => {
+                const orderId = stop['Order ID'] || ''
+                const isSelected = selected.has(orderId)
+                return (
+                  <tr
+                    key={i}
+                    className={`${stop._hasColdChain ? 'dcard__row--cold' : ''} ${isSelected ? 'dcard__row--selected' : ''}`}
+                  >
+                    <td className="dcard__cell-check">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(orderId)}
+                      />
+                    </td>
+                    <td className="dcard__cell-num">{i + 1}</td>
+                    <td className="dcard__cell-order">{orderId || '—'}</td>
+                    <td>{stop['Name'] || '—'}</td>
+                    <td className="dcard__cell-addr">{stop['Address'] || '—'}</td>
+                    <td>{stop['City'] || '—'}</td>
+                    <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
+                    <td>{stop._coldChainDisplay}</td>
+                    <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
+                  </tr>
+                )
+              })}
+              {details.length === 0 && enriched.length > 0 && (
+                <tr>
+                  <td colSpan={9 + COLUMNS.length} className="dcard__no-match">
+                    No stops match filters
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}

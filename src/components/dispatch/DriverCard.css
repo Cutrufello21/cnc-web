@@ -1,0 +1,345 @@
+.dcard {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.dcard:hover {
+  border-color: rgba(100, 149, 237, 0.3);
+  box-shadow: var(--shadow-md);
+}
+
+.dcard--inactive {
+  background: var(--gray-50);
+}
+
+.dcard--inactive:hover {
+  border-color: var(--gray-200);
+  box-shadow: none;
+}
+
+.dcard--expanded {
+  grid-column: 1 / -1;
+}
+
+.dcard__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 20px 0;
+  cursor: pointer;
+}
+
+.dcard__name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dcard__name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.dcard__id {
+  font-size: 13px;
+  color: var(--gray-400);
+  font-family: ui-monospace, monospace;
+}
+
+.dcard__header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dcard__pharmacy {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+}
+
+.dcard__chevron {
+  color: var(--gray-400);
+  transition: transform 0.2s;
+}
+
+.dcard__chevron--open {
+  transform: rotate(180deg);
+}
+
+.dcard__stats {
+  display: flex;
+  gap: 20px;
+  padding: 16px 20px;
+}
+
+.dcard__stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.dcard__stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.dcard__stat--cold .dcard__stat-value {
+  color: var(--cornflower);
+}
+
+.dcard__stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-400);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Expanded stop list */
+.dcard__stops {
+  border-top: 1px solid var(--gray-100);
+  overflow-x: auto;
+}
+
+.dcard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dcard__table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-500);
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  white-space: nowrap;
+}
+
+.dcard__table td {
+  padding: 8px 12px;
+  color: var(--gray-700);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.dcard__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dcard__table tbody tr:hover {
+  background: var(--gray-50);
+}
+
+.dcard__row--cold {
+  background: #f0f7ff;
+}
+
+.dcard__cell-num {
+  font-weight: 600;
+  color: var(--gray-400);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  width: 32px;
+}
+
+.dcard__cell-addr {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dcard__cell-zip {
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  color: var(--cornflower);
+}
+
+.dcard__cell-order {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.dcard__cell-pharma {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-500);
+}
+
+.dcard__email {
+  margin-top: 0;
+  padding: 10px 20px;
+  border-top: 1px solid var(--gray-100);
+  font-size: 13px;
+  color: var(--gray-400);
+}
+
+/* Checkboxes */
+.dcard__th-check,
+.dcard__cell-check {
+  width: 32px;
+  text-align: center;
+}
+
+.dcard__cell-check input,
+.dcard__th-check input {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--cornflower);
+}
+
+.dcard__row--selected {
+  background: #eef4ff !important;
+}
+
+/* Reassign toolbar */
+.dcard__reassign {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--blue-tint);
+  border-bottom: 1px solid rgba(100, 149, 237, 0.15);
+}
+
+.dcard__reassign-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cornflower);
+  white-space: nowrap;
+}
+
+.dcard__reassign-select {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--gray-700);
+  flex: 1;
+  min-width: 0;
+}
+
+.dcard__reassign-btn {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  background: var(--navy);
+  color: var(--white);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+.dcard__reassign-btn:hover:not(:disabled) {
+  background: var(--navy-light);
+}
+
+.dcard__reassign-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dcard__move-result {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #16a34a;
+  background: #dcfce7;
+  border-bottom: 1px solid #bbf7d0;
+}
+
+.dcard__move-result--err {
+  color: #dc4a4a;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* Sortable headers */
+.dcard__th-sort {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.dcard__th-sort:hover {
+  color: var(--gray-900);
+}
+
+.dcard__sort-arrow {
+  color: var(--cornflower);
+  font-weight: 700;
+}
+
+/* Filter row */
+.dcard__filter-row td {
+  padding: 4px 6px !important;
+  background: var(--gray-50);
+  border-bottom: 2px solid var(--gray-200) !important;
+}
+
+.dcard__filter-cell {
+  padding: 4px 4px !important;
+}
+
+.dcard__filter-inp,
+.dcard__filter-sel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  padding: 3px 5px;
+  border: 1px solid var(--gray-200);
+  border-radius: 3px;
+  background: var(--white);
+  color: var(--gray-700);
+  width: 100%;
+  min-width: 50px;
+  outline: none;
+}
+
+.dcard__filter-inp:focus,
+.dcard__filter-sel:focus {
+  border-color: var(--cornflower);
+}
+
+/* Filter status bar */
+.dcard__filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--blue-tint);
+  border-bottom: 1px solid rgba(100, 149, 237, 0.15);
+  font-size: 12px;
+  color: var(--cornflower);
+}
+
+.dcard__filter-clear {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cornflower);
+  text-decoration: underline;
+}
+
+.dcard__no-match {
+  text-align: center;
+  padding: 24px !important;
+  color: var(--gray-400);
+  font-style: italic;
+}

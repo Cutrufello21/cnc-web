@@ -1,0 +1,110 @@
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  --mouse-x: 0px;
+  --mouse-y: 0px;
+}
+
+.hero__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(100, 149, 237, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at calc(50% + var(--mouse-x)) calc(40% + var(--mouse-y)), rgba(10, 36, 99, 0.04) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.hero__content {
+  text-align: center;
+  padding: 120px 24px 80px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero__eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cornflower);
+  margin-bottom: 20px;
+}
+
+.hero__headline {
+  font-size: clamp(40px, 7vw, 72px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -2px;
+  color: var(--gray-900);
+  margin-bottom: 24px;
+}
+
+.hero__accent {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--cornflower) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero__sub {
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--gray-500);
+  max-width: 580px;
+  margin: 0 auto 40px;
+}
+
+.hero__actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.hero__btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 14px 28px;
+  border-radius: 980px;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+
+.hero__btn--primary {
+  background: var(--navy);
+  color: var(--white);
+}
+
+.hero__btn--primary:hover {
+  background: var(--navy-light);
+  transform: scale(1.02);
+}
+
+.hero__btn--secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.hero__btn--secondary:hover {
+  background: var(--gray-200);
+}
+
+@media (max-width: 640px) {
+  .hero__content {
+    padding: 100px 16px 60px;
+  }
+  .hero__sub {
+    font-size: 17px;
+  }
+  .hero__btn {
+    padding: 12px 24px;
+    font-size: 15px;
+    width: 100%;
+    justify-content: center;
+  }
+}

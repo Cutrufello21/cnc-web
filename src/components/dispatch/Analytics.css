@@ -1,0 +1,592 @@
+.an__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 80px;
+  color: var(--gray-400);
+}
+
+.an__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.an__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+/* Sub-tabs */
+.an__subtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--gray-200);
+  padding-bottom: 0;
+}
+
+.an__subtab {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-500);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+
+.an__subtab:hover {
+  color: var(--gray-700);
+}
+
+.an__subtab--active {
+  color: var(--navy);
+  border-bottom-color: var(--navy);
+  font-weight: 600;
+}
+
+.an__period {
+  display: flex;
+  gap: 4px;
+  background: var(--gray-100);
+  padding: 4px;
+  border-radius: 10px;
+}
+
+.an__period-btn {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-500);
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+
+.an__period-btn--active {
+  background: var(--white);
+  color: var(--gray-900);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+/* KPIs */
+.an__kpis {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.an__kpi {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 18px;
+}
+
+.an__kpi--warn { border-color: #fecaca; }
+
+.an__kpi-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-400);
+  margin-bottom: 6px;
+}
+
+.an__kpi-value {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.an__kpi-value--accent { color: var(--cornflower); }
+.an__kpi-value--warn { color: #dc4a4a; }
+
+.an__kpi-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-top: 4px;
+}
+
+/* Grid */
+.an__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.an__card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.an__card--full { grid-column: 1 / -1; }
+
+.an__card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 18px;
+}
+
+.an__card-sub {
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-top: 12px;
+}
+
+/* Volume chart */
+.an__vol-chart {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  height: 200px;
+}
+
+.an__vol-chart--tall {
+  height: 280px;
+}
+
+.an__vol-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.an__vol-bar-wrap {
+  width: 100%;
+  max-width: 32px;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+
+.an__vol-bar {
+  width: 100%;
+  background: var(--cornflower);
+  border-radius: 3px 3px 0 0;
+  position: relative;
+  overflow: hidden;
+  min-height: 2px;
+}
+
+.an__vol-aultman {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #dc4a4a;
+}
+
+.an__vol-val {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--gray-500);
+  margin-top: 3px;
+}
+
+.an__vol-label {
+  font-size: 9px;
+  color: var(--gray-400);
+  margin-top: 1px;
+}
+
+.an__legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+.an__legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.an__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.an__dot--shsp { background: var(--cornflower); }
+.an__dot--aultman { background: #dc4a4a; }
+
+/* Day breakdown */
+.an__day-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.an__day-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.an__day-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-600);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.an__day-bar-wrap {
+  flex: 1;
+  height: 24px;
+  background: var(--gray-100);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.an__day-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--navy), var(--cornflower));
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.an__day-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-900);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Leaderboard */
+.an__leaders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.an__leader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.an__leader-rank {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-400);
+  width: 18px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.an__leader-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-800);
+  width: 68px;
+  flex-shrink: 0;
+}
+
+.an__leader-bar-wrap {
+  flex: 1;
+  height: 18px;
+  background: var(--gray-100);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.an__leader-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--navy), var(--cornflower));
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.an__leader-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gray-900);
+  width: 28px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Pharmacy split */
+.an__split { margin-bottom: 20px; }
+
+.an__split-bar {
+  display: flex;
+  height: 36px;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.an__split-shsp {
+  background: var(--cornflower);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.an__split-aultman {
+  background: #dc4a4a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.an__split-nums {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--gray-400);
+  margin-top: 6px;
+}
+
+.an__pharma-trend {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  height: 80px;
+  margin-top: 8px;
+}
+
+.an__pharma-week {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.an__pharma-bar {
+  width: 100%;
+  max-width: 24px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.an__pharma-s {
+  background: var(--cornflower);
+}
+
+.an__pharma-a {
+  background: #dc4a4a;
+}
+
+.an__pharma-label {
+  font-size: 8px;
+  color: var(--gray-400);
+  margin-top: 3px;
+}
+
+/* Top ZIPs */
+.an__zips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.an__zip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.an__zip:nth-child(odd) { background: var(--gray-50); }
+
+.an__zip-rank {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gray-400);
+  width: 18px;
+  text-align: right;
+}
+
+.an__zip-code {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--cornflower);
+  flex: 1;
+}
+
+.an__zip-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+/* Top drivers */
+.an__top-drivers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.an__top-driver {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border-radius: 8px;
+}
+
+.an__td-rank { font-size: 16px; width: 24px; text-align: center; }
+.an__td-name { font-size: 14px; font-weight: 600; color: var(--gray-800); flex: 1; }
+.an__td-count { font-size: 14px; font-weight: 700; color: var(--cornflower); }
+
+/* Location table */
+.an__loc-table-wrap { overflow-x: auto; }
+
+.an__loc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.an__loc-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-500);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.an__loc-table td {
+  padding: 8px 12px;
+  color: var(--gray-700);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.an__loc-table tbody tr:hover { background: var(--gray-50); }
+
+/* Trend extras */
+.an__vol-bar--cc {
+  background: var(--cornflower);
+}
+
+.an__vol-bar--warn {
+  background: #dc4a4a;
+}
+
+.an__vol-date {
+  font-size: 8px;
+  color: var(--gray-300);
+}
+
+.an__pharma-trend--tall {
+  height: 160px;
+}
+
+.an__pharma-bar--tall {
+  height: 120px;
+}
+
+.an__pharma-total {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-500);
+  margin-bottom: 3px;
+}
+
+/* Driver details */
+.an__leader--full {
+  padding: 6px 0;
+}
+
+.an__leader-days {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.an__leader-day {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  width: 24px;
+  text-align: center;
+  color: var(--gray-500);
+  background: var(--gray-50);
+  border-radius: 3px;
+  padding: 2px 0;
+}
+
+.an__day-totals {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gray-100);
+}
+
+.an__day-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--gray-500);
+  padding: 4px 0;
+}
+
+/* Driver distribution */
+.an__dist-seg {
+  height: 100%;
+  min-width: 2px;
+}
+
+.an__dist-seg:nth-child(1) { background: var(--navy); }
+.an__dist-seg:nth-child(2) { background: var(--cornflower); }
+.an__dist-seg:nth-child(3) { background: #60a5fa; }
+.an__dist-seg:nth-child(4) { background: #93c5fd; }
+.an__dist-seg:nth-child(5) { background: #bfdbfe; }
+.an__dist-seg:nth-child(6) { background: #16a34a; }
+.an__dist-seg:nth-child(7) { background: #4ade80; }
+.an__dist-seg:nth-child(8) { background: #f59e0b; }
+.an__dist-seg:nth-child(9) { background: #fbbf24; }
+.an__dist-seg:nth-child(10) { background: #dc4a4a; }
+.an__dist-seg:nth-child(n+11) { background: var(--gray-400); }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .an__kpis { grid-template-columns: repeat(3, 1fr); }
+  .an__grid { grid-template-columns: 1fr; }
+  .an__card--full { grid-column: 1; }
+}
+
+@media (max-width: 640px) {
+  .an__kpis { grid-template-columns: repeat(2, 1fr); }
+  .an__kpi-value { font-size: 22px; }
+}

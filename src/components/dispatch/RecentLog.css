@@ -1,0 +1,36 @@
+.rlog__date {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.rlog__num {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.rlog__warn {
+  color: #dc4a4a;
+}
+
+.rlog__driver {
+  font-weight: 500;
+}
+
+.rlog__stops {
+  color: var(--gray-400);
+  font-size: 13px;
+}
+
+.rlog__status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 980px;
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+.rlog__status--ok {
+  background: #dcfce7;
+  color: #16a34a;
+}

@@ -1,0 +1,94 @@
+import { fetchRange, appendRows, deleteRow, getSheetTabs, DAILY_SHEETS } from './sheets.js'
+
+// POST /api/reassign
+// Body: { day, fromDriver, toDriver, orderIds }
+// Moves stops from one driver's tab to another in the daily sheet
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  let body = ''
+  await new Promise((resolve) => {
+    req.on('data', (chunk) => { body += chunk })
+    req.on('end', resolve)
+  })
+
+  const { day, fromDriver, toDriver, orderIds } = JSON.parse(body)
+
+  if (!day || !fromDriver || !toDriver || !orderIds?.length) {
+    return res.status(400).json({ error: 'Missing required fields: day, fromDriver, toDriver, orderIds' })
+  }
+
+  const sheetId = DAILY_SHEETS[day]
+  if (!sheetId) {
+    return res.status(400).json({ error: `No sheet for ${day}` })
+  }
+
+  try {
+    // Get all tabs to find sheet IDs for deletion
+    const tabs = await getSheetTabs(sheetId)
+    const fromTab = tabs.find((t) => t.title === fromDriver)
+    const toTab = tabs.find((t) => t.title === toDriver)
+
+    if (!fromTab) return res.status(404).json({ error: `Tab "${fromDriver}" not found` })
+    if (!toTab) return res.status(404).json({ error: `Tab "${toDriver}" not found` })
+
+    // Read the source driver's tab
+    const fromRows = await fetchRange(sheetId, `'${fromDriver}'!A1:I200`)
+    if (fromRows.length < 2) {
+      return res.status(400).json({ error: `No data in ${fromDriver} tab` })
+    }
+
+    const headers = fromRows[0]
+    const orderIdIdx = headers.findIndex((h) => h.trim() === 'Order ID')
+    const driverNumIdx = headers.findIndex((h) => h.trim() === 'Dispatch Driver #')
+    const assignedIdx = headers.findIndex((h) => h.trim() === 'Assigned Driver #')
+
+    if (orderIdIdx < 0) {
+      return res.status(400).json({ error: 'Cannot find Order ID column' })
+    }
+
+    // Find matching rows to move (by Order ID)
+    const orderIdSet = new Set(orderIds.map(String))
+    const rowsToMove = []
+    const rowIndicesToDelete = [] // 0-indexed from sheet (1 = first data row after header)
+
+    fromRows.forEach((row, i) => {
+      if (i === 0) return // skip header
+      const oid = row[orderIdIdx]?.trim()
+      if (oid && orderIdSet.has(oid)) {
+        // Update driver # columns to reflect new driver
+        const newRow = [...row]
+        const toDriverNum = toDriver.split(' - ')[1] || ''
+        if (assignedIdx >= 0) newRow[assignedIdx] = toDriverNum
+        if (driverNumIdx >= 0) newRow[driverNumIdx] = toDriverNum
+        rowsToMove.push(newRow)
+        rowIndicesToDelete.push(i) // sheet row index (0-based)
+      }
+    })
+
+    if (rowsToMove.length === 0) {
+      return res.status(400).json({ error: 'No matching orders found to move' })
+    }
+
+    // 1. Append rows to destination driver tab
+    await appendRows(sheetId, `'${toDriver}'!A1`, rowsToMove)
+
+    // 2. Delete rows from source tab (delete from bottom to top to maintain indices)
+    for (const rowIdx of rowIndicesToDelete.reverse()) {
+      await deleteRow(sheetId, fromTab.sheetId, rowIdx)
+    }
+
+    return res.status(200).json({
+      success: true,
+      moved: rowsToMove.length,
+      from: fromDriver,
+      to: toDriver,
+      orderIds: orderIds,
+    })
+  } catch (err) {
+    console.error('[reassign API]', err.message)
+    return res.status(500).json({ error: err.message })
+  }
+}
