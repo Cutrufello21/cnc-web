@@ -1,6 +1,8 @@
 import { supabase } from './_lib/supabase.js'
 
 // GET /api/orders?page=1&pageSize=100&search=&driver=&pharmacy=&zip=&date=
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 

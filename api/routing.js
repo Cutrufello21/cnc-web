@@ -4,6 +4,8 @@ import { parseBody } from './_lib/sheets.js'
 // POST /api/routing
 // Body: { action: 'update', zip, day, newDriver } — update existing
 // Body: { action: 'add', zip, mon, tue, wed, thu, fri, route, pharmacy } — add new
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 

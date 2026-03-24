@@ -2,6 +2,8 @@ import { supabase } from './_lib/supabase.js'
 import { parseBody } from './_lib/sheets.js'
 
 // GET /api/payroll — returns payroll data with calculated pay
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method === 'GET') return handleGet(req, res)
   if (req.method === 'POST') return handlePost(req, res)

@@ -113,6 +113,8 @@ const COMPUTED_TABS = {
 
 // GET /api/sheets-view?action=tabs — list all tables
 // GET /api/sheets-view?tab=Routing Rules&rows=500 — get table data
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 

@@ -5,6 +5,8 @@ import { parseBody } from './_lib/sheets.js'
 // POST /api/actions
 // Body: { action: 'approve' } — approve routes
 // Body: { action: 'email', to, subject, html } — send email
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 

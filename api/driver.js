@@ -3,6 +3,8 @@ import { fetchRange, DAILY_SHEETS } from './_lib/sheets.js'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   const driverEmail = req.query.email?.toLowerCase()
   if (!driverEmail) return res.status(400).json({ error: 'Missing email' })

@@ -3,6 +3,8 @@ import { fetchRange, appendRows, deleteRow, getSheetTabs, parseBody, DAILY_SHEET
 // POST /api/reassign
 // Body: { day, fromDriver, toDriver, orderIds }
 // Moves stops from one driver's tab to another in the daily sheet
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })

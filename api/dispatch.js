@@ -2,6 +2,8 @@ import { supabase } from './_lib/supabase.js'
 import { fetchRange, fetchMultipleRanges, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
 
 // GET /api/dispatch — returns all data needed for the dispatch workspace
+export const config = { runtime: "nodejs" }
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
