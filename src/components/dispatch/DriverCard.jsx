@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { supabase } from '../../lib/supabase'
 import './DriverCard.css'
 
 const PHARMACY_COLORS = {
@@ -132,19 +133,23 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     setMoving(true)
     setMoveResult(null)
     try {
-      const res = await fetch('/api/reassign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          day: selectedDay,
-          fromDriver: tabName,
-          toDriver: reassignTo,
-          orderIds: Array.from(selected),
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setMoveResult(`Moved ${data.moved} stop${data.moved > 1 ? 's' : ''} to ${reassignTo.split(' - ')[0]}`)
+      const toDriverName = reassignTo.split(' - ')[0].trim()
+      const toDriverNumber = reassignTo.split(' - ')[1]?.trim() || ''
+      const orderIds = Array.from(selected)
+
+      // Update daily_stops in Supabase — change driver on selected orders
+      const { error } = await supabase.from('daily_stops')
+        .update({
+          driver_name: toDriverName,
+          driver_number: toDriverNumber,
+          assigned_driver_number: toDriverNumber,
+        })
+        .in('order_id', orderIds)
+        .eq('driver_name', name)
+
+      if (error) throw new Error(error.message)
+
+      setMoveResult(`Moved ${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} to ${toDriverName}`)
       setSelected(new Set())
       setReassignTo('')
       if (onRefresh) setTimeout(onRefresh, 500)
