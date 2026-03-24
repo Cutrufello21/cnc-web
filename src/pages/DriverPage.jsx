@@ -66,7 +66,7 @@ export default function DriverPage() {
         supabase.from('daily_stops').select('*')
           .eq('delivery_date', today).eq('driver_name', driverName),
         supabase.from('dispatch_logs').select('*')
-          .eq('delivery_day', todayName).eq('status', 'Complete')
+          .eq('delivery_day', todayName).in('status', ['Complete', 'Success'])
           .order('date', { ascending: false }).limit(1),
       ])
 
