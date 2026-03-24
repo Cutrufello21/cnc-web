@@ -34,7 +34,7 @@ export default function Payroll() {
       // Fetch both: payroll rates/config and snapshot for accumulated stops
       const [payrollRes, snapshotRes] = await Promise.all([
         fetch('/api/payroll'),
-        fetch('/api/payroll-snapshot'),
+        fetch('/api/payroll?snapshot=true'),
       ])
       const payroll = await payrollRes.json()
       const snapshot = await snapshotRes.json()
@@ -205,24 +205,24 @@ export default function Payroll() {
 
       // 3. Send email to accountant
       const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      const emailRes = await fetch('/api/send-email', {
+      const emailRes = await fetch('/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'email',
           to: 'mcutrufello2121@gmail.com',
           subject: `CNC Delivery — Weekly Payroll ${today}`,
           html: buildPayrollHtml(aiInsights),
-          type: 'payroll',
         }),
       })
       const emailData = await emailRes.json()
       if (!emailRes.ok) throw new Error(emailData.error)
 
       // 3. Reset snapshot for next week
-      await fetch('/api/payroll-snapshot', {
+      await fetch('/api/payroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset' }),
+        body: JSON.stringify({ action: 'reset-snapshot' }),
       })
 
       setApproved(true)

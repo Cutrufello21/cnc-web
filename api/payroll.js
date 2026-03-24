@@ -1,4 +1,10 @@
-import { fetchRange, updateCell, MASTER_SHEET_ID } from './sheets.js'
+import { fetchRange, updateCell, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './sheets.js'
+import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { join } from 'path'
+
+const SNAPSHOT_PATH = join(process.env.HOME || '/tmp', '.cnc-payroll-snapshot.json')
+function loadSnapshot() { try { if (existsSync(SNAPSHOT_PATH)) return JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')) } catch {} return null }
+function saveSnapshot(data) { try { writeFileSync(SNAPSHOT_PATH, JSON.stringify(data, null, 2)) } catch {} }
 
 // Per-stop rates from cnc-dispatch
 const RATES = {
@@ -30,6 +36,9 @@ const FLAT_SALARY = {
 
 // GET /api/payroll — returns payroll data with calculated pay
 export default async function handler(req, res) {
+  if (req.method === 'GET' && req.query.snapshot === 'true') {
+    return handleSnapshot(req, res)
+  }
   if (req.method === 'GET') {
     return handleGet(req, res)
   }
@@ -132,12 +141,12 @@ async function handlePost(req, res) {
   const data = JSON.parse(body)
 
   if (data.action === 'approve') {
-    // For now, mark as approved. Email sending would need Gmail API or SMTP.
-    return res.status(200).json({
-      success: true,
-      message: 'Payroll approved. Ready to send to accountant.',
-      approvedAt: new Date().toISOString(),
-    })
+    return res.status(200).json({ success: true, approvedAt: new Date().toISOString() })
+  }
+
+  if (data.action === 'reset-snapshot') {
+    saveSnapshot({ drivers: {}, weekOf: '', resetAt: new Date().toISOString() })
+    return res.status(200).json({ success: true, message: 'Snapshot reset' })
   }
 
   // Update a cell in Weekly Stops
@@ -161,6 +170,63 @@ async function handlePost(req, res) {
     return res.status(200).json({ success: true, cell: cellRange, value })
   } catch (err) {
     console.error('[payroll POST]', err.message)
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+async function handleSnapshot(req, res) {
+  try {
+    let snapshot = loadSnapshot()
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + mondayOffset)
+    const weekOf = `${monday.getMonth() + 1}/${monday.getDate()}/${monday.getFullYear()}`
+
+    if (!snapshot || snapshot.weekOf !== weekOf) {
+      snapshot = { drivers: {}, weekOf, createdAt: new Date().toISOString() }
+    }
+
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    const dayAbbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+
+    for (let di = 0; di < dayNames.length; di++) {
+      const sheetId = DAILY_SHEETS[dayNames[di]]
+      if (!sheetId) continue
+      try {
+        const tabs = await getSheetTabs(sheetId)
+        const driverTabs = tabs.filter(t => t.title.includes(' - ') && !['SHSP Sort','Aultman Sort','Summary','Unassigned'].includes(t.title))
+        if (!driverTabs.length) continue
+        const ranges = driverTabs.map(t => `'${t.title}'!A1:A200`)
+        const results = await fetchMultipleRanges(sheetId, ranges)
+        driverTabs.forEach((tab, i) => {
+          const rows = results[i]?.values || []
+          const stopCount = rows.length > 1 ? rows.slice(1).filter(r => r[0]?.trim()).length : 0
+          const name = tab.title.split(' - ')[0].trim()
+          if (!snapshot.drivers[name]) snapshot.drivers[name] = { name, id: tab.title.split(' - ')[1] || '', Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
+          snapshot.drivers[name][dayAbbrevs[di]] = Math.max(snapshot.drivers[name][dayAbbrevs[di]] || 0, stopCount)
+        })
+      } catch {}
+    }
+
+    const weeklyRows = await fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:K25')
+    const wsHeaders = weeklyRows[0]?.map(h => h.trim()) || []
+    weeklyRows.slice(1).forEach(row => {
+      const name = row[0]?.trim()
+      if (!name || name === 'TOTAL' || name === 'Paul') return
+      if (!snapshot.drivers[name]) snapshot.drivers[name] = { name, id: row[wsHeaders.indexOf('Driver #')] || '', Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
+      dayAbbrevs.forEach(d => {
+        const idx = wsHeaders.indexOf(d)
+        if (idx >= 0) snapshot.drivers[name][d] = Math.max(snapshot.drivers[name][d] || 0, parseInt(row[idx]) || 0)
+      })
+    })
+
+    saveSnapshot(snapshot)
+    const drivers = Object.values(snapshot.drivers).map(d => ({ ...d, weekTotal: (d.Mon||0)+(d.Tue||0)+(d.Wed||0)+(d.Thu||0)+(d.Fri||0) }))
+
+    return res.status(200).json({ weekOf, drivers, lastUpdated: new Date().toISOString() })
+  } catch (err) {
     return res.status(500).json({ error: err.message })
   }
 }

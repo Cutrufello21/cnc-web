@@ -28,8 +28,8 @@ export default function RoutingEditor() {
     setLoading(true)
     try {
       const [rulesRes, driversRes] = await Promise.all([
-        fetch('/api/sheet-tab?tab=Routing+Rules&rows=500').then(r => r.json()),
-        fetch('/api/sheet-tab?tab=Drivers&rows=20').then(r => r.json()),
+        fetch('/api/sheets-view?tab=Routing+Rules&rows=500').then(r => r.json()),
+        fetch('/api/sheets-view?tab=Drivers&rows=20').then(r => r.json()),
       ])
       setRules(rulesRes)
 
@@ -52,7 +52,7 @@ export default function RoutingEditor() {
   async function handleSave(zip, day, newDriver) {
     setSaving(true)
     try {
-      const res = await fetch('/api/update-route', {
+      const res = await fetch('/api/routing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ zip, day, newDriver }),
@@ -86,10 +86,10 @@ export default function RoutingEditor() {
     if (!newZip.zip) return
     setAddingZip(true)
     try {
-      const res = await fetch('/api/add-route', {
+      const res = await fetch('/api/routing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newZip),
+        body: JSON.stringify({ ...newZip, action: 'add' }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)

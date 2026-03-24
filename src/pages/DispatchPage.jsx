@@ -57,7 +57,7 @@ export default function DispatchPage() {
   async function handleApprove() {
     setApproving(true)
     try {
-      const res = await fetch('/api/approve', { method: 'POST' })
+      const res = await fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'approve' }) })
       if (!res.ok) throw new Error('Approval failed')
       setApproved(true)
     } catch (err) {

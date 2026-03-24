@@ -26,7 +26,7 @@ export default function SheetViewer() {
   const [columnFilters, setColumnFilters] = useState({}) // { headerName: filterValue }
 
   useEffect(() => {
-    fetch('/api/master-tabs')
+    fetch('/api/sheets-view?action=tabs')
       .then((r) => r.json())
       .then((d) => setAllTabs(d.tabs))
       .catch(() => {})
@@ -44,7 +44,7 @@ export default function SheetViewer() {
     setColumnFilters({})
     try {
       const rows = tab === 'Orders' ? 200 : 500
-      const res = await fetch(`/api/sheet-tab?tab=${encodeURIComponent(tab)}&rows=${rows}`)
+      const res = await fetch(`/api/sheets-view?tab=${encodeURIComponent(tab)}&rows=${rows}`)
       const json = await res.json()
       setData(json)
     } catch {
