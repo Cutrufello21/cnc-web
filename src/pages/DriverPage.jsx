@@ -77,7 +77,8 @@ export default function DriverPage() {
         Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
         _coldChain: s.cold_chain,
       }))
-      const approved = (logsRes.data && logsRes.data.length > 0)
+      // Approved if dispatch log exists OR if stops are already in Supabase
+      const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
       setData({
         approved, deliveryDay: todayName, driverName, driverId, tabName,
