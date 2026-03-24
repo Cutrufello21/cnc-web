@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
@@ -22,12 +23,66 @@ export default function DriverPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/driver?email=${encodeURIComponent(user.email)}`)
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || `API error: ${res.status}`)
+      // Look up driver from Supabase
+      const { data: driverRow, error: driverErr } = await supabase.from('drivers')
+        .select('*').eq('email', user.email.toLowerCase()).single()
+      if (driverErr || !driverRow) throw new Error('Driver not found')
+
+      const driverName = driverRow.driver_name
+      const driverId = driverRow.driver_number
+      const tabName = `${driverName} - ${driverId}`
+
+      const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const todayName = DAYS[new Date().getDay()]
+      const isWeekend = todayName === 'Sunday' || todayName === 'Saturday'
+
+      // Get payroll data from Supabase
+      const { data: payrollData } = await supabase.from('payroll')
+        .select('*').eq('driver_name', driverName)
+        .order('week_of', { ascending: false }).limit(1)
+
+      const payroll = payrollData?.[0]
+      let weekTotal = 0
+      let dailyStops = {}
+      if (payroll) {
+        dailyStops = { Mon: payroll.mon || 0, Tue: payroll.tue || 0, Wed: payroll.wed || 0, Thu: payroll.thu || 0, Fri: payroll.fri || 0 }
+        weekTotal = payroll.week_total || 0
       }
-      setData(await res.json())
+
+      if (isWeekend) {
+        setData({
+          approved: false, noDeliveryToday: true,
+          deliveryDay: todayName, driverName, driverId,
+          stops: [], stopCount: 0, coldChainCount: 0, weekTotal, dailyStops,
+        })
+        return
+      }
+
+      // Get daily stops from the dispatch API (Google Sheets)
+      let stops = []
+      let approved = false
+      try {
+        const sheetsRes = await fetch(`/api/dispatch?day=${todayName}`)
+        const sheetsData = await sheetsRes.json()
+        const driverData = sheetsData.driverStops?.[driverName]
+        if (driverData) {
+          stops = driverData.stopDetails || []
+          stops = stops.map((s, idx) => ({ ...s, _index: idx, _coldChain: s._coldChain || false }))
+        }
+
+        // Check approval from dispatch logs
+        const { data: logs } = await supabase.from('dispatch_logs')
+          .select('*').eq('delivery_day', todayName).eq('status', 'Complete')
+          .order('date', { ascending: false }).limit(1)
+        approved = (logs && logs.length > 0)
+      } catch {}
+
+      setData({
+        approved, deliveryDay: todayName, driverName, driverId, tabName,
+        stops, stopCount: stops.length,
+        coldChainCount: stops.filter(s => s._coldChain).length,
+        weekTotal, dailyStops,
+      })
     } catch (err) {
       setError(err.message)
     } finally {

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../../lib/supabase'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './DeliveryMap.css'
@@ -19,11 +20,52 @@ export default function DeliveryMap() {
   const [selectedLocation, setSelectedLocation] = useState(null)
 
   useEffect(() => {
-    fetch('/api/map-data')
-      .then(r => r.json())
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    async function loadMapData() {
+      try {
+        const { data: orders } = await supabase.from('orders')
+          .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, date_delivered, cold_chain')
+          .not('address', 'is', null).not('address', 'eq', '')
+
+        // Aggregate by address
+        const locationMap = {}
+        for (const row of (orders || [])) {
+          const key = `${row.address}|${row.city}|${row.zip}`
+          if (!locationMap[key]) {
+            locationMap[key] = {
+              address: row.address, city: row.city, zip: row.zip,
+              pharmacy: row.pharmacy, totalDeliveries: 0, coldChainCount: 0,
+              lastDate: '', orders: [],
+            }
+          }
+          const loc = locationMap[key]
+          loc.totalDeliveries++
+          if (row.cold_chain) loc.coldChainCount++
+          if ((row.date_delivered || '') > loc.lastDate) loc.lastDate = row.date_delivered
+          if (loc.orders.length < 20) {
+            loc.orders.push({
+              orderId: row.order_id, name: row.patient_name,
+              date: row.date_delivered, driver: row.driver_name,
+              pharmacy: row.pharmacy, coldChain: row.cold_chain,
+            })
+          }
+        }
+
+        // For now, no geocoding from frontend — just show locations that have ZIP-based approximate coords
+        // The map will show data once geocoded coords are available
+        const locations = Object.values(locationMap).map(loc => ({
+          ...loc,
+          coldChainPct: loc.totalDeliveries ? Math.round((loc.coldChainCount / loc.totalDeliveries) * 100) : 0,
+        }))
+
+        setData({
+          locations: [], // No geocoded coords available from frontend yet
+          totalLocations: locations.length,
+          geocodedLocations: 0,
+        })
+      } catch {}
+      finally { setLoading(false) }
+    }
+    loadMapData()
   }, [])
 
   // Initialize map

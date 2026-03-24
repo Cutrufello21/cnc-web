@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '../../lib/supabase'
 import './SheetViewer.css'
 
 const QUICK_TABS = [
@@ -8,29 +9,26 @@ const QUICK_TABS = [
   'Orders',
   'Log',
   'Unassigned History',
-  'SHSP Log',
-  'Aultman Log',
-  'Patient Analytics',
-  'ZIP Analytics',
-  'Location Intelligence',
 ]
 
+const TABLE_MAP = {
+  'Routing Rules': { table: 'routing_rules', cols: { zip_code: 'ZIP Code', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', route: 'Route', pharmacy: 'Pharmacy' } },
+  'Drivers': { table: 'drivers', cols: { driver_name: 'Driver Name', driver_number: 'Driver #', email: 'Email', pharmacy: 'Pharmacy', rate_mth: 'Rate MTH', rate_wf: 'Rate WF', office_fee: 'Office Fee', flat_salary: 'Flat Salary', active: 'Active' } },
+  'Weekly Stops': { table: 'payroll', cols: { driver_name: 'Driver Name', driver_number: 'Driver #', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', week_total: 'Week Total', will_calls: 'Will Calls', weekly_pay: 'Weekly Pay', week_of: 'Week Of' } },
+  'Orders': { table: 'orders', cols: { order_id: 'Order ID', patient_name: 'Name', address: 'Address', city: 'City', zip: 'ZIP', pharmacy: 'Pharmacy', driver_name: 'Driver Name', date_delivered: 'Date Delivered', cold_chain: 'Cold Chain', source: 'Source' } },
+  'Log': { table: 'dispatch_logs', cols: { date: 'Date', delivery_day: 'Delivery Day', status: 'Status', orders_processed: 'Orders Processed', cold_chain: 'Cold Chain', unassigned_count: 'Unassigned Count', corrections: 'Corrections', shsp_orders: 'SHSP Orders', aultman_orders: 'Aultman Orders', top_driver: 'Top Driver' } },
+  'Unassigned History': { table: 'unassigned_orders', cols: { date: 'Date', delivery_day: 'Delivery Day', zip: 'ZIP', address: 'Address', pharmacy: 'Pharmacy', patient_name: 'Name', resolved: 'Resolved' } },
+}
+
 export default function SheetViewer() {
-  const [allTabs, setAllTabs] = useState(null)
+  const [allTabs, setAllTabs] = useState(QUICK_TABS.map((title, i) => ({ title, sheetId: i, index: i })))
   const [activeTab, setActiveTab] = useState('Routing Rules')
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [sortCol, setSortCol] = useState(null)
-  const [sortDir, setSortDir] = useState('asc') // 'asc' or 'desc'
-  const [columnFilters, setColumnFilters] = useState({}) // { headerName: filterValue }
-
-  useEffect(() => {
-    fetch('/api/sheets-view?action=tabs')
-      .then((r) => r.json())
-      .then((d) => setAllTabs(d.tabs))
-      .catch(() => {})
-  }, [])
+  const [sortDir, setSortDir] = useState('asc')
+  const [columnFilters, setColumnFilters] = useState({})
 
   useEffect(() => {
     if (activeTab) loadTab(activeTab)
@@ -43,10 +41,27 @@ export default function SheetViewer() {
     setSortDir('asc')
     setColumnFilters({})
     try {
-      const rows = tab === 'Orders' ? 200 : 500
-      const res = await fetch(`/api/sheets-view?tab=${encodeURIComponent(tab)}&rows=${rows}`)
-      const json = await res.json()
-      setData(json)
+      const mapping = TABLE_MAP[tab]
+      if (!mapping) { setData(null); return }
+
+      const limit = tab === 'Orders' ? 200 : 500
+      const { data: rows } = await supabase.from(mapping.table).select('*').limit(limit)
+
+      if (!rows || rows.length === 0) {
+        setData({ tab, headers: [], data: [], rowCount: 0 })
+        return
+      }
+
+      const headers = Object.values(mapping.cols)
+      const mapped = rows.map(row => {
+        const obj = {}
+        for (const [dbCol, displayCol] of Object.entries(mapping.cols)) {
+          obj[displayCol] = row[dbCol] ?? ''
+        }
+        return obj
+      })
+
+      setData({ tab, headers, data: mapped, rowCount: mapped.length })
     } catch {
       setData(null)
     } finally {
