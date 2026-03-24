@@ -1,7 +1,7 @@
-import { supabase } from './_lib/supabase.js'
-import { fetchRange, fetchMultipleRanges, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
+import { fetchMultipleRanges, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
 
-// GET /api/dispatch — returns all data needed for the dispatch workspace
+// GET /api/dispatch — returns daily stop assignments from Google Sheets
+// Supabase data (drivers, routing, logs) is now fetched directly by the frontend
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -15,7 +15,6 @@ export default async function handler(req, res) {
     const todayIdx = now.getDay()
     const todayName = dayNames[todayIdx]
 
-    // Allow ?day=Monday override from the frontend
     let deliveryDay = req.query.day
 
     if (!deliveryDay || !DAILY_SHEETS[deliveryDay]) {
@@ -33,21 +32,9 @@ export default async function handler(req, res) {
     const dailySheetId = DAILY_SHEETS[deliveryDay]
     const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
-    // Fetch from Supabase (drivers, routing rules, logs, weekly stops)
-    // and from Google Sheets (daily driver tabs — not yet migrated)
-    const [driversRes, routingRes, logsRes, weeklyRes, dailyTabs] = await Promise.all([
-      supabase.from('drivers').select('*').eq('active', true).order('driver_name'),
-      supabase.from('routing_rules').select('*'),
-      supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(7),
-      supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
-      dailySheetId ? getSheetTabs(dailySheetId) : Promise.resolve([]),
-    ])
+    // Fetch daily driver tabs from Google Sheets
+    const dailyTabs = dailySheetId ? await getSheetTabs(dailySheetId) : []
 
-    const drivers = (driversRes.data || []).filter(d => d.driver_name)
-    const routingRules = routingRes.data || []
-    const assignedZips = new Set(routingRules.map(r => r.zip_code).filter(Boolean))
-
-    // Get daily stops from Google Sheets (still live there)
     const driverTabs = dailyTabs.filter((tab) => {
       const title = tab.title || ''
       return title.includes(' - ') && !['SHSP Sort', 'Aultman Sort', 'Summary', 'Unassigned'].includes(title)
@@ -121,26 +108,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // Parse logs from Supabase
-    const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
-    const recentLogs = (logsRes.data || [])
-      .filter(r => WEEKDAYS.has(r.delivery_day))
-      .slice(0, 7)
-      .map(r => ({
-        Date: r.date, 'Delivery Day': r.delivery_day,
-        'Orders Processed': r.orders_processed, 'Cold Chain': r.cold_chain,
-        'Unassigned Count': r.unassigned_count, Status: r.status,
-        'Top Driver': r.top_driver,
-      }))
-
-    // Weekly stops from payroll
-    const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
-    const weeklyStops = currentWeek.map(r => ({
-      'Driver Name': r.driver_name, 'Driver #': r.driver_number,
-      Mon: r.mon, Tue: r.tue, Wed: r.wed, Thu: r.thu, Fri: r.fri,
-      'Week Total': r.week_total,
-    }))
-
     // Build warnings
     const warnings = []
     if (unassignedData.length > 0) {
@@ -153,21 +120,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       deliveryDay, allDays,
-      drivers: drivers.map((d) => ({
-        'Driver Name': d.driver_name,
-        'Driver #': d.driver_number,
-        Email: d.email,
-        stops: driverStops[d.driver_name]?.stops ?? 0,
-        coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
-        hidden: driverStops[d.driver_name]?.hidden ?? false,
-        tabName: driverStops[d.driver_name]?.tabName ?? '',
-        stopDetails: driverStops[d.driver_name]?.stopDetails ?? [],
-      })),
+      driverStops,
       summary: summaryData,
       unassigned: unassignedData,
-      warnings, recentLogs, weeklyStops,
-      routingRuleCount: routingRules.length,
-      assignedZipCount: assignedZips.size,
+      warnings,
     })
   } catch (err) {
     console.error('Dispatch API error:', err)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import DriverCard from '../components/dispatch/DriverCard'
 import WarningBanner from '../components/dispatch/WarningBanner'
 import DispatchSummary from '../components/dispatch/DispatchSummary'
@@ -36,12 +37,51 @@ export default function DispatchPage() {
     setError(null)
     setApproved(false)
     try {
-      const url = day ? `/api/dispatch?day=${day}` : '/api/dispatch'
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`API error: ${res.status}`)
-      const json = await res.json()
-      setData(json)
-      setSelectedDay(json.deliveryDay)
+      // Fetch Supabase data (drivers, routing rules, logs) and daily sheets in parallel
+      const [driversRes, routingRes, logsRes, sheetsRes] = await Promise.all([
+        supabase.from('drivers').select('*').eq('active', true).order('driver_name'),
+        supabase.from('routing_rules').select('*'),
+        supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(7),
+        fetch(day ? `/api/dispatch?day=${day}` : '/api/dispatch').then(r => r.json()),
+      ])
+
+      const drivers = (driversRes.data || []).filter(d => d.driver_name)
+      const routingRules = routingRes.data || []
+      const assignedZips = new Set(routingRules.map(r => r.zip_code).filter(Boolean))
+      const driverStops = sheetsRes.driverStops || {}
+
+      const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
+      const recentLogs = (logsRes.data || [])
+        .filter(r => WEEKDAYS.has(r.delivery_day))
+        .slice(0, 7)
+        .map(r => ({
+          Date: r.date, 'Delivery Day': r.delivery_day,
+          'Orders Processed': r.orders_processed, 'Cold Chain': r.cold_chain,
+          'Unassigned Count': r.unassigned_count, Status: r.status,
+          'Top Driver': r.top_driver,
+        }))
+
+      setData({
+        deliveryDay: sheetsRes.deliveryDay,
+        allDays: sheetsRes.allDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        drivers: drivers.map(d => ({
+          'Driver Name': d.driver_name,
+          'Driver #': d.driver_number,
+          Email: d.email,
+          stops: driverStops[d.driver_name]?.stops ?? 0,
+          coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
+          hidden: driverStops[d.driver_name]?.hidden ?? false,
+          tabName: driverStops[d.driver_name]?.tabName ?? '',
+          stopDetails: driverStops[d.driver_name]?.stopDetails ?? [],
+        })),
+        summary: sheetsRes.summary,
+        unassigned: sheetsRes.unassigned || [],
+        warnings: sheetsRes.warnings || [],
+        recentLogs,
+        routingRuleCount: routingRules.length,
+        assignedZipCount: assignedZips.size,
+      })
+      setSelectedDay(sheetsRes.deliveryDay)
     } catch (err) {
       setError(err.message)
     } finally {
