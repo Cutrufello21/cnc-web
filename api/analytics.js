@@ -1,9 +1,6 @@
 import { supabase } from './_lib/supabase.js'
 
 const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
-
-export const config = { runtime: "nodejs" }
-
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
