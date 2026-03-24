@@ -208,14 +208,17 @@ export default function DriverPage() {
                     <p>Your stop list will appear here once the dispatcher approves tonight's routes.</p>
                   </div>
                 ) : data.stops?.length > 0 ? (
-                  data.stops.map((stop, i) => (
-                    <StopCard
-                      key={i}
-                      stop={stop}
-                      index={i + 1}
-                      total={data.stops.length}
-                    />
-                  ))
+                  <>
+                    {data.stops.map((stop, i) => (
+                      <StopCard
+                        key={i}
+                        stop={stop}
+                        index={i + 1}
+                        total={data.stops.length}
+                      />
+                    ))}
+                    <CopyRouteButton stops={data.stops} />
+                  </>
                 ) : (
                   <div className="driver__not-ready">
                     <h3>No stops assigned</h3>
@@ -236,5 +239,33 @@ export default function DriverPage() {
         )}
       </main>
     </div>
+  )
+}
+
+function CopyRouteButton({ stops }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    const text = stops
+      .map(s => `${s.Address || ''}, ${s.City || ''}, ${s.ZIP || ''}`)
+      .filter(line => line.replace(/,/g, '').trim())
+      .join('\n')
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      className="driver__copy-route"
+      onClick={handleCopy}
+      style={{
+        display: 'block', margin: '16px auto', padding: '6px 16px',
+        fontSize: 12, color: '#6b7280', background: 'transparent',
+        border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer',
+      }}
+    >
+      {copied ? 'Copied!' : 'Copy Route'}
+    </button>
   )
 }
