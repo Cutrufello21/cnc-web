@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { supabase } from '../../lib/supabase'
 import './RoutingEditor.css'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
@@ -27,19 +28,19 @@ export default function RoutingEditor() {
   async function loadData() {
     setLoading(true)
     try {
-      const [rulesRes, driversRes] = await Promise.all([
-        fetch('/api/sheets-view?tab=Routing+Rules&rows=500').then(r => r.json()),
-        fetch('/api/sheets-view?tab=Drivers&rows=20').then(r => r.json()),
-      ])
-      setRules(rulesRes)
+      const { data: rulesData } = await supabase.from('routing_rules').select('*')
 
-      // Build driver list from the routing rules values
+      // Map to expected format
+      const mapped = (rulesData || []).map(r => ({
+        'ZIP Code': r.zip_code, Mon: r.mon, Tue: r.tue, Wed: r.wed,
+        Thu: r.thu, Fri: r.fri, Route: r.route, Pharmacy: r.pharmacy,
+      }))
+      setRules({ headers: ['ZIP Code', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Route', 'Pharmacy'], data: mapped })
+
+      // Build driver list from routing rules values
       const driverSet = new Set()
-      rulesRes.data?.forEach(row => {
-        DAYS.forEach(d => {
-          const val = row[d]
-          if (val) driverSet.add(val)
-        })
+      mapped.forEach(row => {
+        DAYS.forEach(d => { if (row[d]) driverSet.add(row[d]) })
       })
       setDrivers(Array.from(driverSet).sort())
     } catch {

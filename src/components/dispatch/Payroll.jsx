@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 import './Payroll.css'
 
 export default function Payroll() {
@@ -31,41 +32,69 @@ export default function Payroll() {
   async function loadPayroll() {
     setLoading(true)
     try {
-      // Fetch both: payroll rates/config and snapshot for accumulated stops
-      const [payrollRes, snapshotRes] = await Promise.all([
-        fetch('/api/payroll'),
-        fetch('/api/payroll?snapshot=true'),
+      // Get current week's Monday
+      const now = new Date()
+      const dayOfWeek = now.getDay()
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + mondayOffset)
+      const weekOf = monday.toISOString().split('T')[0]
+
+      const [payrollRes, driversRes] = await Promise.all([
+        supabase.from('payroll').select('*').eq('week_of', weekOf),
+        supabase.from('drivers').select('*').eq('active', true),
       ])
-      const payroll = await payrollRes.json()
-      const snapshot = await snapshotRes.json()
 
-      // Merge snapshot stops into payroll drivers
-      if (snapshot.drivers) {
-        const snapMap = {}
-        snapshot.drivers.forEach(d => { snapMap[d.name] = d })
+      const driverMap = {}
+      ;(driversRes.data || []).forEach(d => { driverMap[d.driver_name] = d })
 
-        payroll.drivers = payroll.drivers.map(d => {
-          const snap = snapMap[d.name]
-          if (snap) {
-            // Use snapshot values (accumulated) instead of sheet values (may be cleared)
-            return {
-              ...d,
-              mon: Math.max(d.mon, snap.Mon || 0),
-              tue: Math.max(d.tue, snap.Tue || 0),
-              wed: Math.max(d.wed, snap.Wed || 0),
-              thu: Math.max(d.thu, snap.Thu || 0),
-              fri: Math.max(d.fri, snap.Fri || 0),
-              weekTotal: Math.max(d.weekTotal, snap.weekTotal || 0),
-            }
-          }
-          return d
-        })
+      const drivers = (payrollRes.data || []).map(p => {
+        const d = driverMap[p.driver_name] || {}
+        const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0
+        const thu = p.thu || 0, fri = p.fri || 0
+        const weekTotal = mon + tue + wed + thu + fri
+        const willCalls = p.will_calls || 0
+        const officeFee = parseFloat(d.office_fee) || 0
+        const flatSalary = d.flat_salary ? parseFloat(d.flat_salary) : null
+        const rateMth = parseFloat(d.rate_mth) || 0
+        const rateWf = parseFloat(d.rate_wf) || 0
 
-        payroll.weekOf = snapshot.weekOf
-      }
+        let calculatedPay = 0
+        if (flatSalary) {
+          calculatedPay = flatSalary
+        } else if (rateMth || rateWf) {
+          const mthStops = mon + tue + thu
+          const wfStops = wed + fri
+          calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * 9)
+          if (weekTotal > 0 || willCalls > 0) calculatedPay += officeFee
+          else calculatedPay = 0
+        }
 
-      setData(payroll)
-    } catch { setData(null) }
+        return {
+          name: p.driver_name, id: p.driver_number,
+          mon, tue, wed, thu, fri, weekTotal, willCalls, officeFee,
+          rate: (rateMth || rateWf) ? { mth: rateMth, wf: rateWf } : null,
+          flatSalary,
+          calculatedPay: Math.round(calculatedPay * 100) / 100,
+          sheetPay: parseFloat(p.weekly_pay) || 0,
+          isBrad: p.driver_name === 'Brad',
+          isFlat: !!flatSalary,
+          rowIndex: p.id,
+        }
+      })
+
+      const grandTotal = drivers.reduce((sum, d) => sum + d.calculatedPay, 0)
+
+      setData({
+        drivers,
+        grandTotal: Math.round(grandTotal * 100) / 100,
+        sheetTotal: drivers.reduce((sum, d) => sum + d.sheetPay, 0),
+        weekOf: `${monday.getMonth() + 1}/${monday.getDate()}/${monday.getFullYear()}`,
+      })
+    } catch (err) {
+      console.error('Payroll error:', err)
+      setData(null)
+    }
     finally { setLoading(false) }
   }
 
