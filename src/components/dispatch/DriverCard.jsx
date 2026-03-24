@@ -138,7 +138,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       const orderIds = Array.from(selected)
 
       // Update daily_stops in Supabase — change driver on selected orders
-      const { error } = await supabase.from('daily_stops')
+      const { data: updated, error } = await supabase.from('daily_stops')
         .update({
           driver_name: toDriverName,
           driver_number: toDriverNumber,
@@ -146,10 +146,12 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         })
         .in('order_id', orderIds)
         .eq('driver_name', name)
+        .select()
 
       if (error) throw new Error(error.message)
+      if (!updated || updated.length === 0) throw new Error('No rows updated — check permissions (try logging out and back in)')
 
-      setMoveResult(`Moved ${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} to ${toDriverName}`)
+      setMoveResult(`Moved ${updated.length} stop${updated.length > 1 ? 's' : ''} to ${toDriverName}`)
       setSelected(new Set())
       setReassignTo('')
       if (onRefresh) setTimeout(onRefresh, 500)
