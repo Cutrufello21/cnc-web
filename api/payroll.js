@@ -1,10 +1,7 @@
-import { fetchRange, updateCell, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { fetchRange, updateCell, fetchMultipleRanges, getSheetTabs, parseBody, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
 
-const SNAPSHOT_PATH = join(process.env.HOME || '/tmp', '.cnc-payroll-snapshot.json')
-function loadSnapshot() { try { if (existsSync(SNAPSHOT_PATH)) return JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')) } catch {} return null }
-function saveSnapshot(data) { try { writeFileSync(SNAPSHOT_PATH, JSON.stringify(data, null, 2)) } catch {} }
+function loadSnapshot() { return null }
+function saveSnapshot() {}
 
 // Per-stop rates from cnc-dispatch
 const RATES = {
@@ -132,13 +129,7 @@ async function handleGet(req, res) {
 // POST /api/payroll — update a driver's Weekly Pay or Will Calls
 // Body: { driver, field, value } or { action: 'approve', email: 'mcutrufello2121@gmail.com' }
 async function handlePost(req, res) {
-  let body = ''
-  await new Promise((resolve) => {
-    req.on('data', (chunk) => { body += chunk })
-    req.on('end', resolve)
-  })
-
-  const data = JSON.parse(body)
+  const data = await parseBody(req)
 
   if (data.action === 'approve') {
     return res.status(200).json({ success: true, approvedAt: new Date().toISOString() })

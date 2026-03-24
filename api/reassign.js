@@ -1,4 +1,4 @@
-import { fetchRange, appendRows, deleteRow, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
+import { fetchRange, appendRows, deleteRow, getSheetTabs, parseBody, DAILY_SHEETS } from './_lib/sheets.js'
 
 // POST /api/reassign
 // Body: { day, fromDriver, toDriver, orderIds }
@@ -8,13 +8,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  let body = ''
-  await new Promise((resolve) => {
-    req.on('data', (chunk) => { body += chunk })
-    req.on('end', resolve)
-  })
-
-  const { day, fromDriver, toDriver, orderIds } = JSON.parse(body)
+  const { day, fromDriver, toDriver, orderIds } = await parseBody(req)
 
   if (!day || !fromDriver || !toDriver || !orderIds?.length) {
     return res.status(400).json({ error: 'Missing required fields: day, fromDriver, toDriver, orderIds' })

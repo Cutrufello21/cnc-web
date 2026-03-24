@@ -1,1 +1,21 @@
-{"framework":"vite"}
+{
+  "framework": "vite",
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/ai-insights.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/map-data.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "api/payroll.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}

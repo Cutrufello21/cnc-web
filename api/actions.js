@@ -1,6 +1,6 @@
 import { writeFileSync } from 'fs'
-import { join } from 'path'
 import nodemailer from 'nodemailer'
+import { parseBody } from './_lib/sheets.js'
 
 // POST /api/actions
 // Body: { action: 'approve' } — approve routes
@@ -8,20 +8,13 @@ import nodemailer from 'nodemailer'
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  let body = ''
-  await new Promise((resolve) => {
-    req.on('data', (chunk) => { body += chunk })
-    req.on('end', resolve)
-  })
-
-  const data = JSON.parse(body)
+  const data = await parseBody(req)
 
   try {
     if (data.action === 'approve') {
       const timestamp = new Date().toISOString()
       const content = `approved_at=${timestamp}\nsource=cnc-web\n`
       try { writeFileSync('/tmp/cnc_approval.txt', content) } catch {}
-      try { writeFileSync(join(process.env.HOME || '/tmp', 'Desktop', 'cnc-dispatch', 'approve.txt'), content) } catch {}
       return res.status(200).json({ success: true, approved_at: timestamp })
     }
 

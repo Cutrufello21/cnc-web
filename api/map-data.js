@@ -1,21 +1,10 @@
 import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join } from 'path'
 import https from 'https'
 
-// Load geocode cache
+// In-memory geocode cache (persists across warm invocations)
 let geocodeCache = {}
-const LOCAL_CACHE_PATH = join(process.env.HOME || '/tmp', 'Desktop', 'cnc-dispatch', '.geocode_cache.json')
 
 function loadCache() {
-  try {
-    if (existsSync(LOCAL_CACHE_PATH)) {
-      geocodeCache = JSON.parse(readFileSync(LOCAL_CACHE_PATH, 'utf8'))
-    }
-  } catch {
-    // On Vercel, use in-memory cache only
-  }
-  // Also check env var for Vercel deployment
   if (Object.keys(geocodeCache).length === 0 && process.env.GEOCODE_CACHE) {
     try { geocodeCache = JSON.parse(process.env.GEOCODE_CACHE) } catch {}
   }
@@ -152,11 +141,6 @@ export default async function handler(req, res) {
           orders: loc.orders,
         })
       }
-    }
-
-    // Save updated cache locally
-    if (geocoded > 0) {
-      try { writeFileSync(LOCAL_CACHE_PATH, JSON.stringify(geocodeCache)) } catch {}
     }
 
     return res.status(200).json({
