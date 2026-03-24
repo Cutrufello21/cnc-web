@@ -1,4 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID } from './sheets.js'
+import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import https from 'https'

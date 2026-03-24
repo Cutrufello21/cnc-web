@@ -1,4 +1,4 @@
-import { fetchRange, updateCell, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './sheets.js'
+import { fetchRange, updateCell, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 

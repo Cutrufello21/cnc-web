@@ -1,4 +1,4 @@
-import { fetchRange, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './sheets.js'
+import { fetchRange, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
 
 // GET /api/dispatch — returns all data needed for the dispatch workspace
 export default async function handler(req, res) {
