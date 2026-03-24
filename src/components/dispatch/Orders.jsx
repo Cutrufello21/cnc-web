@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 import './Orders.css'
 
 export default function Orders() {
@@ -15,23 +16,71 @@ export default function Orders() {
   const [source, setSource] = useState('')
   const [sortCol, setSortCol] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
+  const [filters, setFilters] = useState({ drivers: [], pharmacies: [], sources: [] })
+
+  // Load filter options once
+  useEffect(() => {
+    async function loadFilters() {
+      const [driversRes, pharmaciesRes, sourcesRes] = await Promise.all([
+        supabase.from('orders').select('driver_name').not('driver_name', 'is', null).not('driver_name', 'eq', ''),
+        supabase.from('orders').select('pharmacy').not('pharmacy', 'is', null).not('pharmacy', 'eq', ''),
+        supabase.from('orders').select('source').not('source', 'is', null).not('source', 'eq', ''),
+      ])
+      setFilters({
+        drivers: [...new Set((driversRes.data || []).map(r => r.driver_name))].sort(),
+        pharmacies: [...new Set((pharmaciesRes.data || []).map(r => r.pharmacy))].sort(),
+        sources: [...new Set((sourcesRes.data || []).map(r => r.source))].sort(),
+      })
+    }
+    loadFilters()
+  }, [])
 
   useEffect(() => { loadOrders() }, [page, search, driver, pharmacy, zip, date, coldchain, source])
 
   async function loadOrders() {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ page, pageSize: 100 })
-      if (search) params.set('search', search)
-      if (driver) params.set('driver', driver)
-      if (pharmacy) params.set('pharmacy', pharmacy)
-      if (zip) params.set('zip', zip)
-      if (date) params.set('date', date)
-      if (coldchain) params.set('coldchain', coldchain)
-      if (source) params.set('source', source)
+      const pageSize = 100
+      let query = supabase.from('orders').select('*', { count: 'exact' })
 
-      const res = await fetch(`/api/orders?${params}`)
-      setData(await res.json())
+      if (search) {
+        query = query.or(`patient_name.ilike.%${search}%,address.ilike.%${search}%,order_id.ilike.%${search}%,zip.ilike.%${search}%,driver_name.ilike.%${search}%`)
+      }
+      if (driver) query = query.ilike('driver_name', driver)
+      if (pharmacy) query = query.eq('pharmacy', pharmacy)
+      if (zip) query = query.ilike('zip', `%${zip}%`)
+      if (date) query = query.eq('date_delivered', date)
+      if (coldchain === 'yes') query = query.eq('cold_chain', true)
+      if (source) query = query.eq('source', source)
+
+      query = query.order('date_delivered', { ascending: false })
+        .range((page - 1) * pageSize, page * pageSize - 1)
+
+      const { data: orders, count, error } = await query
+      if (error) throw error
+
+      const total = count || 0
+      const pages = Math.ceil(total / pageSize)
+
+      // Map to display format
+      const mappedOrders = (orders || []).map(o => ({
+        'Order ID': o.order_id,
+        'Name': o.patient_name,
+        'Address': o.address,
+        'City': o.city,
+        'ZIP': o.zip,
+        'Pharmacy': o.pharmacy,
+        'Driver Name': o.driver_name,
+        'Date Delivered': o.date_delivered,
+        'Cold Chain': o.cold_chain ? 'Yes' : '',
+        'Source': o.source,
+      }))
+
+      setData({
+        headers: ['Order ID', 'Name', 'Address', 'City', 'ZIP', 'Pharmacy', 'Driver Name', 'Date Delivered', 'Cold Chain', 'Source'],
+        orders: mappedOrders,
+        total, page, pages, pageSize,
+      })
     } catch { setData(null) }
     finally { setLoading(false) }
   }
@@ -93,12 +142,12 @@ export default function Orders() {
         <div className="ord__filter-row">
           <select className="ord__filter" value={driver} onChange={(e) => { setDriver(e.target.value); setPage(1) }}>
             <option value="">All Drivers</option>
-            {data?.filters?.drivers?.map(d => <option key={d} value={d}>{d}</option>)}
+            {filters.drivers.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
 
           <select className="ord__filter" value={pharmacy} onChange={(e) => { setPharmacy(e.target.value); setPage(1) }}>
             <option value="">All Pharmacies</option>
-            {data?.filters?.pharmacies?.map(p => <option key={p} value={p}>{p}</option>)}
+            {filters.pharmacies.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
 
           <input
@@ -112,7 +161,7 @@ export default function Orders() {
           <input
             className="ord__filter ord__filter--input"
             type="text"
-            placeholder="Date (MM/DD/YYYY)..."
+            placeholder="Date (YYYY-MM-DD)..."
             value={date}
             onChange={(e) => { setDate(e.target.value); setPage(1) }}
           />
@@ -124,7 +173,7 @@ export default function Orders() {
 
           <select className="ord__filter" value={source} onChange={(e) => { setSource(e.target.value); setPage(1) }}>
             <option value="">All Sources</option>
-            {data?.filters?.sources?.map(s => <option key={s} value={s}>{s}</option>)}
+            {filters.sources.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
 
           {hasFilters && (
@@ -169,7 +218,6 @@ export default function Orders() {
                           {order['Pharmacy']}
                         </span>
                       </td>
-                      <td className="ord__cell-driver-id">{order['Assigned Driver #']}</td>
                       <td className="ord__cell-driver">{order['Driver Name']}</td>
                       <td className="ord__cell-date">{order['Date Delivered']}</td>
                       <td>
@@ -181,7 +229,7 @@ export default function Orders() {
                   )
                 })}
                 {orders.length === 0 && (
-                  <tr><td colSpan={11} className="ord__empty">No orders found</td></tr>
+                  <tr><td colSpan={10} className="ord__empty">No orders found</td></tr>
                 )}
               </tbody>
             </table>
@@ -189,37 +237,11 @@ export default function Orders() {
 
           {/* Pagination */}
           <div className="ord__pager">
-            <button
-              className="ord__pager-btn"
-              disabled={page <= 1}
-              onClick={() => setPage(1)}
-            >
-              First
-            </button>
-            <button
-              className="ord__pager-btn"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Prev
-            </button>
-            <span className="ord__pager-info">
-              Page {data.page} of {data.pages}
-            </span>
-            <button
-              className="ord__pager-btn"
-              disabled={page >= data.pages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </button>
-            <button
-              className="ord__pager-btn"
-              disabled={page >= data.pages}
-              onClick={() => setPage(data.pages)}
-            >
-              Last
-            </button>
+            <button className="ord__pager-btn" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
+            <button className="ord__pager-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>Prev</button>
+            <span className="ord__pager-info">Page {data.page} of {data.pages}</span>
+            <button className="ord__pager-btn" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>Next</button>
+            <button className="ord__pager-btn" disabled={page >= data.pages} onClick={() => setPage(data.pages)}>Last</button>
           </div>
         </>
       )}

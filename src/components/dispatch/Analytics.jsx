@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../../lib/supabase'
 import DeliveryMap from './DeliveryMap'
 import Heatmap from './Heatmap'
 import './Analytics.css'
+
+const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
 
 export default function Analytics() {
   const [data, setData] = useState(null)
@@ -14,9 +17,125 @@ export default function Analytics() {
   async function loadData() {
     setLoading(true)
     try {
-      const res = await fetch(`/api/analytics?period=${period}`)
-      setData(await res.json())
-    } catch { setData(null) }
+      const [logsRes, weeklyRes, zipRes, patientRes, locationRes] = await Promise.all([
+        supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
+        supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
+        supabase.from('orders').select('zip, pharmacy').not('zip', 'is', null).not('zip', 'eq', ''),
+        supabase.from('orders').select('patient_name, pharmacy, zip, cold_chain').not('patient_name', 'is', null).not('patient_name', 'eq', ''),
+        supabase.from('orders').select('address, city, zip, pharmacy').not('address', 'is', null).not('address', 'eq', ''),
+      ])
+
+      // ZIP Analytics
+      const zipCounts = {}
+      ;(zipRes.data || []).forEach(r => {
+        if (!zipCounts[r.zip]) zipCounts[r.zip] = { ZIP: r.zip, Count: 0 }
+        zipCounts[r.zip].Count++
+      })
+      const topZips = Object.values(zipCounts).sort((a, b) => b.Count - a.Count).slice(0, 20)
+
+      // Patient Analytics
+      const patCounts = {}
+      ;(patientRes.data || []).forEach(r => {
+        if (!patCounts[r.patient_name]) patCounts[r.patient_name] = { Name: r.patient_name, 'Total Deliveries': 0, Pharmacy: r.pharmacy, ZIP: r.zip, 'Cold Chain': 0 }
+        patCounts[r.patient_name]['Total Deliveries']++
+        if (r.cold_chain) patCounts[r.patient_name]['Cold Chain']++
+      })
+      const patientData = Object.values(patCounts).sort((a, b) => b['Total Deliveries'] - a['Total Deliveries']).slice(0, 20)
+
+      // Location Intelligence
+      const locCounts = {}
+      ;(locationRes.data || []).forEach(r => {
+        const key = `${r.address}|${r.city}|${r.zip}`
+        if (!locCounts[key]) locCounts[key] = { Address: r.address, City: r.city, ZIP: r.zip, Pharmacy: r.pharmacy, 'Total Deliveries': 0 }
+        locCounts[key]['Total Deliveries']++
+      })
+      const topLocations = Object.values(locCounts).sort((a, b) => b['Total Deliveries'] - a['Total Deliveries']).slice(0, 10)
+
+      // Parse logs — weekdays only
+      const allLogs = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
+
+      let logs = allLogs
+      if (period === 'week') logs = allLogs.slice(-5)
+      else if (period === 'month') logs = allLogs.slice(-60)
+
+      // KPIs
+      const totalOrders = logs.reduce((s, r) => s + (r.orders_processed || 0), 0)
+      const totalColdChain = logs.reduce((s, r) => s + (r.cold_chain || 0), 0)
+      const totalUnassigned = logs.reduce((s, r) => s + (r.unassigned_count || 0), 0)
+      const totalCorrections = logs.reduce((s, r) => s + (r.corrections || 0), 0)
+      const shspTotal = logs.reduce((s, r) => s + (r.shsp_orders || 0), 0)
+      const aultmanTotal = logs.reduce((s, r) => s + (r.aultman_orders || 0), 0)
+      const avgPerNight = logs.length ? Math.round(totalOrders / logs.length) : 0
+
+      const kpis = {
+        totalOrders, avgPerNight, totalColdChain,
+        coldChainPct: totalOrders ? Math.round((totalColdChain / totalOrders) * 100) : 0,
+        totalUnassigned, totalCorrections, shspTotal, aultmanTotal,
+        shspPct: totalOrders ? Math.round((shspTotal / totalOrders) * 100) : 0,
+      }
+
+      // Volume trend
+      const volumeTrend = logs.map(r => ({
+        date: r.date, day: r.delivery_day,
+        orders: r.orders_processed || 0,
+        shsp: r.shsp_orders || 0, aultman: r.aultman_orders || 0,
+        coldChain: r.cold_chain || 0, unassigned: r.unassigned_count || 0,
+      }))
+
+      // Day of week breakdown
+      const dayBreakdown = {}
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+      dayNames.forEach(d => { dayBreakdown[d] = { orders: 0, count: 0 } })
+      logs.forEach(r => {
+        if (dayBreakdown[r.delivery_day]) {
+          dayBreakdown[r.delivery_day].orders += r.orders_processed || 0
+          dayBreakdown[r.delivery_day].count++
+        }
+      })
+      const dayAvg = dayNames.map(d => ({
+        day: d,
+        avg: dayBreakdown[d].count ? Math.round(dayBreakdown[d].orders / dayBreakdown[d].count) : 0,
+        total: dayBreakdown[d].orders,
+      }))
+
+      // Driver leaderboard
+      const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
+      const driverLeaderboard = currentWeek
+        .filter(r => r.driver_name !== 'Paul')
+        .map(d => ({
+          name: d.driver_name, weekTotal: d.week_total || 0,
+          mon: d.mon || 0, tue: d.tue || 0, wed: d.wed || 0,
+          thu: d.thu || 0, fri: d.fri || 0,
+        }))
+        .sort((a, b) => b.weekTotal - a.weekTotal)
+
+      // Top driver from logs
+      const driverCounts = {}
+      logs.forEach(r => { if (r.top_driver) driverCounts[r.top_driver] = (driverCounts[r.top_driver] || 0) + 1 })
+      const topDriverOverall = Object.entries(driverCounts)
+        .sort((a, b) => b[1] - a[1]).slice(0, 5)
+        .map(([name, count]) => ({ name, timesTop: count }))
+
+      // Pharmacy split
+      const pharmaSplit = []
+      for (let i = 0; i < logs.length; i += 5) {
+        const chunk = logs.slice(i, i + 5)
+        pharmaSplit.push({
+          label: chunk[0]?.date || '',
+          shsp: chunk.reduce((s, r) => s + (r.shsp_orders || 0), 0),
+          aultman: chunk.reduce((s, r) => s + (r.aultman_orders || 0), 0),
+        })
+      }
+
+      setData({
+        dispatches: logs.length, kpis, volumeTrend, dayAvg,
+        driverLeaderboard, topDriverOverall, topZips, patientData,
+        topLocations, pharmaSplit,
+      })
+    } catch (err) {
+      console.error('Analytics error:', err)
+      setData(null)
+    }
     finally { setLoading(false) }
   }
 
@@ -79,7 +198,6 @@ export default function Analytics() {
           </div>
 
           <div className="an__grid">
-            {/* Mini volume chart */}
             <div className="an__card an__card--full">
               <h3 className="an__card-title">Delivery Volume <span className="an__scroll-hint">scroll for more &rarr;</span></h3>
               <ScrollChart data={volumeTrend} maxVol={maxVol} />
@@ -89,7 +207,6 @@ export default function Analytics() {
               </div>
             </div>
 
-            {/* Busiest days */}
             <div className="an__card">
               <h3 className="an__card-title">Busiest Days</h3>
               <div className="an__day-chart">
@@ -106,7 +223,6 @@ export default function Analytics() {
               <p className="an__card-sub">Average orders per night</p>
             </div>
 
-            {/* Pharmacy split */}
             <div className="an__card">
               <h3 className="an__card-title">Pharmacy Split</h3>
               <div className="an__split">
@@ -126,7 +242,6 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Heatmap */}
           <Heatmap volumeTrend={volumeTrend} />
         </>
       )}
@@ -134,30 +249,25 @@ export default function Analytics() {
       {/* ─── TRENDS ─── */}
       {tab === 'trends' && (
         <div className="an__grid">
-          {/* Full volume chart */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Volume Over Time <span className="an__scroll-hint">scroll for more &rarr;</span></h3>
             <ScrollChart data={volumeTrend} maxVol={maxVol} tall />
           </div>
 
-          {/* Cold chain trend */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Cold Chain Volume <span className="an__scroll-hint">scroll &rarr;</span></h3>
             <ScrollChartSingle data={volumeTrend} field="coldChain" barClass="an__vol-bar--cc" />
           </div>
 
-          {/* Unassigned trend */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Unassigned Orders <span className="an__scroll-hint">scroll &rarr;</span></h3>
             <ScrollChartSingle data={volumeTrend} field="unassigned" barClass="an__vol-bar--warn" />
           </div>
 
-          {/* Heatmap */}
           <div className="an__card--full">
             <Heatmap volumeTrend={volumeTrend} />
           </div>
 
-          {/* Day of week */}
           <div className="an__card">
             <h3 className="an__card-title">Volume by Day of Week</h3>
             <div className="an__day-chart">
@@ -181,7 +291,6 @@ export default function Analytics() {
             </div>
           </div>
 
-          {/* Pharmacy trend */}
           <div className="an__card">
             <h3 className="an__card-title">Pharmacy Trend</h3>
             {pharmaSplit?.length > 1 && (
@@ -254,7 +363,7 @@ export default function Analytics() {
             <h3 className="an__card-title">Driver Distribution</h3>
             <div className="an__split">
               <div className="an__split-bar" style={{ height: 24 }}>
-                {driverLeaderboard?.filter(d => d.weekTotal > 0).map((d, i) => {
+                {driverLeaderboard?.filter(d => d.weekTotal > 0).map((d) => {
                   const totalStops = driverLeaderboard.reduce((s, x) => s + x.weekTotal, 0) || 1
                   return (
                     <div
@@ -278,17 +387,13 @@ export default function Analytics() {
           <div className="an__card">
             <h3 className="an__card-title">Top ZIP Codes</h3>
             <div className="an__zips">
-              {topZips?.slice(0, 20).map((z, i) => {
-                const zip = z.ZIP || z['Zip Code'] || z['ZIP Code'] || Object.values(z)[0] || ''
-                const count = z.Count || z.Orders || z.Total || Object.values(z)[1] || ''
-                return (
-                  <div className="an__zip" key={i}>
-                    <span className="an__zip-rank">{i + 1}</span>
-                    <span className="an__zip-code">{zip}</span>
-                    <span className="an__zip-count">{count}</span>
-                  </div>
-                )
-              })}
+              {topZips?.slice(0, 20).map((z, i) => (
+                <div className="an__zip" key={i}>
+                  <span className="an__zip-rank">{i + 1}</span>
+                  <span className="an__zip-code">{z.ZIP}</span>
+                  <span className="an__zip-count">{z.Count}</span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -435,7 +540,6 @@ function KPI({ label, value, sub, accent, warn }) {
 function ScrollChart({ data, maxVol, tall }) {
   const ref = useRef(null)
 
-  // Auto-scroll to the right (most recent) on mount
   useEffect(() => {
     if (ref.current) {
       ref.current.scrollLeft = ref.current.scrollWidth
