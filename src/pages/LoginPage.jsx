@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 import './LoginPage.css'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -56,7 +57,13 @@ export default function LoginPage() {
         return
       }
 
-      // 3. Save to context and localStorage
+      // 3. Set session on Supabase client so writes use auth token
+      await supabase.auth.setSession({
+        access_token: authData.access_token,
+        refresh_token: authData.refresh_token,
+      })
+
+      // 4. Save to context and localStorage
       setUser(authData.user)
       setProfile(profile)
       localStorage.setItem('cnc-profile', JSON.stringify(profile))
