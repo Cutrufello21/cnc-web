@@ -15,7 +15,6 @@ function getAuth() {
     if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
       raw = raw.slice(1, -1)
     }
-    // Handle escaped quotes inside
     raw = raw.replace(/\\"/g, '"')
     const creds = JSON.parse(raw)
     if (typeof creds.private_key === 'string') {
@@ -23,6 +22,18 @@ function getAuth() {
     }
     return new google.auth.GoogleAuth({
       credentials: creds,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    })
+  }
+  // Individual env vars approach (Vercel-friendly)
+  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    return new google.auth.GoogleAuth({
+      credentials: {
+        type: 'service_account',
+        project_id: process.env.GOOGLE_PROJECT_ID || 'cnc-dispatch',
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      },
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     })
   }
