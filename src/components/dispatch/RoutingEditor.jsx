@@ -16,6 +16,9 @@ export default function RoutingEditor() {
   const [editCell, setEditCell] = useState(null) // { zip, day }
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newZip, setNewZip] = useState({ zip: '', mon: '', tue: '', wed: '', thu: '', fri: '', route: '', pharmacy: 'SHSP' })
+  const [addingZip, setAddingZip] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -76,6 +79,31 @@ export default function RoutingEditor() {
       setTimeout(() => setToast(null), 4000)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleAddZip() {
+    if (!newZip.zip) return
+    setAddingZip(true)
+    try {
+      const res = await fetch('/api/add-route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newZip),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      setToast(`ZIP ${newZip.zip} added`)
+      setTimeout(() => setToast(null), 3000)
+      setNewZip({ zip: '', mon: '', tue: '', wed: '', thu: '', fri: '', route: '', pharmacy: 'SHSP' })
+      setShowAddForm(false)
+      loadData() // Refresh
+    } catch (err) {
+      setToast(`Error: ${err.message}`)
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setAddingZip(false)
     }
   }
 
@@ -250,6 +278,75 @@ export default function RoutingEditor() {
           </tbody>
         </table>
       </div>
+
+      {/* Add ZIP button / form */}
+      {!showAddForm ? (
+        <button className="re__add-btn" onClick={() => setShowAddForm(true)}>
+          + Add ZIP Code
+        </button>
+      ) : (
+        <div className="re__add-form">
+          <h4 className="re__add-title">Add New ZIP Code</h4>
+          <div className="re__add-row">
+            <div className="re__add-field">
+              <label>ZIP Code</label>
+              <input
+                type="text"
+                value={newZip.zip}
+                onChange={(e) => setNewZip({ ...newZip, zip: e.target.value })}
+                placeholder="44XXX"
+                autoFocus
+              />
+            </div>
+            <div className="re__add-field">
+              <label>Route</label>
+              <input
+                type="text"
+                value={newZip.route}
+                onChange={(e) => setNewZip({ ...newZip, route: e.target.value })}
+                placeholder="e.g. West, Canton"
+              />
+            </div>
+            <div className="re__add-field">
+              <label>Pharmacy</label>
+              <select
+                value={newZip.pharmacy}
+                onChange={(e) => setNewZip({ ...newZip, pharmacy: e.target.value })}
+              >
+                {pharmacies.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="re__add-row">
+            {DAYS.map(day => (
+              <div className="re__add-field" key={day}>
+                <label>{day}</label>
+                <select
+                  value={newZip[day.toLowerCase()]}
+                  onChange={(e) => setNewZip({ ...newZip, [day.toLowerCase()]: e.target.value })}
+                >
+                  <option value="">—</option>
+                  {drivers.map(d => (
+                    <option key={d} value={d}>{d.split('/')[0]}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div className="re__add-actions">
+            <button
+              className="re__add-submit"
+              onClick={handleAddZip}
+              disabled={!newZip.zip || addingZip}
+            >
+              {addingZip ? 'Adding...' : 'Add to Routing Rules'}
+            </button>
+            <button className="re__add-cancel" onClick={() => setShowAddForm(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

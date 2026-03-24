@@ -47,8 +47,8 @@
   background: var(--cornflower);
 }
 
-.trust__logo-badge--red {
-  background: #dc4a4a;
+.trust__logo-badge--green {
+  background: #4ADE80;
 }
 
 .trust__logo-name {

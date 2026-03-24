@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
+import ThemeToggle from '../components/ThemeToggle'
 import './DashboardShell.css'
 import './DriverPage.css'
 
@@ -43,6 +44,7 @@ export default function DriverPage() {
             <span className="shell__title">Driver Portal</span>
           </div>
           <div className="shell__user">
+            <ThemeToggle />
             <span className="shell__name">{data?.driverName || profile?.full_name}</span>
             <button className="shell__signout" onClick={signOut}>Sign Out</button>
           </div>

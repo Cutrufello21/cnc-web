@@ -1,0 +1,80 @@
+.sd {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.sd__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sd__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.sd__avg {
+  font-size: 12px;
+  color: var(--gray-400);
+}
+
+.sd__bar {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.sd__seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  border-radius: 4px;
+  transition: all 0.3s;
+  cursor: default;
+}
+
+.sd__seg--green { background: #4ADE80; }
+.sd__seg--amber { background: #fbbf24; }
+.sd__seg--red { background: #f87171; }
+
+.sd__seg-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sd__flags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.sd__flag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.sd__flag--over {
+  background: #fef2f2;
+  color: #dc4a4a;
+}
+
+.sd__flag--under {
+  background: #fefce8;
+  color: #a16207;
+}

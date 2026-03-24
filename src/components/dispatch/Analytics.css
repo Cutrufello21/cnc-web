@@ -151,12 +151,49 @@
   margin-top: 12px;
 }
 
-/* Volume chart */
+.an__scroll-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--gray-400);
+  margin-left: 8px;
+}
+
+/* Volume chart — scrollable container */
+.an__vol-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300) transparent;
+  position: relative;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.an__vol-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.an__vol-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.an__vol-scroll::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 3px;
+}
+
+.an__vol-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
 .an__vol-chart {
   display: flex;
   gap: 4px;
   align-items: flex-end;
   height: 200px;
+  min-width: fit-content;
+  padding-bottom: 4px;
 }
 
 .an__vol-chart--tall {
@@ -164,7 +201,8 @@
 }
 
 .an__vol-col {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -194,7 +232,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: #dc4a4a;
+  background: #4ADE80;
 }
 
 .an__vol-val {
@@ -232,7 +270,7 @@
 }
 
 .an__dot--shsp { background: var(--cornflower); }
-.an__dot--aultman { background: #dc4a4a; }
+.an__dot--aultman { background: #4ADE80; }
 
 /* Day breakdown */
 .an__day-chart {
@@ -354,7 +392,7 @@
 }
 
 .an__split-aultman {
-  background: #dc4a4a;
+  background: #4ADE80;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -400,7 +438,7 @@
 }
 
 .an__pharma-a {
-  background: #dc4a4a;
+  background: #4ADE80;
 }
 
 .an__pharma-label {

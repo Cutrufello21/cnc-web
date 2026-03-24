@@ -1,0 +1,52 @@
+.wx {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--gray-100);
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.wx__icon {
+  font-size: 20px;
+}
+
+.wx__info {
+  display: flex;
+  flex-direction: column;
+}
+
+.wx__temp {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-900);
+  line-height: 1;
+}
+
+.wx__label {
+  font-size: 11px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.wx__alert {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .wx {
+  background: rgba(255,255,255,0.08);
+}
+
+[data-theme="dark"] .wx__alert {
+  background: rgba(220, 74, 74, 0.15);
+  border-color: rgba(220, 74, 74, 0.3);
+  color: #fca5a5;
+}

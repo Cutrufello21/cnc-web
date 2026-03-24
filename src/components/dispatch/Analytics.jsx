@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import DeliveryMap from './DeliveryMap'
+import Heatmap from './Heatmap'
 import './Analytics.css'
 
 export default function Analytics() {
@@ -52,6 +54,7 @@ export default function Analytics() {
           ['drivers', 'Drivers'],
           ['geography', 'Geography'],
           ['pharmacy', 'Pharmacy'],
+          ['map', 'Map'],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -78,20 +81,8 @@ export default function Analytics() {
           <div className="an__grid">
             {/* Mini volume chart */}
             <div className="an__card an__card--full">
-              <h3 className="an__card-title">Delivery Volume</h3>
-              <div className="an__vol-chart">
-                {volumeTrend?.slice(-14).map((d, i) => (
-                  <div className="an__vol-col" key={i} title={`${d.day} ${d.date}: ${d.orders} orders`}>
-                    <div className="an__vol-bar-wrap">
-                      <div className="an__vol-bar" style={{ height: `${(d.orders / maxVol) * 100}%` }}>
-                        <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
-                      </div>
-                    </div>
-                    <span className="an__vol-val">{d.orders}</span>
-                    <span className="an__vol-label">{d.day?.slice(0, 2)}</span>
-                  </div>
-                ))}
-              </div>
+              <h3 className="an__card-title">Delivery Volume <span className="an__scroll-hint">scroll for more &rarr;</span></h3>
+              <ScrollChart data={volumeTrend} maxVol={maxVol} />
               <div className="an__legend">
                 <span><span className="an__dot an__dot--shsp" />SHSP</span>
                 <span><span className="an__dot an__dot--aultman" />Aultman</span>
@@ -134,6 +125,9 @@ export default function Analytics() {
               </div>
             </div>
           </div>
+
+          {/* Heatmap */}
+          <Heatmap volumeTrend={volumeTrend} />
         </>
       )}
 
@@ -142,63 +136,25 @@ export default function Analytics() {
         <div className="an__grid">
           {/* Full volume chart */}
           <div className="an__card an__card--full">
-            <h3 className="an__card-title">Volume Over Time</h3>
-            <div className="an__vol-chart an__vol-chart--tall">
-              {volumeTrend?.map((d, i) => (
-                <div className="an__vol-col" key={i} title={`${d.day} ${d.date}: ${d.orders} orders`}>
-                  <div className="an__vol-bar-wrap">
-                    <div className="an__vol-bar" style={{ height: `${(d.orders / maxVol) * 100}%` }}>
-                      <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
-                    </div>
-                  </div>
-                  <span className="an__vol-val">{d.orders}</span>
-                  <span className="an__vol-label">{d.day?.slice(0, 2)}</span>
-                  <span className="an__vol-date">{d.date?.slice(0, 5)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="an__legend">
-              <span><span className="an__dot an__dot--shsp" />SHSP</span>
-              <span><span className="an__dot an__dot--aultman" />Aultman</span>
-            </div>
+            <h3 className="an__card-title">Volume Over Time <span className="an__scroll-hint">scroll for more &rarr;</span></h3>
+            <ScrollChart data={volumeTrend} maxVol={maxVol} tall />
           </div>
 
           {/* Cold chain trend */}
           <div className="an__card an__card--full">
-            <h3 className="an__card-title">Cold Chain Volume</h3>
-            <div className="an__vol-chart">
-              {volumeTrend?.map((d, i) => {
-                const maxCC = Math.max(...volumeTrend.map(x => x.coldChain || 0), 1)
-                return (
-                  <div className="an__vol-col" key={i} title={`${d.day} ${d.date}: ${d.coldChain} cold chain`}>
-                    <div className="an__vol-bar-wrap">
-                      <div className="an__vol-bar an__vol-bar--cc" style={{ height: `${(d.coldChain / maxCC) * 100}%` }} />
-                    </div>
-                    <span className="an__vol-val">{d.coldChain}</span>
-                    <span className="an__vol-label">{d.day?.slice(0, 2)}</span>
-                  </div>
-                )
-              })}
-            </div>
+            <h3 className="an__card-title">Cold Chain Volume <span className="an__scroll-hint">scroll &rarr;</span></h3>
+            <ScrollChartSingle data={volumeTrend} field="coldChain" barClass="an__vol-bar--cc" />
           </div>
 
           {/* Unassigned trend */}
           <div className="an__card an__card--full">
-            <h3 className="an__card-title">Unassigned Orders</h3>
-            <div className="an__vol-chart">
-              {volumeTrend?.map((d, i) => {
-                const maxU = Math.max(...volumeTrend.map(x => x.unassigned || 0), 1)
-                return (
-                  <div className="an__vol-col" key={i}>
-                    <div className="an__vol-bar-wrap">
-                      <div className="an__vol-bar an__vol-bar--warn" style={{ height: `${d.unassigned ? (d.unassigned / maxU) * 100 : 0}%` }} />
-                    </div>
-                    <span className="an__vol-val">{d.unassigned}</span>
-                    <span className="an__vol-label">{d.day?.slice(0, 2)}</span>
-                  </div>
-                )
-              })}
-            </div>
+            <h3 className="an__card-title">Unassigned Orders <span className="an__scroll-hint">scroll &rarr;</span></h3>
+            <ScrollChartSingle data={volumeTrend} field="unassigned" barClass="an__vol-bar--warn" />
+          </div>
+
+          {/* Heatmap */}
+          <div className="an__card--full">
+            <Heatmap volumeTrend={volumeTrend} />
           </div>
 
           {/* Day of week */}
@@ -459,6 +415,9 @@ export default function Analytics() {
           </div>
         </div>
       )}
+
+      {/* ─── MAP ─── */}
+      {tab === 'map' && <DeliveryMap />}
     </div>
   )
 }
@@ -469,6 +428,70 @@ function KPI({ label, value, sub, accent, warn }) {
       <span className="an__kpi-label">{label}</span>
       <span className={`an__kpi-value ${accent ? 'an__kpi-value--accent' : ''} ${warn ? 'an__kpi-value--warn' : ''}`}>{value}</span>
       {sub && <span className="an__kpi-sub">{sub}</span>}
+    </div>
+  )
+}
+
+function ScrollChart({ data, maxVol, tall }) {
+  const ref = useRef(null)
+
+  // Auto-scroll to the right (most recent) on mount
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.scrollLeft = ref.current.scrollWidth
+    }
+  }, [data])
+
+  return (
+    <>
+      <div className="an__vol-scroll" ref={ref}>
+        <div className={`an__vol-chart ${tall ? 'an__vol-chart--tall' : ''}`}>
+          {data?.map((d, i) => (
+            <div className="an__vol-col" key={i} title={`${d.day} ${d.date}: ${d.orders} orders (SHSP: ${d.shsp}, Aultman: ${d.aultman})`}>
+              <div className="an__vol-bar-wrap">
+                <div className="an__vol-bar" style={{ height: `${(d.orders / maxVol) * 100}%` }}>
+                  <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
+                </div>
+              </div>
+              <span className="an__vol-val">{d.orders}</span>
+              <span className="an__vol-label">{d.day?.slice(0, 3)}</span>
+              <span className="an__vol-date">{d.date?.slice(0, 5)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="an__legend">
+        <span><span className="an__dot an__dot--shsp" />SHSP</span>
+        <span><span className="an__dot an__dot--aultman" />Aultman</span>
+      </div>
+    </>
+  )
+}
+
+function ScrollChartSingle({ data, field, barClass }) {
+  const ref = useRef(null)
+  const maxVal = Math.max(...(data?.map(d => d[field] || 0) || [1]))
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.scrollLeft = ref.current.scrollWidth
+    }
+  }, [data])
+
+  return (
+    <div className="an__vol-scroll" ref={ref}>
+      <div className="an__vol-chart">
+        {data?.map((d, i) => (
+          <div className="an__vol-col" key={i} title={`${d.day} ${d.date}: ${d[field]}`}>
+            <div className="an__vol-bar-wrap">
+              <div className={`an__vol-bar ${barClass}`} style={{ height: `${d[field] ? (d[field] / maxVal) * 100 : 0}%` }} />
+            </div>
+            <span className="an__vol-val">{d[field]}</span>
+            <span className="an__vol-label">{d.day?.slice(0, 3)}</span>
+            <span className="an__vol-date">{d.date?.slice(0, 5)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

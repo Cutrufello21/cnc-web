@@ -3,7 +3,7 @@ import './DriverCard.css'
 
 const PHARMACY_COLORS = {
   SHSP: { bg: '#eef4ff', text: '#3b82f6', label: 'SHSP' },
-  Aultman: { bg: '#fef2f2', text: '#dc4a4a', label: 'Aultman' },
+  Aultman: { bg: '#dcfce7', text: '#16a34a', label: 'Aultman' },
   Both: { bg: '#f0fdf4', text: '#16a34a', label: 'Both' },
 }
 

@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     // Period filter
     let logs = allLogs
     if (period === 'week') logs = allLogs.slice(-5)
-    else if (period === 'month') logs = allLogs.slice(-22)
+    else if (period === 'month') logs = allLogs.slice(-60) // ~12 weeks
 
     // KPIs
     const totalOrders = logs.reduce((s, r) => s + (parseInt(r['Orders Processed']) || 0), 0)

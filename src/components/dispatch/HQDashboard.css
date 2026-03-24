@@ -145,7 +145,7 @@
 }
 
 .hq__bar-segment--aultman {
-  background: #dc4a4a;
+  background: #4ADE80;
 }
 
 .hq__bar-val {
@@ -159,6 +159,11 @@
   font-size: 10px;
   color: var(--gray-400);
   margin-top: 2px;
+}
+
+.hq__bar-date {
+  font-size: 8px;
+  color: var(--gray-300);
 }
 
 .hq__chart-legend {
@@ -187,7 +192,7 @@
 }
 
 .hq__legend-dot--aultman {
-  background: #dc4a4a;
+  background: #4ADE80;
 }
 
 /* Leaderboard */

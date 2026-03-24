@@ -108,3 +108,13 @@
     justify-content: center;
   }
 }
+
+[data-theme="dark"] .hero__btn--primary {
+  color: #f3f5f8;
+}
+
+[data-theme="dark"] .hero__accent {
+  background: linear-gradient(135deg, var(--cornflower) 0%, #89b0f2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}

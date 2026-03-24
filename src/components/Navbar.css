@@ -129,3 +129,23 @@
     font-size: 17px;
   }
 }
+
+/* Dark mode */
+[data-theme="dark"] .navbar {
+  background: rgba(10, 14, 26, 0.8);
+}
+
+[data-theme="dark"] .navbar--scrolled {
+  background: rgba(10, 14, 26, 0.9);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .navbar__links a:hover {
+  color: var(--white);
+}
+
+@media (max-width: 768px) {
+  [data-theme="dark"] .navbar__links {
+    background: rgba(10, 14, 26, 0.95);
+  }
+}

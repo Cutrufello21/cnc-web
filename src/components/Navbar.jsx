@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 import './Navbar.css'
 
 export default function Navbar() {
@@ -24,6 +25,7 @@ export default function Navbar() {
           <a href="#services" onClick={() => setMenuOpen(false)}>Services</a>
           <a href="#coverage" onClick={() => setMenuOpen(false)}>Coverage</a>
           <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
+          <ThemeToggle />
           <Link to="/login" className="navbar__cta" onClick={() => setMenuOpen(false)}>
             Sign In
           </Link>

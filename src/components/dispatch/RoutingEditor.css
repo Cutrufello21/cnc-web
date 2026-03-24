@@ -212,3 +212,119 @@
   font-size: 12px;
   color: var(--gray-500);
 }
+
+/* Add ZIP button */
+.re__add-btn {
+  display: block;
+  margin-top: 16px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cornflower);
+  background: var(--white);
+  border: 2px dashed var(--gray-200);
+  border-radius: 10px;
+  width: 100%;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.re__add-btn:hover {
+  border-color: var(--cornflower);
+  background: var(--blue-tint);
+}
+
+/* Add form */
+.re__add-form {
+  margin-top: 16px;
+  padding: 24px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+}
+
+.re__add-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 16px;
+}
+
+.re__add-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.re__add-field {
+  flex: 1;
+  min-width: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.re__add-field label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-500);
+}
+
+.re__add-field input,
+.re__add-field select {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--gray-900);
+  outline: none;
+}
+
+.re__add-field input:focus,
+.re__add-field select:focus {
+  border-color: var(--cornflower);
+  box-shadow: 0 0 0 3px rgba(100, 149, 237, 0.1);
+}
+
+.re__add-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.re__add-submit {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--navy);
+  color: var(--white);
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.re__add-submit:hover:not(:disabled) {
+  background: var(--navy-light);
+}
+
+.re__add-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.re__add-cancel {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--gray-500);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+}
+
+.re__add-cancel:hover {
+  background: var(--gray-50);
+}

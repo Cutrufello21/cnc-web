@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 
+// Restore theme preference
+const savedTheme = localStorage.getItem('cnc-theme')
+if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme)
+
 // Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

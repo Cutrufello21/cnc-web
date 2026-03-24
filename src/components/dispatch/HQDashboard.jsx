@@ -85,6 +85,7 @@ export default function HQDashboard() {
                 </div>
                 <span className="hq__bar-val">{d.orders}</span>
                 <span className="hq__bar-label">{d.day?.slice(0, 3)}</span>
+                <span className="hq__bar-date">{d.date?.slice(0, 5)}</span>
               </div>
             ))}
           </div>
