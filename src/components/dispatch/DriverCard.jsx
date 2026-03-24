@@ -18,13 +18,12 @@ const COLUMNS = [
   { key: 'Pharmacy', label: 'Pharmacy' },
 ]
 
-export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, onRefresh }) {
+export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, onRefresh, onMoveComplete }) {
   const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [reassignTo, setReassignTo] = useState('')
   const [moving, setMoving] = useState(false)
   const [moveResult, setMoveResult] = useState(null)
-  const [lastMove, setLastMove] = useState(null) // { orderIds, fromName, fromNumber, toName }
   const [sortCol, setSortCol] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   const [filters, setFilters] = useState({})
@@ -152,40 +151,13 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       if (error) throw new Error(error.message)
       if (!updated || updated.length === 0) throw new Error('No rows updated — check permissions (try logging out and back in)')
 
-      setLastMove({ orderIds, fromName: name, fromNumber: driver['Driver #'] || '', toName: toDriverName })
       setMoveResult(`Moved ${updated.length} stop${updated.length > 1 ? 's' : ''} to ${toDriverName}`)
       setSelected(new Set())
       setReassignTo('')
+      if (onMoveComplete) onMoveComplete({ orderIds, fromName: name, fromNumber: driver['Driver #'] || '', toName: toDriverName, count: updated.length })
       if (onRefresh) setTimeout(onRefresh, 500)
     } catch (err) {
       setMoveResult(`Error: ${err.message}`)
-      setLastMove(null)
-    } finally {
-      setMoving(false)
-    }
-  }
-
-  async function handleUndo() {
-    if (!lastMove) return
-    setMoving(true)
-    try {
-      const { data: updated, error } = await supabase.from('daily_stops')
-        .update({
-          driver_name: lastMove.fromName,
-          driver_number: lastMove.fromNumber,
-          assigned_driver_number: lastMove.fromNumber,
-        })
-        .in('order_id', lastMove.orderIds)
-        .eq('driver_name', lastMove.toName)
-        .select()
-
-      if (error) throw new Error(error.message)
-
-      setMoveResult(`Undone — ${updated?.length || lastMove.orderIds.length} stop${lastMove.orderIds.length > 1 ? 's' : ''} back to ${lastMove.fromName}`)
-      setLastMove(null)
-      if (onRefresh) setTimeout(onRefresh, 500)
-    } catch (err) {
-      setMoveResult(`Undo error: ${err.message}`)
     } finally {
       setMoving(false)
     }
@@ -261,11 +233,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           )}
 
           {moveResult && (
-            <div className={`dcard__move-result ${moveResult.startsWith('Error') || moveResult.startsWith('Undo error') ? 'dcard__move-result--err' : ''}`}>
+            <div className={`dcard__move-result ${moveResult.startsWith('Error') ? 'dcard__move-result--err' : ''}`}>
               {moveResult}
-              {lastMove && !moving && (
-                <button className="dcard__undo-btn" onClick={handleUndo}>Undo</button>
-              )}
             </div>
           )}
 

@@ -27,6 +27,9 @@ export default function DispatchPage() {
   const [approved, setApproved] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
   const [dismissedWarnings, setDismissedWarnings] = useState(new Set())
+  const [lastMove, setLastMove] = useState(null) // { orderIds, fromName, fromNumber, toName, count }
+  const [undoing, setUndoing] = useState(false)
+  const [moveToast, setMoveToast] = useState(null)
 
   useEffect(() => {
     fetchDispatchData()
@@ -141,6 +144,36 @@ export default function DispatchPage() {
     fetchDispatchData(day)
   }
 
+  function handleMoveComplete(moveInfo) {
+    setLastMove(moveInfo)
+    setMoveToast(`Moved ${moveInfo.count} stop${moveInfo.count > 1 ? 's' : ''} to ${moveInfo.toName}`)
+  }
+
+  async function handleUndo() {
+    if (!lastMove) return
+    setUndoing(true)
+    try {
+      const { data: updated, error } = await supabase.from('daily_stops')
+        .update({
+          driver_name: lastMove.fromName,
+          driver_number: lastMove.fromNumber,
+          assigned_driver_number: lastMove.fromNumber,
+        })
+        .in('order_id', lastMove.orderIds)
+        .eq('driver_name', lastMove.toName)
+        .select()
+
+      if (error) throw new Error(error.message)
+      setMoveToast(`Undone — ${updated?.length || lastMove.count} stop${lastMove.count > 1 ? 's' : ''} back to ${lastMove.fromName}`)
+      setLastMove(null)
+      fetchDispatchData(selectedDay)
+    } catch (err) {
+      setMoveToast(`Undo error: ${err.message}`)
+    } finally {
+      setUndoing(false)
+    }
+  }
+
   async function handleApprove() {
     setApproving(true)
     try {
@@ -248,6 +281,17 @@ export default function DispatchPage() {
                 </p>
               </div>
               <div className="dispatch__actions">
+                {moveToast && (
+                  <div className={`dispatch__move-toast ${moveToast.startsWith('Undo error') ? 'dispatch__move-toast--err' : ''}`}>
+                    <span>{moveToast}</span>
+                    {lastMove && !undoing && (
+                      <button className="dispatch__undo-btn" onClick={handleUndo}>Undo</button>
+                    )}
+                    {!lastMove && (
+                      <button className="dispatch__toast-close" onClick={() => setMoveToast(null)}>✕</button>
+                    )}
+                  </div>
+                )}
                 <button
                   className="dispatch__refresh"
                   onClick={() => fetchDispatchData(selectedDay)}
@@ -305,6 +349,7 @@ export default function DispatchPage() {
                       allDrivers={data.drivers}
                       selectedDay={selectedDay}
                       onRefresh={() => fetchDispatchData(selectedDay)}
+                      onMoveComplete={handleMoveComplete}
                     />
                   ))}
               </div>
@@ -328,6 +373,7 @@ export default function DispatchPage() {
                       allDrivers={data.drivers}
                       selectedDay={selectedDay}
                       onRefresh={() => fetchDispatchData(selectedDay)}
+                      onMoveComplete={handleMoveComplete}
                     />
                   ))}
                 </div>
