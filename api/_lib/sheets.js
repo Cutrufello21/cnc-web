@@ -1,19 +1,18 @@
-import { GoogleAuth } from 'google-auth-library'
+import { createSign } from 'crypto'
 import { readFileSync } from 'fs'
 
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
+const TOKEN_URI = 'https://oauth2.googleapis.com/token'
+const SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
 
-function createAuth() {
+// --- JWT-based auth using native crypto (no external deps) ---
+
+function getCredentials() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_PATH) {
-    const creds = JSON.parse(readFileSync(process.env.GOOGLE_SERVICE_ACCOUNT_PATH, 'utf8'))
-    return new GoogleAuth({
-      credentials: creds,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    })
+    return JSON.parse(readFileSync(process.env.GOOGLE_SERVICE_ACCOUNT_PATH, 'utf8'))
   }
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     let raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.trim()
-    // Strip wrapping quotes if Vercel added them
     if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
       raw = raw.slice(1, -1)
     }
@@ -22,36 +21,66 @@ function createAuth() {
     if (typeof creds.private_key === 'string') {
       creds.private_key = creds.private_key.replace(/\\n/g, '\n')
     }
-    return new GoogleAuth({
-      credentials: creds,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    })
+    return creds
   }
-  // Individual env vars approach (Vercel-friendly)
   if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
-    return new GoogleAuth({
-      credentials: {
-        type: 'service_account',
-        project_id: process.env.GOOGLE_PROJECT_ID || 'cnc-dispatch',
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    })
+    return {
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    }
   }
   throw new Error('No Google credentials configured')
 }
 
-let authInstance = null
+function base64url(data) {
+  return Buffer.from(data).toString('base64url')
+}
+
+function createJWT(clientEmail, privateKey) {
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const payload = base64url(JSON.stringify({
+    iss: clientEmail,
+    scope: SCOPE,
+    aud: TOKEN_URI,
+    iat: now,
+    exp: now + 3600,
+  }))
+  const unsigned = `${header}.${payload}`
+  const sign = createSign('RSA-SHA256')
+  sign.update(unsigned)
+  const signature = sign.sign(privateKey, 'base64url')
+  return `${unsigned}.${signature}`
+}
+
+let cachedToken = null
+let tokenExpiry = 0
+
+async function getAccessToken() {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken
+
+  const creds = getCredentials()
+  const jwt = createJWT(creds.client_email, creds.private_key)
+
+  const res = await fetch(TOKEN_URI, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  })
+
+  if (!res.ok) throw new Error(`Token exchange failed: ${await res.text()}`)
+  const data = await res.json()
+  cachedToken = data.access_token
+  tokenExpiry = Date.now() + (data.expires_in - 60) * 1000
+  return cachedToken
+}
 
 async function getHeaders() {
-  if (!authInstance) {
-    authInstance = createAuth()
-  }
-  const client = await authInstance.getClient()
-  const token = await client.getAccessToken()
-  return { Authorization: `Bearer ${token.token || token}`, 'Content-Type': 'application/json' }
+  const token = await getAccessToken()
+  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 }
+
+// --- Sheets API functions (unchanged signatures) ---
 
 export async function fetchRange(spreadsheetId, range) {
   const headers = await getHeaders()
