@@ -10,8 +10,13 @@ function getAuth() {
     })
   }
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
-    let raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON
-    // Handle double-escaped newlines from env var
+    let raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.trim()
+    // Strip wrapping quotes if Vercel added them
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      raw = raw.slice(1, -1)
+    }
+    // Handle escaped quotes inside
+    raw = raw.replace(/\\"/g, '"')
     const creds = JSON.parse(raw)
     if (typeof creds.private_key === 'string') {
       creds.private_key = creds.private_key.replace(/\\n/g, '\n')
