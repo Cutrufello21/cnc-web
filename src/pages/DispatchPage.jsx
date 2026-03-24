@@ -37,18 +37,60 @@ export default function DispatchPage() {
     setError(null)
     setApproved(false)
     try {
-      // Fetch Supabase data (drivers, routing rules, logs) and daily sheets in parallel
-      const [driversRes, routingRes, logsRes, sheetsRes] = await Promise.all([
+      // Determine delivery day
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const now = new Date()
+      const hour = now.getHours()
+      const todayIdx = now.getDay()
+      let deliveryDay = day
+
+      if (!deliveryDay) {
+        if (hour >= 17) {
+          deliveryDay = todayIdx === 5 || todayIdx === 6 ? 'Monday' : dayNames[todayIdx + 1]
+        } else {
+          deliveryDay = todayIdx === 0 ? 'Monday' : todayIdx === 6 ? 'Friday' : dayNames[todayIdx]
+        }
+      }
+
+      // Get this week's date for the selected day
+      const dayOfWeek = now.getDay()
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + mondayOffset)
+      const dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].indexOf(deliveryDay)
+      const deliveryDate = new Date(monday)
+      deliveryDate.setDate(monday.getDate() + (dayIndex >= 0 ? dayIndex : 0))
+      const dateStr = deliveryDate.toISOString().split('T')[0]
+
+      // Fetch everything from Supabase in parallel
+      const [driversRes, routingRes, logsRes, stopsRes] = await Promise.all([
         supabase.from('drivers').select('*').eq('active', true).order('driver_name'),
         supabase.from('routing_rules').select('*'),
         supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(7),
-        fetch(day ? `/api/dispatch?day=${day}` : '/api/dispatch').then(r => r.json()),
+        supabase.from('daily_stops').select('*').eq('delivery_date', dateStr),
       ])
 
       const drivers = (driversRes.data || []).filter(d => d.driver_name)
       const routingRules = routingRes.data || []
       const assignedZips = new Set(routingRules.map(r => r.zip_code).filter(Boolean))
-      const driverStops = sheetsRes.driverStops || {}
+      const stops = stopsRes.data || []
+
+      // Group stops by driver
+      const driverStops = {}
+      stops.forEach(s => {
+        if (!driverStops[s.driver_name]) {
+          driverStops[s.driver_name] = { stops: 0, coldChain: 0, stopDetails: [] }
+        }
+        const ds = driverStops[s.driver_name]
+        ds.stops++
+        if (s.cold_chain) ds.coldChain++
+        ds.stopDetails.push({
+          'Order ID': s.order_id, Name: s.patient_name,
+          Address: s.address, City: s.city, ZIP: s.zip,
+          Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
+          _coldChain: s.cold_chain,
+        })
+      })
 
       const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
       const recentLogs = (logsRes.data || [])
@@ -61,27 +103,32 @@ export default function DispatchPage() {
           'Top Driver': r.top_driver,
         }))
 
+      // Build warnings
+      const warnings = []
+      // Check for unassigned (stops with no driver or driver_name is empty)
+      // For now, no unassigned tracking from Supabase - that can be added later
+
       setData({
-        deliveryDay: sheetsRes.deliveryDay,
-        allDays: sheetsRes.allDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        deliveryDay,
+        allDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         drivers: drivers.map(d => ({
           'Driver Name': d.driver_name,
           'Driver #': d.driver_number,
           Email: d.email,
           stops: driverStops[d.driver_name]?.stops ?? 0,
           coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
-          hidden: driverStops[d.driver_name]?.hidden ?? false,
-          tabName: driverStops[d.driver_name]?.tabName ?? '',
+          hidden: false,
+          tabName: `${d.driver_name} - ${d.driver_number}`,
           stopDetails: driverStops[d.driver_name]?.stopDetails ?? [],
         })),
-        summary: sheetsRes.summary,
-        unassigned: sheetsRes.unassigned || [],
-        warnings: sheetsRes.warnings || [],
+        summary: null,
+        unassigned: [],
+        warnings,
         recentLogs,
         routingRuleCount: routingRules.length,
         assignedZipCount: assignedZips.size,
       })
-      setSelectedDay(sheetsRes.deliveryDay)
+      setSelectedDay(deliveryDay)
     } catch (err) {
       setError(err.message)
     } finally {

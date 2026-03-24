@@ -58,24 +58,26 @@ export default function DriverPage() {
         return
       }
 
-      // Get daily stops from the dispatch API (Google Sheets)
-      let stops = []
-      let approved = false
-      try {
-        const sheetsRes = await fetch(`/api/dispatch?day=${todayName}`)
-        const sheetsData = await sheetsRes.json()
-        const driverData = sheetsData.driverStops?.[driverName]
-        if (driverData) {
-          stops = driverData.stopDetails || []
-          stops = stops.map((s, idx) => ({ ...s, _index: idx, _coldChain: s._coldChain || false }))
-        }
+      // Get today's date
+      const today = new Date().toISOString().split('T')[0]
 
-        // Check approval from dispatch logs
-        const { data: logs } = await supabase.from('dispatch_logs')
-          .select('*').eq('delivery_day', todayName).eq('status', 'Complete')
-          .order('date', { ascending: false }).limit(1)
-        approved = (logs && logs.length > 0)
-      } catch {}
+      // Get daily stops and approval status from Supabase
+      const [stopsRes, logsRes] = await Promise.all([
+        supabase.from('daily_stops').select('*')
+          .eq('delivery_date', today).eq('driver_name', driverName),
+        supabase.from('dispatch_logs').select('*')
+          .eq('delivery_day', todayName).eq('status', 'Complete')
+          .order('date', { ascending: false }).limit(1),
+      ])
+
+      const stops = (stopsRes.data || []).map((s, idx) => ({
+        _index: idx,
+        'Order ID': s.order_id, Name: s.patient_name,
+        Address: s.address, City: s.city, ZIP: s.zip,
+        Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
+        _coldChain: s.cold_chain,
+      }))
+      const approved = (logsRes.data && logsRes.data.length > 0)
 
       setData({
         approved, deliveryDay: todayName, driverName, driverId, tabName,
