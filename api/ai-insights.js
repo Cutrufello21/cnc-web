@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
 
 const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
 
@@ -10,58 +10,42 @@ export default async function handler(req, res) {
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
 
   try {
-    // Fetch data in parallel
-    const [logRaw, weeklyRaw, unassignedRaw, zipRaw] = await Promise.all([
-      fetchRange(MASTER_SHEET_ID, 'Log!A1:M500'),
-      fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:K25'),
-      fetchRange(MASTER_SHEET_ID, 'Unassigned History!A1:F500'),
-      fetchRange(MASTER_SHEET_ID, 'ZIP Analytics!A1:F30'),
+    const [logsRes, weeklyRes, unassignedRes, zipRes] = await Promise.all([
+      supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
+      supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
+      supabase.from('unassigned_orders').select('*').order('date', { ascending: false }).limit(50),
+      supabase.from('orders').select('zip').not('zip', 'is', null).not('zip', 'eq', ''),
     ])
 
-    // Parse log — weekdays only
-    const logHeaders = logRaw[0]?.map(h => h.trim()) || []
-    const allLogs = logRaw.slice(1).map(row => {
-      const obj = {}
-      logHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter(r => r.Date && WEEKDAYS.has(r['Delivery Day']))
+    // Parse logs — weekdays only
+    const allLogs = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
 
-    // This week (last 5 entries) and last 4 weeks
+    // This week and last 4 weeks
     const thisWeek = allLogs.slice(-5)
     const last4Weeks = allLogs.slice(-25)
 
-    // Weekly stops
-    const wsHeaders = weeklyRaw[0]?.map(h => h.trim()) || []
-    const weeklyStops = weeklyRaw.slice(1).map(row => {
-      const obj = {}
-      wsHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter(r => r['Driver Name'] && r['Driver Name'] !== 'TOTAL' && r['Driver Name'] !== 'Paul')
+    // Weekly stops (current week)
+    const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
+    const weeklyStops = currentWeek.filter(r => r.driver_name !== 'Paul')
 
     // Recent unassigned
-    const uhHeaders = unassignedRaw[0]?.map(h => h.trim()) || []
-    const recentUnassigned = unassignedRaw.slice(-50).map(row => {
-      const obj = {}
-      uhHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter(r => r.ZIP)
+    const recentUnassigned = unassignedRes.data || []
 
     // Top ZIPs
-    const zipHeaders = zipRaw[0]?.map(h => h.trim()) || []
-    const topZips = zipRaw.slice(1, 11).map(row => {
-      const obj = {}
-      zipHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    })
+    const zipCounts = {}
+    ;(zipRes.data || []).forEach(r => { zipCounts[r.zip] = (zipCounts[r.zip] || 0) + 1 })
+    const topZips = Object.entries(zipCounts)
+      .sort((a, b) => b[1] - a[1]).slice(0, 10)
+      .map(([zip, count]) => `${zip}: ${count} deliveries`)
 
-    // Build summary for Claude
-    const thisWeekTotal = thisWeek.reduce((s, r) => s + (parseInt(r['Orders Processed']) || 0), 0)
-    const thisWeekSHSP = thisWeek.reduce((s, r) => s + (parseInt(r['SHSP Orders']) || 0), 0)
-    const thisWeekAultman = thisWeek.reduce((s, r) => s + (parseInt(r['Aultman Orders']) || 0), 0)
-    const thisWeekCC = thisWeek.reduce((s, r) => s + (parseInt(r['Cold Chain']) || 0), 0)
-    const thisWeekUnassigned = thisWeek.reduce((s, r) => s + (parseInt(r['Unassigned Count']) || 0), 0)
+    // Build summary
+    const thisWeekTotal = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
+    const thisWeekSHSP = thisWeek.reduce((s, r) => s + (r.shsp_orders || 0), 0)
+    const thisWeekAultman = thisWeek.reduce((s, r) => s + (r.aultman_orders || 0), 0)
+    const thisWeekCC = thisWeek.reduce((s, r) => s + (r.cold_chain || 0), 0)
+    const thisWeekUnassigned = thisWeek.reduce((s, r) => s + (r.unassigned_count || 0), 0)
 
-    // Weekly breakdowns for last 4 weeks
+    // Weekly breakdowns
     const weeklyBreakdowns = []
     for (let i = 0; i < 4; i++) {
       const start = last4Weeks.length - (5 * (i + 1))
@@ -70,35 +54,32 @@ export default async function handler(req, res) {
       if (week.length === 0) continue
       weeklyBreakdowns.push({
         week: `Week ${4 - i}`,
-        dates: `${week[0]?.Date || '?'} - ${week[week.length - 1]?.Date || '?'}`,
-        total: week.reduce((s, r) => s + (parseInt(r['Orders Processed']) || 0), 0),
-        shsp: week.reduce((s, r) => s + (parseInt(r['SHSP Orders']) || 0), 0),
-        aultman: week.reduce((s, r) => s + (parseInt(r['Aultman Orders']) || 0), 0),
-        coldChain: week.reduce((s, r) => s + (parseInt(r['Cold Chain']) || 0), 0),
-        unassigned: week.reduce((s, r) => s + (parseInt(r['Unassigned Count']) || 0), 0),
+        dates: `${week[0]?.date || '?'} - ${week[week.length - 1]?.date || '?'}`,
+        total: week.reduce((s, r) => s + (r.orders_processed || 0), 0),
+        shsp: week.reduce((s, r) => s + (r.shsp_orders || 0), 0),
+        aultman: week.reduce((s, r) => s + (r.aultman_orders || 0), 0),
+        coldChain: week.reduce((s, r) => s + (r.cold_chain || 0), 0),
+        unassigned: week.reduce((s, r) => s + (r.unassigned_count || 0), 0),
       })
     }
 
     // Driver performance
-    const driverSummary = weeklyStops.map(d => ({
-      name: d['Driver Name'],
-      weekTotal: parseInt(d['Week Total']) || 0,
-      mon: parseInt(d.Mon) || 0,
-      tue: parseInt(d.Tue) || 0,
-      wed: parseInt(d.Wed) || 0,
-      thu: parseInt(d.Thu) || 0,
-      fri: parseInt(d.Fri) || 0,
-    })).sort((a, b) => b.weekTotal - a.weekTotal)
+    const driverSummary = weeklyStops
+      .map(d => ({
+        name: d.driver_name,
+        weekTotal: d.week_total || 0,
+        mon: d.mon || 0, tue: d.tue || 0, wed: d.wed || 0,
+        thu: d.thu || 0, fri: d.fri || 0,
+      }))
+      .sort((a, b) => b.weekTotal - a.weekTotal)
 
     // Unassigned ZIP frequency
     const unassignedZips = {}
     recentUnassigned.forEach(r => {
-      const zip = r.ZIP
-      if (zip) unassignedZips[zip] = (unassignedZips[zip] || 0) + 1
+      if (r.zip) unassignedZips[r.zip] = (unassignedZips[r.zip] || 0) + 1
     })
     const topUnassignedZips = Object.entries(unassignedZips)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .sort((a, b) => b[1] - a[1]).slice(0, 10)
       .map(([zip, count]) => `${zip} (${count}x)`)
 
     const prompt = `You are an operations analyst for CNC Delivery Service, a pharmacy delivery company in Northeast Ohio serving two pharmacies (SHSP in Akron, Aultman in Canton) with 16 drivers.
@@ -110,7 +91,7 @@ THIS WEEK SUMMARY:
 - SHSP: ${thisWeekSHSP} | Aultman: ${thisWeekAultman}
 - Cold chain: ${thisWeekCC} (${thisWeekTotal ? Math.round((thisWeekCC / thisWeekTotal) * 100) : 0}%)
 - Unassigned: ${thisWeekUnassigned}
-- Daily breakdown: ${thisWeek.map(d => `${d['Delivery Day']}: ${d['Orders Processed']} orders`).join(', ')}
+- Daily breakdown: ${thisWeek.map(d => `${d.delivery_day}: ${d.orders_processed} orders`).join(', ')}
 
 LAST 4 WEEKS COMPARISON:
 ${weeklyBreakdowns.map(w => `${w.week} (${w.dates}): ${w.total} total, SHSP ${w.shsp}, Aultman ${w.aultman}, CC ${w.coldChain}, Unassigned ${w.unassigned}`).join('\n')}
@@ -122,7 +103,7 @@ FREQUENTLY UNASSIGNED ZIPS (last 50 entries):
 ${topUnassignedZips.join(', ') || 'None'}
 
 TOP ZIPS BY VOLUME:
-${topZips.map(z => Object.values(z).join(' | ')).join('\n')}
+${topZips.join('\n')}
 
 Respond with EXACTLY this format — no markdown, plain text only:
 
@@ -156,11 +137,8 @@ Keep each bullet to 1-2 sentences. Be specific with numbers. This goes in a busi
     return res.status(200).json({
       insights,
       summary: {
-        thisWeekTotal,
-        thisWeekSHSP,
-        thisWeekAultman,
-        thisWeekCC,
-        thisWeekUnassigned,
+        thisWeekTotal, thisWeekSHSP, thisWeekAultman,
+        thisWeekCC, thisWeekUnassigned,
         dispatches: thisWeek.length,
       },
     })

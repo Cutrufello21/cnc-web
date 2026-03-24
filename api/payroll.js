@@ -1,124 +1,82 @@
-import { fetchRange, updateCell, fetchMultipleRanges, getSheetTabs, parseBody, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
-
-function loadSnapshot() { return null }
-function saveSnapshot() {}
-
-// Per-stop rates from cnc-dispatch
-const RATES = {
-  Adam:     { mth: 6.75, wf: 8.25 },
-  Alex:     { mth: 6.75, wf: 6.75 },
-  Jake:     { mth: 6.75, wf: 6.75 },
-  Josh:     { mth: 6.50, wf: 6.50 },
-  Kasey:    { mth: 7.00, wf: 7.00 },
-  Laura:    { mth: 7.00, wf: 7.00 },
-  Nick:     { mth: 7.00, wf: 7.00 },
-  Bobby:    { mth: 7.35, wf: 7.35 },
-  Theresa:  { mth: 7.00, wf: 7.00 },
-  Rob:      { mth: 6.50, wf: 6.50 },
-  Mike:     { mth: 8.25, wf: 8.25 },
-  Tara:     { mth: 8.25, wf: 8.25 },
-  Nicholas: { mth: 8.35, wf: 8.35 },
-}
-
-const OFFICE_FEES = {
-  Adam: -35, Alex: -35, Josh: -35, Nick: -35, Bobby: -35, Theresa: -35,
-  Kasey: -25, Laura: -25,
-}
-
-const FLAT_SALARY = {
-  Mark: 1550,
-  Dom: 2500,
-  Paul: 2000,
-}
+import { supabase } from './_lib/supabase.js'
+import { parseBody } from './_lib/sheets.js'
 
 // GET /api/payroll — returns payroll data with calculated pay
 export default async function handler(req, res) {
-  if (req.method === 'GET' && req.query.snapshot === 'true') {
-    return handleSnapshot(req, res)
-  }
-  if (req.method === 'GET') {
-    return handleGet(req, res)
-  }
-  if (req.method === 'POST') {
-    return handlePost(req, res)
-  }
+  if (req.method === 'GET') return handleGet(req, res)
+  if (req.method === 'POST') return handlePost(req, res)
   return res.status(405).json({ error: 'Method not allowed' })
 }
 
 async function handleGet(req, res) {
   try {
-    const rows = await fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:K25')
-    if (rows.length < 2) return res.status(200).json({ drivers: [], total: {} })
+    // Get current week's Monday
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + mondayOffset)
+    const weekOf = monday.toISOString().split('T')[0]
 
-    const headers = rows[0].map(h => h.trim())
-    const drivers = []
-    let totalRow = null
+    // Fetch payroll and driver data in parallel
+    const [payrollRes, driversRes] = await Promise.all([
+      supabase.from('payroll').select('*').eq('week_of', weekOf),
+      supabase.from('drivers').select('*').eq('active', true),
+    ])
 
-    for (let i = 1; i < rows.length; i++) {
-      const obj = {}
-      headers.forEach((h, j) => { obj[h] = rows[i][j] || '' })
-      const name = obj['Driver Name']
-      if (!name) continue
-      if (name === 'TOTAL') {
-        totalRow = obj
-        continue
-      }
+    if (payrollRes.error) throw payrollRes.error
 
-      const mon = parseInt(obj.Mon) || 0
-      const tue = parseInt(obj.Tue) || 0
-      const wed = parseInt(obj.Wed) || 0
-      const thu = parseInt(obj.Thu) || 0
-      const fri = parseInt(obj.Fri) || 0
+    const driverMap = {}
+    ;(driversRes.data || []).forEach(d => { driverMap[d.driver_name] = d })
+
+    const drivers = (payrollRes.data || []).map(p => {
+      const d = driverMap[p.driver_name] || {}
+      const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0
+      const thu = p.thu || 0, fri = p.fri || 0
       const weekTotal = mon + tue + wed + thu + fri
-      const willCalls = parseInt(obj['Will Calls']) || 0
-      const officeFee = OFFICE_FEES[name] || 0
-      const rate = RATES[name]
-      const flatSalary = FLAT_SALARY[name]
+      const willCalls = p.will_calls || 0
+      const officeFee = parseFloat(d.office_fee) || 0
+      const flatSalary = d.flat_salary ? parseFloat(d.flat_salary) : null
+      const rateMth = parseFloat(d.rate_mth) || 0
+      const rateWf = parseFloat(d.rate_wf) || 0
 
       let calculatedPay = 0
       if (flatSalary) {
         calculatedPay = flatSalary
-      } else if (name === 'Brad') {
-        // Brad is manual entry
-        calculatedPay = parseFloat((obj['Weekly Pay'] || '0').replace(/[$,]/g, '')) || 0
-      } else if (rate) {
-        // (stops per day × day rate) + (will calls × $9) - office fee
+      } else if (rateMth || rateWf) {
         const mthStops = mon + tue + thu
         const wfStops = wed + fri
-        calculatedPay = (mthStops * rate.mth) + (wfStops * rate.wf) + (willCalls * 9)
+        calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * 9)
         if (weekTotal > 0 || willCalls > 0) {
-          calculatedPay += officeFee // officeFee is negative
+          calculatedPay += officeFee
         } else {
-          calculatedPay = 0 // Zero-stop protection
+          calculatedPay = 0
         }
       }
 
-      // Parse the sheet's Weekly Pay value for comparison
-      const sheetPay = parseFloat((obj['Weekly Pay'] || '0').replace(/[$,]/g, '')) || 0
+      const sheetPay = parseFloat(p.weekly_pay) || 0
 
-      drivers.push({
-        name,
-        id: obj['Driver #'],
+      return {
+        name: p.driver_name,
+        id: p.driver_number,
         mon, tue, wed, thu, fri,
-        weekTotal,
-        willCalls,
-        officeFee,
-        rate: rate || null,
-        flatSalary: flatSalary || null,
+        weekTotal, willCalls, officeFee,
+        rate: (rateMth || rateWf) ? { mth: rateMth, wf: rateWf } : null,
+        flatSalary,
         calculatedPay: Math.round(calculatedPay * 100) / 100,
         sheetPay,
-        isBrad: name === 'Brad',
+        isBrad: p.driver_name === 'Brad',
         isFlat: !!flatSalary,
-        rowIndex: i + 1, // 1-indexed sheet row
-      })
-    }
+        rowIndex: p.id,
+      }
+    })
 
     const grandTotal = drivers.reduce((sum, d) => sum + d.calculatedPay, 0)
 
     return res.status(200).json({
       drivers,
       grandTotal: Math.round(grandTotal * 100) / 100,
-      sheetTotal: totalRow ? parseFloat((totalRow['Weekly Pay'] || '0').replace(/[$,]/g, '')) : 0,
+      sheetTotal: drivers.reduce((sum, d) => sum + d.sheetPay, 0),
     })
   } catch (err) {
     console.error('[payroll GET]', err.message)
@@ -126,8 +84,7 @@ async function handleGet(req, res) {
   }
 }
 
-// POST /api/payroll — update a driver's Weekly Pay or Will Calls
-// Body: { driver, field, value } or { action: 'approve', email: 'mcutrufello2121@gmail.com' }
+// POST /api/payroll — update a driver's pay or will calls
 async function handlePost(req, res) {
   const data = await parseBody(req)
 
@@ -136,88 +93,40 @@ async function handlePost(req, res) {
   }
 
   if (data.action === 'reset-snapshot') {
-    saveSnapshot({ drivers: {}, weekOf: '', resetAt: new Date().toISOString() })
     return res.status(200).json({ success: true, message: 'Snapshot reset' })
   }
 
-  // Update a cell in Weekly Stops
   const { driverRow, field, value } = data
   if (!driverRow || !field) {
     return res.status(400).json({ error: 'Missing driverRow or field' })
   }
 
-  const colMap = {
-    'Will Calls': 'I',
-    'Weekly Pay': 'K',
-    'Mon': 'C', 'Tue': 'D', 'Wed': 'E', 'Thu': 'F', 'Fri': 'G',
+  const fieldMap = {
+    'Will Calls': 'will_calls',
+    'Weekly Pay': 'weekly_pay',
+    'Mon': 'mon', 'Tue': 'tue', 'Wed': 'wed', 'Thu': 'thu', 'Fri': 'fri',
   }
 
-  const col = colMap[field]
+  const col = fieldMap[field]
   if (!col) return res.status(400).json({ error: `Invalid field: ${field}` })
 
   try {
-    const cellRange = `Weekly Stops!${col}${driverRow}`
-    await updateCell(MASTER_SHEET_ID, cellRange, value)
-    return res.status(200).json({ success: true, cell: cellRange, value })
+    const updateVal = col === 'weekly_pay' ? parseFloat(value) || 0 : parseInt(value) || 0
+    const { error } = await supabase.from('payroll').update({ [col]: updateVal }).eq('id', driverRow)
+    if (error) throw error
+
+    // Recalculate week_total if a day column was updated
+    if (['mon', 'tue', 'wed', 'thu', 'fri'].includes(col)) {
+      const { data: row } = await supabase.from('payroll').select('mon,tue,wed,thu,fri').eq('id', driverRow).single()
+      if (row) {
+        const total = (row.mon || 0) + (row.tue || 0) + (row.wed || 0) + (row.thu || 0) + (row.fri || 0)
+        await supabase.from('payroll').update({ week_total: total }).eq('id', driverRow)
+      }
+    }
+
+    return res.status(200).json({ success: true, field, value })
   } catch (err) {
     console.error('[payroll POST]', err.message)
-    return res.status(500).json({ error: err.message })
-  }
-}
-
-async function handleSnapshot(req, res) {
-  try {
-    let snapshot = loadSnapshot()
-    const now = new Date()
-    const dayOfWeek = now.getDay()
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    const monday = new Date(now)
-    monday.setDate(now.getDate() + mondayOffset)
-    const weekOf = `${monday.getMonth() + 1}/${monday.getDate()}/${monday.getFullYear()}`
-
-    if (!snapshot || snapshot.weekOf !== weekOf) {
-      snapshot = { drivers: {}, weekOf, createdAt: new Date().toISOString() }
-    }
-
-    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-    const dayAbbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-
-    for (let di = 0; di < dayNames.length; di++) {
-      const sheetId = DAILY_SHEETS[dayNames[di]]
-      if (!sheetId) continue
-      try {
-        const tabs = await getSheetTabs(sheetId)
-        const driverTabs = tabs.filter(t => t.title.includes(' - ') && !['SHSP Sort','Aultman Sort','Summary','Unassigned'].includes(t.title))
-        if (!driverTabs.length) continue
-        const ranges = driverTabs.map(t => `'${t.title}'!A1:A200`)
-        const results = await fetchMultipleRanges(sheetId, ranges)
-        driverTabs.forEach((tab, i) => {
-          const rows = results[i]?.values || []
-          const stopCount = rows.length > 1 ? rows.slice(1).filter(r => r[0]?.trim()).length : 0
-          const name = tab.title.split(' - ')[0].trim()
-          if (!snapshot.drivers[name]) snapshot.drivers[name] = { name, id: tab.title.split(' - ')[1] || '', Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
-          snapshot.drivers[name][dayAbbrevs[di]] = Math.max(snapshot.drivers[name][dayAbbrevs[di]] || 0, stopCount)
-        })
-      } catch {}
-    }
-
-    const weeklyRows = await fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:K25')
-    const wsHeaders = weeklyRows[0]?.map(h => h.trim()) || []
-    weeklyRows.slice(1).forEach(row => {
-      const name = row[0]?.trim()
-      if (!name || name === 'TOTAL' || name === 'Paul') return
-      if (!snapshot.drivers[name]) snapshot.drivers[name] = { name, id: row[wsHeaders.indexOf('Driver #')] || '', Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
-      dayAbbrevs.forEach(d => {
-        const idx = wsHeaders.indexOf(d)
-        if (idx >= 0) snapshot.drivers[name][d] = Math.max(snapshot.drivers[name][d] || 0, parseInt(row[idx]) || 0)
-      })
-    })
-
-    saveSnapshot(snapshot)
-    const drivers = Object.values(snapshot.drivers).map(d => ({ ...d, weekTotal: (d.Mon||0)+(d.Tue||0)+(d.Wed||0)+(d.Thu||0)+(d.Fri||0) }))
-
-    return res.status(200).json({ weekOf, drivers, lastUpdated: new Date().toISOString() })
-  } catch (err) {
     return res.status(500).json({ error: err.message })
   }
 }

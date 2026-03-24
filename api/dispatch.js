@@ -1,4 +1,5 @@
-import { fetchRange, fetchMultipleRanges, getSheetTabs, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
+import { fetchRange, fetchMultipleRanges, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
 
 // GET /api/dispatch — returns all data needed for the dispatch workspace
 export default async function handler(req, res) {
@@ -17,17 +18,13 @@ export default async function handler(req, res) {
     let deliveryDay = req.query.day
 
     if (!deliveryDay || !DAILY_SHEETS[deliveryDay]) {
-      // Smart default: after 5 PM, show next business day (what dispatch just prepared)
-      // Before 5 PM, show today's delivery
       if (hour >= 17) {
-        // Next business day
-        if (todayIdx === 5) deliveryDay = 'Monday'      // Friday evening → Monday
-        else if (todayIdx === 6) deliveryDay = 'Monday'  // Saturday → Monday
-        else deliveryDay = dayNames[todayIdx + 1]        // Weeknight → tomorrow
+        if (todayIdx === 5) deliveryDay = 'Monday'
+        else if (todayIdx === 6) deliveryDay = 'Monday'
+        else deliveryDay = dayNames[todayIdx + 1]
       } else {
-        // Morning/afternoon — show today's delivery
-        if (todayIdx === 0) deliveryDay = 'Monday'       // Sunday → Monday
-        else if (todayIdx === 6) deliveryDay = 'Friday'   // Saturday → Friday
+        if (todayIdx === 0) deliveryDay = 'Monday'
+        else if (todayIdx === 6) deliveryDay = 'Friday'
         else deliveryDay = todayName
       }
     }
@@ -35,45 +32,26 @@ export default async function handler(req, res) {
     const dailySheetId = DAILY_SHEETS[deliveryDay]
     const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
-    // Fetch in parallel: drivers list, routing rules, daily sheet tabs, log
-    const [driversRaw, routingRaw, dailyTabs, logRaw, weeklyStopsRaw] = await Promise.all([
-      fetchRange(MASTER_SHEET_ID, 'Drivers!A1:F20'),
-      fetchRange(MASTER_SHEET_ID, 'Routing Rules!A1:F500'),
+    // Fetch from Supabase (drivers, routing rules, logs, weekly stops)
+    // and from Google Sheets (daily driver tabs — not yet migrated)
+    const [driversRes, routingRes, logsRes, weeklyRes, dailyTabs] = await Promise.all([
+      supabase.from('drivers').select('*').eq('active', true).order('driver_name'),
+      supabase.from('routing_rules').select('*'),
+      supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(7),
+      supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
       dailySheetId ? getSheetTabs(dailySheetId) : Promise.resolve([]),
-      fetchRange(MASTER_SHEET_ID, 'Log!A1:M500'),
-      fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:J20'),
     ])
 
-    // Parse drivers
-    const driverHeaders = driversRaw[0]?.map((h) => h.trim()) || []
-    const drivers = driversRaw.slice(1).map((row) => {
-      const obj = {}
-      driverHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter((d) => d['Driver Name'])
+    const drivers = (driversRes.data || []).filter(d => d.driver_name)
+    const routingRules = routingRes.data || []
+    const assignedZips = new Set(routingRules.map(r => r.zip_code).filter(Boolean))
 
-    // Parse routing rules
-    const routingHeaders = routingRaw[0] || []
-    const routingRules = routingRaw.slice(1).map((row) => {
-      const obj = {}
-      routingHeaders.forEach((h, i) => { obj[h.trim()] = row[i] || '' })
-      return obj
-    })
-
-    // Get all assigned ZIPs from routing rules
-    const assignedZips = new Set()
-    routingRules.forEach((rule) => {
-      if (rule.ZIP) assignedZips.add(rule.ZIP)
-    })
-
-    // Now fetch each driver tab from the daily sheet to get stop counts
+    // Get daily stops from Google Sheets (still live there)
     const driverTabs = dailyTabs.filter((tab) => {
       const title = tab.title || ''
-      // Driver tabs are named like "Bobby - 55493"
       return title.includes(' - ') && !['SHSP Sort', 'Aultman Sort', 'Summary', 'Unassigned'].includes(title)
     })
 
-    // Fetch stop counts for each driver tab + Summary + Unassigned
     let driverStops = {}
     let summaryData = null
     let unassignedData = []
@@ -87,7 +65,6 @@ export default async function handler(req, res) {
 
       const batchResults = await fetchMultipleRanges(dailySheetId, ranges)
 
-      // Parse driver stops — include full stop details
       driverTabs.forEach((tab, i) => {
         const rows = batchResults[i]?.values || []
         if (rows.length < 2) {
@@ -105,7 +82,6 @@ export default async function handler(req, res) {
         const stopDetails = dataRows.map((row) => {
           const obj = {}
           headers.forEach((h, idx) => { obj[h] = row[idx] || '' })
-          // Cold Chain column — non-empty means cold chain
           const ccIdx = headers.indexOf('Cold Chain')
           const ccVal = ccIdx >= 0 ? (row[ccIdx] || '').trim() : ''
           obj._coldChain = ccVal !== '' && ccVal.toLowerCase() !== 'no' && ccVal.toLowerCase() !== 'n'
@@ -144,56 +120,51 @@ export default async function handler(req, res) {
       }
     }
 
-    // Parse log — get last few entries, weekdays only
-    const logHeaders = logRaw[0] || []
+    // Parse logs from Supabase
     const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
-    const allLogs = logRaw.slice(1).map((row) => {
-      const obj = {}
-      logHeaders.forEach((h, i) => { obj[h.trim()] = row[i] || '' })
-      return obj
-    }).filter((r) => r.Date && WEEKDAYS.has(r['Delivery Day']))
-    const recentLogs = allLogs.slice(-7).reverse()
+    const recentLogs = (logsRes.data || [])
+      .filter(r => WEEKDAYS.has(r.delivery_day))
+      .slice(0, 7)
+      .map(r => ({
+        Date: r.date, 'Delivery Day': r.delivery_day,
+        'Orders Processed': r.orders_processed, 'Cold Chain': r.cold_chain,
+        'Unassigned Count': r.unassigned_count, Status: r.status,
+        'Top Driver': r.top_driver,
+      }))
 
-    // Parse Weekly Stops for stop totals
-    const wsHeaders = weeklyStopsRaw[0]?.map((h) => h.trim()) || []
-    const weeklyStops = weeklyStopsRaw.slice(1).map((row) => {
-      const obj = {}
-      wsHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter((r) => r[wsHeaders[0]])
+    // Weekly stops from payroll
+    const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
+    const weeklyStops = currentWeek.map(r => ({
+      'Driver Name': r.driver_name, 'Driver #': r.driver_number,
+      Mon: r.mon, Tue: r.tue, Wed: r.wed, Thu: r.thu, Fri: r.fri,
+      'Week Total': r.week_total,
+    }))
 
     // Build warnings
     const warnings = []
-
-    // Unassigned orders warning
     if (unassignedData.length > 0) {
       warnings.push({
-        type: 'unassigned',
-        severity: 'high',
+        type: 'unassigned', severity: 'high',
         message: `${unassignedData.length} unassigned order${unassignedData.length > 1 ? 's' : ''} — ZIPs need routing rules`,
         details: unassignedData.map((u) => u.ZIP || 'Unknown').filter(Boolean),
       })
     }
 
-    // TODO: Calendar day-off conflicts would go here
-    // (Requires Google Calendar API integration)
-
     return res.status(200).json({
-      deliveryDay,
-      allDays,
+      deliveryDay, allDays,
       drivers: drivers.map((d) => ({
-        ...d,
-        stops: driverStops[d['Driver Name']]?.stops ?? 0,
-        coldChain: driverStops[d['Driver Name']]?.coldChain ?? 0,
-        hidden: driverStops[d['Driver Name']]?.hidden ?? false,
-        tabName: driverStops[d['Driver Name']]?.tabName ?? '',
-        stopDetails: driverStops[d['Driver Name']]?.stopDetails ?? [],
+        'Driver Name': d.driver_name,
+        'Driver #': d.driver_number,
+        Email: d.email,
+        stops: driverStops[d.driver_name]?.stops ?? 0,
+        coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
+        hidden: driverStops[d.driver_name]?.hidden ?? false,
+        tabName: driverStops[d.driver_name]?.tabName ?? '',
+        stopDetails: driverStops[d.driver_name]?.stopDetails ?? [],
       })),
       summary: summaryData,
       unassigned: unassignedData,
-      warnings,
-      recentLogs,
-      weeklyStops,
+      warnings, recentLogs, weeklyStops,
       routingRuleCount: routingRules.length,
       assignedZipCount: assignedZips.size,
     })

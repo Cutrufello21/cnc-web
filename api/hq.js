@@ -1,140 +1,102 @@
-import { fetchRange, fetchMultipleRanges, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
+
+const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
 
 // GET /api/hq — returns aggregated data for the HQ dashboard
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const [
-      logRaw,
-      weeklyRaw,
-      driversRaw,
-      ordersRaw,
-      unassignedRaw,
-      zipRaw,
-      patientRaw,
-    ] = await Promise.all([
-      fetchRange(MASTER_SHEET_ID, 'Log!A1:M500'),
-      fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:J20'),
-      fetchRange(MASTER_SHEET_ID, 'Drivers!A1:F20'),
-      fetchRange(MASTER_SHEET_ID, 'Orders!A1:K2'),   // Just headers + count trick
-      fetchRange(MASTER_SHEET_ID, 'Unassigned History!A1:F500'),
-      fetchRange(MASTER_SHEET_ID, 'ZIP Analytics!A1:F30'),
-      fetchRange(MASTER_SHEET_ID, 'Patient Analytics!A1:F30'),
+    const [logsRes, weeklyRes, driversRes, unassignedRes, zipRes] = await Promise.all([
+      supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
+      supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
+      supabase.from('drivers').select('*').eq('active', true),
+      supabase.from('unassigned_orders').select('*').order('date', { ascending: false }).limit(10),
+      supabase.from('orders').select('zip').not('zip', 'is', null).not('zip', 'eq', ''),
     ])
 
-    // Parse log — filter to Mon-Fri delivery days only
-    const logHeaders = logRaw[0]?.map(h => h.trim()) || []
-    const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
-    const logData = logRaw.slice(1).map(row => {
-      const obj = {}
-      logHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter(r => r.Date && WEEKDAYS.has(r['Delivery Day']))
+    // Parse logs — weekdays only
+    const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
 
-    // Recent 7 logs (weekdays only)
-    const recentLogs = logData.slice(-7).reverse()
+    // Recent 7 logs
+    const recentLogs = logData.slice(-7).reverse().map(r => ({
+      Date: r.date,
+      'Delivery Day': r.delivery_day,
+      'Orders Processed': r.orders_processed,
+      'Cold Chain': r.cold_chain,
+      'Unassigned Count': r.unassigned_count,
+      'SHSP Orders': r.shsp_orders,
+      'Aultman Orders': r.aultman_orders,
+      'Top Driver': r.top_driver,
+      Status: r.status,
+    }))
 
-    // Last dispatch info
-    const lastDispatch = logData[logData.length - 1] || {}
+    const lastDispatch = recentLogs[0] || {}
 
-    // Volume trends — last 30 dispatches
+    // Volume trends — last 30
     const last30 = logData.slice(-30)
-    const totalOrders = last30.reduce((sum, r) => sum + (parseInt(r['Orders Processed']) || 0), 0)
+    const totalOrders = last30.reduce((s, r) => s + (r.orders_processed || 0), 0)
     const avgOrders = last30.length ? Math.round(totalOrders / last30.length) : 0
-    const totalColdChain = last30.reduce((sum, r) => sum + (parseInt(r['Cold Chain']) || 0), 0)
-
-    // SHSP vs Aultman split
-    const shspTotal = last30.reduce((sum, r) => sum + (parseInt(r['SHSP Orders']) || 0), 0)
-    const aultmanTotal = last30.reduce((sum, r) => sum + (parseInt(r['Aultman Orders']) || 0), 0)
+    const totalColdChain = last30.reduce((s, r) => s + (r.cold_chain || 0), 0)
+    const shspTotal = last30.reduce((s, r) => s + (r.shsp_orders || 0), 0)
+    const aultmanTotal = last30.reduce((s, r) => s + (r.aultman_orders || 0), 0)
 
     // Week over week
     const thisWeek = logData.slice(-5)
     const lastWeek = logData.slice(-10, -5)
-    const thisWeekOrders = thisWeek.reduce((sum, r) => sum + (parseInt(r['Orders Processed']) || 0), 0)
-    const lastWeekOrders = lastWeek.reduce((sum, r) => sum + (parseInt(r['Orders Processed']) || 0), 0)
+    const thisWeekOrders = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
+    const lastWeekOrders = lastWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
     const wowChange = lastWeekOrders ? Math.round(((thisWeekOrders - lastWeekOrders) / lastWeekOrders) * 100) : 0
 
-    // Weekly stops / driver leaderboard
-    const wsHeaders = weeklyRaw[0]?.map(h => h.trim()) || []
-    const weeklyStops = weeklyRaw.slice(1)
-      .map(row => {
-        const obj = {}
-        wsHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-        return obj
-      })
-      .filter(r => r['Driver Name'] && r['Driver Name'] !== 'TOTAL' && r['Driver Name'] !== 'Paul')
-
-    const leaderboard = weeklyStops
+    // Driver leaderboard from payroll (current week)
+    const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
+    const leaderboard = currentWeek
+      .filter(r => r.driver_name !== 'Paul')
       .map(d => ({
-        name: d['Driver Name'],
-        id: d['Driver #'],
-        weekTotal: parseInt(d['Week Total']) || 0,
-        mon: parseInt(d['Mon']) || 0,
-        tue: parseInt(d['Tue']) || 0,
-        wed: parseInt(d['Wed']) || 0,
-        thu: parseInt(d['Thu']) || 0,
-        fri: parseInt(d['Fri']) || 0,
+        name: d.driver_name,
+        id: d.driver_number,
+        weekTotal: d.week_total || 0,
+        mon: d.mon || 0, tue: d.tue || 0, wed: d.wed || 0,
+        thu: d.thu || 0, fri: d.fri || 0,
       }))
       .sort((a, b) => b.weekTotal - a.weekTotal)
 
-    // Active drivers count
     const activeThisWeek = leaderboard.filter(d => d.weekTotal > 0).length
+    const driverCount = (driversRes.data || []).length
 
-    // Parse drivers
-    const driverHeaders = driversRaw[0]?.map(h => h.trim()) || []
-    const driverCount = driversRaw.slice(1).filter(r => r[0]).length
-
-    // Unassigned history — recent
-    const uhHeaders = unassignedRaw[0]?.map(h => h.trim()) || []
-    const recentUnassigned = unassignedRaw.slice(-10).reverse().map(row => {
-      const obj = {}
-      uhHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    }).filter(r => r.Date || r.ZIP)
-
-    // Top ZIPs
-    const zipHeaders = zipRaw[0]?.map(h => h.trim()) || []
-    const topZips = zipRaw.slice(1, 11).map(row => {
-      const obj = {}
-      zipHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-      return obj
-    })
-
-    // Volume chart data (last 14 dispatches)
-    const volumeChart = logData.slice(-14).map(r => ({
-      date: r.Date,
-      day: r['Delivery Day'],
-      orders: parseInt(r['Orders Processed']) || 0,
-      shsp: parseInt(r['SHSP Orders']) || 0,
-      aultman: parseInt(r['Aultman Orders']) || 0,
-      coldChain: parseInt(r['Cold Chain']) || 0,
+    // Recent unassigned
+    const recentUnassigned = (unassignedRes.data || []).map(r => ({
+      Date: r.date, ZIP: r.zip, Address: r.address,
+      Pharmacy: r.pharmacy, Name: r.patient_name,
     }))
 
-    // All-time stats
-    const allTimeOrders = logData.reduce((sum, r) => sum + (parseInt(r['Orders Processed']) || 0), 0)
+    // Top ZIPs
+    const zipCounts = {}
+    ;(zipRes.data || []).forEach(r => { zipCounts[r.zip] = (zipCounts[r.zip] || 0) + 1 })
+    const topZips = Object.entries(zipCounts)
+      .sort((a, b) => b[1] - a[1]).slice(0, 10)
+      .map(([zip, count]) => ({ ZIP: zip, 'Total Deliveries': count }))
+
+    // Volume chart
+    const volumeChart = logData.slice(-14).map(r => ({
+      date: r.date, day: r.delivery_day,
+      orders: r.orders_processed || 0,
+      shsp: r.shsp_orders || 0, aultman: r.aultman_orders || 0,
+      coldChain: r.cold_chain || 0,
+    }))
+
+    const allTimeOrders = logData.reduce((s, r) => s + (r.orders_processed || 0), 0)
 
     return res.status(200).json({
       lastDispatch,
       kpis: {
-        totalOrdersLast30: totalOrders,
-        avgOrdersPerNight: avgOrders,
-        coldChainLast30: totalColdChain,
-        shspTotal,
-        aultmanTotal,
-        thisWeekOrders,
-        lastWeekOrders,
-        wowChange,
-        activeDrivers: activeThisWeek,
-        totalDrivers: driverCount,
-        allTimeOrders,
-        totalDispatches: logData.length,
+        totalOrdersLast30: totalOrders, avgOrdersPerNight: avgOrders,
+        coldChainLast30: totalColdChain, shspTotal, aultmanTotal,
+        thisWeekOrders, lastWeekOrders, wowChange,
+        activeDrivers: activeThisWeek, totalDrivers: driverCount,
+        allTimeOrders, totalDispatches: logData.length,
       },
-      leaderboard,
-      recentLogs,
-      recentUnassigned,
-      topZips,
-      volumeChart,
+      leaderboard, recentLogs, recentUnassigned, topZips, volumeChart,
     })
   } catch (err) {
     console.error('[hq API]', err.message)

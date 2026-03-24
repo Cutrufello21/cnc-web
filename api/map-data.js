@@ -1,4 +1,4 @@
-import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
 import https from 'https'
 
 // In-memory geocode cache (persists across warm invocations)
@@ -47,38 +47,25 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const rows = await fetchRange(MASTER_SHEET_ID, 'Orders!A1:K25000')
-    if (rows.length < 2) return res.status(200).json({ locations: [] })
+    const { data: orders, error } = await supabase.from('orders')
+      .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, date_delivered, cold_chain')
+      .not('address', 'is', null)
+      .not('address', 'eq', '')
 
-    const headers = rows[0].map(h => h.trim())
-    const addrIdx = headers.indexOf('Address')
-    const cityIdx = headers.indexOf('City')
-    const zipIdx = headers.indexOf('ZIP')
-    const pharmaIdx = headers.indexOf('Pharmacy')
-    const ccIdx = headers.indexOf('Cold Chain')
-    const dateIdx = headers.indexOf('Date Delivered')
-    const driverIdx = headers.indexOf('Driver Name')
-    const nameIdx = headers.indexOf('Name')
-    const orderIdx = headers.indexOf('Order ID')
+    if (error) throw error
 
     // Aggregate by normalized address
     const locationMap = {}
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i]
-      if (!row[addrIdx]) continue
-
-      const address = (row[addrIdx] || '').trim()
-      const city = (row[cityIdx] || '').trim()
-      const zip = (row[zipIdx] || '').trim()
-      const key = `${address}|${city}|${zip}`
+    for (const row of (orders || [])) {
+      const key = `${row.address}|${row.city}|${row.zip}`
 
       if (!locationMap[key]) {
         locationMap[key] = {
-          address,
-          city,
-          zip,
-          pharmacy: row[pharmaIdx] || '',
+          address: row.address,
+          city: row.city,
+          zip: row.zip,
+          pharmacy: row.pharmacy,
           totalDeliveries: 0,
           coldChainCount: 0,
           lastDate: '',
@@ -89,22 +76,18 @@ export default async function handler(req, res) {
 
       const loc = locationMap[key]
       loc.totalDeliveries++
+      if (row.cold_chain) loc.coldChainCount++
 
-      const cc = (row[ccIdx] || '').trim().toLowerCase()
-      if (cc && cc !== 'no' && cc !== 'n') loc.coldChainCount++
-
-      const date = row[dateIdx] || ''
+      const date = row.date_delivered || ''
       if (date > loc.lastDate) loc.lastDate = date
 
-      // Keep last 20 orders for the detail panel
       if (loc.orders.length < 20) {
         loc.orders.push({
-          orderId: row[orderIdx] || '',
-          name: row[nameIdx] || '',
-          date: date,
-          driver: row[driverIdx] || '',
-          pharmacy: row[pharmaIdx] || '',
-          coldChain: cc && cc !== 'no' && cc !== 'n',
+          orderId: row.order_id,
+          name: row.patient_name,
+          date, driver: row.driver_name,
+          pharmacy: row.pharmacy,
+          coldChain: row.cold_chain,
         })
       }
     }
@@ -112,7 +95,7 @@ export default async function handler(req, res) {
     // Geocode locations using cache
     const locations = []
     let geocoded = 0
-    const MAX_GEOCODE = 50 // Limit new geocodes per request
+    const MAX_GEOCODE = 50
 
     for (const loc of Object.values(locationMap)) {
       const cacheKey = makeCacheKey(loc.address, loc.city, loc.zip)
@@ -128,11 +111,8 @@ export default async function handler(req, res) {
 
       if (coords) {
         locations.push({
-          lat: coords[0],
-          lng: coords[1],
-          address: loc.address,
-          city: loc.city,
-          zip: loc.zip,
+          lat: coords[0], lng: coords[1],
+          address: loc.address, city: loc.city, zip: loc.zip,
           pharmacy: loc.pharmacy,
           totalDeliveries: loc.totalDeliveries,
           coldChainCount: loc.coldChainCount,

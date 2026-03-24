@@ -1,72 +1,64 @@
-import { fetchRange, MASTER_SHEET_ID } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
 
 // GET /api/orders?page=1&pageSize=100&search=&driver=&pharmacy=&zip=&date=
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    // Fetch all orders (cached after first call per server lifecycle)
-    const rows = await fetchRange(MASTER_SHEET_ID, 'Orders!A1:K25000')
-    if (rows.length < 2) return res.status(200).json({ headers: [], orders: [], total: 0, page: 1, pages: 1 })
-
-    const headers = rows[0].map(h => h.trim())
-    let allOrders = rows.slice(1)
-      .filter(r => r.length > 0 && r[0])
-      .map((row, idx) => {
-        const obj = { _row: idx }
-        headers.forEach((h, i) => { obj[h] = row[i] || '' })
-        return obj
-      })
-
-    // Reverse so newest first
-    allOrders.reverse()
-
-    // Apply filters
     const { search, driver, pharmacy, zip, date, coldchain, source } = req.query
+    const pageSize = Math.min(parseInt(req.query.pageSize) || 100, 500)
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+
+    let query = supabase.from('orders').select('*', { count: 'exact' })
 
     if (search) {
-      const q = search.toLowerCase()
-      allOrders = allOrders.filter(o =>
-        Object.values(o).some(v => typeof v === 'string' && v.toLowerCase().includes(q))
-      )
+      query = query.or(`patient_name.ilike.%${search}%,address.ilike.%${search}%,order_id.ilike.%${search}%,zip.ilike.%${search}%,driver_name.ilike.%${search}%`)
     }
-    if (driver) {
-      allOrders = allOrders.filter(o => (o['Driver Name'] || '').toLowerCase() === driver.toLowerCase())
-    }
-    if (pharmacy) {
-      allOrders = allOrders.filter(o => (o['Pharmacy'] || '') === pharmacy)
-    }
-    if (zip) {
-      allOrders = allOrders.filter(o => (o['ZIP'] || '').includes(zip))
-    }
-    if (date) {
-      allOrders = allOrders.filter(o => (o['Date Delivered'] || '').includes(date))
-    }
-    if (coldchain === 'yes') {
-      allOrders = allOrders.filter(o => {
-        const cc = (o['Cold Chain'] || '').trim().toLowerCase()
-        return cc && cc !== 'no' && cc !== 'n'
-      })
-    }
-    if (source) {
-      allOrders = allOrders.filter(o => (o['Source'] || '') === source)
-    }
+    if (driver) query = query.ilike('driver_name', driver)
+    if (pharmacy) query = query.eq('pharmacy', pharmacy)
+    if (zip) query = query.ilike('zip', `%${zip}%`)
+    if (date) query = query.eq('date_delivered', date)
+    if (coldchain === 'yes') query = query.eq('cold_chain', true)
+    if (source) query = query.eq('source', source)
 
-    const total = allOrders.length
-    const pageSize = Math.min(parseInt(req.query.pageSize) || 100, 500)
+    query = query.order('date_delivered', { ascending: false })
+      .range((page - 1) * pageSize, page * pageSize - 1)
+
+    const { data: orders, count, error } = await query
+    if (error) throw error
+
+    const total = count || 0
     const pages = Math.ceil(total / pageSize)
-    const page = Math.max(1, Math.min(parseInt(req.query.page) || 1, pages))
-    const start = (page - 1) * pageSize
-    const orders = allOrders.slice(start, start + pageSize)
 
     // Get unique values for filter dropdowns
-    const uniqueDrivers = [...new Set(rows.slice(1).map(r => r[headers.indexOf('Driver Name')] || '').filter(Boolean))].sort()
-    const uniquePharmacies = [...new Set(rows.slice(1).map(r => r[headers.indexOf('Pharmacy')] || '').filter(Boolean))].sort()
-    const uniqueSources = [...new Set(rows.slice(1).map(r => r[headers.indexOf('Source')] || '').filter(Boolean))].sort()
+    const [driversRes, pharmaciesRes, sourcesRes] = await Promise.all([
+      supabase.from('orders').select('driver_name').not('driver_name', 'is', null).limit(10000),
+      supabase.from('orders').select('pharmacy').not('pharmacy', 'is', null).limit(10000),
+      supabase.from('orders').select('source').not('source', 'is', null).limit(10000),
+    ])
+
+    const uniqueDrivers = [...new Set((driversRes.data || []).map(r => r.driver_name).filter(Boolean))].sort()
+    const uniquePharmacies = [...new Set((pharmaciesRes.data || []).map(r => r.pharmacy).filter(Boolean))].sort()
+    const uniqueSources = [...new Set((sourcesRes.data || []).map(r => r.source).filter(Boolean))].sort()
+
+    // Map to match existing frontend expectations
+    const headers = ['Order ID', 'Name', 'Address', 'City', 'ZIP', 'Pharmacy', 'Driver Name', 'Date Delivered', 'Cold Chain', 'Source']
+    const mappedOrders = (orders || []).map(o => ({
+      'Order ID': o.order_id,
+      'Name': o.patient_name,
+      'Address': o.address,
+      'City': o.city,
+      'ZIP': o.zip,
+      'Pharmacy': o.pharmacy,
+      'Driver Name': o.driver_name,
+      'Date Delivered': o.date_delivered,
+      'Cold Chain': o.cold_chain ? 'Yes' : '',
+      'Source': o.source,
+    }))
 
     return res.status(200).json({
       headers,
-      orders,
+      orders: mappedOrders,
       total,
       page,
       pages,

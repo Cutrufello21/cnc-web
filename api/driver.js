@@ -1,34 +1,21 @@
-import { fetchRange, MASTER_SHEET_ID, DAILY_SHEETS } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
+import { fetchRange, DAILY_SHEETS } from './_lib/sheets.js'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
-// Map email → driver tab name (matches Google Sheet tab names)
-const EMAIL_TO_DRIVER = {
-  'robert.miller315@gmail.com':   'Bobby - 55493',
-  'nickpollack01@gmail.com':      'Nick - 55540',
-  'jacob@cncdeliveryservice.com': 'Jake - 55509',
-  'shondeladam@gmail.com':        'Adam - 57104',
-  'josh@cncdeliveryservice.com':  'Josh - 55903',
-  'tcabiness1@gmail.com':         'Theresa - 55541',
-  'laura@cncdeliveryservice.com': 'Laura - 59192',
-  'ajreed410@gmail.com':          'Alex - 55535',
-  'chisnellma@gmail.com':         'Mike - 57096',
-  'taraleaa3@gmail.com':          'Tara - 59195',
-  'nicholaseager21@gmail.com':    'Nicholas - 21549',
-  'dom@cncdeliveryservice.com':   'Dom - 55500',
-  'cutrufellomark@gmail.com':     'Mark - 55532',
-  'kcharvey13@gmail.com':         'Kasey - 59170',
-}
 
 export default async function handler(req, res) {
   const driverEmail = req.query.email?.toLowerCase()
   if (!driverEmail) return res.status(400).json({ error: 'Missing email' })
 
-  const tabName = EMAIL_TO_DRIVER[driverEmail]
-  if (!tabName) return res.status(403).json({ error: 'Driver not found' })
+  // Look up driver from Supabase
+  const { data: driverRow, error: driverErr } = await supabase.from('drivers')
+    .select('*').eq('email', driverEmail).single()
 
-  const driverName = tabName.split(' - ')[0]
-  const driverId = tabName.split(' - ')[1]
+  if (driverErr || !driverRow) return res.status(403).json({ error: 'Driver not found' })
+
+  const driverName = driverRow.driver_name
+  const driverId = driverRow.driver_number
+  const tabName = `${driverName} - ${driverId}`
 
   // Determine today's delivery day
   const todayIdx = new Date().getDay()
@@ -38,26 +25,22 @@ export default async function handler(req, res) {
   // Weekends — no delivery
   if (!sheetId) {
     return res.status(200).json({
-      approved: false,
-      noDeliveryToday: true,
-      deliveryDay: todayName,
-      driverName,
-      driverId,
-      stops: [],
-      weekTotal: 0,
+      approved: false, noDeliveryToday: true,
+      deliveryDay: todayName, driverName, driverId,
+      stops: [], weekTotal: 0,
     })
   }
 
   try {
-    // Fetch in parallel: driver tab, weekly stops, dispatch log
-    const [driverRows, weeklyRows, logRows] = await Promise.all([
+    // Fetch daily stops from Sheets (still live there) + Supabase data in parallel
+    const [driverRows, logsRes, payrollRes] = await Promise.all([
       fetchRange(sheetId, `'${tabName}'!A1:I200`).catch(() => []),
-      fetchRange(MASTER_SHEET_ID, 'Weekly Stops!A1:J20'),
-      fetchRange(MASTER_SHEET_ID, 'Log!A1:M500'),
+      supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(10),
+      supabase.from('payroll').select('*').eq('driver_name', driverName)
+        .order('week_of', { ascending: false }).limit(1),
     ])
 
-    // Determine approval status from the dispatch log
-    // Dispatch runs the night before delivery — log entry date is last night
+    // Determine approval status from dispatch logs
     const today = new Date()
     const todayStr = today.toLocaleDateString('en-US', {
       month: '2-digit', day: '2-digit', year: 'numeric',
@@ -68,29 +51,20 @@ export default async function handler(req, res) {
       month: '2-digit', day: '2-digit', year: 'numeric',
     })
 
-    const logHeaders = logRows[0] || []
-    const dateIdx = logHeaders.findIndex((h) => h.trim() === 'Date')
-    const statusIdx = logHeaders.findIndex((h) => h.trim() === 'Status')
-    const deliveryDayIdx = logHeaders.findIndex((h) => h.trim() === 'Delivery Day')
-
     let approved = false
-    if (logRows.length > 1) {
-      for (let i = logRows.length - 1; i >= 1; i--) {
-        const row = logRows[i]
-        const logDate = row[dateIdx] || ''
-        const logStatus = row[statusIdx] || ''
-        const logDeliveryDay = row[deliveryDayIdx] || ''
-
-        if (logDeliveryDay === todayName && logStatus === 'Complete') {
-          if (logDate === todayStr || logDate === yesterdayStr) {
-            approved = true
-            break
-          }
+    for (const log of (logsRes.data || [])) {
+      if (log.delivery_day === todayName && log.status === 'Complete') {
+        const logDate = new Date(log.date).toLocaleDateString('en-US', {
+          month: '2-digit', day: '2-digit', year: 'numeric',
+        })
+        if (logDate === todayStr || logDate === yesterdayStr) {
+          approved = true
+          break
         }
       }
     }
 
-    // Parse driver stops
+    // Parse driver stops from daily sheet
     let stops = []
     if (driverRows.length > 1) {
       const headers = driverRows[0].map((h) => h.trim())
@@ -99,43 +73,30 @@ export default async function handler(req, res) {
         .map((row, idx) => {
           const obj = { _index: idx }
           headers.forEach((h, i) => { obj[h] = row[i] || '' })
-
-          // Cold chain detection
           const isColdChain = Object.values(obj).some((v) =>
             typeof v === 'string' && v.toLowerCase().match(/^(yes|y|cold chain|cc)$/)
           )
           obj._coldChain = isColdChain
-
           return obj
         })
     }
 
-    // Parse weekly stops for this driver
-    const wsHeaders = weeklyRows[0]?.map((h) => h.trim()) || []
-    const driverWeeklyRow = weeklyRows.slice(1).find((r) => r[0]?.trim() === driverName)
+    // Weekly data from payroll
+    const payroll = payrollRes.data?.[0]
     let weekTotal = 0
     let dailyStops = {}
-    if (driverWeeklyRow) {
+    if (payroll) {
       const dayAbbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-      dayAbbrevs.forEach((d) => {
-        const idx = wsHeaders.indexOf(d)
-        if (idx >= 0) dailyStops[d] = parseInt(driverWeeklyRow[idx]) || 0
-      })
-      const totalIdx = wsHeaders.indexOf('Week Total')
-      if (totalIdx >= 0) weekTotal = parseInt(driverWeeklyRow[totalIdx]) || 0
+      dayAbbrevs.forEach(d => { dailyStops[d] = payroll[d.toLowerCase()] || 0 })
+      weekTotal = payroll.week_total || 0
     }
 
     return res.status(200).json({
-      approved,
-      deliveryDay: todayName,
-      driverName,
-      driverId,
-      tabName,
-      stops,
+      approved, deliveryDay: todayName,
+      driverName, driverId, tabName, stops,
       stopCount: stops.length,
       coldChainCount: stops.filter((s) => s._coldChain).length,
-      weekTotal,
-      dailyStops,
+      weekTotal, dailyStops,
     })
   } catch (err) {
     console.error('[driver API]', err.message)
