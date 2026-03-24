@@ -263,6 +263,9 @@
   font-weight: 500;
   color: #16a34a;
   background: #dcfce7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #bbf7d0;
 }
 
@@ -270,6 +273,23 @@
   color: #dc4a4a;
   background: #fef2f2;
   border-color: #fecaca;
+}
+
+.dcard__undo-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+.dcard__undo-btn:hover {
+  background: #f3f4f6;
+  color: #374151;
 }
 
 /* Sortable headers */
