@@ -120,6 +120,7 @@ export default function DispatchPage() {
 
       setData({
         deliveryDay,
+        deliveryDateObj: deliveryDate,
         allDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         drivers: drivers.map(d => ({
           'Driver Name': d.driver_name,
@@ -284,7 +285,7 @@ export default function DispatchPage() {
                   {data.deliveryDay} Delivery
                 </h1>
                 <p className="dispatch__date">
-                  {new Date().toLocaleDateString('en-US', {
+                  {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
