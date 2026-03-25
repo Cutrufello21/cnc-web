@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
@@ -16,6 +16,9 @@ export default function DriverPage() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('stops')
   const [listView, setListView] = useState(false)
+  const [dragIdx, setDragIdx] = useState(null)
+  const [hasCustomOrder, setHasCustomOrder] = useState(false)
+  const originalStopsRef = useRef(null)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -86,14 +89,32 @@ export default function DriverPage() {
           .order('date', { ascending: false }).limit(1),
       ])
 
-      const stops = (stopsRes.data || []).map((s, idx) => ({
+      const rawStops = stopsRes.data || []
+      const hasSortOrder = rawStops.some(s => s.sort_order != null)
+      const sorted = hasSortOrder
+        ? [...rawStops].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+        : rawStops
+
+      const stops = sorted.map((s, idx) => ({
         _index: idx,
+        _id: s.id,
         'Order ID': s.order_id, Name: s.patient_name,
         Address: s.address, City: s.city, ZIP: s.zip,
         Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
         _coldChain: s.cold_chain,
         Notes: s.notes || '',
       }))
+      // Store original dispatch order (by id, before any sort_order)
+      originalStopsRef.current = rawStops.map((s, idx) => ({
+        _index: idx,
+        _id: s.id,
+        'Order ID': s.order_id, Name: s.patient_name,
+        Address: s.address, City: s.city, ZIP: s.zip,
+        Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
+        _coldChain: s.cold_chain,
+        Notes: s.notes || '',
+      }))
+      setHasCustomOrder(hasSortOrder)
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
@@ -108,6 +129,83 @@ export default function DriverPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  function handleDragStart(idx) { setDragIdx(idx) }
+  function handleDragOver(e) { e.preventDefault() }
+  function handleDragEnd() { setDragIdx(null) }
+
+  async function reorderStops(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return
+    const stops = [...data.stops]
+    const [moved] = stops.splice(fromIdx, 1)
+    stops.splice(toIdx, 0, moved)
+    setData(prev => ({ ...prev, stops }))
+    setDragIdx(null)
+    setHasCustomOrder(true)
+
+    // Save sort_order to Supabase
+    const updates = stops.map((s, i) => ({ id: s._id, sort_order: i }))
+    for (const u of updates) {
+      await supabase.from('daily_stops').update({ sort_order: u.sort_order }).eq('id', u.id)
+    }
+  }
+
+  async function handleDrop(targetIdx) {
+    if (dragIdx === null) return
+    await reorderStops(dragIdx, targetIdx)
+  }
+
+  // Touch drag support for mobile
+  const touchState = useRef({ idx: null, startY: 0 })
+  function handleTouchDragStart(idx, e) {
+    touchState.current = { idx, startY: e.touches[0].clientY }
+    setDragIdx(idx)
+
+    const onMove = (ev) => {
+      ev.preventDefault()
+      const y = ev.touches[0].clientY
+      const cards = document.querySelectorAll('.stop')
+      for (let i = 0; i < cards.length; i++) {
+        const rect = cards[i].getBoundingClientRect()
+        if (y > rect.top && y < rect.bottom && i !== touchState.current.idx) {
+          const stops = [...data.stops]
+          const [moved] = stops.splice(touchState.current.idx, 1)
+          stops.splice(i, 0, moved)
+          setData(prev => ({ ...prev, stops }))
+          touchState.current.idx = i
+          setDragIdx(i)
+          break
+        }
+      }
+    }
+    const onEnd = () => {
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', onEnd)
+      if (touchState.current.idx !== idx) {
+        setHasCustomOrder(true)
+        // Save to Supabase
+        const currentStops = data.stops
+        currentStops.forEach(async (s, i) => {
+          await supabase.from('daily_stops').update({ sort_order: i }).eq('id', s._id)
+        })
+      }
+      setDragIdx(null)
+    }
+    document.addEventListener('touchmove', onMove, { passive: false })
+    document.addEventListener('touchend', onEnd)
+  }
+
+  async function handleResetOrder() {
+    if (!originalStopsRef.current) return
+    setData(prev => ({ ...prev, stops: [...originalStopsRef.current] }))
+    setHasCustomOrder(false)
+
+    // Clear sort_order in Supabase
+    const ids = originalStopsRef.current.map(s => s._id)
+    for (const id of ids) {
+      await supabase.from('daily_stops').update({ sort_order: null }).eq('id', id)
     }
   }
 
@@ -237,6 +335,9 @@ export default function DriverPage() {
                     <div className="driver__view-toggle">
                       <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
                       <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
+                      {hasCustomOrder && !listView && (
+                        <button className="driver__view-btn driver__reset-btn" onClick={handleResetOrder}>Reset Order</button>
+                      )}
                     </div>
                     {listView ? (
                       <div className="driver__list-view">
@@ -272,10 +373,24 @@ export default function DriverPage() {
                       </div>
                     ) : (
                       data.stops.map((stop, i) => (
-                        <StopCard key={i} stop={stop} index={i + 1} total={data.stops.length} />
+                        <StopCard
+                          key={stop._id || i}
+                          stop={stop}
+                          index={i + 1}
+                          total={data.stops.length}
+                          isDragging={dragIdx === i}
+                          onDragStart={() => handleDragStart(i)}
+                          onDragOver={handleDragOver}
+                          onDrop={() => handleDrop(i)}
+                          onDragEnd={handleDragEnd}
+                          onTouchDragStart={(e) => handleTouchDragStart(i, e)}
+                        />
                       ))
                     )}
-                    <CopyRouteButton stops={data.stops} />
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '16px 0' }}>
+                      <CopyRouteButton stops={data.stops} />
+                      <ExportExcelButton stops={data.stops} driverName={data.driverName} deliveryDay={data.deliveryDay} />
+                    </div>
                   </>
                 ) : (
                   <div className="driver__not-ready">
@@ -322,12 +437,55 @@ function CopyRouteButton({ stops }) {
       className="driver__copy-route"
       onClick={handleCopy}
       style={{
-        display: 'block', margin: '16px auto', padding: '6px 16px',
+        padding: '6px 16px',
         fontSize: 12, color: '#6b7280', background: 'transparent',
         border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer',
       }}
     >
       {copied ? 'Copied!' : 'Copy Route'}
+    </button>
+  )
+}
+
+function ExportExcelButton({ stops, driverName, deliveryDay }) {
+  function handleExport() {
+    const headers = ['#', 'Patient', 'Address', 'City', 'ZIP', 'Pharmacy', 'Cold Chain', 'Order ID']
+    const rows = stops.map((s, i) => [
+      i + 1,
+      s['Patient Name'] || s.patient_name || '',
+      s.Address || s.address || '',
+      s.City || s.city || '',
+      s.ZIP || s.zip || '',
+      s.Pharmacy || s.pharmacy || '',
+      (s['Cold Chain'] || s.cold_chain) ? 'Yes' : 'No',
+      s['Order ID'] || s.order_id || '',
+    ])
+
+    let csv = '\uFEFF'
+    csv += headers.join(',') + '\n'
+    rows.forEach(r => {
+      csv += r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n'
+    })
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${driverName || 'Route'}_${deliveryDay || 'Today'}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <button
+      onClick={handleExport}
+      style={{
+        padding: '6px 16px',
+        fontSize: 12, color: '#6b7280', background: 'transparent',
+        border: '1px solid #d1d5db', borderRadius: 4, cursor: 'pointer',
+      }}
+    >
+      Export Excel
     </button>
   )
 }

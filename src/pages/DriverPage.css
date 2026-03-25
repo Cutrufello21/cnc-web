@@ -117,6 +117,8 @@
 .driver__view-toggle { display: flex; gap: 4px; background: var(--gray-100); padding: 3px; border-radius: 6px; width: fit-content; margin-bottom: 12px; }
 .driver__view-btn { padding: 5px 14px; font-size: 12px; font-weight: 500; color: var(--gray-500); border-radius: 4px; cursor: pointer; border: none; background: transparent; }
 .driver__view-btn--active { background: var(--white); color: var(--gray-900); font-weight: 600; box-shadow: var(--shadow-sm); }
+.driver__reset-btn { color: #dc2626; margin-left: 8px; background: transparent; border: 1px solid #fca5a5; border-radius: 4px; }
+.driver__reset-btn:hover { background: #fef2f2; }
 
 .driver__list-view { overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 10px; }
 .driver__list-table { width: 100%; border-collapse: collapse; font-size: 13px; }

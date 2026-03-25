@@ -15,5 +15,8 @@ const postgrest = new PostgrestClient(`${supabaseUrl}/rest/v1`, {
   fetch,
 })
 
-// Drop-in replacement: supabase.from('table') works the same
-export const supabase = { from: (table) => postgrest.from(table) }
+// Drop-in replacement: supabase.from('table') and supabase.rpc('fn') work the same
+export const supabase = {
+  from: (table) => postgrest.from(table),
+  rpc: (fn, params) => postgrest.rpc(fn, params),
+}

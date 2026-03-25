@@ -20,7 +20,7 @@ export default function TimeOffCalendar({ driverName }) {
   async function loadRequests() {
     if (!driverName) return
     const { data } = await supabase.from('time_off_requests').select('*')
-      .eq('driver_name', driverName).order('date_off', { ascending: true })
+      .eq('driver_name', driverName).neq('reason', 'Scheduled off').order('date_off', { ascending: true })
     setMyRequests(data || [])
   }
 

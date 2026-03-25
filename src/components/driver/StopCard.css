@@ -10,6 +10,27 @@
   border-color: var(--gray-300);
 }
 
+.stop--dragging {
+  opacity: 0.4;
+  border: 2px dashed var(--gray-300);
+}
+
+.stop__drag-handle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  color: var(--gray-300);
+  cursor: grab;
+  touch-action: none;
+}
+
+.stop__drag-handle:active {
+  cursor: grabbing;
+  color: var(--gray-500);
+}
+
 .stop--cold {
   border-left: 3px solid var(--cornflower);
 }

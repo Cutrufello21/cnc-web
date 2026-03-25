@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './StopCard.css'
 
-export default function StopCard({ stop, index, total }) {
+export default function StopCard({ stop, index, total, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, onTouchDragStart }) {
   const [expanded, setExpanded] = useState(false)
 
   const name = stop['Name'] || stop['Patient'] || stop['Customer'] || '—'
@@ -20,8 +20,22 @@ export default function StopCard({ stop, index, total }) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`
 
   return (
-    <div className={`stop ${isColdChain ? 'stop--cold' : ''}`}>
+    <div
+      className={`stop ${isColdChain ? 'stop--cold' : ''} ${isDragging ? 'stop--dragging' : ''}`}
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+    >
       <div className="stop__main" onClick={() => setExpanded(!expanded)}>
+        <div className="stop__drag-handle" onTouchStart={onTouchDragStart}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
+            <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
+            <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
+          </svg>
+        </div>
         <div className="stop__number">
           <span>{index}</span>
           <span className="stop__of">/{total}</span>

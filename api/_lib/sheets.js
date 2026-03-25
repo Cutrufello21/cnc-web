@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 const TOKEN_URI = 'https://oauth2.googleapis.com/token'
-const SCOPE = 'https://www.googleapis.com/auth/spreadsheets'
+const SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive'
 
 // --- JWT-based auth using native crypto (no external deps) ---
 
@@ -56,7 +56,7 @@ function createJWT(clientEmail, privateKey) {
 let cachedToken = null
 let tokenExpiry = 0
 
-async function getAccessToken() {
+export async function getAccessToken() {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken
 
   const creds = getCredentials()

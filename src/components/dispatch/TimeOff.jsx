@@ -25,7 +25,8 @@ export default function TimeOff() {
       supabase.from('time_off_requests').select('*').order('date_off', { ascending: true }),
       supabase.from('drivers').select('driver_name').eq('active', true).order('driver_name'),
     ])
-    setRequests(reqRes.data || [])
+    const activeNames = new Set((drvRes.data || []).map(d => d.driver_name))
+    setRequests((reqRes.data || []).filter(r => activeNames.has(r.driver_name)))
     setDrivers(drvRes.data || [])
     setLoading(false)
   }
