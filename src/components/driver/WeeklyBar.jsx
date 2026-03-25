@@ -111,11 +111,16 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
                     <span className="weekly__recon-dispatched">{r.actual}</span>
                   ) : (
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       className="weekly__recon-input"
                       placeholder="Enter actual"
                       value={hasActual ? r.actual : ''}
-                      onChange={(e) => handleActualChange(day, e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9]/g, '')
+                        handleActualChange(day, v)
+                      }}
                     />
                   )}
                 </div>
