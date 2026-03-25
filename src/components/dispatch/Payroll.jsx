@@ -211,51 +211,25 @@ export default function Payroll() {
   async function handleApprove() {
     setApproving(true)
     try {
-      // 1. Mark as approved
-      const approveRes = await fetch('/api/payroll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'approve' }),
-      })
-      if (!approveRes.ok) throw new Error('Approval failed')
-
-      // 2. Fetch AI insights
-      let aiInsights = null
-      try {
-        const insightsRes = await fetch('/api/ai-insights')
-        if (insightsRes.ok) {
-          const insightsData = await insightsRes.json()
-          aiInsights = insightsData.insights
-          setInsights(aiInsights)
-        }
-      } catch {
-        // AI insights are optional — don't block the email
-      }
-
-      // 3. Send email to accountant
+      // 1. Send email to accountant via Google Apps Script webhook
       const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      const emailRes = await fetch('/api/actions', {
+      const emailRes = await fetch('https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'email',
           to: 'mcutrufello2121@gmail.com',
           subject: `CNC Delivery — Weekly Payroll ${today}`,
-          html: buildPayrollHtml(aiInsights),
+          html: buildPayrollHtml(insights),
         }),
       })
-      const emailData = await emailRes.json()
-      if (!emailRes.ok) throw new Error(emailData.error)
 
-      // 3. Reset snapshot for next week
-      await fetch('/api/payroll', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset-snapshot' }),
-      })
+      if (!emailRes.ok) {
+        const errText = await emailRes.text()
+        throw new Error(`Email failed: ${errText}`)
+      }
 
       setApproved(true)
-      showToast('Payroll approved and sent to accountant — snapshot cleared for next week')
+      showToast('Payroll approved and sent to accountant')
     } catch (err) {
       showToast(`Error: ${err.message}`, true)
     } finally {
