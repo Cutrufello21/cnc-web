@@ -32,13 +32,13 @@ export default function Payroll() {
   async function loadPayroll() {
     setLoading(true)
     try {
-      // Get current week's Monday
+      // Get current week's Monday (use local date, not UTC)
       const now = new Date()
       const dayOfWeek = now.getDay()
       const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
       const monday = new Date(now)
       monday.setDate(now.getDate() + mondayOffset)
-      const weekOf = monday.toISOString().split('T')[0]
+      const weekOf = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
 
       const [payrollRes, driversRes] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
