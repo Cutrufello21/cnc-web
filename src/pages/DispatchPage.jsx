@@ -188,7 +188,31 @@ export default function DispatchPage() {
   const [routesSent, setRoutesSent] = useState(false)
   const [sendingCorrections, setSendingCorrections] = useState(false)
   const [correctionsSent, setCorrectionsSent] = useState(false)
+  const [sentSnapshot, setSentSnapshot] = useState(null) // { driverName: Set of orderIds }
+  const [resending, setResending] = useState(false)
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+
+  function buildDriverEmail(name, stops, cc, dayStr) {
+    const ccLine = cc > 0 ? ` — ${cc} are cold chain.` : '.'
+    return `<div style="font-family:-apple-system,sans-serif;max-width:500px">
+      <h2 style="color:#0A2463">CNC Delivery</h2>
+      <p>Hi ${name},</p>
+      <p>You have <strong>${stops} stops</strong> for ${dayStr}${ccLine}</p>
+      <p><a href="https://cncdelivery.com/driver" style="display:inline-block;padding:12px 24px;background:#0A2463;color:white;text-decoration:none;border-radius:8px;font-weight:600">View Your Route</a></p>
+      <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
+    </div>`
+  }
+
+  function takeSnapshot() {
+    // Save current state: which order IDs belong to which driver
+    const snap = {}
+    for (const d of (data?.drivers || [])) {
+      const name = d['Driver Name']
+      const ids = (d.stopDetails || []).map(s => s['Order ID']).filter(Boolean)
+      if (ids.length > 0) snap[name] = new Set(ids)
+    }
+    return snap
+  }
 
   async function handleSendRoutes() {
     if (!confirm('Send route emails to all active drivers?')) return
@@ -197,29 +221,19 @@ export default function DispatchPage() {
       const drivers = activeDrivers.filter(d => d.Email)
       let sent = 0
       for (const d of drivers) {
-        const name = d['Driver Name']
-        const stops = d.stops || 0
-        const cc = d.coldChain || 0
-        const ccLine = cc > 0 ? ` — ${cc} are cold chain.` : '.'
-        const dayStr = data.deliveryDay
-
         await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           body: JSON.stringify({
             action: 'email',
             to: d.Email,
-            subject: `CNC Delivery — ${name} — ${dayStr}`,
-            html: `<div style="font-family:-apple-system,sans-serif;max-width:500px">
-              <h2 style="color:#0A2463">CNC Delivery</h2>
-              <p>Hi ${name},</p>
-              <p>You have <strong>${stops} stops</strong> for ${dayStr}${ccLine}</p>
-              <p><a href="https://cncdelivery.com/driver" style="display:inline-block;padding:12px 24px;background:#0A2463;color:white;text-decoration:none;border-radius:8px;font-weight:600">View Your Route</a></p>
-              <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
-            </div>`,
+            subject: `CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay}`,
+            html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
           }),
         })
         sent++
       }
+      // Save snapshot of what was sent
+      setSentSnapshot(takeSnapshot())
       setRoutesSent(true)
       setMoveToast(`Routes sent to ${sent} drivers`)
     } catch (err) {
@@ -229,11 +243,73 @@ export default function DispatchPage() {
     }
   }
 
+  async function handleResendChanges() {
+    if (!sentSnapshot) return
+    setResending(true)
+    try {
+      // Compare current assignments vs snapshot
+      const current = takeSnapshot()
+      const affected = new Set()
+
+      // Find drivers who gained or lost stops
+      const allDrivers = new Set([...Object.keys(sentSnapshot), ...Object.keys(current)])
+      const changes = []
+
+      for (const name of allDrivers) {
+        const oldIds = sentSnapshot[name] || new Set()
+        const newIds = current[name] || new Set()
+        const gained = [...newIds].filter(id => !oldIds.has(id))
+        const lost = [...oldIds].filter(id => !newIds.has(id))
+        if (gained.length > 0 || lost.length > 0) {
+          affected.add(name)
+          changes.push({ name, gained: gained.length, lost: lost.length, newTotal: newIds.size })
+        }
+      }
+
+      if (affected.size === 0) {
+        setMoveToast('No changes since last send')
+        setResending(false)
+        return
+      }
+
+      const changeList = changes.map(c =>
+        `${c.name}: ${c.newTotal} stops (${c.gained > 0 ? '+' + c.gained : ''}${c.gained > 0 && c.lost > 0 ? ', ' : ''}${c.lost > 0 ? '-' + c.lost : ''})`
+      ).join('\n')
+
+      if (!confirm(`Resend to ${affected.size} affected drivers?\n\n${changeList}`)) {
+        setResending(false)
+        return
+      }
+
+      // Email only affected drivers
+      const driversWithEmail = (data?.drivers || []).filter(d => affected.has(d['Driver Name']) && d.Email)
+      let sent = 0
+      for (const d of driversWithEmail) {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'email',
+            to: d.Email,
+            subject: `CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay} (Updated)`,
+            html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
+          }),
+        })
+        sent++
+      }
+      // Update snapshot
+      setSentSnapshot(takeSnapshot())
+      setMoveToast(`Updated routes sent to ${sent} drivers`)
+    } catch (err) {
+      setMoveToast(`Error: ${err.message}`)
+    } finally {
+      setResending(false)
+    }
+  }
+
   async function handleSendCorrections() {
     if (!confirm('Send correction emails for reassigned stops?')) return
     setSendingCorrections(true)
     try {
-      // Get all stops and compare dispatch_driver_number vs assigned_driver_number
       const dateStr = data.deliveryDateObj
         ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
         : ''
@@ -241,7 +317,6 @@ export default function DispatchPage() {
 
       const { data: stops } = await supabase.from('daily_stops').select('*').eq('delivery_date', dateStr)
 
-      // Find mismatches: dispatch_driver_number != assigned_driver_number
       const corrections = {}
       for (const s of (stops || [])) {
         if (s.dispatch_driver_number && s.assigned_driver_number && s.dispatch_driver_number !== s.assigned_driver_number) {
@@ -257,7 +332,6 @@ export default function DispatchPage() {
         return
       }
 
-      // Send one email per driver with corrections
       let sent = 0
       for (const [driverId, orderIds] of Object.entries(corrections)) {
         await fetch(APPS_SCRIPT_URL, {
@@ -406,10 +480,19 @@ export default function DispatchPage() {
                 <button
                   className={`dispatch__send-btn ${routesSent ? 'dispatch__send-btn--done' : ''}`}
                   onClick={handleSendRoutes}
-                  disabled={sendingRoutes || routesSent || totalStops === 0}
+                  disabled={sendingRoutes || totalStops === 0}
                 >
-                  {routesSent ? 'Sent' : sendingRoutes ? 'Sending...' : 'Send Routes'}
+                  {sendingRoutes ? 'Sending...' : routesSent ? 'Sent' : 'Send Routes'}
                 </button>
+                {sentSnapshot && (
+                  <button
+                    className="dispatch__send-btn dispatch__send-btn--resend"
+                    onClick={handleResendChanges}
+                    disabled={resending}
+                  >
+                    {resending ? 'Sending...' : 'Resend Changes'}
+                  </button>
+                )}
                 <button
                   className={`dispatch__send-btn dispatch__send-btn--corrections ${correctionsSent ? 'dispatch__send-btn--done' : ''}`}
                   onClick={handleSendCorrections}

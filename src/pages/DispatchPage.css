@@ -195,6 +195,12 @@
   background: var(--navy);
   color: var(--white);
 }
+.dispatch__send-btn--resend {
+  background: #f59e0b;
+}
+.dispatch__send-btn--resend:hover:not(:disabled) {
+  background: #d97706;
+}
 
 .dispatch__move-toast {
   display: flex;
