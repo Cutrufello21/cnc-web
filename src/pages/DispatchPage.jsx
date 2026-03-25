@@ -48,11 +48,7 @@ export default function DispatchPage() {
       let deliveryDay = day
 
       if (!deliveryDay) {
-        if (hour >= 17) {
-          deliveryDay = todayIdx === 5 || todayIdx === 6 ? 'Monday' : dayNames[todayIdx + 1]
-        } else {
-          deliveryDay = todayIdx === 0 ? 'Monday' : todayIdx === 6 ? 'Friday' : dayNames[todayIdx]
-        }
+        deliveryDay = todayIdx === 0 ? 'Monday' : todayIdx === 6 ? 'Friday' : dayNames[todayIdx]
       }
 
       // Get this week's date for the selected day
