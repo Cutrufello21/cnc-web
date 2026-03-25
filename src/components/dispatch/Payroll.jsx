@@ -19,47 +19,99 @@ export default function Payroll() {
   async function loadInsights() {
     setLoadingInsights(true)
     try {
-      // Build insights from Supabase data directly
-      const [logsRes, payrollRes] = await Promise.all([
-        supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
-        supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
+      // Get recent daily data for day-to-day analysis
+      const [logsRes, stopsRes, timeOffRes] = await Promise.all([
+        supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(15),
+        supabase.from('daily_stops').select('driver_name, pharmacy, city, zip, cold_chain, delivery_date')
+          .order('delivery_date', { ascending: false }).limit(2000),
+        supabase.from('time_off_requests').select('driver_name, date_off, status')
+          .eq('status', 'approved').gte('date_off', new Date().toISOString().split('T')[0]),
       ])
 
-      const logs = (logsRes.data || []).filter(r => ['Monday','Tuesday','Wednesday','Thursday','Friday'].includes(r.delivery_day))
-      const thisWeek = logs.slice(-5)
-      const lastWeek = logs.slice(-10, -5)
+      const logs = (logsRes.data || []).reverse()
+      const today = logs[logs.length - 1]
+      const yesterday = logs[logs.length - 2]
+      const sameDayLastWeek = logs.find(l => l.delivery_day === today?.delivery_day && l.date !== today?.date)
 
-      const thisTotal = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
-      const lastTotal = lastWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
-      const change = lastTotal ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0
-      const thisCC = thisWeek.reduce((s, r) => s + (r.cold_chain || 0), 0)
-      const ccPct = thisTotal ? Math.round((thisCC / thisTotal) * 100) : 0
-      const thisUnassigned = thisWeek.reduce((s, r) => s + (r.unassigned_count || 0), 0)
+      // Driver stop counts today
+      const todayDate = today?.date || ''
+      const todayStops = (stopsRes.data || []).filter(s => s.delivery_date === todayDate)
+      const driverCounts = {}
+      todayStops.forEach(s => {
+        if (!driverCounts[s.driver_name]) driverCounts[s.driver_name] = { total: 0, cc: 0, cities: new Set() }
+        driverCounts[s.driver_name].total++
+        if (s.cold_chain) driverCounts[s.driver_name].cc++
+        if (s.city) driverCounts[s.driver_name].cities.add(s.city)
+      })
 
-      // Busiest day
-      const dayTotals = {}
-      thisWeek.forEach(r => { dayTotals[r.delivery_day] = r.orders_processed || 0 })
-      const busiest = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]
+      const sorted = Object.entries(driverCounts).sort((a, b) => b[1].total - a[1].total)
+      const heaviest = sorted[0]
+      const lightest = sorted[sorted.length - 1]
+      const avg = sorted.length ? Math.round(sorted.reduce((s, d) => s + d[1].total, 0) / sorted.length) : 0
 
-      // Top driver
-      const currentWeek = payrollRes.data?.filter(r => r.week_of === payrollRes.data[0]?.week_of) || []
-      const topDriver = currentWeek.filter(r => r.driver_name !== 'Paul').sort((a, b) => (b.week_total || 0) - (a.week_total || 0))[0]
+      // Imbalance detection
+      const imbalanced = sorted.filter(([, d]) => Math.abs(d.total - avg) / avg > 0.4)
 
-      const lines = [
-        'KEY INSIGHTS:',
-        `• This week: ${thisTotal} total orders (${change >= 0 ? '+' : ''}${change}% vs last week)`,
-        `• Cold chain: ${thisCC} orders (${ccPct}% of total)`,
-        `• ${busiest ? `Busiest day: ${busiest[0]} with ${busiest[1]} orders` : 'No data yet'}`,
-        '',
-        'DRIVER PERFORMANCE:',
-        `• Top driver: ${topDriver?.driver_name || 'N/A'} with ${topDriver?.week_total || 0} stops this week`,
-        `• ${currentWeek.filter(r => (r.week_total || 0) > 0).length} active drivers`,
-        '',
-        thisUnassigned > 0 ? `ANOMALIES:\n• ${thisUnassigned} unassigned orders this week — check routing rules` : 'ANOMALIES:\n• None detected',
-        '',
-        'PREDICTION:',
-        `• Based on trend, expect ~${Math.round(thisTotal / Math.max(thisWeek.length, 1) * 5)} orders next week`,
-      ]
+      // Cold chain concentration
+      const ccDrivers = sorted.filter(([, d]) => d.cc > 0).map(([name, d]) => `${name} (${d.cc})`)
+
+      // Compare to yesterday and same day last week
+      const todayTotal = today?.orders_processed || 0
+      const yesterdayTotal = yesterday?.orders_processed || 0
+      const sameDayTotal = sameDayLastWeek?.orders_processed || 0
+      const vsYesterday = yesterdayTotal ? Math.round(((todayTotal - yesterdayTotal) / yesterdayTotal) * 100) : 0
+      const vsSameDay = sameDayTotal ? Math.round(((todayTotal - sameDayTotal) / sameDayTotal) * 100) : 0
+
+      // Upcoming time off
+      const upcoming = (timeOffRes.data || []).slice(0, 5)
+
+      // ZIP frequency today
+      const zipCounts = {}
+      todayStops.forEach(s => { zipCounts[s.zip] = (zipCounts[s.zip] || 0) + 1 })
+      const hotZips = Object.entries(zipCounts).sort((a, b) => b[1] - a[1]).slice(0, 3)
+
+      const lines = []
+
+      lines.push(`TODAY (${today?.delivery_day || '—'} ${today?.date || ''}):`)
+      lines.push(`• ${todayTotal} orders — ${today?.shsp_orders || 0} SHSP, ${today?.aultman_orders || 0} Aultman`)
+      if (vsYesterday) lines.push(`• ${vsYesterday >= 0 ? '+' : ''}${vsYesterday}% vs yesterday (${yesterdayTotal})`)
+      if (vsSameDay) lines.push(`• ${vsSameDay >= 0 ? '+' : ''}${vsSameDay}% vs last ${today?.delivery_day} (${sameDayTotal})`)
+      lines.push('')
+
+      lines.push('DRIVER LOADS:')
+      if (heaviest) lines.push(`• Heaviest: ${heaviest[0]} with ${heaviest[1].total} stops`)
+      if (lightest && sorted.length > 1) lines.push(`• Lightest: ${lightest[0]} with ${lightest[1].total} stops`)
+      lines.push(`• Average: ${avg} stops/driver (${sorted.length} active)`)
+      if (imbalanced.length > 0) {
+        lines.push(`• ⚠ Imbalanced: ${imbalanced.map(([n, d]) => `${n} (${d.total})`).join(', ')} — ${imbalanced.length > 0 && imbalanced[0][1].total > avg ? 'consider redistributing' : 'may need more stops'}`)
+      }
+      lines.push('')
+
+      if (ccDrivers.length > 0) {
+        lines.push('COLD CHAIN:')
+        lines.push(`• ${today?.cold_chain || 0} total — ${ccDrivers.join(', ')}`)
+        lines.push('')
+      }
+
+      if (hotZips.length > 0) {
+        lines.push('BUSIEST ZIPS TODAY:')
+        lines.push(`• ${hotZips.map(([z, c]) => `${z} (${c} orders)`).join(', ')}`)
+        lines.push('')
+      }
+
+      if (today?.unassigned_count > 0) {
+        lines.push('⚠ UNASSIGNED:')
+        lines.push(`• ${today.unassigned_count} orders unassigned — check routing rules`)
+        lines.push('')
+      }
+
+      if (upcoming.length > 0) {
+        lines.push('UPCOMING TIME OFF:')
+        upcoming.forEach(r => {
+          const d = new Date(r.date_off + 'T12:00:00')
+          lines.push(`• ${r.driver_name} — ${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`)
+        })
+      }
 
       setInsights(lines.join('\n'))
     } catch (err) {
