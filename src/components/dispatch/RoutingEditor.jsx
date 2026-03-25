@@ -53,15 +53,14 @@ export default function RoutingEditor() {
   async function handleSave(zip, day, newDriver) {
     setSaving(true)
     try {
-      const res = await fetch('/api/routing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ zip, day, newDriver }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const col = { Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri' }[day]
+      if (!col) throw new Error(`Invalid day: ${day}`)
 
-      // Update local state
+      const { error } = await supabase.from('routing_rules')
+        .update({ [col]: newDriver })
+        .eq('zip_code', zip.trim())
+      if (error) throw new Error(error.message)
+
       setRules(prev => ({
         ...prev,
         data: prev.data.map(row => {
@@ -87,19 +86,19 @@ export default function RoutingEditor() {
     if (!newZip.zip) return
     setAddingZip(true)
     try {
-      const res = await fetch('/api/routing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newZip, action: 'add' }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      const { error } = await supabase.from('routing_rules').upsert({
+        zip_code: newZip.zip,
+        mon: newZip.mon || '', tue: newZip.tue || '', wed: newZip.wed || '',
+        thu: newZip.thu || '', fri: newZip.fri || '',
+        route: newZip.route || '', pharmacy: newZip.pharmacy || '',
+      }, { onConflict: 'zip_code' })
+      if (error) throw new Error(error.message)
 
       setToast(`ZIP ${newZip.zip} added`)
       setTimeout(() => setToast(null), 3000)
       setNewZip({ zip: '', mon: '', tue: '', wed: '', thu: '', fri: '', route: '', pharmacy: 'SHSP' })
       setShowAddForm(false)
-      loadData() // Refresh
+      loadData()
     } catch (err) {
       setToast(`Error: ${err.message}`)
       setTimeout(() => setToast(null), 4000)
