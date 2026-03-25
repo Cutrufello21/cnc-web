@@ -15,6 +15,7 @@ export default function DriverPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('stops')
+  const [listView, setListView] = useState(false)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -228,14 +229,47 @@ export default function DriverPage() {
                   </div>
                 ) : data.stops?.length > 0 ? (
                   <>
-                    {data.stops.map((stop, i) => (
-                      <StopCard
-                        key={i}
-                        stop={stop}
-                        index={i + 1}
-                        total={data.stops.length}
-                      />
-                    ))}
+                    <div className="driver__view-toggle">
+                      <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
+                      <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
+                    </div>
+                    {listView ? (
+                      <div className="driver__list-view">
+                        <table className="driver__list-table">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Name</th>
+                              <th>Address</th>
+                              <th>City</th>
+                              <th>ZIP</th>
+                              <th>CC</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {data.stops.map((stop, i) => (
+                              <tr key={i} className={stop._coldChain ? 'driver__list-row--cold' : ''}>
+                                <td className="driver__list-num">{i + 1}</td>
+                                <td>{stop.Name || '—'}</td>
+                                <td>
+                                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${stop.Address}, ${stop.City}, OH ${stop.ZIP}`)}`}
+                                    target="_blank" rel="noopener noreferrer" className="driver__list-addr">
+                                    {stop.Address || '—'}
+                                  </a>
+                                </td>
+                                <td>{stop.City || '—'}</td>
+                                <td>{stop.ZIP || '—'}</td>
+                                <td>{stop._coldChain ? '❄️' : ''}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      data.stops.map((stop, i) => (
+                        <StopCard key={i} stop={stop} index={i + 1} total={data.stops.length} />
+                      ))
+                    )}
                     <CopyRouteButton stops={data.stops} />
                   </>
                 ) : (
