@@ -237,9 +237,35 @@ export default function DispatchPage() {
         })
         sent++
       }
+      // Push to Road Warrior for configured drivers
+      const rwDrivers = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
+      const rwPayload = activeDrivers
+        .filter(d => rwDrivers.includes(d['Driver Name']) && d.stopDetails?.length > 0)
+        .map(d => ({
+          name: d['Driver Name'],
+          routeName: `${d['Driver Name']} - ${data.deliveryDay}`,
+          stops: d.stopDetails.map(s => ({
+            order_id: s['Order ID'] || '', address: s.Address || '',
+            city: s.City || '', zip: s.ZIP || '',
+            cold_chain: s._coldChain || false, pharmacy: s.Pharmacy || '',
+          })),
+        }))
+
+      let rwCount = 0
+      if (rwPayload.length > 0) {
+        try {
+          const rwRes = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'roadwarrior', drivers: rwPayload }),
+          })
+          const rwData = await rwRes.json()
+          rwCount = rwData.results?.filter(r => r.success).length || 0
+        } catch {}
+      }
+
       setSentSnapshot(takeSnapshot())
       setRoutesSent(true)
-      setMoveToast(`${TEST_MODE ? 'TEST: ' : ''}Routes sent to ${sent} drivers`)
+      setMoveToast(`Routes sent to ${sent} drivers${rwCount > 0 ? `, Road Warrior pushed to ${rwCount}` : ''}`)
     } catch (err) {
       setMoveToast(`Error sending routes: ${err.message}`)
     } finally {
