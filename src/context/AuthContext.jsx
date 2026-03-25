@@ -3,9 +3,16 @@ import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
+function getInitialProfile() {
+  try {
+    const saved = localStorage.getItem('cnc-profile')
+    return saved ? JSON.parse(saved) : null
+  } catch { return null }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
+  const [profile, setProfile] = useState(getInitialProfile)
   const [loading] = useState(false)
 
   async function signOut() {

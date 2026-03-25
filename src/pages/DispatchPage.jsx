@@ -41,7 +41,7 @@ export default function DispatchPage() {
   }, [])
 
   async function fetchDispatchData(day) {
-    setLoading(true)
+    if (!data) setLoading(true) // Only show spinner on first load
     setError(null)
     setApproved(false)
     try {

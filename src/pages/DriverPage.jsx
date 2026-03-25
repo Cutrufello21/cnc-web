@@ -20,15 +20,10 @@ export default function DriverPage() {
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      if (user?.email && !document.hidden) fetchDriverData()
-    }, 30000)
-    return () => clearInterval(interval)
   }, [user?.email])
 
   async function fetchDriverData() {
-    setLoading(true)
+    if (!data) setLoading(true) // Only show spinner on first load
     setError(null)
     try {
       // Look up driver from Supabase
