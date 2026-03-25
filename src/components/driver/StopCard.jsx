@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './StopCard.css'
 
-export default function StopCard({ stop, index, total, isSelected, onToggleSelect }) {
+export default function StopCard({ stop, index, total, isSelected, onToggleSelect, onExportDrag }) {
   const [expanded, setExpanded] = useState(false)
 
   const name = stop['Name'] || stop['Patient'] || stop['Customer'] || '—'
@@ -22,6 +22,8 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   return (
     <div
       className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSelected ? 'stop--selected' : ''}`}
+      draggable={isSelected}
+      onDragStart={onExportDrag}
     >
       <div className="stop__main" onClick={() => setExpanded(!expanded)}>
         <input

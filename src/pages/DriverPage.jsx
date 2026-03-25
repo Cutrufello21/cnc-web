@@ -318,6 +318,13 @@ export default function DriverPage() {
                           total={data.stops.length}
                           isSelected={selected.has(i)}
                           onToggleSelect={() => toggleSelect(i)}
+                          onExportDrag={(e) => {
+                            const text = getSelectedAddresses()
+                            if (text) {
+                              e.dataTransfer.setData('text/plain', text)
+                              e.dataTransfer.effectAllowed = 'copy'
+                            }
+                          }}
                         />
                       ))
                     )}
