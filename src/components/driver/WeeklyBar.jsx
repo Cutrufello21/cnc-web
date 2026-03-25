@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import './WeeklyBar.css'
 
@@ -27,8 +27,34 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
       })
   }, [driverName, weekOf])
 
+  const saveTimers = useRef({})
+
   function handleActualChange(day, value) {
-    setRecon(prev => ({ ...prev, [day]: { ...prev[day], actual: value === '' ? null : value } }))
+    const val = value === '' ? null : value
+    setRecon(prev => ({ ...prev, [day]: { ...prev[day], actual: val } }))
+
+    // Auto-save with debounce
+    clearTimeout(saveTimers.current[day])
+    saveTimers.current[day] = setTimeout(() => saveActual(day, val), 600)
+  }
+
+  async function saveActual(day, value) {
+    const existing = recon[day]
+    const row = {
+      driver_name: driverName,
+      week_of: weekOf,
+      day,
+      actual_stops: value == null ? null : parseInt(value),
+    }
+
+    if (existing?.id) {
+      await supabase.from('stop_reconciliation').update(row).eq('id', existing.id)
+    } else if (value != null) {
+      const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
+      if (data?.[0]) {
+        setRecon(prev => ({ ...prev, [day]: { ...prev[day], id: data[0].id } }))
+      }
+    }
   }
 
   async function handleLock(day) {
@@ -36,21 +62,16 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
     const actual = r.actual
     if (actual == null || actual === '') return
 
-    const row = {
-      driver_name: driverName,
-      week_of: weekOf,
-      day,
-      actual_stops: parseInt(actual),
-      locked: true,
-    }
-
+    // Save and lock
     if (r.id) {
-      await supabase.from('stop_reconciliation').update(row).eq('id', r.id)
+      await supabase.from('stop_reconciliation').update({ actual_stops: parseInt(actual), locked: true }).eq('id', r.id)
     } else {
-      const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
-      if (data?.[0]) row.id = data[0].id
+      const { data } = await supabase.from('stop_reconciliation').insert({
+        driver_name: driverName, week_of: weekOf, day, actual_stops: parseInt(actual), locked: true,
+      }).select('id')
+      if (data?.[0]) r.id = data[0].id
     }
-    setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: true, id: row.id || prev[day]?.id } }))
+    setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: true, id: r.id || prev[day]?.id } }))
   }
 
   async function handleUnlock(day) {
