@@ -154,13 +154,13 @@
 }
 
 @media (max-width: 480px) {
-  .driver__stat-value {
-    font-size: 28px;
-  }
-  .driver__stats {
-    gap: 8px;
-  }
-  .driver__stat {
-    padding: 16px 12px;
-  }
+  .driver__stat-value { font-size: 28px; }
+  .driver__stats { gap: 8px; }
+  .driver__stat { padding: 16px 12px; }
+  .driver__tabs { flex-wrap: wrap; gap: 4px; }
+  .driver__tab { padding: 8px 12px; font-size: 13px; }
+  .driver__banner { flex-direction: column; gap: 8px; padding: 16px; }
+  .driver__banner h3 { font-size: 15px; }
+  .driver__list-table { font-size: 12px; }
+  .driver__list-table th, .driver__list-table td { padding: 6px 6px; }
 }

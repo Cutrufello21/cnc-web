@@ -19,6 +19,11 @@ export default function DriverPage() {
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      if (user?.email && !document.hidden) fetchDriverData()
+    }, 30000)
+    return () => clearInterval(interval)
   }, [user?.email])
 
   async function fetchDriverData() {

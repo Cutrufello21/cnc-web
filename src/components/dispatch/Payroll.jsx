@@ -19,12 +19,51 @@ export default function Payroll() {
   async function loadInsights() {
     setLoadingInsights(true)
     try {
-      const res = await fetch('/api/ai-insights')
-      const d = await res.json()
-      if (!res.ok) throw new Error(d.error)
-      setInsights(d.insights)
+      // Build insights from Supabase data directly
+      const [logsRes, payrollRes] = await Promise.all([
+        supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
+        supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
+      ])
+
+      const logs = (logsRes.data || []).filter(r => ['Monday','Tuesday','Wednesday','Thursday','Friday'].includes(r.delivery_day))
+      const thisWeek = logs.slice(-5)
+      const lastWeek = logs.slice(-10, -5)
+
+      const thisTotal = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
+      const lastTotal = lastWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
+      const change = lastTotal ? Math.round(((thisTotal - lastTotal) / lastTotal) * 100) : 0
+      const thisCC = thisWeek.reduce((s, r) => s + (r.cold_chain || 0), 0)
+      const ccPct = thisTotal ? Math.round((thisCC / thisTotal) * 100) : 0
+      const thisUnassigned = thisWeek.reduce((s, r) => s + (r.unassigned_count || 0), 0)
+
+      // Busiest day
+      const dayTotals = {}
+      thisWeek.forEach(r => { dayTotals[r.delivery_day] = r.orders_processed || 0 })
+      const busiest = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]
+
+      // Top driver
+      const currentWeek = payrollRes.data?.filter(r => r.week_of === payrollRes.data[0]?.week_of) || []
+      const topDriver = currentWeek.filter(r => r.driver_name !== 'Paul').sort((a, b) => (b.week_total || 0) - (a.week_total || 0))[0]
+
+      const lines = [
+        'KEY INSIGHTS:',
+        `• This week: ${thisTotal} total orders (${change >= 0 ? '+' : ''}${change}% vs last week)`,
+        `• Cold chain: ${thisCC} orders (${ccPct}% of total)`,
+        `• ${busiest ? `Busiest day: ${busiest[0]} with ${busiest[1]} orders` : 'No data yet'}`,
+        '',
+        'DRIVER PERFORMANCE:',
+        `• Top driver: ${topDriver?.driver_name || 'N/A'} with ${topDriver?.week_total || 0} stops this week`,
+        `• ${currentWeek.filter(r => (r.week_total || 0) > 0).length} active drivers`,
+        '',
+        thisUnassigned > 0 ? `ANOMALIES:\n• ${thisUnassigned} unassigned orders this week — check routing rules` : 'ANOMALIES:\n• None detected',
+        '',
+        'PREDICTION:',
+        `• Based on trend, expect ~${Math.round(thisTotal / Math.max(thisWeek.length, 1) * 5)} orders next week`,
+      ]
+
+      setInsights(lines.join('\n'))
     } catch (err) {
-      setInsights(`Error loading insights: ${err.message}`)
+      setInsights(`Error: ${err.message}`)
     } finally {
       setLoadingInsights(false)
     }
