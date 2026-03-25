@@ -5,7 +5,7 @@
 .map__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 12px;
@@ -21,6 +21,32 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+.map__time-filters {
+  display: flex;
+  gap: 4px;
+  background: var(--gray-100);
+  padding: 3px;
+  border-radius: 6px;
+}
+.map__time-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-500);
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all 0.15s;
+}
+.map__time-btn:hover { color: var(--gray-700); }
+.map__time-btn--active {
+  background: var(--white);
+  color: var(--gray-900);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
 .map__filter-btn {
