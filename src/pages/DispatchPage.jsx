@@ -191,7 +191,7 @@ export default function DispatchPage() {
   const [sentSnapshot, setSentSnapshot] = useState(null) // { driverName: Set of orderIds }
   const [resending, setResending] = useState(false)
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
-  const TEST_MODE = true // Set to false when ready to go live
+  const TEST_MODE = false
   const TEST_EMAIL = 'dom@cncdeliveryservice.com'
 
   function buildDriverEmail(name, stops, cc, dayStr) {
