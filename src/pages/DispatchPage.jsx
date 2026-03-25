@@ -87,6 +87,11 @@ export default function DispatchPage() {
       const assignedZips = new Set(routingRules.map(r => r.zip_code).filter(Boolean))
       const stops = stopsRes.data || []
 
+      // Check for drivers off today
+      const { data: timeOffData } = await supabase.from('time_off_requests')
+        .select('driver_name').eq('date_off', dateStr).in('status', ['approved', 'pending'])
+      const driversOff = new Set((timeOffData || []).map(r => r.driver_name))
+
       // Group stops by driver
       const driverStops = {}
       stops.forEach(s => {
@@ -117,8 +122,18 @@ export default function DispatchPage() {
 
       // Build warnings
       const warnings = []
-      // Check for unassigned (stops with no driver or driver_name is empty)
-      // For now, no unassigned tracking from Supabase - that can be added later
+      // Drivers who are off but have stops assigned
+      for (const offDriver of driversOff) {
+        const ds = driverStops[offDriver]
+        if (ds && ds.stops > 0) {
+          warnings.push({
+            type: 'driver-off',
+            severity: 'high',
+            message: `${offDriver} is OFF but has ${ds.stops} stops assigned — reassign them`,
+            details: [offDriver],
+          })
+        }
+      }
 
       setData({
         deliveryDay,
@@ -129,6 +144,7 @@ export default function DispatchPage() {
           'Driver #': d.driver_number,
           Pharmacy: d.pharmacy || '',
           Email: d.email,
+          isOff: driversOff.has(d.driver_name),
           stops: driverStops[d.driver_name]?.stops ?? 0,
           coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
           hidden: false,
