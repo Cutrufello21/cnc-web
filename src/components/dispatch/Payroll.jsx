@@ -90,6 +90,11 @@ export default function Payroll() {
         grandTotal: Math.round(grandTotal * 100) / 100,
         sheetTotal: drivers.reduce((sum, d) => sum + d.sheetPay, 0),
         weekOf: `${monday.getMonth() + 1}/${monday.getDate()}/${monday.getFullYear()}`,
+        weekEnding: (() => {
+          const sat = new Date(monday)
+          sat.setDate(sat.getDate() + 5)
+          return `${sat.getMonth() + 1}/${sat.getDate()}/${sat.getFullYear()}`
+        })(),
       })
     } catch (err) {
       console.error('Payroll error:', err)
@@ -171,7 +176,7 @@ export default function Payroll() {
       <div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;max-width:700px;margin:0 auto">
         <div style="background:#0A2463;padding:24px 32px;border-radius:12px 12px 0 0">
           <h1 style="color:#6495ED;margin:0;font-size:20px">CNC Delivery</h1>
-          <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:14px">Weekly Payroll — ${today}</p>
+          <p style="color:rgba(255,255,255,0.6);margin:4px 0 0;font-size:14px">Payroll — Week Ending ${data?.weekEnding || today}</p>
         </div>
         <div style="padding:24px 32px;background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -212,13 +217,13 @@ export default function Payroll() {
     setApproving(true)
     try {
       // 1. Send email to accountant via Google Apps Script webhook
-      const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      const weDate = data.weekEnding || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       const emailRes = await fetch('https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec', {
         method: 'POST',
         body: JSON.stringify({
           action: 'email',
           to: 'mcutrufello2121@gmail.com',
-          subject: `CNC Delivery — Weekly Payroll ${today}`,
+          subject: `CC Delivery Payroll — Week Ending ${weDate}`,
           html: buildPayrollHtml(insights),
         }),
       })
@@ -291,7 +296,7 @@ export default function Payroll() {
         <div>
           <h3 className="pay__title">Weekly Payroll</h3>
           <p className="pay__sub">
-            {data.weekOf ? `Week of ${data.weekOf}` : 'Review and adjust before sending to accountant'}
+            {data.weekEnding ? `Week Ending ${data.weekEnding}` : 'Review and adjust before sending to accountant'}
             {' — '}accumulated Mon-Fri, clears after approval
           </p>
         </div>
