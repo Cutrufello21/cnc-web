@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import Revenue from './Revenue'
 import './Payroll.css'
 
 export default function Payroll() {
@@ -446,6 +447,16 @@ export default function Payroll() {
         <span>Flat: Mark $1,550 · Dom $2,500 · Paul $2,000</span>
         <span>Brad: manual entry</span>
       </div>
+
+      {/* Revenue */}
+      <Revenue weekOf={(() => {
+        const now = new Date()
+        const dow = now.getDay()
+        const off = dow === 0 ? -6 : 1 - dow
+        const mon = new Date(now)
+        mon.setDate(mon.getDate() + off)
+        return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`
+      })()} driverPayroll={adjustedTotal} />
 
       {/* AI Insights */}
       <div className="pay__insights">
