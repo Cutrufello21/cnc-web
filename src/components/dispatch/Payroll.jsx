@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Revenue from './Revenue'
 import './Payroll.css'
@@ -554,7 +554,9 @@ export default function Payroll() {
       </div>
 
       {/* Driver Reconciliation */}
-      <ReconSection drivers={data.drivers || []} />
+      {(data.drivers || []).some(d => d.recon && Object.keys(d.recon).length > 0) && (
+        <ReconSection drivers={data.drivers} />
+      )}
 
       {/* Revenue */}
       <Revenue weekOf={(() => {
@@ -640,10 +642,10 @@ function ReconSection({ drivers }) {
             <tr className="pay__recon-subhead">
               <th></th>
               {DAYS.map(d => (
-                <Fragment key={d}>
+                <React.Fragment key={d}>
                   <th>Disp</th>
                   <th>Actual</th>
-                </Fragment>
+                </React.Fragment>
               ))}
               <th></th>
               <th></th>
@@ -672,7 +674,7 @@ function ReconSection({ drivers }) {
                     const diff = hasActual ? actual - disp : null
 
                     return (
-                      <Fragment key={day}>
+                      <React.Fragment key={day}>
                         <td className="pay__recon-num">{disp}</td>
                         <td className={`pay__recon-num ${!hasActual ? 'pay__recon-empty' : diff === 0 ? 'pay__recon-ok' : diff < 0 ? 'pay__recon-under' : 'pay__recon-over'}`}>
                           {hasActual ? (
@@ -683,7 +685,7 @@ function ReconSection({ drivers }) {
                             </>
                           ) : '—'}
                         </td>
-                      </Fragment>
+                      </React.Fragment>
                     )
                   })}
                   <td className="pay__recon-status">
