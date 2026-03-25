@@ -172,6 +172,30 @@
   opacity: 1 !important;
 }
 
+.dispatch__send-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+  background: var(--navy);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.dispatch__send-btn:hover:not(:disabled) { background: var(--navy-light); }
+.dispatch__send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dispatch__send-btn--done { background: #16a34a !important; opacity: 1 !important; }
+.dispatch__send-btn--corrections {
+  background: transparent;
+  color: var(--navy);
+  border: 1px solid var(--navy);
+}
+.dispatch__send-btn--corrections:hover:not(:disabled) {
+  background: var(--navy);
+  color: var(--white);
+}
+
 .dispatch__move-toast {
   display: flex;
   align-items: center;
