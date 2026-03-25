@@ -191,6 +191,8 @@ export default function DispatchPage() {
   const [sentSnapshot, setSentSnapshot] = useState(null) // { driverName: Set of orderIds }
   const [resending, setResending] = useState(false)
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+  const TEST_MODE = true // Set to false when ready to go live
+  const TEST_EMAIL = 'dom@cncdeliveryservice.com'
 
   function buildDriverEmail(name, stops, cc, dayStr) {
     const ccLine = cc > 0 ? ` — ${cc} are cold chain.` : '.'
@@ -215,7 +217,10 @@ export default function DispatchPage() {
   }
 
   async function handleSendRoutes() {
-    if (!confirm('Send route emails to all active drivers?')) return
+    const msg = TEST_MODE
+      ? `TEST MODE — Send all route emails to ${TEST_EMAIL} instead of drivers?`
+      : 'Send route emails to all active drivers?'
+    if (!confirm(msg)) return
     setSendingRoutes(true)
     try {
       const drivers = activeDrivers.filter(d => d.Email)
@@ -225,17 +230,16 @@ export default function DispatchPage() {
           method: 'POST',
           body: JSON.stringify({
             action: 'email',
-            to: d.Email,
-            subject: `CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay}`,
+            to: TEST_MODE ? TEST_EMAIL : d.Email,
+            subject: `${TEST_MODE ? '[TEST] ' : ''}CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay}`,
             html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
           }),
         })
         sent++
       }
-      // Save snapshot of what was sent
       setSentSnapshot(takeSnapshot())
       setRoutesSent(true)
-      setMoveToast(`Routes sent to ${sent} drivers`)
+      setMoveToast(`${TEST_MODE ? 'TEST: ' : ''}Routes sent to ${sent} drivers`)
     } catch (err) {
       setMoveToast(`Error sending routes: ${err.message}`)
     } finally {
@@ -276,7 +280,7 @@ export default function DispatchPage() {
         `${c.name}: ${c.newTotal} stops (${c.gained > 0 ? '+' + c.gained : ''}${c.gained > 0 && c.lost > 0 ? ', ' : ''}${c.lost > 0 ? '-' + c.lost : ''})`
       ).join('\n')
 
-      if (!confirm(`Resend to ${affected.size} affected drivers?\n\n${changeList}`)) {
+      if (!confirm(`${TEST_MODE ? 'TEST MODE — ' : ''}Resend to ${affected.size} affected drivers?\n\n${changeList}`)) {
         setResending(false)
         return
       }
@@ -289,8 +293,8 @@ export default function DispatchPage() {
           method: 'POST',
           body: JSON.stringify({
             action: 'email',
-            to: d.Email,
-            subject: `CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay} (Updated)`,
+            to: TEST_MODE ? TEST_EMAIL : d.Email,
+            subject: `${TEST_MODE ? '[TEST] ' : ''}CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay} (Updated)`,
             html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
           }),
         })
