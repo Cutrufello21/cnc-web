@@ -24,14 +24,16 @@ export default function LoginPage() {
       // Look up email from username (driver name) or use as-is if it contains @
       let email = username.trim()
       if (!email.includes('@')) {
+        // Strip "cc." prefix if present
+        let name = email.toLowerCase().replace(/^cc\./, '')
         const { data: drivers } = await supabase.from('drivers')
           .select('email, driver_name')
-          .ilike('driver_name', email)
+          .ilike('driver_name', name)
           .limit(1)
         if (drivers?.length > 0 && drivers[0].email) {
           email = drivers[0].email
         } else {
-          throw new Error('Username not found. Try your first name or email.')
+          throw new Error('Username not found. Try cc.firstname or your email.')
         }
       }
 
@@ -121,7 +123,7 @@ export default function LoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="First name or email"
+              placeholder="cc.bobby"
               required
               autoComplete="username"
               autoFocus
