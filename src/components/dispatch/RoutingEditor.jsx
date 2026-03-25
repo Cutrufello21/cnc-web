@@ -20,6 +20,9 @@ export default function RoutingEditor() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [newZip, setNewZip] = useState({ zip: '', mon: '', tue: '', wed: '', thu: '', fri: '', route: '', pharmacy: 'SHSP' })
   const [addingZip, setAddingZip] = useState(false)
+  const [editRow, setEditRow] = useState(null) // zip code being edited
+  const [editData, setEditData] = useState({})
+  const [deleting, setDeleting] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -104,6 +107,57 @@ export default function RoutingEditor() {
       setTimeout(() => setToast(null), 4000)
     } finally {
       setAddingZip(false)
+    }
+  }
+
+  function startEditRow(row) {
+    setEditRow(row['ZIP Code'])
+    setEditData({
+      mon: row['Mon'] || '', tue: row['Tue'] || '', wed: row['Wed'] || '',
+      thu: row['Thu'] || '', fri: row['Fri'] || '',
+      route: row['Route'] || '', pharmacy: row['Pharmacy'] || '',
+    })
+  }
+
+  async function saveEditRow() {
+    if (!editRow) return
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('routing_rules')
+        .update({
+          mon: editData.mon, tue: editData.tue, wed: editData.wed,
+          thu: editData.thu, fri: editData.fri,
+          route: editData.route, pharmacy: editData.pharmacy,
+        })
+        .eq('zip_code', editRow)
+      if (error) throw new Error(error.message)
+      setToast(`ZIP ${editRow} updated`)
+      setTimeout(() => setToast(null), 3000)
+      setEditRow(null)
+      loadData()
+    } catch (err) {
+      setToast(`Error: ${err.message}`)
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(zip) {
+    if (!confirm(`Delete ZIP ${zip} from routing rules?`)) return
+    setDeleting(zip)
+    try {
+      const { error } = await supabase.from('routing_rules')
+        .delete().eq('zip_code', zip)
+      if (error) throw new Error(error.message)
+      setToast(`ZIP ${zip} deleted`)
+      setTimeout(() => setToast(null), 3000)
+      loadData()
+    } catch (err) {
+      setToast(`Error: ${err.message}`)
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -222,11 +276,48 @@ export default function RoutingEditor() {
               <th className="re__th-sortable" onClick={() => handleSort('Pharmacy')}>
                 Pharmacy {sortCol === 'Pharmacy' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
               </th>
+              <th style={{ width: 60 }}></th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((row) => {
               const zip = row['ZIP Code'] || ''
+              const isEditingRow = editRow === zip
+
+              if (isEditingRow) {
+                return (
+                  <tr key={zip} className="re__row--editing">
+                    <td className="re__cell-zip">{zip}</td>
+                    {DAYS.map(day => (
+                      <td key={day} className="re__cell-editing">
+                        <select
+                          className="re__cell-select"
+                          value={editData[day.toLowerCase()] || ''}
+                          onChange={(e) => setEditData({ ...editData, [day.toLowerCase()]: e.target.value })}
+                        >
+                          <option value="">—</option>
+                          {drivers.map(d => (
+                            <option key={d} value={d}>{d.split('/')[0]}</option>
+                          ))}
+                        </select>
+                      </td>
+                    ))}
+                    <td>
+                      <input className="re__edit-input" value={editData.route} onChange={(e) => setEditData({ ...editData, route: e.target.value })} placeholder="Route" />
+                    </td>
+                    <td>
+                      <select className="re__cell-select" value={editData.pharmacy} onChange={(e) => setEditData({ ...editData, pharmacy: e.target.value })}>
+                        {pharmacies.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                    </td>
+                    <td className="re__cell-actions">
+                      <button className="re__action-btn re__action-btn--save" onClick={saveEditRow} disabled={saving} title="Save">&#10003;</button>
+                      <button className="re__action-btn re__action-btn--cancel" onClick={() => setEditRow(null)} title="Cancel">&#10005;</button>
+                    </td>
+                  </tr>
+                )
+              }
+
               return (
                 <tr key={zip}>
                   <td className="re__cell-zip">{zip}</td>
@@ -272,6 +363,10 @@ export default function RoutingEditor() {
                   })}
                   <td className="re__cell-route">{row['Route'] || ''}</td>
                   <td className="re__cell-pharma">{row['Pharmacy'] || ''}</td>
+                  <td className="re__cell-actions">
+                    <button className="re__action-btn re__action-btn--edit" onClick={() => startEditRow(row)} title="Edit row">&#9998;</button>
+                    <button className="re__action-btn re__action-btn--delete" onClick={() => handleDelete(zip)} disabled={deleting === zip} title="Delete ZIP">&times;</button>
+                  </td>
                 </tr>
               )
             })}

@@ -213,6 +213,43 @@
   color: var(--gray-500);
 }
 
+/* Row actions */
+.re__cell-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+.re__action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gray-400);
+  transition: all 0.15s;
+}
+.re__action-btn:hover { background: var(--gray-100); }
+.re__action-btn--edit:hover { color: var(--cornflower); }
+.re__action-btn--delete:hover { color: #dc4a4a; }
+.re__action-btn--save { color: #16a34a; font-size: 16px; font-weight: 700; }
+.re__action-btn--save:hover { background: #dcfce7; }
+.re__action-btn--cancel { color: #6b7280; font-size: 16px; }
+.re__action-btn--cancel:hover { background: #f3f4f6; }
+
+.re__row--editing { background: #f0f7ff; }
+.re__edit-input {
+  width: 80px;
+  padding: 3px 6px;
+  font-size: 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+}
+
 /* Add ZIP button */
 .re__add-btn {
   display: block;
