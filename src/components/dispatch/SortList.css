@@ -1,0 +1,35 @@
+.sl__loading { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 48px; color: var(--gray-500); }
+
+.sl__columns { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .sl__columns { grid-template-columns: 1fr; } }
+
+.sl__column { border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; }
+.sl__col-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
+.sl__col-title { font-size: 15px; font-weight: 700; }
+.sl__col-title--shsp { color: #3b82f6; }
+.sl__col-title--aultman { color: #16a34a; }
+
+.sl__copy { padding: 4px 12px; font-size: 11px; font-weight: 600; color: var(--gray-500); background: var(--white); border: 1px solid var(--gray-200); border-radius: 4px; cursor: pointer; }
+.sl__copy:hover { border-color: var(--gray-400); }
+.sl__copy--done { color: #16a34a; border-color: #16a34a; }
+
+.sl__empty { padding: 24px; text-align: center; color: var(--gray-400); font-size: 13px; }
+
+.sl__row { border-bottom: 1px solid var(--gray-100); }
+.sl__row:last-child { border-bottom: none; }
+
+.sl__display { display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; transition: background 0.1s; }
+.sl__display:hover { background: var(--gray-50); }
+
+.sl__driver { font-size: 14px; font-weight: 700; color: var(--gray-900); min-width: 80px; letter-spacing: 0.3px; }
+.sl__sep { color: var(--gray-300); }
+.sl__route { font-size: 13px; color: var(--gray-600); flex: 1; }
+.sl__extra-badge { padding: 1px 6px; font-size: 10px; font-weight: 600; background: #fef3c7; color: #d97706; border-radius: 3px; }
+.sl__stops { font-size: 12px; font-weight: 600; color: var(--gray-400); min-width: 24px; text-align: right; }
+
+.sl__edit { display: flex; align-items: center; gap: 6px; padding: 8px 16px; background: #f0f7ff; }
+.sl__edit-input { flex: 1; padding: 4px 8px; font-size: 13px; border: 1px solid var(--cornflower); border-radius: 4px; }
+.sl__edit-save { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; color: #16a34a; font-weight: 700; font-size: 16px; background: transparent; border: none; cursor: pointer; border-radius: 4px; }
+.sl__edit-save:hover { background: #dcfce7; }
+.sl__edit-cancel { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; color: #6b7280; font-size: 16px; background: transparent; border: none; cursor: pointer; border-radius: 4px; }
+.sl__edit-cancel:hover { background: #f3f4f6; }

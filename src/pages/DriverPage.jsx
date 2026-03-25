@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
+import DriverSortList from '../components/driver/DriverSortList'
 import ThemeToggle from '../components/ThemeToggle'
 import './DashboardShell.css'
 import './DriverPage.css'
@@ -92,6 +93,7 @@ export default function DriverPage() {
 
       setData({
         approved, deliveryDay: deliveryDayName, driverName, driverId, tabName,
+        pharmacy: driverRow.pharmacy || 'SHSP',
         stops, stopCount: stops.length,
         coldChainCount: stops.filter(s => s._coldChain).length,
         weekTotal, dailyStops,
@@ -205,6 +207,12 @@ export default function DriverPage() {
               >
                 Schedule
               </button>
+              <button
+                className={`driver__tab ${activeTab === 'sort' ? 'driver__tab--active' : ''}`}
+                onClick={() => setActiveTab('sort')}
+              >
+                Sort List
+              </button>
             </div>
 
             {/* Tab content */}
@@ -245,6 +253,10 @@ export default function DriverPage() {
 
             {activeTab === 'timeoff' && (
               <TimeOffCalendar driverName={data.driverName} />
+            )}
+
+            {activeTab === 'sort' && (
+              <DriverSortList driverName={data.driverName} pharmacy={data.pharmacy || 'SHSP'} />
             )}
           </>
         )}

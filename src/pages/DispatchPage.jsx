@@ -13,6 +13,7 @@ import Analytics from '../components/dispatch/Analytics'
 import Orders from '../components/dispatch/Orders'
 import Drivers from '../components/dispatch/Drivers'
 import TimeOff from '../components/dispatch/TimeOff'
+import SortList from '../components/dispatch/SortList'
 import WeatherWidget from '../components/dispatch/WeatherWidget'
 import StopDistribution from '../components/dispatch/StopDistribution'
 import ThemeToggle from '../components/ThemeToggle'
@@ -29,6 +30,7 @@ export default function DispatchPage() {
   const [approved, setApproved] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
   const [showRouting, setShowRouting] = useState(false)
+  const [showSortList, setShowSortList] = useState(false)
   const [dismissedWarnings, setDismissedWarnings] = useState(new Set())
   const [lastMove, setLastMove] = useState(null) // { orderIds, fromName, fromNumber, toName, count }
   const [undoing, setUndoing] = useState(false)
@@ -472,22 +474,29 @@ export default function DispatchPage() {
                 <button
                   key={day}
                   className={`dispatch__day ${selectedDay === day && !showRouting ? 'dispatch__day--active' : ''}`}
-                  onClick={() => { setShowRouting(false); handleDayChange(day) }}
+                  onClick={() => { setShowRouting(false); setShowSortList(false); handleDayChange(day) }}
                 >
                   {day.slice(0, 3)}
                 </button>
               ))}
               <button
+                className={`dispatch__day dispatch__day--routing ${showSortList ? 'dispatch__day--routing-active' : ''}`}
+                onClick={() => { setShowSortList(!showSortList); setShowRouting(false) }}
+              >
+                Sort List
+              </button>
+              <button
                 className={`dispatch__day dispatch__day--routing ${showRouting ? 'dispatch__day--routing-active' : ''}`}
-                onClick={() => setShowRouting(!showRouting)}
+                onClick={() => { setShowRouting(!showRouting); setShowSortList(false) }}
               >
                 Routing Rules
               </button>
             </div>
 
+            {showSortList && <SortList deliveryDate={data.deliveryDateObj ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}` : null} />}
             {showRouting && <RoutingEditor />}
 
-            {!showRouting && <>
+            {!showRouting && !showSortList && <>
             {/* Header row */}
             <div className="dispatch__top">
               <div>
