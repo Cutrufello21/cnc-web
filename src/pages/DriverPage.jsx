@@ -343,7 +343,7 @@ export default function DriverPage() {
             )}
 
             {activeTab === 'week' && (
-              <WeeklyBar dailyStops={data.dailyStops} weekTotal={data.weekTotal} />
+              <WeeklyBar dailyStops={data.dailyStops} weekTotal={data.weekTotal} driverName={data.driverName} />
             )}
 
             {activeTab === 'timeoff' && (

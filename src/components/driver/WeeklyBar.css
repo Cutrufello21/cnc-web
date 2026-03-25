@@ -71,3 +71,31 @@
   font-weight: 500;
   color: var(--gray-500);
 }
+
+/* Reconciliation */
+.weekly__recon { margin-top: 28px; border-top: 1px solid var(--gray-200); padding-top: 24px; }
+.weekly__recon-title { font-size: 16px; font-weight: 600; color: var(--gray-900); margin-bottom: 16px; }
+.weekly__recon-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.weekly__recon-day { background: var(--gray-50); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.weekly__recon-day-label { font-size: 13px; font-weight: 700; color: var(--gray-900); text-align: center; padding-bottom: 6px; border-bottom: 1px solid var(--gray-200); }
+.weekly__recon-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.weekly__recon-field-label { font-size: 11px; font-weight: 500; color: var(--gray-400); white-space: nowrap; }
+.weekly__recon-dispatched { font-size: 14px; font-weight: 600; color: var(--gray-700); }
+.weekly__recon-input { width: 80px; padding: 4px 8px; font-size: 13px; border: 1px solid var(--gray-200); border-radius: 6px; background: var(--white); text-align: right; }
+.weekly__recon-input:focus { outline: none; border-color: var(--cornflower); }
+.weekly__recon-input::placeholder { font-size: 10px; color: var(--gray-300); text-align: left; }
+.weekly__recon-diff { font-size: 14px; font-weight: 700; }
+.weekly__recon-diff--ok { color: #16a34a; }
+.weekly__recon-diff--under { color: #dc2626; }
+.weekly__recon-diff--over { color: #2563eb; }
+.weekly__recon-diff--empty { color: var(--gray-300); }
+.weekly__recon-notes { width: 100%; padding: 4px 8px; font-size: 11px; border: 1px solid var(--gray-200); border-radius: 6px; background: var(--white); }
+.weekly__recon-notes:focus { outline: none; border-color: var(--cornflower); }
+.weekly__recon-notes::placeholder { color: var(--gray-300); }
+
+@media (max-width: 600px) {
+  .weekly__recon-grid { grid-template-columns: 1fr; }
+  .weekly__recon-day { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .weekly__recon-day-label { width: 100%; text-align: left; border-bottom: none; padding-bottom: 0; }
+  .weekly__recon-input, .weekly__recon-notes { width: auto; flex: 1; }
+}
