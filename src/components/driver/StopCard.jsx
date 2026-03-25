@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './StopCard.css'
 
-export default function StopCard({ stop, index, total, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, onTouchDragStart, isSelected, onToggleSelect }) {
+export default function StopCard({ stop, index, total, isSelected, onToggleSelect }) {
   const [expanded, setExpanded] = useState(false)
 
   const name = stop['Name'] || stop['Patient'] || stop['Customer'] || '—'
@@ -21,21 +21,9 @@ export default function StopCard({ stop, index, total, onDragStart, onDragOver, 
 
   return (
     <div
-      className={`stop ${isColdChain ? 'stop--cold' : ''} ${isDragging ? 'stop--dragging' : ''} ${isSelected ? 'stop--selected' : ''}`}
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      onDragEnd={onDragEnd}
+      className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSelected ? 'stop--selected' : ''}`}
     >
       <div className="stop__main" onClick={() => setExpanded(!expanded)}>
-        <div className="stop__drag-handle" onTouchStart={onTouchDragStart}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="5" cy="3" r="1.5" /><circle cx="11" cy="3" r="1.5" />
-            <circle cx="5" cy="8" r="1.5" /><circle cx="11" cy="8" r="1.5" />
-            <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
-          </svg>
-        </div>
         <input
           type="checkbox"
           className="stop__checkbox"

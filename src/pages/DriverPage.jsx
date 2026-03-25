@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
@@ -16,9 +16,6 @@ export default function DriverPage() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('stops')
   const [listView, setListView] = useState(false)
-  const [dragIdx, setDragIdx] = useState(null)
-  const [hasCustomOrder, setHasCustomOrder] = useState(false)
-  const originalStopsRef = useRef(null)
   const [selected, setSelected] = useState(new Set())
 
   useEffect(() => {
@@ -105,17 +102,6 @@ export default function DriverPage() {
         _coldChain: s.cold_chain,
         Notes: s.notes || '',
       }))
-      // Store original dispatch order (by id, before any sort_order)
-      originalStopsRef.current = rawStops.map((s, idx) => ({
-        _index: idx,
-        _id: s.id,
-        'Order ID': s.order_id, Name: s.patient_name,
-        Address: s.address, City: s.city, ZIP: s.zip,
-        Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
-        _coldChain: s.cold_chain,
-        Notes: s.notes || '',
-      }))
-      setHasCustomOrder(hasSortOrder)
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
@@ -131,71 +117,6 @@ export default function DriverPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleDragStart(idx) { setDragIdx(idx) }
-  function handleDragOver(e) { e.preventDefault() }
-  function handleDragEnd() { setDragIdx(null) }
-
-  async function reorderStops(fromIdx, toIdx) {
-    if (fromIdx === toIdx) return
-    const stops = [...data.stops]
-    const [moved] = stops.splice(fromIdx, 1)
-    stops.splice(toIdx, 0, moved)
-    setData(prev => ({ ...prev, stops }))
-    setDragIdx(null)
-    setHasCustomOrder(true)
-
-    // Save sort_order to Supabase
-    const updates = stops.map((s, i) => ({ id: s._id, sort_order: i }))
-    for (const u of updates) {
-      await supabase.from('daily_stops').update({ sort_order: u.sort_order }).eq('id', u.id)
-    }
-  }
-
-  async function handleDrop(targetIdx) {
-    if (dragIdx === null) return
-    await reorderStops(dragIdx, targetIdx)
-  }
-
-  // Touch drag support for mobile
-  const touchState = useRef({ idx: null, startY: 0 })
-  function handleTouchDragStart(idx, e) {
-    touchState.current = { idx, startY: e.touches[0].clientY }
-    setDragIdx(idx)
-
-    const onMove = (ev) => {
-      ev.preventDefault()
-      const y = ev.touches[0].clientY
-      const cards = document.querySelectorAll('.stop')
-      for (let i = 0; i < cards.length; i++) {
-        const rect = cards[i].getBoundingClientRect()
-        if (y > rect.top && y < rect.bottom && i !== touchState.current.idx) {
-          const stops = [...data.stops]
-          const [moved] = stops.splice(touchState.current.idx, 1)
-          stops.splice(i, 0, moved)
-          setData(prev => ({ ...prev, stops }))
-          touchState.current.idx = i
-          setDragIdx(i)
-          break
-        }
-      }
-    }
-    const onEnd = () => {
-      document.removeEventListener('touchmove', onMove)
-      document.removeEventListener('touchend', onEnd)
-      if (touchState.current.idx !== idx) {
-        setHasCustomOrder(true)
-        // Save to Supabase
-        const currentStops = data.stops
-        currentStops.forEach(async (s, i) => {
-          await supabase.from('daily_stops').update({ sort_order: i }).eq('id', s._id)
-        })
-      }
-      setDragIdx(null)
-    }
-    document.addEventListener('touchmove', onMove, { passive: false })
-    document.addEventListener('touchend', onEnd)
   }
 
   function toggleSelect(idx) {
@@ -218,23 +139,6 @@ export default function DriverPage() {
       .map(s => `${s.Address || ''}, ${s.City || ''}, OH ${s.ZIP || ''}`)
       .filter(a => a.replace(/[, ]/g, '').length > 2)
       .join('\n')
-  }
-
-  function handleCopySelected() {
-    const text = getSelectedAddresses()
-    if (text) navigator.clipboard.writeText(text)
-  }
-
-  async function handleResetOrder() {
-    if (!originalStopsRef.current) return
-    setData(prev => ({ ...prev, stops: [...originalStopsRef.current] }))
-    setHasCustomOrder(false)
-
-    // Clear sort_order in Supabase
-    const ids = originalStopsRef.current.map(s => s._id)
-    for (const id of ids) {
-      await supabase.from('daily_stops').update({ sort_order: null }).eq('id', id)
-    }
   }
 
   return (
@@ -363,9 +267,6 @@ export default function DriverPage() {
                     <div className="driver__view-toggle">
                       <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
                       <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
-                      {hasCustomOrder && !listView && (
-                        <button className="driver__view-btn driver__reset-btn" onClick={handleResetOrder}>Reset Order</button>
-                      )}
                     </div>
                     <div className="driver__select-bar">
                       <label className="driver__select-all">
@@ -415,21 +316,8 @@ export default function DriverPage() {
                           stop={stop}
                           index={i + 1}
                           total={data.stops.length}
-                          isDragging={dragIdx === i}
                           isSelected={selected.has(i)}
                           onToggleSelect={() => toggleSelect(i)}
-                          onDragStart={(e) => {
-                            handleDragStart(i)
-                            // If this stop is selected, attach all selected addresses as drag data
-                            if (selected.size > 0 && selected.has(i)) {
-                              e.dataTransfer.setData('text/plain', getSelectedAddresses())
-                              e.dataTransfer.effectAllowed = 'copyMove'
-                            }
-                          }}
-                          onDragOver={handleDragOver}
-                          onDrop={() => handleDrop(i)}
-                          onDragEnd={handleDragEnd}
-                          onTouchDragStart={(e) => handleTouchDragStart(i, e)}
                         />
                       ))
                     )}
