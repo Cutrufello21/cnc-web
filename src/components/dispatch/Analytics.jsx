@@ -173,7 +173,6 @@ export default function Analytics() {
           ['drivers', 'Drivers'],
           ['geography', 'Geography'],
           ['pharmacy', 'Pharmacy'],
-          ['map', 'Map'],
         ].map(([key, label]) => (
           <button
             key={key}
