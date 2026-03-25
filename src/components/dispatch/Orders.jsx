@@ -14,28 +14,32 @@ export default function Orders() {
   const [date, setDate] = useState('')
   const [coldchain, setColdchain] = useState('')
   const [source, setSource] = useState('')
+  const [year, setYear] = useState('')
+  const [month, setMonth] = useState('')
   const [sortCol, setSortCol] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
-  const [filters, setFilters] = useState({ drivers: [], pharmacies: [], sources: [] })
+  const [filters, setFilters] = useState({ drivers: [], pharmacies: [], sources: [], years: [] })
 
   // Load filter options once
   useEffect(() => {
     async function loadFilters() {
-      const [driversRes, pharmaciesRes, sourcesRes] = await Promise.all([
+      const [driversRes, datesRes, sourcesRes] = await Promise.all([
         supabase.from('orders').select('driver_name').not('driver_name', 'is', null).not('driver_name', 'eq', ''),
-        supabase.from('orders').select('pharmacy').not('pharmacy', 'is', null).not('pharmacy', 'eq', ''),
+        supabase.from('orders').select('date_delivered').not('date_delivered', 'is', null),
         supabase.from('orders').select('source').not('source', 'is', null).not('source', 'eq', ''),
       ])
+      const years = [...new Set((datesRes.data || []).map(r => r.date_delivered?.slice(0, 4)).filter(Boolean))].sort().reverse()
       setFilters({
         drivers: [...new Set((driversRes.data || []).map(r => r.driver_name))].sort(),
-        pharmacies: [...new Set((pharmaciesRes.data || []).map(r => r.pharmacy))].sort(),
+        pharmacies: ['SHSP', 'Aultman'],
         sources: [...new Set((sourcesRes.data || []).map(r => r.source))].sort(),
+        years,
       })
     }
     loadFilters()
   }, [])
 
-  useEffect(() => { loadOrders() }, [page, search, driver, pharmacy, zip, date, coldchain, source])
+  useEffect(() => { loadOrders() }, [page, search, driver, pharmacy, zip, date, coldchain, source, year, month])
 
   async function loadOrders() {
     setLoading(true)
@@ -52,6 +56,14 @@ export default function Orders() {
       if (date) query = query.eq('date_delivered', date)
       if (coldchain === 'yes') query = query.eq('cold_chain', true)
       if (source) query = query.eq('source', source)
+      if (year && month) {
+        const startDate = `${year}-${month}-01`
+        const endMonth = parseInt(month) === 12 ? '01' : String(parseInt(month) + 1).padStart(2, '0')
+        const endYear = parseInt(month) === 12 ? String(parseInt(year) + 1) : year
+        query = query.gte('date_delivered', startDate).lt('date_delivered', `${endYear}-${endMonth}-01`)
+      } else if (year) {
+        query = query.gte('date_delivered', `${year}-01-01`).lt('date_delivered', `${parseInt(year) + 1}-01-01`)
+      }
 
       query = query.order('date_delivered', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1)
@@ -93,7 +105,8 @@ export default function Orders() {
 
   function clearFilters() {
     setSearch(''); setSearchInput(''); setDriver(''); setPharmacy('')
-    setZip(''); setDate(''); setColdchain(''); setSource(''); setPage(1)
+    setZip(''); setDate(''); setColdchain(''); setSource('')
+    setYear(''); setMonth(''); setPage(1)
   }
 
   function handleSort(col) {
@@ -101,7 +114,7 @@ export default function Orders() {
     else { setSortCol(col); setSortDir('asc') }
   }
 
-  const hasFilters = search || driver || pharmacy || zip || date || coldchain || source
+  const hasFilters = search || driver || pharmacy || zip || date || coldchain || source || year || month
 
   // Client-side sort on current page
   let orders = data?.orders || []
@@ -140,6 +153,18 @@ export default function Orders() {
         </form>
 
         <div className="ord__filter-row">
+          <select className="ord__filter" value={year} onChange={(e) => { setYear(e.target.value); setPage(1) }}>
+            <option value="">All Years</option>
+            {filters.years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+
+          <select className="ord__filter" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1) }}>
+            <option value="">All Months</option>
+            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => (
+              <option key={m} value={m}>{new Date(2026, parseInt(m)-1).toLocaleString('en-US', { month: 'long' })}</option>
+            ))}
+          </select>
+
           <select className="ord__filter" value={driver} onChange={(e) => { setDriver(e.target.value); setPage(1) }}>
             <option value="">All Drivers</option>
             {filters.drivers.map(d => <option key={d} value={d}>{d}</option>)}
