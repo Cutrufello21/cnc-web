@@ -19,6 +19,7 @@ export default function DriverPage() {
   const [dragIdx, setDragIdx] = useState(null)
   const [hasCustomOrder, setHasCustomOrder] = useState(false)
   const originalStopsRef = useRef(null)
+  const [selected, setSelected] = useState(new Set())
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -197,6 +198,33 @@ export default function DriverPage() {
     document.addEventListener('touchend', onEnd)
   }
 
+  function toggleSelect(idx) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(idx) ? next.delete(idx) : next.add(idx)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (!data?.stops) return
+    setSelected(prev => prev.size === data.stops.length ? new Set() : new Set(data.stops.map((_, i) => i)))
+  }
+
+  function getSelectedAddresses() {
+    if (!data?.stops) return ''
+    return [...selected].sort((a, b) => a - b)
+      .map(i => data.stops[i])
+      .map(s => `${s.Address || ''}, ${s.City || ''}, OH ${s.ZIP || ''}`)
+      .filter(a => a.replace(/[, ]/g, '').length > 2)
+      .join('\n')
+  }
+
+  function handleCopySelected() {
+    const text = getSelectedAddresses()
+    if (text) navigator.clipboard.writeText(text)
+  }
+
   async function handleResetOrder() {
     if (!originalStopsRef.current) return
     setData(prev => ({ ...prev, stops: [...originalStopsRef.current] }))
@@ -339,6 +367,15 @@ export default function DriverPage() {
                         <button className="driver__view-btn driver__reset-btn" onClick={handleResetOrder}>Reset Order</button>
                       )}
                     </div>
+                    <div className="driver__select-bar">
+                      <label className="driver__select-all">
+                        <input type="checkbox" checked={selected.size === data.stops.length && data.stops.length > 0} onChange={toggleSelectAll} />
+                        <span>{selected.size > 0 ? `${selected.size} selected` : 'Select All'}</span>
+                      </label>
+                      {selected.size > 0 && (
+                        <CopySelectedButton getAddresses={getSelectedAddresses} />
+                      )}
+                    </div>
                     {listView ? (
                       <div className="driver__list-view">
                         <table className="driver__list-table">
@@ -379,7 +416,16 @@ export default function DriverPage() {
                           index={i + 1}
                           total={data.stops.length}
                           isDragging={dragIdx === i}
-                          onDragStart={() => handleDragStart(i)}
+                          isSelected={selected.has(i)}
+                          onToggleSelect={() => toggleSelect(i)}
+                          onDragStart={(e) => {
+                            handleDragStart(i)
+                            // If this stop is selected, attach all selected addresses as drag data
+                            if (selected.size > 0 && selected.has(i)) {
+                              e.dataTransfer.setData('text/plain', getSelectedAddresses())
+                              e.dataTransfer.effectAllowed = 'copyMove'
+                            }
+                          }}
                           onDragOver={handleDragOver}
                           onDrop={() => handleDrop(i)}
                           onDragEnd={handleDragEnd}
@@ -486,6 +532,27 @@ function ExportExcelButton({ stops, driverName, deliveryDay }) {
       }}
     >
       Export Excel
+    </button>
+  )
+}
+
+function CopySelectedButton({ getAddresses }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    const text = getAddresses()
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="driver__copy-selected-btn"
+    >
+      {copied ? 'Copied!' : 'Copy Selected'}
     </button>
   )
 }

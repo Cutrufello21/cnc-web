@@ -120,6 +120,12 @@
 .driver__reset-btn { color: #dc2626; margin-left: 8px; background: transparent; border: 1px solid #fca5a5; border-radius: 4px; }
 .driver__reset-btn:hover { background: #fef2f2; }
 
+.driver__select-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.driver__select-all { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--gray-500); cursor: pointer; user-select: none; }
+.driver__select-all input { width: 16px; height: 16px; accent-color: var(--cornflower, #6366f1); cursor: pointer; }
+.driver__copy-selected-btn { padding: 4px 12px; font-size: 11px; font-weight: 600; color: #2563eb; background: #dbeafe; border: 1px solid #93c5fd; border-radius: 4px; cursor: pointer; }
+.driver__copy-selected-btn:hover { background: #bfdbfe; }
+
 .driver__list-view { overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 10px; }
 .driver__list-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .driver__list-table thead { background: var(--gray-50); }

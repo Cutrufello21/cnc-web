@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './StopCard.css'
 
-export default function StopCard({ stop, index, total, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, onTouchDragStart }) {
+export default function StopCard({ stop, index, total, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, onTouchDragStart, isSelected, onToggleSelect }) {
   const [expanded, setExpanded] = useState(false)
 
   const name = stop['Name'] || stop['Patient'] || stop['Customer'] || '—'
@@ -21,7 +21,7 @@ export default function StopCard({ stop, index, total, onDragStart, onDragOver, 
 
   return (
     <div
-      className={`stop ${isColdChain ? 'stop--cold' : ''} ${isDragging ? 'stop--dragging' : ''}`}
+      className={`stop ${isColdChain ? 'stop--cold' : ''} ${isDragging ? 'stop--dragging' : ''} ${isSelected ? 'stop--selected' : ''}`}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -36,6 +36,13 @@ export default function StopCard({ stop, index, total, onDragStart, onDragOver, 
             <circle cx="5" cy="13" r="1.5" /><circle cx="11" cy="13" r="1.5" />
           </svg>
         </div>
+        <input
+          type="checkbox"
+          className="stop__checkbox"
+          checked={isSelected || false}
+          onChange={(e) => { e.stopPropagation(); onToggleSelect?.() }}
+          onClick={(e) => e.stopPropagation()}
+        />
         <div className="stop__number">
           <span>{index}</span>
           <span className="stop__of">/{total}</span>
