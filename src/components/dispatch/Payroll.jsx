@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { supabase } from '../../lib/supabase'
 import Revenue from './Revenue'
 import './Payroll.css'
@@ -132,17 +132,22 @@ export default function Payroll() {
       monday.setDate(now.getDate() + mondayOffset)
       const weekOf = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
 
-      const [payrollRes, driversRes, reconRes] = await Promise.all([
+      const [payrollRes, driversRes] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
         supabase.from('drivers').select('*'),
-        supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf),
       ])
 
-      // Build reconciliation lookup: { driverName: { Mon: { actual, locked }, ... } }
+      // Fetch reconciliation separately so it doesn't crash payroll if table is missing
+      let reconData = []
+      try {
+        const reconRes = await supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf)
+        reconData = reconRes.data || []
+      } catch (e) { /* ignore */ }
+
       const reconMap = {}
-      ;(reconRes.data || []).forEach(r => {
+      reconData.forEach(r => {
         if (!reconMap[r.driver_name]) reconMap[r.driver_name] = {}
-        reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: r.locked, approved: r.approved, id: r.id }
+        reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: !!r.locked, approved: !!r.approved, id: r.id }
       })
 
       const driverMap = {}
@@ -549,7 +554,7 @@ export default function Payroll() {
       </div>
 
       {/* Driver Reconciliation */}
-      <ReconSection drivers={data.drivers} />
+      {data.drivers && <ReconSection drivers={data.drivers} />}
 
       {/* Revenue */}
       <Revenue weekOf={(() => {
@@ -640,10 +645,10 @@ function ReconSection({ drivers }) {
             <tr className="pay__recon-subhead">
               <th></th>
               {DAYS.map(d => (
-                <React.Fragment key={d}>
+                <Fragment key={d}>
                   <th>Disp</th>
                   <th>Actual</th>
-                </React.Fragment>
+                </Fragment>
               ))}
               <th></th>
               <th></th>
@@ -672,7 +677,7 @@ function ReconSection({ drivers }) {
                     const diff = hasActual ? actual - disp : null
 
                     return (
-                      <React.Fragment key={day}>
+                      <Fragment key={day}>
                         <td className="pay__recon-num">{disp}</td>
                         <td className={`pay__recon-num ${!hasActual ? 'pay__recon-empty' : diff === 0 ? 'pay__recon-ok' : diff < 0 ? 'pay__recon-under' : 'pay__recon-over'}`}>
                           {hasActual ? (
@@ -683,7 +688,7 @@ function ReconSection({ drivers }) {
                             </>
                           ) : '—'}
                         </td>
-                      </React.Fragment>
+                      </Fragment>
                     )
                   })}
                   <td className="pay__recon-status">
