@@ -27,6 +27,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [sortCol, setSortCol] = useState(null)
   const [sortDir, setSortDir] = useState('asc')
   const [filters, setFilters] = useState({})
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
@@ -164,6 +166,62 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     }
   }
 
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+  const RW_DRIVERS = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
+
+  async function handleSendOne(e) {
+    e.stopPropagation()
+    if (!driver.Email) { setMoveResult('No email on file'); return }
+    if (!confirm(`Send route to ${name}?`)) return
+    setSending(true)
+    try {
+      const cc = coldChain
+      const ccLine = cc > 0 ? ` — ${cc} are cold chain.` : '.'
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'email',
+          to: driver.Email,
+          subject: `CNC Delivery — ${name} — ${selectedDay}`,
+          html: `<div style="font-family:-apple-system,sans-serif;max-width:500px">
+            <h2 style="color:#0A2463">CNC Delivery</h2>
+            <p>Hi ${name},</p>
+            <p>You have <strong>${stops} stops</strong> for ${selectedDay}${ccLine}</p>
+            <p><a href="https://cncdelivery.com/driver" style="display:inline-block;padding:12px 24px;background:#0A2463;color:white;text-decoration:none;border-radius:8px;font-weight:600">View Your Route</a></p>
+            <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
+          </div>`,
+        }),
+      })
+
+      // Push to Road Warrior if applicable
+      if (RW_DRIVERS.includes(name) && rawDetails.length > 0) {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'roadwarrior',
+            drivers: [{
+              name,
+              routeName: `${name} - ${selectedDay}`,
+              stops: rawDetails.map(s => ({
+                order_id: s['Order ID'] || '', address: s.Address || '',
+                city: s.City || '', zip: s.ZIP || '',
+                cold_chain: s._coldChain || false, pharmacy: s.Pharmacy || '',
+              })),
+            }],
+          }),
+        })
+      }
+
+      setSent(true)
+      setMoveResult(`Sent to ${name}${RW_DRIVERS.includes(name) ? ' + Road Warrior' : ''}`)
+      setTimeout(() => { setSent(false); setMoveResult(null) }, 5000)
+    } catch (err) {
+      setMoveResult(`Error: ${err.message}`)
+    } finally {
+      setSending(false)
+    }
+  }
+
   const activeFilters = Object.keys(filters).length
 
   return (
@@ -202,6 +260,15 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
             <span className="dcard__stat-value">{coldChain}</span>
             <span className="dcard__stat-label">Cold Chain</span>
           </div>
+        )}
+        {stops > 0 && (
+          <button
+            className={`dcard__send ${sent ? 'dcard__send--done' : ''}`}
+            onClick={handleSendOne}
+            disabled={sending || sent}
+          >
+            {sent ? 'Sent' : sending ? '...' : 'Send'}
+          </button>
         )}
       </div>
 
