@@ -58,19 +58,17 @@ export default function DriverPage() {
         return
       }
 
-      // After 6 PM, show tomorrow's stops (just dispatched)
-      // Before 6 PM, show today's stops (being delivered now)
-      const now = new Date()
-      const hour = now.getHours()
-      const target = new Date(now)
-      if (hour >= 18) {
-        if (now.getDay() === 5) target.setDate(target.getDate() + 3) // Fri→Mon
-        else if (now.getDay() === 6) target.setDate(target.getDate() + 2) // Sat→Mon
-        else target.setDate(target.getDate() + 1)
-      }
-      const deliveryDate = `${target.getFullYear()}-${String(target.getMonth()+1).padStart(2,'0')}-${String(target.getDate()).padStart(2,'0')}`
+      // Get the most recent stops for this driver — query by driver name,
+      // order by delivery_date descending, take the latest batch
+      const { data: latestStops } = await supabase.from('daily_stops')
+        .select('delivery_date')
+        .eq('driver_name', driverName)
+        .order('delivery_date', { ascending: false })
+        .limit(1)
+
+      const deliveryDate = latestStops?.[0]?.delivery_date || new Date().toISOString().split('T')[0]
       const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
-      const deliveryDayName = DAYNAMES[target.getDay()]
+      const deliveryDayName = DAYNAMES[new Date(deliveryDate + 'T12:00:00').getDay()]
 
       // Get daily stops and approval status from Supabase
       const [stopsRes, logsRes] = await Promise.all([
