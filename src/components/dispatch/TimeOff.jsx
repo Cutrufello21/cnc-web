@@ -392,21 +392,42 @@ function WeeklyGrid({ drivers, requests, onToggle }) {
     return true
   }
 
+  // Check if a day is off by default schedule (not a time off request)
+  function isDefaultOff(driverName, dayIndex) {
+    const sched = schedule[driverName]
+    if (!sched) return false
+    return sched[dayCols[dayIndex]] === false
+  }
+
   async function handleToggle(driverName, dateStr, dayIndex) {
     setSaving(`${driverName}|${dateStr}`)
     const working = isWorking(driverName, dateStr, dayIndex)
+    const defaultOff = isDefaultOff(driverName, dayIndex)
+    const hasRequest = !!findRequest(driverName, dateStr)
 
     if (working) {
-      // Mark as off — add time_off_request
-      await supabase.from('time_off_requests').insert({
-        driver_name: driverName, date_off: dateStr,
-        reason: 'Scheduled off', status: 'approved', reviewed_by: 'Dispatch',
-      })
+      if (defaultOff) {
+        // They're working because of an override on a default-off day
+        // Remove the override to go back to default (off)
+        if (hasRequest) {
+          await supabase.from('time_off_requests').delete().eq('id', findRequest(driverName, dateStr).id)
+        }
+      } else {
+        // Normally working → mark as off with time_off_request
+        await supabase.from('time_off_requests').insert({
+          driver_name: driverName, date_off: dateStr,
+          reason: 'Day off', status: 'approved', reviewed_by: 'Dispatch',
+        })
+      }
     } else {
-      // Mark as working — remove time_off_request if exists
-      const existing = findRequest(driverName, dateStr)
-      if (existing) {
-        await supabase.from('time_off_requests').delete().eq('id', existing.id)
+      if (defaultOff && !hasRequest) {
+        // Default off, no request — they want to work this day as exception
+        // We don't create a time_off_request — instead we need a "work override"
+        // For now, toggle the default schedule for this specific day isn't tracked
+        // Just skip — default off days stay off unless schedule is changed
+      } else if (hasRequest) {
+        // Has a time_off_request → remove it to go back to working
+        await supabase.from('time_off_requests').delete().eq('id', findRequest(driverName, dateStr).id)
       }
     }
     setSaving(null)
