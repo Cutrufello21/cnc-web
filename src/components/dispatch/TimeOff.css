@@ -80,6 +80,11 @@
 .wg__arrow { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; font-size: 16px; }
 .wg__arrow:hover { background: var(--gray-50); }
 .wg__today { padding: 4px 12px; font-size: 12px; font-weight: 600; color: var(--cornflower); background: transparent; border: 1px solid var(--cornflower); border-radius: 4px; cursor: pointer; }
+.wg__save-default { padding: 6px 14px; font-size: 12px; font-weight: 600; color: white; background: var(--navy); border: none; border-radius: 6px; cursor: pointer; margin-left: auto; }
+.wg__save-default:hover { background: var(--navy-light); }
+.wg__save-default:disabled { opacity: 0.5; }
+.wg__cell--default-off { background: var(--gray-300); }
+.wg__cell--override { box-shadow: 0 0 0 2px #f59e0b; }
 
 .wg__grid { border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; }
 .wg__header-row { display: flex; background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
