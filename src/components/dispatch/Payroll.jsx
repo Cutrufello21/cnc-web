@@ -134,7 +134,7 @@ export default function Payroll() {
 
       const [payrollRes, driversRes] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
-        supabase.from('drivers').select('*').eq('active', true),
+        supabase.from('drivers').select('*'),
       ])
 
       const driverMap = {}
