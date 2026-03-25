@@ -12,6 +12,7 @@ import Payroll from '../components/dispatch/Payroll'
 import Analytics from '../components/dispatch/Analytics'
 import Orders from '../components/dispatch/Orders'
 import Drivers from '../components/dispatch/Drivers'
+import TimeOff from '../components/dispatch/TimeOff'
 import WeatherWidget from '../components/dispatch/WeatherWidget'
 import StopDistribution from '../components/dispatch/StopDistribution'
 import ThemeToggle from '../components/ThemeToggle'
@@ -404,6 +405,7 @@ export default function DispatchPage() {
                 ['analytics', 'Analytics'],
                 ['orders', 'Orders'],
                 ['drivers', 'Drivers'],
+                ['timeoff', 'Time Off'],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -430,6 +432,7 @@ export default function DispatchPage() {
         {view === 'analytics' && <Analytics />}
         {view === 'orders' && <Orders />}
         {view === 'drivers' && <Drivers />}
+        {view === 'timeoff' && <TimeOff />}
 
         {view === 'routes' && loading && (
           <div className="dispatch__loading">
