@@ -12,7 +12,7 @@ export default function TimeOff() {
   const [newReq, setNewReq] = useState({ driver_name: '', date_from: '', date_to: '', reason: '', recurring: '' })
   const [adding, setAdding] = useState(false)
   const [toast, setToast] = useState(null)
-  const [view, setView] = useState('calendar') // calendar, list
+  const [view, setView] = useState('weekly') // weekly, calendar, list
   const [filter, setFilter] = useState('upcoming')
   const [calMonth, setCalMonth] = useState(new Date().getMonth())
   const [calYear, setCalYear] = useState(new Date().getFullYear())
@@ -185,7 +185,7 @@ export default function TimeOff() {
       <div className="to__header">
         <h2 className="to__title">Schedule</h2>
         <div className="to__filters">
-          {[['calendar', 'Calendar'], ['list', 'List']].map(([key, label]) => (
+          {[['weekly', 'Weekly'], ['calendar', 'Calendar'], ['list', 'List']].map(([key, label]) => (
             <button key={key} className={`to__filter ${view === key ? 'to__filter--active' : ''}`}
               onClick={() => setView(key)}>{label}</button>
           ))}
@@ -234,6 +234,9 @@ export default function TimeOff() {
           </button>
         </div>
       )}
+
+      {/* WEEKLY GRID */}
+      {view === 'weekly' && <WeeklyGrid drivers={drivers} requests={requests} onToggle={loadData} />}
 
       {/* CALENDAR VIEW */}
       {view === 'calendar' && (
@@ -328,6 +331,108 @@ export default function TimeOff() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function WeeklyGrid({ drivers, requests, onToggle }) {
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [saving, setSaving] = useState(null)
+
+  // Calculate week dates
+  const now = new Date()
+  const monday = new Date(now)
+  const dow = monday.getDay()
+  monday.setDate(monday.getDate() - (dow === 0 ? 6 : dow - 1) + weekOffset * 7)
+
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+  const dates = days.map((_, i) => {
+    const d = new Date(monday)
+    d.setDate(d.getDate() + i)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
+
+  const weekLabel = `${new Date(dates[0] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${new Date(dates[4] + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+
+  // Build lookup: dateStr → Set of driver names who are OFF
+  const offMap = {}
+  requests.filter(r => r.status === 'approved' || r.status === 'pending').forEach(r => {
+    if (!offMap[r.date_off]) offMap[r.date_off] = new Set()
+    offMap[r.date_off].add(r.driver_name)
+  })
+
+  // Find the request ID for a driver+date
+  function findRequest(driverName, dateStr) {
+    return requests.find(r => r.driver_name === driverName && r.date_off === dateStr && r.status !== 'denied')
+  }
+
+  async function handleToggle(driverName, dateStr) {
+    setSaving(`${driverName}|${dateStr}`)
+    const existing = findRequest(driverName, dateStr)
+    if (existing) {
+      // Currently off → delete to mark as working
+      await supabase.from('time_off_requests').delete().eq('id', existing.id)
+    } else {
+      // Currently working → add time off
+      await supabase.from('time_off_requests').insert({
+        driver_name: driverName,
+        date_off: dateStr,
+        reason: 'Scheduled off',
+        status: 'approved',
+        reviewed_by: 'Dispatch',
+      })
+    }
+    setSaving(null)
+    onToggle()
+  }
+
+  const activeDrivers = drivers.filter(d => d.driver_name).map(d => d.driver_name).sort()
+
+  return (
+    <div className="wg">
+      <div className="wg__nav">
+        <button className="wg__arrow" onClick={() => setWeekOffset(weekOffset - 1)}>&larr;</button>
+        <span className="wg__week-label">{weekLabel}</span>
+        <button className="wg__arrow" onClick={() => setWeekOffset(weekOffset + 1)}>&rarr;</button>
+        {weekOffset !== 0 && <button className="wg__today" onClick={() => setWeekOffset(0)}>This Week</button>}
+      </div>
+
+      <div className="wg__grid">
+        <div className="wg__header-row">
+          <div className="wg__driver-col">Driver</div>
+          {days.map((day, i) => (
+            <div key={day} className="wg__day-col">
+              <span className="wg__day-name">{day}</span>
+              <span className="wg__day-date">{new Date(dates[i] + 'T12:00:00').getDate()}</span>
+            </div>
+          ))}
+        </div>
+
+        {activeDrivers.map(name => (
+          <div key={name} className="wg__row">
+            <div className="wg__driver-col wg__driver-name">{name}</div>
+            {dates.map((dateStr, i) => {
+              const isOff = offMap[dateStr]?.has(name)
+              const isWorking = !isOff
+              const isSaving = saving === `${name}|${dateStr}`
+
+              return (
+                <div key={dateStr} className="wg__day-col" onClick={() => !isSaving && handleToggle(name, dateStr)}>
+                  <div className={`wg__cell ${isWorking ? 'wg__cell--on' : 'wg__cell--off'} ${isSaving ? 'wg__cell--saving' : ''}`}>
+                    {isWorking ? '✓' : '—'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+
+      <div className="wg__legend">
+        <span><span className="wg__legend-on" />Working</span>
+        <span><span className="wg__legend-off" />Off</span>
+        <span className="wg__legend-hint">Click to toggle</span>
+      </div>
     </div>
   )
 }
