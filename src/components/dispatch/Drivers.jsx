@@ -9,6 +9,11 @@ export default function Drivers() {
   const [editData, setEditData] = useState({})
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [newDriver, setNewDriver] = useState({
+    driver_name: '', driver_number: '', email: '', pharmacy: 'SHSP',
+    rate_mth: '', rate_wf: '', office_fee: '', flat_salary: '', password: '',
+  })
 
   useEffect(() => { loadDrivers() }, [])
 
@@ -54,6 +59,81 @@ export default function Drivers() {
     }
   }
 
+  async function handleAddDriver() {
+    if (!newDriver.driver_name || !newDriver.driver_number) {
+      setToast('Name and ID are required')
+      setTimeout(() => setToast(null), 3000)
+      return
+    }
+    setSaving(true)
+    try {
+      // 1. Add to drivers table
+      const { error: drvErr } = await supabase.from('drivers').insert({
+        driver_name: newDriver.driver_name,
+        driver_number: newDriver.driver_number,
+        email: newDriver.email || null,
+        pharmacy: newDriver.pharmacy,
+        rate_mth: parseFloat(newDriver.rate_mth) || 0,
+        rate_wf: parseFloat(newDriver.rate_wf) || 0,
+        office_fee: parseFloat(newDriver.office_fee) || 0,
+        flat_salary: newDriver.flat_salary ? parseFloat(newDriver.flat_salary) : null,
+        active: true,
+      })
+      if (drvErr) throw new Error(drvErr.message)
+
+      // 2. Create auth account if email + password provided
+      if (newDriver.email && newDriver.password) {
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+        const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+        // Create user via admin API through Apps Script or direct signup
+        const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: newDriver.email,
+            password: newDriver.password,
+            data: { full_name: newDriver.driver_name, role: 'driver' },
+          }),
+        })
+        const signupData = await signupRes.json()
+
+        if (signupRes.ok && signupData.id) {
+          // Update profile
+          const { data: session } = await supabase.auth.getSession()
+          if (session?.session?.access_token) {
+            await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${signupData.id}`, {
+              method: 'PATCH',
+              headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${session.session.access_token}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal',
+              },
+              body: JSON.stringify({
+                role: 'driver',
+                full_name: newDriver.driver_name,
+                driver_id: newDriver.driver_number,
+                driver_number: newDriver.driver_number,
+              }),
+            })
+          }
+        }
+      }
+
+      setToast(`${newDriver.driver_name} added${newDriver.email ? ' — login account created' : ''}`)
+      setTimeout(() => setToast(null), 4000)
+      setNewDriver({ driver_name: '', driver_number: '', email: '', pharmacy: 'SHSP', rate_mth: '', rate_wf: '', office_fee: '', flat_salary: '', password: '' })
+      setShowAdd(false)
+      loadDrivers()
+    } catch (err) {
+      setToast(`Error: ${err.message}`)
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) return <div className="drv__loading"><div className="dispatch__spinner" />Loading drivers...</div>
 
   return (
@@ -63,7 +143,68 @@ export default function Drivers() {
       <div className="drv__header">
         <h2 className="drv__title">Drivers</h2>
         <span className="drv__count">{drivers.filter(d => d.active).length} active / {drivers.length} total</span>
+        <button className="drv__add-btn" onClick={() => setShowAdd(!showAdd)}>
+          {showAdd ? 'Cancel' : '+ New Driver'}
+        </button>
       </div>
+
+      {showAdd && (
+        <div className="drv__add-form">
+          <h4 className="drv__add-title">New Driver</h4>
+          <div className="drv__add-row">
+            <div className="drv__add-field">
+              <label>Name *</label>
+              <input value={newDriver.driver_name} onChange={e => setNewDriver({ ...newDriver, driver_name: e.target.value })} placeholder="Bobby" />
+            </div>
+            <div className="drv__add-field">
+              <label>Driver ID *</label>
+              <input value={newDriver.driver_number} onChange={e => setNewDriver({ ...newDriver, driver_number: e.target.value })} placeholder="55493" />
+            </div>
+            <div className="drv__add-field">
+              <label>Pharmacy</label>
+              <select value={newDriver.pharmacy} onChange={e => setNewDriver({ ...newDriver, pharmacy: e.target.value })}>
+                <option value="SHSP">SHSP</option>
+                <option value="Aultman">Aultman</option>
+                <option value="Both">Both</option>
+              </select>
+            </div>
+          </div>
+          <div className="drv__add-row">
+            <div className="drv__add-field">
+              <label>Rate M/T/Th</label>
+              <input type="number" step="0.01" value={newDriver.rate_mth} onChange={e => setNewDriver({ ...newDriver, rate_mth: e.target.value })} placeholder="7.00" />
+            </div>
+            <div className="drv__add-field">
+              <label>Rate W/F</label>
+              <input type="number" step="0.01" value={newDriver.rate_wf} onChange={e => setNewDriver({ ...newDriver, rate_wf: e.target.value })} placeholder="7.00" />
+            </div>
+            <div className="drv__add-field">
+              <label>Office Fee</label>
+              <input type="number" value={newDriver.office_fee} onChange={e => setNewDriver({ ...newDriver, office_fee: e.target.value })} placeholder="-35" />
+            </div>
+            <div className="drv__add-field">
+              <label>Flat Salary</label>
+              <input type="number" value={newDriver.flat_salary} onChange={e => setNewDriver({ ...newDriver, flat_salary: e.target.value })} placeholder="Leave blank if per-stop" />
+            </div>
+          </div>
+          <div className="drv__add-row">
+            <div className="drv__add-field drv__add-field--wide">
+              <label>Email (for login)</label>
+              <input type="email" value={newDriver.email} onChange={e => setNewDriver({ ...newDriver, email: e.target.value })} placeholder="driver@gmail.com" />
+            </div>
+            <div className="drv__add-field">
+              <label>Password</label>
+              <input type="text" value={newDriver.password} onChange={e => setNewDriver({ ...newDriver, password: e.target.value })} placeholder="Initial password" />
+            </div>
+          </div>
+          <div className="drv__add-actions">
+            <button className="drv__add-submit" onClick={handleAddDriver} disabled={saving}>
+              {saving ? 'Creating...' : 'Create Driver'}
+            </button>
+            <span className="drv__add-note">Driver logs in with cc.{(newDriver.driver_name || 'name').toLowerCase()}</span>
+          </div>
+        </div>
+      )}
 
       <div className="drv__table-wrap">
         <table className="drv__table">
