@@ -29,6 +29,23 @@
   box-shadow: var(--shadow-sm);
 }
 
+.dispatch__day--routing {
+  margin-left: auto;
+  color: #6b7280;
+  border: 1px solid var(--gray-200);
+  font-size: 12px;
+}
+.dispatch__day--routing:hover {
+  color: var(--navy);
+  border-color: var(--navy);
+}
+.dispatch__day--routing-active {
+  background: var(--navy);
+  color: var(--white);
+  border-color: var(--navy);
+  font-weight: 600;
+}
+
 /* Dispatch workspace */
 .dispatch__loading {
   display: flex;

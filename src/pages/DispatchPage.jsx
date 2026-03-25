@@ -26,6 +26,7 @@ export default function DispatchPage() {
   const [approving, setApproving] = useState(false)
   const [approved, setApproved] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
+  const [showRouting, setShowRouting] = useState(false)
   const [dismissedWarnings, setDismissedWarnings] = useState(new Set())
   const [lastMove, setLastMove] = useState(null) // { orderIds, fromName, fromNumber, toName, count }
   const [undoing, setUndoing] = useState(false)
@@ -212,7 +213,6 @@ export default function DispatchPage() {
                 ['payroll', 'Payroll'],
                 ['analytics', 'Analytics'],
                 ['orders', 'Orders'],
-                ['routing', 'Routing Rules'],
                 ['sheets', 'Sheets'],
               ].map(([key, label]) => (
                 <button
@@ -236,7 +236,6 @@ export default function DispatchPage() {
 
       <main className="shell__main container">
         {view === 'hq' && <HQDashboard />}
-        {view === 'routing' && <RoutingEditor />}
         {view === 'payroll' && <Payroll />}
         {view === 'analytics' && <Analytics />}
         {view === 'orders' && <Orders />}
@@ -258,19 +257,28 @@ export default function DispatchPage() {
 
         {view === 'routes' && data && !loading && (
           <>
-            {/* Day selector */}
+            {/* Day selector + Routing Rules */}
             <div className="dispatch__days">
               {(data.allDays || ['Monday','Tuesday','Wednesday','Thursday','Friday']).map((day) => (
                 <button
                   key={day}
-                  className={`dispatch__day ${selectedDay === day ? 'dispatch__day--active' : ''}`}
-                  onClick={() => handleDayChange(day)}
+                  className={`dispatch__day ${selectedDay === day && !showRouting ? 'dispatch__day--active' : ''}`}
+                  onClick={() => { setShowRouting(false); handleDayChange(day) }}
                 >
                   {day.slice(0, 3)}
                 </button>
               ))}
+              <button
+                className={`dispatch__day dispatch__day--routing ${showRouting ? 'dispatch__day--routing-active' : ''}`}
+                onClick={() => setShowRouting(!showRouting)}
+              >
+                Routing Rules
+              </button>
             </div>
 
+            {showRouting && <RoutingEditor />}
+
+            {!showRouting && <>
             {/* Header row */}
             <div className="dispatch__top">
               <div>
@@ -401,6 +409,7 @@ export default function DispatchPage() {
             {data.recentLogs?.length > 0 && (
               <RecentLog logs={data.recentLogs} />
             )}
+            </>}
           </>
         )}
       </main>
