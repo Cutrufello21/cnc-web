@@ -32,6 +32,7 @@ export default function StopCard({ stop, index, total }) {
             <h4 className="stop__name">{name}</h4>
             {isColdChain && <span className="stop__badge stop__badge--cold">Cold Chain</span>}
             {pharmacy && <span className="stop__badge stop__badge--pharma">{pharmacy}</span>}
+            {notes && <span className="stop__note-icon" title={notes}>&#128221;</span>}
           </div>
           <p className="stop__address">{fullAddress || 'No address'}</p>
           {orderId && <p className="stop__order">Order #{orderId}</p>}

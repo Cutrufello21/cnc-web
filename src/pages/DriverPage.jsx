@@ -85,6 +85,7 @@ export default function DriverPage() {
         Address: s.address, City: s.city, ZIP: s.zip,
         Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
         _coldChain: s.cold_chain,
+        Notes: s.notes || '',
       }))
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0

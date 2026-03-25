@@ -99,7 +99,7 @@ export default function DispatchPage() {
           'Order ID': s.order_id, Name: s.patient_name,
           Address: s.address, City: s.city, ZIP: s.zip,
           Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
-          _coldChain: s.cold_chain,
+          _coldChain: s.cold_chain, Notes: s.notes || '',
         })
       })
 

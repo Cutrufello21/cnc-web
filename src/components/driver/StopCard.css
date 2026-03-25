@@ -80,6 +80,12 @@
   color: var(--gray-500);
 }
 
+.stop__note-icon {
+  font-size: 14px;
+  cursor: help;
+  filter: saturate(1.2);
+}
+
 .stop__address {
   font-size: 14px;
   color: var(--gray-500);

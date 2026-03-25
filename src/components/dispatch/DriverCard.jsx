@@ -15,6 +15,7 @@ const COLUMNS = [
   { key: 'City', label: 'City' },
   { key: 'Zip Code', label: 'ZIP', fallback: 'ZIP' },
   { key: '_coldChainDisplay', label: 'CC' },
+  { key: '_notesDisplay', label: '' },
   { key: 'Pharmacy', label: 'Pharmacy' },
 ]
 
@@ -49,6 +50,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       ...stop,
       _coldChainDisplay: hasColdChain ? '❄️' : '',
       _hasColdChain: hasColdChain,
+      _notesDisplay: stop.Notes ? '📝' : '',
     }
   }), [rawDetails])
 
@@ -330,6 +332,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     <td>{stop['City'] || '—'}</td>
                     <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td>{stop._coldChainDisplay}</td>
+                    <td>{stop.Notes ? <span title={stop.Notes} style={{ cursor: 'help' }}>📝</span> : ''}</td>
                     <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
                   </tr>
                 )
