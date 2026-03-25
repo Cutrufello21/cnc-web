@@ -37,7 +37,7 @@ export default function SortList({ deliveryDate }) {
       allStops.forEach(s => {
         if (s.pharmacy !== 'Aultman') return
         if (!driverCities[s.driver_name]) driverCities[s.driver_name] = new Set()
-        if (s.city) driverCities[s.driver_name].add(s.city)
+        if (s.city) driverCities[s.driver_name].add(s.city.toUpperCase().trim())
       })
 
       const rows = []
