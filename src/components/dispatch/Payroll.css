@@ -396,3 +396,7 @@
 .pay__recon-badge--under { background: #fef2f2; color: #dc2626; }
 .pay__recon-badge--over { background: #eff6ff; color: #2563eb; }
 .pay__recon-badge--pending { background: var(--gray-100); color: var(--gray-400); }
+.pay__recon-row--approved { background: #f0fdf4; }
+.pay__recon-approve-btn { padding: 4px 12px; font-size: 11px; font-weight: 600; color: var(--white); background: var(--navy); border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.pay__recon-approve-btn:hover { opacity: 0.85; }
+.pay__recon-approved-tag { font-size: 11px; font-weight: 600; color: #16a34a; }

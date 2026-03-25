@@ -142,7 +142,7 @@ export default function Payroll() {
       const reconMap = {}
       ;(reconRes.data || []).forEach(r => {
         if (!reconMap[r.driver_name]) reconMap[r.driver_name] = {}
-        reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: r.locked, id: r.id }
+        reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: r.locked, approved: r.approved, id: r.id }
       })
 
       const driverMap = {}
@@ -602,13 +602,32 @@ export default function Payroll() {
 function ReconSection({ drivers }) {
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
   const driversWithRecon = drivers.filter(d => d.recon && Object.keys(d.recon).length > 0)
+  const [approved, setApproved] = useState({})
+
+  useEffect(() => {
+    // Check which drivers already have approved recon
+    const map = {}
+    driversWithRecon.forEach(d => {
+      const allApproved = Object.values(d.recon).every(r => r.approved)
+      if (allApproved && Object.keys(d.recon).length > 0) map[d.name] = true
+    })
+    setApproved(map)
+  }, [drivers])
+
+  async function handleApprove(driverName, reconEntries) {
+    const ids = Object.values(reconEntries).filter(r => r.id).map(r => r.id)
+    for (const id of ids) {
+      await supabase.from('stop_reconciliation').update({ approved: true }).eq('id', id)
+    }
+    setApproved(prev => ({ ...prev, [driverName]: true }))
+  }
 
   if (driversWithRecon.length === 0) return null
 
   return (
     <div className="pay__recon">
       <h3 className="pay__recon-title">Driver Reconciliation</h3>
-      <p className="pay__recon-sub">Drivers reported their actual stop counts. Review differences below.</p>
+      <p className="pay__recon-sub">Drivers reported their actual stop counts. Review and approve below.</p>
       <div className="pay__recon-table-wrap">
         <table className="pay__recon-table">
           <thead>
@@ -616,6 +635,7 @@ function ReconSection({ drivers }) {
               <th>Driver</th>
               {DAYS.map(d => <th key={d} colSpan={2}>{d}</th>)}
               <th>Status</th>
+              <th></th>
             </tr>
             <tr className="pay__recon-subhead">
               <th></th>
@@ -625,6 +645,7 @@ function ReconSection({ drivers }) {
                   <th>Actual</th>
                 </React.Fragment>
               ))}
+              <th></th>
               <th></th>
             </tr>
           </thead>
@@ -637,11 +658,11 @@ function ReconSection({ drivers }) {
                 if (d.recon[day]?.actual != null) totalActual += d.recon[day].actual
                 else hasAll = false
               })
-              const allLocked = DAYS.every(day => !d.recon[day] || d.recon[day].locked)
               const totalDiff = totalActual - totalDisp
+              const isApproved = approved[d.name]
 
               return (
-                <tr key={d.name}>
+                <tr key={d.name} className={isApproved ? 'pay__recon-row--approved' : ''}>
                   <td className="pay__recon-name">{d.name}</td>
                   {DAYS.map(day => {
                     const disp = d[day.toLowerCase()] || 0
@@ -674,6 +695,15 @@ function ReconSection({ drivers }) {
                       </span>
                     ) : (
                       <span className="pay__recon-badge pay__recon-badge--pending">Pending</span>
+                    )}
+                  </td>
+                  <td>
+                    {isApproved ? (
+                      <span className="pay__recon-approved-tag">Approved</span>
+                    ) : (
+                      <button className="pay__recon-approve-btn" onClick={() => handleApprove(d.name, d.recon)}>
+                        Approve
+                      </button>
                     )}
                   </td>
                 </tr>
