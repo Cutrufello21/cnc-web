@@ -5,27 +5,57 @@ import 'leaflet/dist/leaflet.css'
 import './DeliveryMap.css'
 
 const NE_OHIO = [40.95, -81.45]
-const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
 const PHARMACY_ORIGINS = {
   SHSP: { lat: 41.0758, lng: -81.5193, label: 'SHSP — 70 Arch St, Akron' },
   Aultman: { lat: 40.7914, lng: -81.3939, label: 'Aultman — 2600 6th St SW, Canton' },
 }
 
-// Geocode via Google Maps and cache in Supabase
-async function geocodeAndCache(address, city, zip, table, id) {
-  if (!MAPS_KEY || !address) return null
-  const query = encodeURIComponent(`${address}, ${city}, OH ${zip}`)
-  try {
-    const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${query}&key=${MAPS_KEY}`)
-    const data = await res.json()
-    if (data.results?.[0]) {
-      const { lat, lng } = data.results[0].geometry.location
-      // Cache in Supabase
-      await supabase.from(table).update({ lat, lng }).eq('id', id)
-      return { lat, lng }
-    }
-  } catch {}
-  return null
+// ZIP centroids for NE Ohio delivery area
+const ZIP_COORDS = {
+  '44201':[40.95,-81.19],'44203':[41.01,-81.61],'44210':[41.03,-81.70],'44211':[41.05,-81.27],
+  '44212':[41.04,-81.73],'44215':[40.98,-81.82],'44216':[40.94,-81.53],'44217':[40.86,-81.68],
+  '44221':[41.14,-81.49],'44222':[41.15,-81.48],'44223':[41.14,-81.52],'44224':[41.17,-81.44],
+  '44230':[40.97,-81.72],'44233':[41.09,-81.75],'44236':[41.20,-81.35],'44237':[41.17,-81.39],
+  '44240':[41.16,-81.35],'44241':[41.23,-81.36],'44242':[41.24,-81.34],'44243':[41.16,-81.34],
+  '44250':[41.04,-81.43],'44251':[41.00,-81.77],'44255':[41.19,-81.25],'44256':[41.04,-81.86],
+  '44258':[41.03,-81.89],'44260':[41.03,-81.33],'44262':[41.14,-81.44],'44264':[41.11,-81.54],
+  '44265':[41.08,-81.30],'44266':[41.16,-81.20],'44270':[40.96,-81.62],'44272':[41.13,-81.24],
+  '44273':[40.90,-81.69],'44274':[41.02,-81.79],'44276':[40.95,-81.69],'44278':[41.08,-81.54],
+  '44280':[41.07,-81.90],'44281':[41.02,-81.75],'44282':[41.05,-81.67],'44285':[41.16,-81.15],
+  '44286':[41.23,-81.52],'44202':[41.31,-81.34],'44232':[40.87,-81.41],'44411':[41.01,-81.10],
+  '44301':[41.05,-81.51],'44302':[41.09,-81.54],'44303':[41.10,-81.54],'44304':[41.08,-81.50],
+  '44305':[41.08,-81.47],'44306':[41.04,-81.48],'44307':[41.06,-81.53],'44308':[41.08,-81.52],
+  '44309':[41.08,-81.51],'44310':[41.10,-81.49],'44311':[41.06,-81.52],'44312':[41.00,-81.44],
+  '44313':[41.10,-81.57],'44314':[40.98,-81.53],'44319':[40.98,-81.48],'44320':[41.07,-81.58],
+  '44321':[41.08,-81.63],'44333':[41.14,-81.61],'44334':[41.13,-81.62],'44372':[41.08,-81.52],
+  '44601':[40.81,-81.37],'44606':[40.73,-81.86],'44608':[40.72,-81.59],'44612':[40.60,-81.40],
+  '44613':[40.70,-81.50],'44614':[40.88,-81.51],'44615':[40.57,-81.08],'44618':[40.84,-81.63],
+  '44620':[40.55,-81.25],'44621':[40.53,-81.48],'44622':[40.57,-81.58],'44624':[40.68,-81.67],
+  '44626':[40.73,-81.42],'44627':[40.73,-81.73],'44630':[40.88,-81.43],'44632':[40.92,-81.37],
+  '44640':[40.90,-81.29],'44641':[40.88,-81.38],'44643':[40.63,-81.43],'44644':[40.72,-81.41],
+  '44645':[40.94,-81.45],'44646':[40.83,-81.44],'44647':[40.83,-81.43],'44650':[40.88,-81.25],
+  '44651':[40.52,-81.01],'44652':[40.85,-81.36],'44656':[40.62,-81.30],'44657':[40.65,-81.22],
+  '44660':[40.67,-81.75],'44662':[40.70,-81.55],'44663':[40.53,-81.55],'44666':[40.84,-81.56],
+  '44667':[40.85,-81.69],'44675':[40.58,-81.18],'44677':[40.82,-81.75],'44680':[40.70,-81.45],
+  '44683':[40.55,-81.48],'44685':[40.91,-81.43],'44688':[40.70,-81.35],'44689':[40.68,-81.68],
+  '44691':[40.80,-81.94],'44460':[40.89,-81.03],
+  '44701':[40.80,-81.38],'44702':[40.80,-81.37],'44703':[40.82,-81.39],'44704':[40.80,-81.35],
+  '44705':[40.82,-81.34],'44706':[40.77,-81.42],'44707':[40.77,-81.36],'44708':[40.82,-81.44],
+  '44709':[40.84,-81.39],'44710':[40.81,-81.43],'44711':[40.80,-81.38],'44714':[40.82,-81.37],
+  '44718':[40.85,-81.46],'44720':[40.87,-81.42],'44721':[40.87,-81.33],'44730':[40.72,-81.28],
+  '44735':[40.80,-81.38],'44750':[40.80,-81.38],'44767':[40.80,-81.38],'44799':[40.80,-81.38],
+  '44682':[40.56,-81.42],'44693':[40.40,-81.35],
+  '43903':[40.38,-80.88],'43908':[40.38,-80.77],'43945':[40.43,-80.85],
+  '43986':[40.45,-80.90],'43988':[40.48,-80.83],
+  '44023':[41.39,-81.38],'44056':[41.31,-81.34],'44067':[41.31,-81.53],'44087':[41.31,-81.44],
+  '44102':[41.47,-81.74],'44125':[41.40,-81.63],'44128':[41.43,-81.54],'44129':[41.39,-81.70],
+  '44131':[41.38,-81.66],'44133':[41.31,-81.74],'44134':[41.38,-81.72],'44136':[41.31,-81.69],
+  '44137':[41.40,-81.56],'44139':[41.38,-81.44],'44141':[41.33,-81.61],'44146':[41.38,-81.53],
+  '44147':[41.34,-81.73],'44149':[41.31,-81.63],
+}
+
+function jitter(coord, amount = 0.006) {
+  return coord + (Math.random() - 0.5) * amount
 }
 
 export default function DeliveryMap() {
@@ -37,29 +67,26 @@ export default function DeliveryMap() {
   const [filter, setFilter] = useState('all')
   const [timePeriod, setTimePeriod] = useState('today')
   const [selectedLocation, setSelectedLocation] = useState(null)
-  const [geocodeProgress, setGeocodeProgress] = useState('')
 
   useEffect(() => { loadData() }, [timePeriod])
 
   async function loadData() {
     setLoading(true)
-    setGeocodeProgress('')
     try {
       let rows = []
-      let table = 'orders'
 
       if (timePeriod === 'today') {
-        table = 'daily_stops'
         const now = new Date()
         const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
         const { data } = await supabase.from('daily_stops')
-          .select('id, order_id, patient_name, address, city, zip, pharmacy, driver_name, delivery_date, cold_chain, lat, lng')
+          .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, delivery_date, cold_chain')
           .eq('delivery_date', today)
         rows = data || []
       } else {
         let query = supabase.from('orders')
-          .select('id, order_id, patient_name, address, city, zip, pharmacy, driver_name, date_delivered, cold_chain, lat, lng')
+          .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, date_delivered, cold_chain')
           .not('address', 'is', null).not('address', 'eq', '')
+          .not('zip', 'is', null).not('zip', 'eq', '')
 
         if (timePeriod === 'week') {
           const d = new Date(); d.setDate(d.getDate() - 7)
@@ -68,85 +95,61 @@ export default function DeliveryMap() {
           const d = new Date(); d.setDate(d.getDate() - 30)
           query = query.gte('date_delivered', d.toISOString().split('T')[0])
         }
+        // For "all", limit to most recent 5000 to avoid loading 20k rows
+        if (timePeriod === 'all') {
+          query = query.order('date_delivered', { ascending: false }).limit(5000)
+        }
         const { data } = await query
         rows = data || []
       }
 
-      // Split into geocoded and needing geocoding
-      const geocoded = rows.filter(r => r.lat && r.lng)
-      const needsGeocode = rows.filter(r => !r.lat && r.address)
+      // Group by ZIP for aggregate view
+      const zipMap = {}
+      for (const row of rows) {
+        const zip = (row.zip || '').trim()
+        if (!zip || zip.length > 5 || !ZIP_COORDS[zip]) continue
 
-      // Build locations from already-geocoded rows
-      const locs = buildLocations(geocoded, timePeriod === 'today')
-      setLocations(locs)
-      setLoading(false)
-
-      // Geocode missing addresses in background (max 50 per load)
-      if (needsGeocode.length > 0 && MAPS_KEY) {
-        const batch = needsGeocode.slice(0, 50)
-        setGeocodeProgress(`Geocoding ${batch.length} of ${needsGeocode.length} addresses...`)
-        const newLocs = [...locs]
-
-        for (let i = 0; i < batch.length; i++) {
-          const row = batch[i]
-          const result = await geocodeAndCache(row.address, row.city, row.zip, table, row.id)
-          if (result) {
-            newLocs.push({
-              address: row.address, city: row.city, zip: row.zip,
-              pharmacy: row.pharmacy, driver: row.driver_name,
-              lat: result.lat, lng: result.lng,
-              totalDeliveries: 1,
-              coldChainCount: row.cold_chain ? 1 : 0,
-              coldChainPct: row.cold_chain ? 100 : 0,
-              lastDate: (timePeriod === 'today' ? row.delivery_date : row.date_delivered) || '',
-              orders: [{ orderId: row.order_id, name: row.patient_name, date: row.date_delivered || row.delivery_date, driver: row.driver_name, pharmacy: row.pharmacy, coldChain: row.cold_chain }],
-            })
-          }
-          if ((i + 1) % 10 === 0) {
-            setLocations([...newLocs])
-            setGeocodeProgress(`Geocoded ${i + 1} of ${batch.length}...`)
+        if (!zipMap[zip]) {
+          const coords = ZIP_COORDS[zip]
+          zipMap[zip] = {
+            zip, lat: coords[0], lng: coords[1],
+            pharmacy: row.pharmacy, driver: row.driver_name,
+            totalDeliveries: 0, coldChainCount: 0,
+            addresses: new Set(), drivers: new Set(),
+            orders: [],
           }
         }
-        setLocations(newLocs)
-        setGeocodeProgress(`${newLocs.length} locations mapped`)
+        const loc = zipMap[zip]
+        loc.totalDeliveries++
+        if (row.cold_chain) loc.coldChainCount++
+        if (row.address) loc.addresses.add(row.address)
+        if (row.driver_name) loc.drivers.add(row.driver_name)
+        // Keep most common pharmacy
+        if (row.pharmacy) loc.pharmacy = row.pharmacy
+        if (loc.orders.length < 10) {
+          loc.orders.push({
+            orderId: row.order_id, name: row.patient_name,
+            date: row.date_delivered || row.delivery_date,
+            driver: row.driver_name, pharmacy: row.pharmacy,
+            coldChain: row.cold_chain,
+          })
+        }
       }
+
+      const locs = Object.values(zipMap).map(loc => ({
+        ...loc,
+        address: `ZIP ${loc.zip} (${loc.addresses.size} addresses)`,
+        city: [...loc.addresses].slice(0, 3).join(', '),
+        driver: [...loc.drivers].join(', '),
+        coldChainPct: loc.totalDeliveries ? Math.round((loc.coldChainCount / loc.totalDeliveries) * 100) : 0,
+      }))
+
+      setLocations(locs)
     } catch (err) {
       console.error('Map error:', err)
+    } finally {
       setLoading(false)
     }
-  }
-
-  function buildLocations(rows, isDaily) {
-    const locationMap = {}
-    for (const row of rows) {
-      if (!row.lat || !row.lng) continue
-      const key = `${row.address}|${row.city}|${row.zip}`
-      if (!locationMap[key]) {
-        locationMap[key] = {
-          address: row.address, city: row.city, zip: row.zip,
-          pharmacy: row.pharmacy, lat: row.lat, lng: row.lng,
-          totalDeliveries: 0, coldChainCount: 0,
-          lastDate: '', driver: '', orders: [],
-        }
-      }
-      const loc = locationMap[key]
-      loc.totalDeliveries++
-      if (row.cold_chain) loc.coldChainCount++
-      const date = (isDaily ? row.delivery_date : row.date_delivered) || ''
-      if (date > loc.lastDate) loc.lastDate = date
-      loc.driver = row.driver_name || loc.driver
-      if (loc.orders.length < 10) {
-        loc.orders.push({
-          orderId: row.order_id, name: row.patient_name,
-          date, driver: row.driver_name,
-          pharmacy: row.pharmacy, coldChain: row.cold_chain,
-        })
-      }
-    }
-    return Object.values(locationMap).map(loc => ({
-      ...loc,
-      coldChainPct: loc.totalDeliveries ? Math.round((loc.coldChainCount / loc.totalDeliveries) * 100) : 0,
-    }))
   }
 
   // Initialize map
@@ -185,22 +188,21 @@ export default function DeliveryMap() {
     })
 
     filtered.forEach(loc => {
-      const size = loc.totalDeliveries >= 16 ? 12 : loc.totalDeliveries >= 6 ? 9 : 6
+      const size = Math.min(4 + Math.sqrt(loc.totalDeliveries) * 2, 20)
       const color = loc.pharmacy === 'Aultman' ? '#4ADE80' : '#6495ED'
-      const opacity = 0.8
 
       const marker = L.circleMarker([loc.lat, loc.lng], {
-        radius: size, fillColor: color, fillOpacity: opacity,
-        color: '#fff', weight: 1.5, opacity: 0.9,
+        radius: size, fillColor: color, fillOpacity: 0.75,
+        color: '#fff', weight: 2, opacity: 0.9,
       })
 
       marker.bindTooltip(`
         <div class="map__tip">
-          <strong>${loc.address}</strong><br/>
-          ${loc.city}, OH ${loc.zip}<br/>
-          <span class="map__tip-row">Deliveries: <b>${loc.totalDeliveries}</b></span>
-          ${loc.driver ? `<span class="map__tip-row">Driver: <b>${loc.driver}</b></span>` : ''}
-          ${loc.coldChainCount > 0 ? `<span class="map__tip-row">Cold Chain: <b>${loc.coldChainPct}%</b> (${loc.coldChainCount})</span>` : ''}
+          <strong>ZIP ${loc.zip}</strong><br/>
+          <span class="map__tip-row">Stops: <b>${loc.totalDeliveries}</b></span>
+          <span class="map__tip-row">Addresses: <b>${loc.addresses.size}</b></span>
+          <span class="map__tip-row">Drivers: <b>${[...loc.drivers].join(', ')}</b></span>
+          ${loc.coldChainCount > 0 ? `<span class="map__tip-row">Cold Chain: <b>${loc.coldChainCount}</b> (${loc.coldChainPct}%)</span>` : ''}
           <span class="map__tip-row">Pharmacy: <b>${loc.pharmacy}</b></span>
         </div>
       `, { direction: 'top', offset: [0, -8], className: 'map__tooltip' })
@@ -211,10 +213,11 @@ export default function DeliveryMap() {
   }, [locations, filter])
 
   const stats = {
-    total: locations.length,
-    shsp: locations.filter(l => l.pharmacy === 'SHSP').length,
-    aultman: locations.filter(l => l.pharmacy === 'Aultman').length,
-    coldchain: locations.filter(l => l.coldChainCount > 0).length,
+    total: locations.reduce((s, l) => s + l.totalDeliveries, 0),
+    zips: locations.length,
+    shsp: locations.filter(l => l.pharmacy === 'SHSP').reduce((s, l) => s + l.totalDeliveries, 0),
+    aultman: locations.filter(l => l.pharmacy === 'Aultman').reduce((s, l) => s + l.totalDeliveries, 0),
+    coldchain: locations.reduce((s, l) => s + l.coldChainCount, 0),
   }
 
   return (
@@ -232,7 +235,7 @@ export default function DeliveryMap() {
             ['all', `All (${stats.total})`],
             ['SHSP', `SHSP (${stats.shsp})`],
             ['Aultman', `Aultman (${stats.aultman})`],
-            ['coldchain', `Cold Chain (${stats.coldchain})`],
+            ['coldchain', `CC (${stats.coldchain})`],
           ].map(([key, label]) => (
             <button key={key}
               className={`map__filter-btn ${filter === key ? 'map__filter-btn--active' : ''} ${key === 'SHSP' ? 'map__filter-btn--shsp' : ''} ${key === 'Aultman' ? 'map__filter-btn--aultman' : ''}`}
@@ -245,38 +248,34 @@ export default function DeliveryMap() {
         <div className="map__loading"><div className="dispatch__spinner" />Loading delivery locations...</div>
       )}
 
-      {geocodeProgress && !loading && (
-        <div className="map__geocode-status">{geocodeProgress}</div>
-      )}
-
       <div className="map__wrap">
         <div ref={mapRef} className="map__canvas" />
 
         {selectedLocation && (
           <div className="map__panel">
             <div className="map__panel-header">
-              <h4>{selectedLocation.address}</h4>
+              <h4>ZIP {selectedLocation.zip}</h4>
               <button className="map__panel-close" onClick={() => setSelectedLocation(null)}>&#10005;</button>
             </div>
-            <p className="map__panel-city">{selectedLocation.city}, OH {selectedLocation.zip}</p>
             <div className="map__panel-stats">
               <div className="map__panel-stat">
                 <span className="map__panel-stat-val">{selectedLocation.totalDeliveries}</span>
-                <span className="map__panel-stat-label">Total</span>
+                <span className="map__panel-stat-label">Stops</span>
+              </div>
+              <div className="map__panel-stat">
+                <span className="map__panel-stat-val">{selectedLocation.addresses.size}</span>
+                <span className="map__panel-stat-label">Addresses</span>
               </div>
               <div className="map__panel-stat">
                 <span className="map__panel-stat-val map__panel-stat-val--cc">{selectedLocation.coldChainCount}</span>
                 <span className="map__panel-stat-label">Cold Chain</span>
               </div>
-              <div className="map__panel-stat">
-                <span className="map__panel-stat-val">{selectedLocation.coldChainPct}%</span>
-                <span className="map__panel-stat-label">CC Rate</span>
-              </div>
             </div>
+            <p className="map__panel-city">Drivers: {[...selectedLocation.drivers].join(', ')}</p>
             <span className={`map__panel-pharma ${selectedLocation.pharmacy === 'SHSP' ? 'map__panel-pharma--shsp' : 'map__panel-pharma--aultman'}`}>
               {selectedLocation.pharmacy}
             </span>
-            <h5 className="map__panel-section">Delivery History</h5>
+            <h5 className="map__panel-section">Recent Orders</h5>
             <div className="map__panel-orders">
               {selectedLocation.orders.map((o, i) => (
                 <div className="map__panel-order" key={i}>
@@ -299,10 +298,7 @@ export default function DeliveryMap() {
       <div className="map__legend">
         <span className="map__legend-item"><span className="map__legend-dot map__legend-dot--md" style={{ background: '#6495ED' }} />SHSP</span>
         <span className="map__legend-item"><span className="map__legend-dot map__legend-dot--md" style={{ background: '#4ADE80' }} />Aultman</span>
-        <span className="map__legend-item"><span className="map__legend-dot map__legend-dot--sm" />1-5</span>
-        <span className="map__legend-item"><span className="map__legend-dot map__legend-dot--md" />6-15</span>
-        <span className="map__legend-item"><span className="map__legend-dot map__legend-dot--lg" />16+</span>
-        <span className="map__legend-count">{stats.total} locations mapped</span>
+        <span className="map__legend-count">{stats.zips} ZIP codes | {stats.total} stops</span>
       </div>
     </div>
   )
