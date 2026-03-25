@@ -58,13 +58,24 @@ export default function DriverPage() {
         return
       }
 
-      // Get today's date
-      const today = new Date().toISOString().split('T')[0]
+      // Get the most recent stops for this driver (today or next delivery day)
+      // After 5 PM, show tomorrow's stops (just dispatched)
+      // Before 5 PM, show today's stops (being delivered now)
+      const now = new Date()
+      const hour = now.getHours()
+      const targetDate = new Date(now)
+      if (hour >= 17) {
+        // After 5 PM — show next business day
+        if (now.getDay() === 5) targetDate.setDate(targetDate.getDate() + 3) // Fri→Mon
+        else if (now.getDay() === 6) targetDate.setDate(targetDate.getDate() + 2) // Sat→Mon
+        else targetDate.setDate(targetDate.getDate() + 1)
+      }
+      const deliveryDate = targetDate.toISOString().split('T')[0]
 
       // Get daily stops and approval status from Supabase
       const [stopsRes, logsRes] = await Promise.all([
         supabase.from('daily_stops').select('*')
-          .eq('delivery_date', today).eq('driver_name', driverName),
+          .eq('delivery_date', deliveryDate).eq('driver_name', driverName),
         supabase.from('dispatch_logs').select('*')
           .eq('delivery_day', todayName).in('status', ['Complete', 'Success'])
           .order('date', { ascending: false }).limit(1),
@@ -79,9 +90,11 @@ export default function DriverPage() {
       }))
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
+      const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const displayDay = DAYS[targetDate.getDay()]
 
       setData({
-        approved, deliveryDay: todayName, driverName, driverId, tabName,
+        approved, deliveryDay: displayDay, driverName, driverId, tabName,
         stops, stopCount: stops.length,
         coldChainCount: stops.filter(s => s._coldChain).length,
         weekTotal, dailyStops,
