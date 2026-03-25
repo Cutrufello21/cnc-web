@@ -1,169 +1,68 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import './SortList.css'
 
 export default function SortList({ deliveryDate }) {
-  const [stops, setStops] = useState([])
-  const [rules, setRules] = useState([])
-  const [drivers, setDrivers] = useState([])
-  const [overrides, setOverrides] = useState({})
+  const [lines, setLines] = useState({ SHSP: [], Aultman: [] })
+  const [loading, setLoading] = useState(true)
   const [editKey, setEditKey] = useState(null)
   const [editVal, setEditVal] = useState('')
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(null) // 'SHSP' or 'Aultman'
+  const [newLine, setNewLine] = useState('')
 
-  useEffect(() => { loadData() }, [deliveryDate])
+  const dateStr = deliveryDate || new Date().toISOString().split('T')[0]
+
+  useEffect(() => { loadData() }, [dateStr])
 
   async function loadData() {
     setLoading(true)
-    const dateStr = deliveryDate || new Date().toISOString().split('T')[0]
-    const [stopsRes, rulesRes, driversRes, overridesRes] = await Promise.all([
-      supabase.from('daily_stops').select('driver_name, zip, pharmacy, city').eq('delivery_date', dateStr),
-      supabase.from('routing_rules').select('zip_code, route, pharmacy'),
-      supabase.from('drivers').select('driver_name, pharmacy').eq('active', true),
-      supabase.from('sort_list').select('*').eq('delivery_date', dateStr),
-    ])
-    setStops(stopsRes.data || [])
-    setRules(rulesRes.data || [])
-    setDrivers(driversRes.data || [])
+    const { data } = await supabase.from('sort_list')
+      .select('*').eq('delivery_date', dateStr)
+      .order('sort_order', { ascending: true })
 
-    const ov = {}
-    ;(overridesRes.data || []).forEach(o => { ov[`${o.pharmacy}|${o.driver_name}`] = o })
-    setOverrides(ov)
+    const result = { SHSP: [], Aultman: [] }
+    ;(data || []).forEach(r => {
+      if (result[r.pharmacy]) result[r.pharmacy].push(r)
+    })
+    setLines(result)
     setLoading(false)
   }
 
-  // Build ZIP → home route lookup
-  const zipToRoute = useMemo(() => {
-    const map = {}
-    rules.forEach(r => { map[r.zip_code] = r.route || '' })
-    return map
-  }, [rules])
-
-  // Build ZIP → home driver (who normally has this ZIP on majority of days)
-  const zipToHomeDriver = useMemo(() => {
-    const map = {}
-    rules.forEach(r => {
-      // Count which driver appears most across days
-      const counts = {}
-      ;['mon','tue','wed','thu','fri'].forEach(day => {
-        // We don't have day columns easily here, so use route as proxy
-      })
-      map[r.zip_code] = r.route
-    })
-    return map
-  }, [rules])
-
-  // Build sort list for each pharmacy
-  const sortData = useMemo(() => {
-    const result = { SHSP: [], Aultman: [] }
-
-    // Group stops by driver
-    const driverStops = {}
-    stops.forEach(s => {
-      if (!driverStops[s.driver_name]) driverStops[s.driver_name] = []
-      driverStops[s.driver_name].push(s)
-    })
-
-    // Get each driver's home route from their most common ZIP route
-    const driverHomeRoute = {}
-    for (const [name, driverStopList] of Object.entries(driverStops)) {
-      const routeCounts = {}
-      driverStopList.forEach(s => {
-        const route = zipToRoute[s.zip] || ''
-        if (route) routeCounts[route] = (routeCounts[route] || 0) + 1
-      })
-      const topRoute = Object.entries(routeCounts).sort((a, b) => b[1] - a[1])[0]
-      driverHomeRoute[name] = topRoute ? topRoute[0] : ''
-    }
-
-    // For each active driver with stops, build their sort line
-    for (const d of drivers) {
-      const name = d.driver_name
-      const pharmacy = d.pharmacy || 'SHSP'
-      const myStops = driverStops[name] || []
-      if (myStops.length === 0) continue
-
-      const homeRoute = driverHomeRoute[name] || ''
-      const overrideKey = `${pharmacy}|${name}`
-
-      // Check for override
-      if (overrides[overrideKey]) {
-        const targetPharmacy = pharmacy === 'Aultman' ? 'Aultman' :
-                              pharmacy === 'Both' ? 'SHSP' : 'SHSP'
-        if (result[targetPharmacy]) {
-          result[targetPharmacy].push({
-            name, homeRoute,
-            displayText: overrides[overrideKey].display_text,
-            isOverride: true,
-            stopCount: myStops.length,
-            pharmacy: targetPharmacy,
-          })
-        }
-        continue
-      }
-
-      // Find out-of-zone ZIPs
-      const extraZips = new Set()
-      myStops.forEach(s => {
-        const route = zipToRoute[s.zip] || ''
-        if (route && route !== homeRoute) {
-          extraZips.add(s.zip)
-        }
-      })
-
-      const displayText = homeRoute +
-        (extraZips.size > 0 ? ', ' + [...extraZips].sort().join(', ') : '')
-
-      const targetPharmacy = pharmacy === 'Aultman' ? 'Aultman' :
-                            pharmacy === 'Both' ? 'SHSP' : 'SHSP'
-
-      if (result[targetPharmacy]) {
-        result[targetPharmacy].push({
-          name, homeRoute, displayText, isOverride: false,
-          stopCount: myStops.length, extraZips: [...extraZips],
-          pharmacy: targetPharmacy,
-        })
-      }
-
-      // If driver serves Both, also add to Aultman if they have Aultman stops
-      if (pharmacy === 'Both') {
-        const aultmanStops = myStops.filter(s => s.pharmacy === 'Aultman')
-        if (aultmanStops.length > 0 && !result.Aultman.find(r => r.name === name)) {
-          result.Aultman.push({
-            name, homeRoute, displayText, isOverride: false,
-            stopCount: aultmanStops.length, extraZips: [...extraZips],
-            pharmacy: 'Aultman',
-          })
-        }
-      }
-    }
-
-    return result
-  }, [stops, rules, drivers, overrides, zipToRoute])
-
-  async function handleSaveOverride(pharmacy, driverName) {
+  async function handleAdd(pharmacy) {
+    if (!newLine.trim()) return
     setSaving(true)
-    const dateStr = deliveryDate || new Date().toISOString().split('T')[0]
-    try {
-      await supabase.from('sort_list').upsert({
-        delivery_date: dateStr,
-        pharmacy,
-        driver_name: driverName,
-        display_text: editVal,
-      }, { onConflict: 'delivery_date,pharmacy,driver_name' })
-      setEditKey(null)
-      loadData()
-    } catch {}
+    const maxOrder = lines[pharmacy].reduce((m, l) => Math.max(m, l.sort_order || 0), 0)
+    await supabase.from('sort_list').insert({
+      delivery_date: dateStr,
+      pharmacy,
+      driver_name: newLine.trim(),
+      display_text: newLine.trim(),
+      sort_order: maxOrder + 1,
+    })
+    setNewLine('')
+    setAdding(null)
     setSaving(false)
+    loadData()
+  }
+
+  async function handleSave(id) {
+    setSaving(true)
+    await supabase.from('sort_list').update({ display_text: editVal }).eq('id', id)
+    setEditKey(null)
+    setSaving(false)
+    loadData()
+  }
+
+  async function handleDelete(id) {
+    await supabase.from('sort_list').delete().eq('id', id)
+    loadData()
   }
 
   function handleCopy(pharmacy) {
-    const lines = sortData[pharmacy].map(d =>
-      `${d.name.toUpperCase()} — ${d.displayText}`
-    ).join('\n')
-    navigator.clipboard.writeText(lines)
+    const text = lines[pharmacy].map(l => l.display_text).join('\n')
+    navigator.clipboard.writeText(text)
     setCopied(pharmacy)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -179,52 +78,70 @@ export default function SortList({ deliveryDate }) {
               <h3 className={`sl__col-title sl__col-title--${pharmacy.toLowerCase()}`}>
                 {pharmacy === 'SHSP' ? '💊 SHSP Sort' : '🏥 Aultman Sort'}
               </h3>
-              <button
-                className={`sl__copy ${copied === pharmacy ? 'sl__copy--done' : ''}`}
-                onClick={() => handleCopy(pharmacy)}
-              >
-                {copied === pharmacy ? 'Copied!' : 'Copy'}
-              </button>
+              <div className="sl__col-actions">
+                <button
+                  className={`sl__copy ${copied === pharmacy ? 'sl__copy--done' : ''}`}
+                  onClick={() => handleCopy(pharmacy)}
+                >
+                  {copied === pharmacy ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
             </div>
 
-            {sortData[pharmacy].length === 0 && (
-              <div className="sl__empty">No {pharmacy} drivers today</div>
+            {lines[pharmacy].length === 0 && !adding && (
+              <div className="sl__empty">No entries — click + to add</div>
             )}
 
-            {sortData[pharmacy].map(d => {
-              const key = `${pharmacy}|${d.name}`
-              const isEditing = editKey === key
-
+            {lines[pharmacy].map(line => {
+              const isEditing = editKey === line.id
               return (
-                <div key={d.name} className="sl__row">
+                <div key={line.id} className="sl__row">
                   {isEditing ? (
                     <div className="sl__edit">
-                      <span className="sl__driver">{d.name.toUpperCase()}</span>
-                      <span className="sl__sep">—</span>
                       <input
                         className="sl__edit-input"
                         value={editVal}
                         onChange={e => setEditVal(e.target.value)}
                         autoFocus
-                        onKeyDown={e => e.key === 'Enter' && handleSaveOverride(pharmacy, d.name)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleSave(line.id)
+                          if (e.key === 'Escape') setEditKey(null)
+                        }}
                       />
-                      <button className="sl__edit-save" onClick={() => handleSaveOverride(pharmacy, d.name)} disabled={saving}>&#10003;</button>
+                      <button className="sl__edit-save" onClick={() => handleSave(line.id)} disabled={saving}>&#10003;</button>
                       <button className="sl__edit-cancel" onClick={() => setEditKey(null)}>&#10005;</button>
                     </div>
                   ) : (
-                    <div className="sl__display" onClick={() => { setEditKey(key); setEditVal(d.displayText) }}>
-                      <span className="sl__driver">{d.name.toUpperCase()}</span>
-                      <span className="sl__sep">—</span>
-                      <span className="sl__route">{d.displayText || 'No route'}</span>
-                      {d.extraZips?.length > 0 && (
-                        <span className="sl__extra-badge">{d.extraZips.length} extra</span>
-                      )}
-                      <span className="sl__stops">{d.stopCount}</span>
+                    <div className="sl__display">
+                      <span className="sl__text" onClick={() => { setEditKey(line.id); setEditVal(line.display_text) }}>
+                        {line.display_text}
+                      </span>
+                      <button className="sl__delete" onClick={() => handleDelete(line.id)}>&times;</button>
                     </div>
                   )}
                 </div>
               )
             })}
+
+            {adding === pharmacy ? (
+              <div className="sl__add-form">
+                <input
+                  className="sl__add-input"
+                  value={newLine}
+                  onChange={e => setNewLine(e.target.value)}
+                  placeholder="BOBBY — West"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleAdd(pharmacy)
+                    if (e.key === 'Escape') { setAdding(null); setNewLine('') }
+                  }}
+                />
+                <button className="sl__add-save" onClick={() => handleAdd(pharmacy)} disabled={saving || !newLine.trim()}>Add</button>
+                <button className="sl__add-cancel" onClick={() => { setAdding(null); setNewLine('') }}>Cancel</button>
+              </div>
+            ) : (
+              <button className="sl__add-btn" onClick={() => setAdding(pharmacy)}>+ Add Line</button>
+            )}
           </div>
         ))}
       </div>
