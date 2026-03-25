@@ -42,15 +42,15 @@
   cursor: default;
 }
 
-.sd__seg--green { background: #16a34a; }
-.sd__seg--amber { background: #d97706; }
-.sd__seg--red { background: #dc2626; }
+.sd__seg--green { background: #4ADE80; }
+.sd__seg--amber { background: #fbbf24; }
+.sd__seg--red { background: #f87171; }
 
 .sd__seg-label {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   color: white;
-  text-shadow: 0 1px 3px rgba(0,0,0,0.35);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
   overflow: hidden;
   white-space: nowrap;
 }
