@@ -265,7 +265,7 @@ export default function TimeOff() {
                   <span className="to__cal-day">{cell.day}</span>
                   {cell.requests.map(r => (
                     <span key={r.id} className={`to__cal-chip to__cal-chip--${r.status}`} title={r.reason || r.driver_name}>
-                      {r.driver_name.slice(0, 3)}
+                      {r.driver_name}
                     </span>
                   ))}
                 </div>

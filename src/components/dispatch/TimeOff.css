@@ -40,7 +40,7 @@
 .to__cal-cell--today .to__cal-day { color: var(--navy); }
 
 .to__cal-chip { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; margin-bottom: 1px; }
-.to__cal-chip--approved { background: #dcfce7; color: #16a34a; }
+.to__cal-chip--approved { background: var(--gray-200); color: var(--gray-600); }
 .to__cal-chip--pending { background: #fef3c7; color: #d97706; }
 
 /* List view */
@@ -99,13 +99,13 @@
 .wg__day-date { font-size: 11px; color: var(--gray-400); }
 
 .wg__cell { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; transition: all 0.15s; user-select: none; }
-.wg__cell--on { background: #16a34a; color: white; }
+.wg__cell--on { background: var(--gray-500); color: white; }
 .wg__cell--off { background: var(--gray-200); color: var(--gray-400); }
 .wg__cell--saving { opacity: 0.5; }
 .wg__cell:hover { transform: scale(1.1); }
 
 .wg__legend { display: flex; gap: 16px; margin-top: 12px; font-size: 12px; color: var(--gray-500); align-items: center; }
-.wg__legend-on { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #16a34a; margin-right: 4px; vertical-align: middle; }
+.wg__legend-on { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--gray-500); margin-right: 4px; vertical-align: middle; }
 .wg__legend-off { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--gray-200); margin-right: 4px; vertical-align: middle; }
 .wg__legend-hint { margin-left: auto; font-style: italic; }
 
