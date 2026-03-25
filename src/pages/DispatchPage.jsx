@@ -213,7 +213,6 @@ export default function DispatchPage() {
                 ['payroll', 'Payroll'],
                 ['analytics', 'Analytics'],
                 ['orders', 'Orders'],
-                ['sheets', 'Sheets'],
               ].map(([key, label]) => (
                 <button
                   key={key}
@@ -239,7 +238,6 @@ export default function DispatchPage() {
         {view === 'payroll' && <Payroll />}
         {view === 'analytics' && <Analytics />}
         {view === 'orders' && <Orders />}
-        {view === 'sheets' && <SheetViewer />}
 
         {view === 'routes' && loading && (
           <div className="dispatch__loading">
