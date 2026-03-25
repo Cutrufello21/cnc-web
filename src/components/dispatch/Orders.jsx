@@ -212,7 +212,6 @@ export default function Orders() {
                       <td className="ord__cell-addr">{order['Address']}</td>
                       <td>{order['City']}</td>
                       <td className="ord__cell-zip">{order['ZIP']}</td>
-                      <td>{hasCc ? '❄️' : ''}</td>
                       <td>
                         <span className={`ord__pharma-badge ${order['Pharmacy'] === 'SHSP' ? 'ord__pharma-badge--shsp' : 'ord__pharma-badge--aultman'}`}>
                           {order['Pharmacy']}
@@ -220,6 +219,7 @@ export default function Orders() {
                       </td>
                       <td className="ord__cell-driver">{order['Driver Name']}</td>
                       <td className="ord__cell-date">{order['Date Delivered']}</td>
+                      <td>{hasCc ? '❄️' : ''}</td>
                       <td>
                         <span className={`ord__source ${order['Source'] === 'Live' ? 'ord__source--live' : 'ord__source--hist'}`}>
                           {order['Source']}
