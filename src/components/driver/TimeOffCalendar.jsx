@@ -72,7 +72,7 @@ export default function TimeOffCalendar({ driverName }) {
   return (
     <div className="toff">
       <div className="toff__header">
-        <h3 className="toff__title">Time Off</h3>
+        <h3 className="toff__title">Schedule</h3>
         <p className="toff__sub">Tap a date to request time off. Dispatch will approve or deny.</p>
       </div>
 
@@ -154,7 +154,7 @@ export default function TimeOffCalendar({ driverName }) {
       {/* Upcoming approved days */}
       {myRequests.filter(r => r.date_off >= today.toISOString().split('T')[0]).length > 0 && (
         <div className="toff__upcoming">
-          <h4 className="toff__upcoming-title">Your Upcoming Time Off</h4>
+          <h4 className="toff__upcoming-title">Your Upcoming Schedule</h4>
           {myRequests
             .filter(r => r.date_off >= today.toISOString().split('T')[0])
             .map(r => (

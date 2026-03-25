@@ -183,7 +183,7 @@ export default function TimeOff() {
       {toast && <div className={`to__toast ${toast.isErr ? 'to__toast--err' : ''}`}>{toast.msg}</div>}
 
       <div className="to__header">
-        <h2 className="to__title">Time Off</h2>
+        <h2 className="to__title">Schedule</h2>
         <div className="to__filters">
           {[['calendar', 'Calendar'], ['list', 'List']].map(([key, label]) => (
             <button key={key} className={`to__filter ${view === key ? 'to__filter--active' : ''}`}

@@ -421,7 +421,7 @@ export default function DispatchPage() {
                 ['analytics', 'Analytics'],
                 ['orders', 'Orders'],
                 ['drivers', 'Drivers'],
-                ['timeoff', 'Time Off'],
+                ['timeoff', 'Schedule'],
               ].map(([key, label]) => (
                 <button
                   key={key}

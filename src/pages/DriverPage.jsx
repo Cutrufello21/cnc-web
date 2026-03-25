@@ -203,7 +203,7 @@ export default function DriverPage() {
                 className={`driver__tab ${activeTab === 'timeoff' ? 'driver__tab--active' : ''}`}
                 onClick={() => setActiveTab('timeoff')}
               >
-                Time Off
+                Schedule
               </button>
             </div>
 
