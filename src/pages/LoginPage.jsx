@@ -8,7 +8,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -21,7 +21,21 @@ export default function LoginPage() {
     setSubmitting(true)
 
     try {
-      // 1. Sign in via raw fetch — no Supabase client, no locks
+      // Look up email from username (driver name) or use as-is if it contains @
+      let email = username.trim()
+      if (!email.includes('@')) {
+        const { data: drivers } = await supabase.from('drivers')
+          .select('email, driver_name')
+          .ilike('driver_name', email)
+          .limit(1)
+        if (drivers?.length > 0 && drivers[0].email) {
+          email = drivers[0].email
+        } else {
+          throw new Error('Username not found. Try your first name or email.')
+        }
+      }
+
+      // 1. Sign in via raw fetch
       const authRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
@@ -101,15 +115,15 @@ export default function LoginPage() {
           {error && <div className="login__error">{error}</div>}
 
           <div className="login__field">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="username">Username</label>
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@cncdeliveryservice.com"
+              id="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="First name or email"
               required
-              autoComplete="email"
+              autoComplete="username"
               autoFocus
             />
           </div>
