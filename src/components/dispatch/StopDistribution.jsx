@@ -33,7 +33,7 @@ export default function StopDistribution({ drivers }) {
             title={`${d['Driver Name']}: ${d.stops} stops`}
           >
             <span className="sd__seg-label">
-              {d['Driver Name']?.slice(0, 3)}
+              {d['Driver Name']}
             </span>
           </div>
         ))}
