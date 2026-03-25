@@ -372,3 +372,27 @@
     justify-content: space-between;
   }
 }
+
+/* Reconciliation */
+.pay__recon { margin-top: 32px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 12px; padding: 24px; }
+.pay__recon-title { font-size: 18px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+.pay__recon-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 16px; }
+.pay__recon-table-wrap { overflow-x: auto; }
+.pay__recon-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pay__recon-table th { padding: 8px 6px; font-size: 11px; font-weight: 600; color: var(--gray-500); text-align: center; border-bottom: 1px solid var(--gray-200); }
+.pay__recon-subhead th { font-size: 10px; font-weight: 500; color: var(--gray-400); border-bottom: 2px solid var(--gray-200); }
+.pay__recon-table td { padding: 8px 6px; text-align: center; border-bottom: 1px solid var(--gray-100); }
+.pay__recon-name { text-align: left !important; font-weight: 600; color: var(--gray-900); white-space: nowrap; }
+.pay__recon-num { font-variant-numeric: tabular-nums; }
+.pay__recon-empty { color: var(--gray-300); }
+.pay__recon-ok { color: #16a34a; font-weight: 600; }
+.pay__recon-under { color: #dc2626; font-weight: 600; }
+.pay__recon-over { color: #2563eb; font-weight: 600; }
+.pay__recon-diff { font-size: 10px; margin-left: 2px; }
+.pay__recon-lock { font-size: 10px; margin-left: 2px; }
+.pay__recon-status { white-space: nowrap; }
+.pay__recon-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.pay__recon-badge--ok { background: #dcfce7; color: #16a34a; }
+.pay__recon-badge--under { background: #fef2f2; color: #dc2626; }
+.pay__recon-badge--over { background: #eff6ff; color: #2563eb; }
+.pay__recon-badge--pending { background: var(--gray-100); color: var(--gray-400); }
