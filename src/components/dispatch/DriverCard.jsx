@@ -29,8 +29,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [filters, setFilters] = useState({})
 
   const name = driver['Driver Name'] || '—'
-  const id = driver['Driver Number'] || driver['Driver ID'] || ''
-  const pharmacy = driver['Pharmacy'] || ''
+  const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
+  const pharmacy = driver['Pharmacy'] || driver.pharmacy || ''
   const pharma = PHARMACY_COLORS[pharmacy] || PHARMACY_COLORS.SHSP
   const stops = driver.stops || 0
   const coldChain = driver.coldChain || 0

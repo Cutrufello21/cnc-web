@@ -125,6 +125,7 @@ export default function DispatchPage() {
         drivers: drivers.map(d => ({
           'Driver Name': d.driver_name,
           'Driver #': d.driver_number,
+          Pharmacy: d.pharmacy || '',
           Email: d.email,
           stops: driverStops[d.driver_name]?.stops ?? 0,
           coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
