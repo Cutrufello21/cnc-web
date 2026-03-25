@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import './WeeklyBar.css'
 
@@ -7,7 +7,6 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }) {
   const maxStops = Math.max(...DAY_LABELS.map((d) => dailyStops[d] || 0), 1)
   const [recon, setRecon] = useState({})
-  const saveTimers = useRef({})
 
   // Get the Monday of current week
   const now = new Date()
@@ -23,41 +22,42 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
       .eq('driver_name', driverName).eq('week_of', weekOf)
       .then(({ data }) => {
         const map = {}
-        ;(data || []).forEach(r => { map[r.day] = { actual: r.actual_stops, notes: r.notes || '', id: r.id } })
+        ;(data || []).forEach(r => { map[r.day] = { actual: r.actual_stops, locked: r.locked || false, id: r.id } })
         setRecon(map)
       })
   }, [driverName, weekOf])
 
-  function handleChange(day, field, value) {
-    setRecon(prev => ({
-      ...prev,
-      [day]: { ...prev[day], [field]: value },
-    }))
-
-    // Debounce save
-    const key = `${day}-${field}`
-    clearTimeout(saveTimers.current[key])
-    saveTimers.current[key] = setTimeout(() => saveRecon(day, field, value), 800)
+  function handleActualChange(day, value) {
+    setRecon(prev => ({ ...prev, [day]: { ...prev[day], actual: value === '' ? null : value } }))
   }
 
-  async function saveRecon(day, field, value) {
-    const existing = recon[day]
+  async function handleLock(day) {
+    const r = recon[day] || {}
+    const actual = r.actual
+    if (actual == null || actual === '') return
+
     const row = {
       driver_name: driverName,
       week_of: weekOf,
       day,
-      actual_stops: field === 'actual' ? (value === '' ? null : parseInt(value)) : (existing?.actual === '' ? null : parseInt(existing?.actual) || null),
-      notes: field === 'notes' ? value : (existing?.notes || ''),
+      actual_stops: parseInt(actual),
+      locked: true,
     }
 
-    if (existing?.id) {
-      await supabase.from('stop_reconciliation').update(row).eq('id', existing.id)
+    if (r.id) {
+      await supabase.from('stop_reconciliation').update(row).eq('id', r.id)
     } else {
       const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
-      if (data?.[0]) {
-        setRecon(prev => ({ ...prev, [day]: { ...prev[day], id: data[0].id } }))
-      }
+      if (data?.[0]) row.id = data[0].id
     }
+    setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: true, id: row.id || prev[day]?.id } }))
+  }
+
+  async function handleUnlock(day) {
+    const r = recon[day]
+    if (!r?.id) return
+    await supabase.from('stop_reconciliation').update({ locked: false }).eq('id', r.id)
+    setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: false } }))
   }
 
   return (
@@ -94,12 +94,12 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
           {DAY_LABELS.map((day) => {
             const dispatched = dailyStops[day] || 0
             const r = recon[day] || {}
-            const actual = r.actual
-            const hasActual = actual != null && actual !== ''
-            const diff = hasActual ? parseInt(actual) - dispatched : null
+            const hasActual = r.actual != null && r.actual !== ''
+            const diff = hasActual ? parseInt(r.actual) - dispatched : null
+            const locked = r.locked
 
             return (
-              <div className="weekly__recon-day" key={day}>
+              <div className={`weekly__recon-day ${locked ? 'weekly__recon-day--locked' : ''}`} key={day}>
                 <span className="weekly__recon-day-label">{day}</span>
                 <div className="weekly__recon-row">
                   <span className="weekly__recon-field-label">Dispatched</span>
@@ -107,13 +107,17 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
                 </div>
                 <div className="weekly__recon-row">
                   <span className="weekly__recon-field-label">Actual</span>
-                  <input
-                    type="number"
-                    className="weekly__recon-input"
-                    placeholder="Enter actual stops"
-                    value={hasActual ? actual : ''}
-                    onChange={(e) => handleChange(day, 'actual', e.target.value)}
-                  />
+                  {locked ? (
+                    <span className="weekly__recon-dispatched">{r.actual}</span>
+                  ) : (
+                    <input
+                      type="number"
+                      className="weekly__recon-input"
+                      placeholder="Enter actual"
+                      value={hasActual ? r.actual : ''}
+                      onChange={(e) => handleActualChange(day, e.target.value)}
+                    />
+                  )}
                 </div>
                 <div className="weekly__recon-row">
                   <span className="weekly__recon-field-label">Difference</span>
@@ -125,15 +129,25 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
                     <span className="weekly__recon-diff weekly__recon-diff--empty">—</span>
                   )}
                 </div>
-                <div className="weekly__recon-row">
-                  <input
-                    type="text"
-                    className="weekly__recon-notes"
-                    placeholder="Notes"
-                    value={r.notes || ''}
-                    onChange={(e) => handleChange(day, 'notes', e.target.value)}
-                  />
-                </div>
+                {locked ? (
+                  <button className="weekly__recon-lock-btn weekly__recon-lock-btn--unlock" onClick={() => handleUnlock(day)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Locked
+                  </button>
+                ) : (
+                  <button
+                    className="weekly__recon-lock-btn"
+                    onClick={() => handleLock(day)}
+                    disabled={!hasActual}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                    </svg>
+                    Lock
+                  </button>
+                )}
               </div>
             )
           })}

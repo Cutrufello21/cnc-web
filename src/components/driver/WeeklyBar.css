@@ -89,13 +89,17 @@
 .weekly__recon-diff--under { color: #dc2626; }
 .weekly__recon-diff--over { color: #2563eb; }
 .weekly__recon-diff--empty { color: var(--gray-300); }
-.weekly__recon-notes { width: 100%; padding: 4px 8px; font-size: 11px; border: 1px solid var(--gray-200); border-radius: 6px; background: var(--white); }
-.weekly__recon-notes:focus { outline: none; border-color: var(--cornflower); }
-.weekly__recon-notes::placeholder { color: var(--gray-300); }
+.weekly__recon-day--locked { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.weekly__recon-lock-btn { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; padding: 6px; font-size: 11px; font-weight: 600; color: var(--gray-500); background: var(--white); border: 1px solid var(--gray-200); border-radius: 6px; cursor: pointer; margin-top: 4px; }
+.weekly__recon-lock-btn:hover:not(:disabled) { border-color: var(--gray-400); color: var(--gray-700); }
+.weekly__recon-lock-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.weekly__recon-lock-btn--unlock { color: #16a34a; border-color: #bbf7d0; background: #f0fdf4; }
+.weekly__recon-lock-btn--unlock:hover { background: #dcfce7; border-color: #86efac; }
 
 @media (max-width: 600px) {
   .weekly__recon-grid { grid-template-columns: 1fr; }
   .weekly__recon-day { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
   .weekly__recon-day-label { width: 100%; text-align: left; border-bottom: none; padding-bottom: 0; }
-  .weekly__recon-input, .weekly__recon-notes { width: auto; flex: 1; }
+  .weekly__recon-input { width: auto; flex: 1; }
+  .weekly__recon-lock-btn { width: auto; }
 }
