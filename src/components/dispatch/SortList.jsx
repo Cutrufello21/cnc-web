@@ -18,14 +18,60 @@ export default function SortList({ deliveryDate }) {
 
   async function loadData() {
     setLoading(true)
-    const { data } = await supabase.from('sort_list')
-      .select('*').eq('delivery_date', dateStr)
-      .order('sort_order', { ascending: true })
+    const [sortRes, stopsRes, driversRes] = await Promise.all([
+      supabase.from('sort_list').select('*').eq('delivery_date', dateStr).order('sort_order', { ascending: true }),
+      supabase.from('daily_stops').select('driver_name, pharmacy').eq('delivery_date', dateStr),
+      supabase.from('drivers').select('driver_name, pharmacy').eq('active', true),
+    ])
 
+    const existing = sortRes.data || []
     const result = { SHSP: [], Aultman: [] }
-    ;(data || []).forEach(r => {
-      if (result[r.pharmacy]) result[r.pharmacy].push(r)
-    })
+    existing.forEach(r => { if (result[r.pharmacy]) result[r.pharmacy].push(r) })
+
+    // Auto-populate if empty: add working drivers with blank route
+    if (existing.length === 0 && (stopsRes.data || []).length > 0) {
+      const driverPharmacy = {}
+      ;(driversRes.data || []).forEach(d => { driverPharmacy[d.driver_name] = d.pharmacy })
+
+      // Group stops by driver and their actual pharmacy from stops
+      const driverStopPharmacies = {}
+      ;(stopsRes.data || []).forEach(s => {
+        if (!driverStopPharmacies[s.driver_name]) driverStopPharmacies[s.driver_name] = new Set()
+        driverStopPharmacies[s.driver_name].add(s.pharmacy)
+      })
+
+      const rows = []
+      let shspOrder = 0, aultOrder = 0
+      const activeDrivers = [...new Set((stopsRes.data || []).map(s => s.driver_name))].sort()
+
+      for (const name of activeDrivers) {
+        const driverPharma = driverPharmacy[name] || 'SHSP'
+        const stopPharmacies = driverStopPharmacies[name] || new Set()
+
+        // Determine which sort list(s) this driver belongs on
+        if (driverPharma === 'Both') {
+          // Only add to lists where they have actual stops
+          if (stopPharmacies.has('SHSP')) {
+            rows.push({ delivery_date: dateStr, pharmacy: 'SHSP', driver_name: name, display_text: `${name.toUpperCase()} — `, sort_order: shspOrder++ })
+          }
+          if (stopPharmacies.has('Aultman')) {
+            rows.push({ delivery_date: dateStr, pharmacy: 'Aultman', driver_name: name, display_text: `${name.toUpperCase()} — `, sort_order: aultOrder++ })
+          }
+        } else if (driverPharma === 'Aultman') {
+          rows.push({ delivery_date: dateStr, pharmacy: 'Aultman', driver_name: name, display_text: `${name.toUpperCase()} — `, sort_order: aultOrder++ })
+        } else {
+          rows.push({ delivery_date: dateStr, pharmacy: 'SHSP', driver_name: name, display_text: `${name.toUpperCase()} — `, sort_order: shspOrder++ })
+        }
+      }
+
+      if (rows.length > 0) {
+        await supabase.from('sort_list').insert(rows)
+        // Re-fetch
+        const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).order('sort_order', { ascending: true })
+        ;(fresh || []).forEach(r => { if (result[r.pharmacy]) result[r.pharmacy].push(r) })
+      }
+    }
+
     setLines(result)
     setLoading(false)
   }
