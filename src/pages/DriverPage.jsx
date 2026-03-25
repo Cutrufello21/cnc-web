@@ -58,15 +58,26 @@ export default function DriverPage() {
         return
       }
 
-      // Always show today's stops
-      const deliveryDate = new Date().toISOString().split('T')[0]
+      // After 6 PM, show tomorrow's stops (just dispatched)
+      // Before 6 PM, show today's stops (being delivered now)
+      const now = new Date()
+      const hour = now.getHours()
+      const target = new Date(now)
+      if (hour >= 18) {
+        if (now.getDay() === 5) target.setDate(target.getDate() + 3) // Fri→Mon
+        else if (now.getDay() === 6) target.setDate(target.getDate() + 2) // Sat→Mon
+        else target.setDate(target.getDate() + 1)
+      }
+      const deliveryDate = `${target.getFullYear()}-${String(target.getMonth()+1).padStart(2,'0')}-${String(target.getDate()).padStart(2,'0')}`
+      const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+      const deliveryDayName = DAYNAMES[target.getDay()]
 
       // Get daily stops and approval status from Supabase
       const [stopsRes, logsRes] = await Promise.all([
         supabase.from('daily_stops').select('*')
           .eq('delivery_date', deliveryDate).eq('driver_name', driverName),
         supabase.from('dispatch_logs').select('*')
-          .eq('delivery_day', todayName).in('status', ['Complete', 'Success'])
+          .eq('delivery_day', deliveryDayName).in('status', ['Complete', 'Success'])
           .order('date', { ascending: false }).limit(1),
       ])
 
@@ -81,7 +92,7 @@ export default function DriverPage() {
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
       setData({
-        approved, deliveryDay: todayName, driverName, driverId, tabName,
+        approved, deliveryDay: deliveryDayName, driverName, driverId, tabName,
         stops, stopCount: stops.length,
         coldChainCount: stops.filter(s => s._coldChain).length,
         weekTotal, dailyStops,
