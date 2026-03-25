@@ -554,7 +554,7 @@ export default function Payroll() {
       </div>
 
       {/* Driver Reconciliation */}
-      {data.drivers && <ReconSection drivers={data.drivers} />}
+      <ReconSection drivers={data.drivers || []} />
 
       {/* Revenue */}
       <Revenue weekOf={(() => {
@@ -607,24 +607,19 @@ export default function Payroll() {
 function ReconSection({ drivers }) {
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
   const driversWithRecon = drivers.filter(d => d.recon && Object.keys(d.recon).length > 0)
-  const [approved, setApproved] = useState({})
-
-  useEffect(() => {
-    // Check which drivers already have approved recon
-    const map = {}
-    driversWithRecon.forEach(d => {
-      const allApproved = Object.values(d.recon).every(r => r.approved)
-      if (allApproved && Object.keys(d.recon).length > 0) map[d.name] = true
-    })
-    setApproved(map)
-  }, [drivers])
+  const [approvedLocal, setApprovedLocal] = useState({})
 
   async function handleApprove(driverName, reconEntries) {
     const ids = Object.values(reconEntries).filter(r => r.id).map(r => r.id)
     for (const id of ids) {
       await supabase.from('stop_reconciliation').update({ approved: true }).eq('id', id)
     }
-    setApproved(prev => ({ ...prev, [driverName]: true }))
+    setApprovedLocal(prev => ({ ...prev, [driverName]: true }))
+  }
+
+  function isApproved(d) {
+    if (approvedLocal[d.name]) return true
+    return Object.values(d.recon).length > 0 && Object.values(d.recon).every(r => r.approved)
   }
 
   if (driversWithRecon.length === 0) return null
@@ -664,10 +659,10 @@ function ReconSection({ drivers }) {
                 else hasAll = false
               })
               const totalDiff = totalActual - totalDisp
-              const isApproved = approved[d.name]
+              const driverApproved = isApproved(d)
 
               return (
-                <tr key={d.name} className={isApproved ? 'pay__recon-row--approved' : ''}>
+                <tr key={d.name} className={driverApproved ? 'pay__recon-row--approved' : ''}>
                   <td className="pay__recon-name">{d.name}</td>
                   {DAYS.map(day => {
                     const disp = d[day.toLowerCase()] || 0
@@ -703,7 +698,7 @@ function ReconSection({ drivers }) {
                     )}
                   </td>
                   <td>
-                    {isApproved ? (
+                    {driverApproved ? (
                       <span className="pay__recon-approved-tag">Approved</span>
                     ) : (
                       <button className="pay__recon-approve-btn" onClick={() => handleApprove(d.name, d.recon)}>
