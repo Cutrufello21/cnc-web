@@ -53,7 +53,7 @@ export default function RoutingEditor() {
     }
   }
 
-  async function handleSave(zip, day, newDriver) {
+  async function handleSave(zip, pharmacy, day, newDriver) {
     setSaving(true)
     try {
       const col = { Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri' }[day]
@@ -62,12 +62,13 @@ export default function RoutingEditor() {
       const { error } = await supabase.from('routing_rules')
         .update({ [col]: newDriver })
         .eq('zip_code', zip.trim())
+        .eq('pharmacy', pharmacy)
       if (error) throw new Error(error.message)
 
       setRules(prev => ({
         ...prev,
         data: prev.data.map(row => {
-          if ((row['ZIP Code'] || '').trim() === zip.trim()) {
+          if ((row['ZIP Code'] || '').trim() === zip.trim() && row.Pharmacy === pharmacy) {
             return { ...row, [day]: newDriver }
           }
           return row
@@ -111,16 +112,18 @@ export default function RoutingEditor() {
   }
 
   function startEditRow(row) {
-    setEditRow(row['ZIP Code'])
+    setEditRow(`${row['ZIP Code']}|${row['Pharmacy']}`)
     setEditData({
       mon: row['Mon'] || '', tue: row['Tue'] || '', wed: row['Wed'] || '',
       thu: row['Thu'] || '', fri: row['Fri'] || '',
       route: row['Route'] || '', pharmacy: row['Pharmacy'] || '',
+      originalPharmacy: row['Pharmacy'] || '',
     })
   }
 
   async function saveEditRow() {
     if (!editRow) return
+    const editZip = editRow.split('|')[0]
     setSaving(true)
     try {
       const { error } = await supabase.from('routing_rules')
@@ -129,7 +132,8 @@ export default function RoutingEditor() {
           thu: editData.thu, fri: editData.fri,
           route: editData.route, pharmacy: editData.pharmacy,
         })
-        .eq('zip_code', editRow)
+        .eq('zip_code', editZip)
+        .eq('pharmacy', editData.originalPharmacy || editData.pharmacy)
       if (error) throw new Error(error.message)
       setToast(`ZIP ${editRow} updated`)
       setTimeout(() => setToast(null), 3000)
@@ -143,12 +147,12 @@ export default function RoutingEditor() {
     }
   }
 
-  async function handleDelete(zip) {
-    if (!confirm(`Delete ZIP ${zip} from routing rules?`)) return
+  async function handleDelete(zip, pharmacy) {
+    if (!confirm(`Delete ZIP ${zip} (${pharmacy}) from routing rules?`)) return
     setDeleting(zip)
     try {
       const { error } = await supabase.from('routing_rules')
-        .delete().eq('zip_code', zip)
+        .delete().eq('zip_code', zip).eq('pharmacy', pharmacy)
       if (error) throw new Error(error.message)
       setToast(`ZIP ${zip} deleted`)
       setTimeout(() => setToast(null), 3000)
@@ -282,11 +286,13 @@ export default function RoutingEditor() {
           <tbody>
             {filtered.map((row) => {
               const zip = row['ZIP Code'] || ''
-              const isEditingRow = editRow === zip
+              const pharmacy = row.Pharmacy || ''
+              const rowKey = `${zip}|${pharmacy}`
+              const isEditingRow = editRow === rowKey
 
               if (isEditingRow) {
                 return (
-                  <tr key={zip} className="re__row--editing">
+                  <tr key={rowKey} className="re__row--editing">
                     <td className="re__cell-zip">{zip}</td>
                     {DAYS.map(day => (
                       <td key={day} className="re__cell-editing">
@@ -319,12 +325,12 @@ export default function RoutingEditor() {
               }
 
               return (
-                <tr key={zip}>
+                <tr key={rowKey}>
                   <td className="re__cell-zip">{zip}</td>
                   {DAYS.map(day => {
                     const val = row[day] || ''
                     const driverName = val.split('/')[0]
-                    const isEditing = editCell?.zip === zip && editCell?.day === day
+                    const isEditing = editCell?.zip === zip && editCell?.pharmacy === pharmacy && editCell?.day === day
 
                     if (isEditing) {
                       return (
@@ -335,7 +341,7 @@ export default function RoutingEditor() {
                             autoFocus
                             onChange={(e) => {
                               if (e.target.value !== val) {
-                                handleSave(zip, day, e.target.value)
+                                handleSave(zip, pharmacy, day, e.target.value)
                               } else {
                                 setEditCell(null)
                               }
@@ -354,7 +360,7 @@ export default function RoutingEditor() {
                       <td
                         key={day}
                         className={`re__cell-driver ${filterDay && filterDay !== day ? 're__cell--dim' : ''}`}
-                        onClick={() => setEditCell({ zip, day })}
+                        onClick={() => setEditCell({ zip, pharmacy, day })}
                         title={`Click to change ${zip} ${day}`}
                       >
                         <span className="re__driver-name">{driverName || '—'}</span>
@@ -365,7 +371,7 @@ export default function RoutingEditor() {
                   <td className="re__cell-pharma">{row['Pharmacy'] || ''}</td>
                   <td className="re__cell-actions">
                     <button className="re__action-btn re__action-btn--edit" onClick={() => startEditRow(row)} title="Edit row">&#9998;</button>
-                    <button className="re__action-btn re__action-btn--delete" onClick={() => handleDelete(zip)} disabled={deleting === zip} title="Delete ZIP">&times;</button>
+                    <button className="re__action-btn re__action-btn--delete" onClick={() => handleDelete(zip, pharmacy)} disabled={deleting === zip} title="Delete ZIP">&times;</button>
                   </td>
                 </tr>
               )
