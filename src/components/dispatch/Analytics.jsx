@@ -121,7 +121,7 @@ export default function Analytics() {
             <div className="an__month-grid">
               {(data.monthlyTrend || []).map(m => (
                 <div className="an__month-card" key={m.month}>
-                  <span className="an__month-label">{m.month}</span>
+                  <span className="an__month-label">{(() => { const [y, mo] = m.month.split('-'); const names = ['January','February','March','April','May','June','July','August','September','October','November','December']; return `${y} - ${names[+mo - 1]}` })()}</span>
                   <span className="an__month-orders">{m.orders.toLocaleString()}</span>
                   <span className="an__month-avg">{m.avgPerDay}/day</span>
                   {m.growth !== null && (
