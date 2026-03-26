@@ -4,9 +4,13 @@ import './WeeklyBar.css'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
+const MTH_DAYS = new Set(['Mon', 'Tue', 'Thu'])
+const WF_DAYS = new Set(['Wed', 'Fri'])
+
 export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }) {
   const maxStops = Math.max(...DAY_LABELS.map((d) => dailyStops[d] || 0), 1)
   const [recon, setRecon] = useState({})
+  const [driverRates, setDriverRates] = useState(null)
 
   // Get the Monday of current week
   const now = new Date()
@@ -25,7 +29,32 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
         ;(data || []).forEach(r => { map[r.day] = { actual: r.actual_stops, locked: r.locked || false, id: r.id } })
         setRecon(map)
       })
+    supabase.from('drivers').select('rate_mth, rate_wf, office_fee, flat_salary')
+      .eq('driver_name', driverName).single()
+      .then(({ data }) => { if (data) setDriverRates(data) })
   }, [driverName, weekOf])
+
+  function calcDayPay(day, stops) {
+    if (!driverRates || !stops) return null
+    if (driverRates.flat_salary) return null // flat salary drivers don't get per-stop
+    const rate = MTH_DAYS.has(day) ? parseFloat(driverRates.rate_mth) || 0 : parseFloat(driverRates.rate_wf) || 0
+    return Math.round(stops * rate * 100) / 100
+  }
+
+  function calcWeekPay() {
+    if (!driverRates) return null
+    if (driverRates.flat_salary) return parseFloat(driverRates.flat_salary)
+    let total = 0
+    let hasStops = false
+    DAY_LABELS.forEach(day => {
+      const stops = dailyStops[day] || 0
+      if (stops > 0) hasStops = true
+      const rate = MTH_DAYS.has(day) ? parseFloat(driverRates.rate_mth) || 0 : parseFloat(driverRates.rate_wf) || 0
+      total += stops * rate
+    })
+    if (hasStops) total += parseFloat(driverRates.office_fee) || 0
+    return Math.round(total * 100) / 100
+  }
 
   const saveTimers = useRef({})
 
@@ -85,7 +114,14 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
     <div className="weekly">
       <div className="weekly__header">
         <h3 className="weekly__title">This Week</h3>
-        <span className="weekly__total">{weekTotal} total stops</span>
+        <div className="weekly__header-right">
+          <span className="weekly__total">{weekTotal} total stops</span>
+          {driverRates && (
+            <span className="weekly__pay-proj">
+              Projected: <strong>${(calcWeekPay() || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="weekly__chart">
@@ -93,9 +129,12 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
           const count = dailyStops[day] || 0
           const pct = (count / maxStops) * 100
 
+          const dayPay = calcDayPay(day, count)
+
           return (
-            <div className="weekly__bar-col" key={day}>
+            <div className="weekly__bar-col" key={day} title={dayPay != null ? `$${dayPay.toFixed(2)}` : ''}>
               <span className="weekly__bar-value">{count}</span>
+              {dayPay != null && count > 0 && <span className="weekly__bar-pay">${dayPay.toFixed(0)}</span>}
               <div className="weekly__bar-track">
                 <div
                   className="weekly__bar-fill"
