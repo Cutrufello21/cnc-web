@@ -1,6 +1,6 @@
 import { writeFileSync } from 'fs'
 import nodemailer from 'nodemailer'
-import { parseBody, fetchRange, appendRows, deleteRow, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
+import { parseBody } from './_lib/sheets.js'
 import { supabase } from './_lib/supabase.js'
 
 // POST /api/actions
@@ -47,12 +47,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing transfer data' })
       }
 
-      // Get delivery day from one of the stops
-      const { data: stopRow } = await supabase.from('daily_stops').select('delivery_day, driver_number')
-        .eq('order_id', orderIds[0]).limit(1)
-      const deliveryDay = stopRow?.[0]?.delivery_day || ''
-      const fromDriverNumber = stopRow?.[0]?.driver_number || ''
-
       // Move stops in Supabase using service role key
       for (const orderId of orderIds) {
         await supabase.from('daily_stops').update({
@@ -60,52 +54,6 @@ export default async function handler(req, res) {
           driver_number: toDriverNumber,
           assigned_driver_number: toDriverNumber,
         }).eq('order_id', orderId)
-      }
-
-      // Move stops in Google Sheets
-      const sheetId = DAILY_SHEETS[deliveryDay]
-      if (sheetId) {
-        try {
-          const fromTab = `${fromDriverName} - ${fromDriverNumber}`
-          const toTab = `${toDriverName} - ${toDriverNumber}`
-          const tabs = await getSheetTabs(sheetId)
-          const fromTabInfo = tabs.find(t => t.title === fromTab)
-          const toTabInfo = tabs.find(t => t.title === toTab)
-
-          if (fromTabInfo && toTabInfo) {
-            const fromRows = await fetchRange(sheetId, `'${fromTab}'!A1:I200`)
-            if (fromRows.length >= 2) {
-              const headers = fromRows[0]
-              const orderIdIdx = headers.findIndex(h => h.trim() === 'Order ID')
-              const assignedIdx = headers.findIndex(h => h.trim() === 'Assigned Driver #')
-              const driverNumIdx = headers.findIndex(h => h.trim() === 'Dispatch Driver #')
-              const orderIdSet = new Set(orderIds.map(String))
-              const rowsToMove = []
-              const rowIndicesToDelete = []
-
-              fromRows.forEach((row, i) => {
-                if (i === 0) return
-                const oid = row[orderIdIdx]?.trim()
-                if (oid && orderIdSet.has(oid)) {
-                  const newRow = [...row]
-                  if (assignedIdx >= 0) newRow[assignedIdx] = toDriverNumber
-                  if (driverNumIdx >= 0) newRow[driverNumIdx] = toDriverNumber
-                  rowsToMove.push(newRow)
-                  rowIndicesToDelete.push(i)
-                }
-              })
-
-              if (rowsToMove.length > 0) {
-                await appendRows(sheetId, `'${toTab}'!A1`, rowsToMove)
-                for (const rowIdx of rowIndicesToDelete.reverse()) {
-                  await deleteRow(sheetId, fromTabInfo.sheetId, rowIdx)
-                }
-              }
-            }
-          }
-        } catch (sheetErr) {
-          console.error('[transfer sheets]', sheetErr.message)
-        }
       }
 
       // Send email to BioTouch
