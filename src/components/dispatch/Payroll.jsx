@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import Revenue from './Revenue'
 import './Payroll.css'
@@ -132,18 +132,10 @@ export default function Payroll() {
       monday.setDate(now.getDate() + mondayOffset)
       const weekOf = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
 
-      const [payrollRes, driversRes, reconRes] = await Promise.all([
+      const [payrollRes, driversRes] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
         supabase.from('drivers').select('*'),
-        supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf),
       ])
-
-      // Build reconciliation lookup: { driverName: { Mon: { actual, locked }, ... } }
-      const reconMap = {}
-      ;(reconRes.data || []).forEach(r => {
-        if (!reconMap[r.driver_name]) reconMap[r.driver_name] = {}
-        reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: r.locked, approved: r.approved, id: r.id }
-      })
 
       const driverMap = {}
       ;(driversRes.data || []).forEach(d => { driverMap[d.driver_name] = d })
@@ -180,7 +172,7 @@ export default function Payroll() {
           isBrad: p.driver_name === 'Brad',
           isFlat: !!flatSalary,
           rowIndex: p.id,
-          recon: reconMap[p.driver_name] || null,
+          recon: null,
         }
       })
 
@@ -599,120 +591,3 @@ export default function Payroll() {
   )
 }
 
-function ReconSection({ drivers }) {
-  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-  const driversWithRecon = drivers.filter(d => d.recon && Object.keys(d.recon).length > 0)
-  const [approved, setApproved] = useState({})
-
-  useEffect(() => {
-    // Check which drivers already have approved recon
-    const map = {}
-    driversWithRecon.forEach(d => {
-      const allApproved = Object.values(d.recon).every(r => r.approved)
-      if (allApproved && Object.keys(d.recon).length > 0) map[d.name] = true
-    })
-    setApproved(map)
-  }, [drivers])
-
-  async function handleApprove(driverName, reconEntries) {
-    const ids = Object.values(reconEntries).filter(r => r.id).map(r => r.id)
-    for (const id of ids) {
-      await supabase.from('stop_reconciliation').update({ approved: true }).eq('id', id)
-    }
-    setApproved(prev => ({ ...prev, [driverName]: true }))
-  }
-
-  if (driversWithRecon.length === 0) return null
-
-  return (
-    <div className="pay__recon">
-      <h3 className="pay__recon-title">Driver Reconciliation</h3>
-      <p className="pay__recon-sub">Drivers reported their actual stop counts. Review and approve below.</p>
-      <div className="pay__recon-table-wrap">
-        <table className="pay__recon-table">
-          <thead>
-            <tr>
-              <th>Driver</th>
-              {DAYS.map(d => <th key={d} colSpan={2}>{d}</th>)}
-              <th>Status</th>
-              <th></th>
-            </tr>
-            <tr className="pay__recon-subhead">
-              <th></th>
-              {DAYS.map(d => (
-                <React.Fragment key={d}>
-                  <th>Disp</th>
-                  <th>Actual</th>
-                </React.Fragment>
-              ))}
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {driversWithRecon.map(d => {
-              let totalDisp = 0, totalActual = 0, hasAll = true
-              DAYS.forEach(day => {
-                const disp = d[day.toLowerCase()] || 0
-                totalDisp += disp
-                if (d.recon[day]?.actual != null) totalActual += d.recon[day].actual
-                else hasAll = false
-              })
-              const totalDiff = totalActual - totalDisp
-              const isApproved = approved[d.name]
-
-              return (
-                <tr key={d.name} className={isApproved ? 'pay__recon-row--approved' : ''}>
-                  <td className="pay__recon-name">{d.name}</td>
-                  {DAYS.map(day => {
-                    const disp = d[day.toLowerCase()] || 0
-                    const r = d.recon[day]
-                    const actual = r?.actual
-                    const hasActual = actual != null
-                    const diff = hasActual ? actual - disp : null
-
-                    return (
-                      <React.Fragment key={day}>
-                        <td className="pay__recon-num">{disp}</td>
-                        <td className={`pay__recon-num ${!hasActual ? 'pay__recon-empty' : diff === 0 ? 'pay__recon-ok' : diff < 0 ? 'pay__recon-under' : 'pay__recon-over'}`}>
-                          {hasActual ? (
-                            <>
-                              {actual}
-                              {diff !== 0 && <span className="pay__recon-diff">({diff > 0 ? `+${diff}` : diff})</span>}
-                              {r?.locked && <span className="pay__recon-lock" title="Locked by driver">🔒</span>}
-                            </>
-                          ) : '—'}
-                        </td>
-                      </React.Fragment>
-                    )
-                  })}
-                  <td className="pay__recon-status">
-                    {hasAll && totalDiff === 0 ? (
-                      <span className="pay__recon-badge pay__recon-badge--ok">✓ Match</span>
-                    ) : hasAll ? (
-                      <span className={`pay__recon-badge ${totalDiff < 0 ? 'pay__recon-badge--under' : 'pay__recon-badge--over'}`}>
-                        {totalDiff > 0 ? `+${totalDiff}` : totalDiff}
-                      </span>
-                    ) : (
-                      <span className="pay__recon-badge pay__recon-badge--pending">Pending</span>
-                    )}
-                  </td>
-                  <td>
-                    {isApproved ? (
-                      <span className="pay__recon-approved-tag">Approved</span>
-                    ) : (
-                      <button className="pay__recon-approve-btn" onClick={() => handleApprove(d.name, d.recon)}>
-                        Approve
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-// rebuild 1774498926
