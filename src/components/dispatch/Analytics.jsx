@@ -74,11 +74,10 @@ export default function Analytics() {
       {tab === 'overview' && (
         <>
           <div className="an__kpis">
-            <div className="an__kpi"><span className="an__kpi-label">Total Orders</span><span className="an__kpi-value">{(k.totalOrders || 0).toLocaleString()}</span></div>
+            <div className="an__kpi"><span className="an__kpi-label">Total Orders</span><span className="an__kpi-value">{(k.totalOrders || 0).toLocaleString()}</span><span className="an__kpi-sub an__kpi-sub--cc">{(k.totalColdChain || 0).toLocaleString()} cold chain</span></div>
             <div className="an__kpi"><span className="an__kpi-label">Avg / Night</span><span className="an__kpi-value">{k.avgPerNight || 0}</span></div>
-            <div className="an__kpi"><span className="an__kpi-label">Cold Chain</span><span className="an__kpi-value an__kpi-value--accent">{(k.totalColdChain || 0).toLocaleString()}</span><span className="an__kpi-sub">{k.coldChainPct || 0}%</span></div>
-            <div className="an__kpi"><span className="an__kpi-label">SHSP</span><span className="an__kpi-value">{(k.shspTotal || 0).toLocaleString()}</span><span className="an__kpi-sub">{k.shspPct || 0}%</span></div>
-            <div className="an__kpi"><span className="an__kpi-label">Aultman</span><span className="an__kpi-value">{(k.aultmanTotal || 0).toLocaleString()}</span><span className="an__kpi-sub">{100 - (k.shspPct || 0)}%</span></div>
+            <div className="an__kpi"><span className="an__kpi-label">SHSP</span><span className="an__kpi-value">{(k.shspTotal || 0).toLocaleString()}<span className="an__kpi-cc">/{Math.round((k.shspTotal || 0) * (k.coldChainPct || 0) / 100).toLocaleString()}</span></span><span className="an__kpi-sub">{k.shspPct || 0}%</span></div>
+            <div className="an__kpi"><span className="an__kpi-label">Aultman</span><span className="an__kpi-value">{(k.aultmanTotal || 0).toLocaleString()}<span className="an__kpi-cc">/{Math.round((k.aultmanTotal || 0) * (k.coldChainPct || 0) / 100).toLocaleString()}</span></span><span className="an__kpi-sub">{100 - (k.shspPct || 0)}%</span></div>
           </div>
 
           <div className="an__card an__card--full">
@@ -171,11 +170,6 @@ export default function Analytics() {
               <div className="an__split-shsp" style={{ width: `${k.shspPct}%` }}>SHSP — {(k.shspTotal || 0).toLocaleString()} ({k.shspPct}%)</div>
               <div className="an__split-aultman" style={{ width: `${100 - (k.shspPct || 0)}%` }}>Aultman — {(k.aultmanTotal || 0).toLocaleString()} ({100 - (k.shspPct || 0)}%)</div>
             </div>
-          </div>
-          <div className="an__card">
-            <h3 className="an__card-title">Cold Chain</h3>
-            <span className="an__kpi-value an__kpi-value--accent" style={{ fontSize: 32 }}>{(k.totalColdChain || 0).toLocaleString()}</span>
-            <span className="an__kpi-sub">{k.coldChainPct}% of all orders</span>
           </div>
           <div className="an__card">
             <h3 className="an__card-title">Dispatches</h3>
