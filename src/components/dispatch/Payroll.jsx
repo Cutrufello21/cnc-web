@@ -6,6 +6,7 @@ import './Payroll.css'
 export default function Payroll() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [reconApproved, setReconApproved] = useState({})
   const [edits, setEdits] = useState({}) // { "driverName:field": value }
   const [saving, setSaving] = useState(null)
   const [approved, setApproved] = useState(false)
@@ -132,10 +133,17 @@ export default function Payroll() {
       monday.setDate(now.getDate() + mondayOffset)
       const weekOf = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
 
-      const [payrollRes, driversRes] = await Promise.all([
+      const [payrollRes, driversRes, reconRes] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
         supabase.from('drivers').select('*'),
+        supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf).then(r => r).catch(() => ({ data: [] })),
       ])
+
+      const reconMap = {}
+      ;(reconRes.data || []).forEach(r => {
+        if (!reconMap[r.driver_name]) reconMap[r.driver_name] = {}
+        reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: !!r.locked, approved: !!r.approved, id: r.id }
+      })
 
       const driverMap = {}
       ;(driversRes.data || []).forEach(d => { driverMap[d.driver_name] = d })
@@ -172,7 +180,7 @@ export default function Payroll() {
           isBrad: p.driver_name === 'Brad',
           isFlat: !!flatSalary,
           rowIndex: p.id,
-          recon: null,
+          recon: reconMap[p.driver_name] || null,
         }
       })
 
@@ -542,6 +550,79 @@ export default function Payroll() {
 
       {/* Driver Reconciliation */}
       {/* ReconSection temporarily removed — will rebuild */}
+
+      {/* Reconciliation */}
+      {(() => {
+        const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+        const withRecon = (data.drivers || []).filter(d => d.recon && Object.keys(d.recon).length > 0)
+        if (withRecon.length === 0) return null
+
+        async function approveDriver(name, recon) {
+          const ids = Object.values(recon).filter(r => r.id).map(r => r.id)
+          for (const id of ids) {
+            await supabase.from('stop_reconciliation').update({ approved: true }).eq('id', id)
+          }
+          setReconApproved(prev => ({ ...prev, [name]: true }))
+        }
+
+        return (
+          <div className="pay__recon">
+            <h3 className="pay__recon-title">Driver Reconciliation</h3>
+            <p className="pay__recon-sub">Drivers reported their actual stop counts. Review and approve below.</p>
+            <div className="pay__recon-table-wrap">
+              <table className="pay__recon-table">
+                <thead>
+                  <tr>
+                    <th>Driver</th>
+                    {DAYS.map(d => <th key={d}>{d}</th>)}
+                    <th>Diff</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {withRecon.map(d => {
+                    let totalDisp = 0, totalActual = 0, complete = true
+                    DAYS.forEach(day => {
+                      totalDisp += d[day.toLowerCase()] || 0
+                      if (d.recon[day]?.actual != null) totalActual += d.recon[day].actual
+                      else complete = false
+                    })
+                    const diff = totalActual - totalDisp
+                    const isApproved = reconApproved[d.name] || (Object.values(d.recon).length > 0 && Object.values(d.recon).every(r => r.approved))
+
+                    return (
+                      <tr key={d.name} className={isApproved ? 'pay__recon-row--approved' : ''}>
+                        <td className="pay__recon-name">{d.name}</td>
+                        {DAYS.map(day => {
+                          const disp = d[day.toLowerCase()] || 0
+                          const actual = d.recon[day]?.actual
+                          const has = actual != null
+                          const dd = has ? actual - disp : null
+                          return (
+                            <td key={day} className={`pay__recon-num ${!has ? 'pay__recon-empty' : dd === 0 ? 'pay__recon-ok' : dd < 0 ? 'pay__recon-under' : 'pay__recon-over'}`}>
+                              {has ? `${actual}` : '—'}
+                              {has && dd !== 0 ? <span className="pay__recon-diff"> ({dd > 0 ? '+' : ''}{dd})</span> : ''}
+                            </td>
+                          )
+                        })}
+                        <td className={`pay__recon-num ${!complete ? '' : diff === 0 ? 'pay__recon-ok' : diff < 0 ? 'pay__recon-under' : 'pay__recon-over'}`}>
+                          {complete ? (diff === 0 ? 'Match' : (diff > 0 ? `+${diff}` : diff)) : 'Pending'}
+                        </td>
+                        <td>
+                          {isApproved
+                            ? <span className="pay__recon-approved-tag">Approved</span>
+                            : <button className="pay__recon-approve-btn" onClick={() => approveDriver(d.name, d.recon)}>Approve</button>
+                          }
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Revenue */}
       <Revenue weekOf={(() => {
