@@ -131,6 +131,70 @@ export default async function handler(req, res) {
       })
     }
 
+    // === TREND DATA (always computed from ALL logs, not period-filtered) ===
+    const allForTrends = allLogs
+
+    // 7-day moving average
+    const movingAvg = allForTrends.map((r, i) => {
+      const window = allForTrends.slice(Math.max(0, i - 6), i + 1)
+      return {
+        date: r.date,
+        avg: Math.round(window.reduce((s, d) => s + (d.orders_processed || 0), 0) / window.length),
+      }
+    })
+
+    // Month-over-month: group by YYYY-MM, compute totals and growth
+    const byMonth = {}
+    allForTrends.forEach(r => {
+      const m = r.date?.slice(0, 7)
+      if (!m) return
+      if (!byMonth[m]) byMonth[m] = { orders: 0, cc: 0, shsp: 0, aultman: 0, days: 0 }
+      byMonth[m].orders += r.orders_processed || 0
+      byMonth[m].cc += r.cold_chain || 0
+      byMonth[m].shsp += r.shsp_orders || 0
+      byMonth[m].aultman += r.aultman_orders || 0
+      byMonth[m].days++
+    })
+    const months = Object.keys(byMonth).sort()
+    const monthlyTrend = months.map((m, i) => {
+      const cur = byMonth[m]
+      const prev = i > 0 ? byMonth[months[i - 1]] : null
+      const growth = prev && prev.orders > 0 ? Math.round(((cur.orders - prev.orders) / prev.orders) * 100) : null
+      const total = cur.orders || 1
+      return {
+        month: m,
+        orders: cur.orders,
+        avgPerDay: cur.days ? Math.round(cur.orders / cur.days) : 0,
+        growth,
+        ccPct: Math.round((cur.cc / total) * 100),
+        shspPct: Math.round((cur.shsp / total) * 100),
+        aultmanPct: Math.round((cur.aultman / total) * 100),
+        shsp: cur.shsp,
+        aultman: cur.aultman,
+        cc: cur.cc,
+        days: cur.days,
+      }
+    })
+
+    // Cold chain % over time (weekly buckets)
+    const ccTrend = []
+    for (let i = 0; i < allForTrends.length; i += 5) {
+      const chunk = allForTrends.slice(i, i + 5)
+      const total = chunk.reduce((s, r) => s + (r.orders_processed || 0), 0)
+      const cc = chunk.reduce((s, r) => s + (r.cold_chain || 0), 0)
+      ccTrend.push({ date: chunk[0]?.date, pct: total ? Math.round((cc / total) * 100) : 0, total, cc })
+    }
+
+    // SHSP vs Aultman share over time (weekly buckets)
+    const pharmaTrend = []
+    for (let i = 0; i < allForTrends.length; i += 5) {
+      const chunk = allForTrends.slice(i, i + 5)
+      const shsp = chunk.reduce((s, r) => s + (r.shsp_orders || 0), 0)
+      const aultman = chunk.reduce((s, r) => s + (r.aultman_orders || 0), 0)
+      const total = shsp + aultman || 1
+      pharmaTrend.push({ date: chunk[0]?.date, shsp, aultman, shspPct: Math.round((shsp / total) * 100) })
+    }
+
     return res.status(200).json({
       period,
       dispatches: logs.length,
@@ -142,6 +206,7 @@ export default async function handler(req, res) {
       },
       volumeTrend, dayAvg, driverLeaderboard: driverStats,
       topDriverOverall, topZips, patientData, topLocations, pharmaSplit,
+      movingAvg, monthlyTrend, ccTrend, pharmaTrend,
     })
   } catch (err) {
     console.error('[analytics API]', err.message)

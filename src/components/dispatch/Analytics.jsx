@@ -66,7 +66,7 @@ export default function Analytics() {
       </div>
 
       <div className="an__subtabs">
-        {[['overview','Overview'],['drivers','Drivers'],['geography','Geography'],['pharmacy','Pharmacy']].map(([key, label]) => (
+        {[['overview','Overview'],['trends','Trends'],['drivers','Drivers'],['geography','Geography'],['pharmacy','Pharmacy']].map(([key, label]) => (
           <button key={key} className={`an__subtab ${tab === key ? 'an__subtab--active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -105,6 +105,51 @@ export default function Analytics() {
             </div>
           </div>
         </>
+      )}
+
+      {tab === 'trends' && (
+        <div className="an__grid">
+          {/* Volume + 7-day Moving Average */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">Volume + 7-Day Moving Average</h3>
+            <TrendChart data={data.volumeTrend || []} movingAvg={data.movingAvg || []} />
+          </div>
+
+          {/* Month-over-Month Growth */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">Month-over-Month</h3>
+            <div className="an__month-grid">
+              {(data.monthlyTrend || []).map(m => (
+                <div className="an__month-card" key={m.month}>
+                  <span className="an__month-label">{m.month}</span>
+                  <span className="an__month-orders">{m.orders.toLocaleString()}</span>
+                  <span className="an__month-avg">{m.avgPerDay}/day</span>
+                  {m.growth !== null && (
+                    <span className={`an__month-growth ${m.growth >= 0 ? 'an__month-growth--up' : 'an__month-growth--down'}`}>
+                      {m.growth >= 0 ? '+' : ''}{m.growth}%
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cold Chain % Over Time */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">Cold Chain % Over Time</h3>
+            <LineChart data={(data.ccTrend || []).map(d => ({ date: d.date, value: d.pct, label: d.pct + '%' }))} color="#6495ed" />
+          </div>
+
+          {/* SHSP vs Aultman Shift */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">SHSP vs Aultman Share Over Time</h3>
+            <LineChart data={(data.pharmaTrend || []).map(d => ({ date: d.date, value: d.shspPct, label: 'SHSP ' + d.shspPct + '%' }))} color="#3b82f6" />
+            <div className="an__legend" style={{ marginTop: 8 }}>
+              <span><span className="an__dot an__dot--shsp" />SHSP %</span>
+              <span><span className="an__dot an__dot--aultman" />Aultman = remainder</span>
+            </div>
+          </div>
+        </div>
       )}
 
       {tab === 'drivers' && (
@@ -198,6 +243,70 @@ function BarChart({ data, maxVol }) {
             </div>
             <span className="an__vol-val">{d.orders}</span>
             <span className="an__vol-label">{(d.day || '').slice(0, 3)}</span>
+            <span className="an__vol-date">{fmtDate(d.date)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TrendChart({ data, movingAvg }) {
+  const ref = useRef(null)
+  useEffect(() => { if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth }, [data])
+  const maxVol = Math.max(...(data || []).map(d => d.orders || 0), 1)
+  const maxAvg = Math.max(...(movingAvg || []).map(d => d.avg || 0), 1)
+  const maxY = Math.max(maxVol, maxAvg)
+
+  return (
+    <div className="an__vol-scroll" ref={ref}>
+      <div className="an__trend-chart">
+        {(data || []).map((d, i) => {
+          const avg = movingAvg[i]?.avg || 0
+          return (
+            <div className="an__trend-col" key={i} title={`${fmtDate(d.date)}: ${d.orders} orders, 7d avg: ${avg}`}>
+              <div className="an__trend-bar-area">
+                <div className="an__vol-bar" style={{ height: `${(d.orders / maxY) * 100}%` }}>
+                  <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
+                </div>
+                <div className="an__trend-line" style={{ bottom: `${(avg / maxY) * 100}%` }} />
+              </div>
+              <span className="an__vol-val" style={{ fontSize: 10 }}>{d.orders}</span>
+              <span className="an__vol-date">{fmtDate(d.date)}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="an__legend" style={{ marginTop: 8 }}>
+        <span><span className="an__dot an__dot--shsp" />SHSP</span>
+        <span><span className="an__dot an__dot--aultman" />Aultman</span>
+        <span><span style={{ display: 'inline-block', width: 16, height: 2, background: '#f59e0b', verticalAlign: 'middle', marginRight: 4 }} />7-Day Avg</span>
+      </div>
+    </div>
+  )
+}
+
+function LineChart({ data, color }) {
+  const ref = useRef(null)
+  useEffect(() => { if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth }, [data])
+  const maxVal = Math.max(...(data || []).map(d => d.value || 0), 1)
+  const minVal = Math.min(...(data || []).map(d => d.value || 0))
+  const range = maxVal - minVal || 1
+
+  return (
+    <div className="an__vol-scroll" ref={ref}>
+      <div className="an__line-chart">
+        {(data || []).map((d, i) => (
+          <div className="an__line-col" key={i} title={`${fmtDate(d.date)}: ${d.label}`}>
+            <div className="an__line-bar-area">
+              <div className="an__line-dot" style={{ bottom: `${((d.value - minVal) / range) * 80 + 10}%`, background: color }} />
+              {i > 0 && <div className="an__line-connector" style={{
+                bottom: `${((data[i-1].value - minVal) / range) * 80 + 10}%`,
+                height: `${Math.abs(d.value - data[i-1].value) / range * 80}%`,
+                background: color, opacity: 0.3,
+              }} />}
+            </div>
+            <span className="an__line-val" style={{ color }}>{d.value}%</span>
             <span className="an__vol-date">{fmtDate(d.date)}</span>
           </div>
         ))}

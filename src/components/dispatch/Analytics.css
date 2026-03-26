@@ -630,3 +630,28 @@
   .an__kpis { grid-template-columns: repeat(2, 1fr); }
   .an__kpi-value { font-size: 22px; }
 }
+
+/* Trend chart */
+.an__trend-chart { display: flex; align-items: flex-end; gap: 2px; min-width: max-content; height: 220px; padding-bottom: 36px; }
+.an__trend-col { display: flex; flex-direction: column; align-items: center; width: 28px; min-width: 28px; height: 100%; }
+.an__trend-bar-area { flex: 1; width: 100%; position: relative; display: flex; align-items: flex-end; }
+.an__trend-bar-area .an__vol-bar { width: 100%; border-radius: 3px 3px 0 0; }
+.an__trend-line { position: absolute; left: 50%; width: 8px; height: 3px; background: #f59e0b; border-radius: 2px; transform: translateX(-50%); z-index: 2; }
+
+/* Month-over-month grid */
+.an__month-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.an__month-card { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
+.an__month-label { font-size: 12px; font-weight: 600; color: var(--gray-500); }
+.an__month-orders { font-size: 20px; font-weight: 700; color: var(--gray-900); }
+.an__month-avg { font-size: 11px; color: var(--gray-400); }
+.an__month-growth { font-size: 13px; font-weight: 700; }
+.an__month-growth--up { color: #16a34a; }
+.an__month-growth--down { color: #dc2626; }
+
+/* Line chart */
+.an__line-chart { display: flex; align-items: flex-end; gap: 2px; min-width: max-content; height: 180px; padding-bottom: 36px; }
+.an__line-col { display: flex; flex-direction: column; align-items: center; width: 36px; min-width: 36px; height: 100%; }
+.an__line-bar-area { flex: 1; width: 100%; position: relative; }
+.an__line-dot { position: absolute; left: 50%; width: 8px; height: 8px; border-radius: 50%; transform: translateX(-50%); z-index: 2; }
+.an__line-connector { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); }
+.an__line-val { font-size: 10px; font-weight: 600; margin-top: 4px; }
