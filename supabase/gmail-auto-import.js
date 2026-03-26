@@ -121,6 +121,7 @@ function processThread(thread) {
   writeDailyStops(deliveryDay, deliveryDate, assigned);
   writeOrders(deliveryDate, assigned);
   writeDispatchLog(deliveryDay, deliveryDate, assigned, unassigned);
+  updatePayroll(deliveryDay, deliveryDate, assigned);
 
   // Send confirmation
   const driverSummary = Object.entries(assigned)
@@ -356,6 +357,64 @@ function writeDispatchLog(deliveryDay, deliveryDate, assigned, unassigned) {
     top_driver: topDriver ? topDriver[0] : '',
   }]);
   Logger.log(`  dispatch_logs: ${total} orders logged`);
+}
+
+function updatePayroll(deliveryDay, deliveryDate, assigned) {
+  // Get Monday of this week
+  const d = new Date(deliveryDate + 'T12:00:00');
+  const dow = d.getDay();
+  const mondayOffset = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + mondayOffset);
+  const weekOf = Utilities.formatDate(monday, 'America/New_York', 'yyyy-MM-dd');
+
+  const dayCol = { Monday: 'mon', Tuesday: 'tue', Wednesday: 'wed', Thursday: 'thu', Friday: 'fri' }[deliveryDay];
+  if (!dayCol) return;
+
+  // Count stops per driver
+  for (const [driverId, orders] of Object.entries(assigned)) {
+    const driverName = DRIVERS[driverId] || driverId;
+    const stopCount = orders.length;
+
+    // Check if payroll row exists
+    const existing = supabaseGet('payroll', `select=*&week_of=eq.${weekOf}&driver_name=eq.${encodeURIComponent(driverName)}`);
+
+    if (existing && existing.length > 0) {
+      // Update the day column and recalculate total
+      const row = existing[0];
+      const update = { [dayCol]: stopCount };
+      const days = ['mon', 'tue', 'wed', 'thu', 'fri'];
+      let total = 0;
+      days.forEach(dd => { total += dd === dayCol ? stopCount : (row[dd] || 0); });
+      update.week_total = total;
+
+      UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/payroll?id=eq.${row.id}`, {
+        method: 'patch',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal',
+        },
+        payload: JSON.stringify(update),
+        muteHttpExceptions: true,
+      });
+    } else {
+      // Create new payroll row
+      const newRow = {
+        week_of: weekOf,
+        driver_name: driverName,
+        driver_number: driverId,
+        mon: 0, tue: 0, wed: 0, thu: 0, fri: 0,
+        week_total: stopCount,
+        will_calls: 0,
+        weekly_pay: 0,
+      };
+      newRow[dayCol] = stopCount;
+      supabasePost('payroll', [newRow]);
+    }
+  }
+  Logger.log(`  payroll: updated ${dayCol} for ${Object.keys(assigned).length} drivers`);
 }
 
 // ============================================

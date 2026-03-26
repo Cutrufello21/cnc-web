@@ -153,6 +153,20 @@
   font-weight: 600;
   color: var(--gray-900);
   font-size: 14px;
+  position: sticky;
+  left: 0;
+  background: var(--white);
+  z-index: 1;
+}
+
+.pay__table tbody tr:hover .pay__cell-name {
+  background: var(--gray-50);
+}
+
+.pay__table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
 }
 
 .pay__cell-id {

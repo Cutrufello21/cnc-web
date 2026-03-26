@@ -50,6 +50,9 @@
 }
 
 .shell__view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 5px 14px;
   font-size: 13px;
   font-weight: 500;
@@ -57,6 +60,7 @@
   border-radius: 6px;
   transition: all 0.15s;
 }
+.shell__view-btn svg { flex-shrink: 0; }
 
 .shell__view-btn--active {
   background: var(--white);

@@ -1,16 +1,28 @@
 /* ZIP search */
-.dispatch__zip-search { display: flex; align-items: center; gap: 8px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 8px; padding: 8px 14px; margin-bottom: 16px; max-width: 280px; }
+.dispatch__zip-search { display: flex; align-items: center; gap: 8px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 8px; padding: 8px 14px; max-width: 280px; }
 .dispatch__zip-search svg { color: var(--gray-400); flex-shrink: 0; }
 .dispatch__zip-input { border: none; outline: none; font-size: 14px; background: transparent; width: 100%; color: var(--gray-900); }
 .dispatch__zip-input::placeholder { color: var(--gray-400); }
 .dispatch__zip-clear { background: none; border: none; font-size: 18px; color: var(--gray-400); cursor: pointer; padding: 0 2px; line-height: 1; }
 .dispatch__zip-clear:hover { color: var(--gray-600); }
 
-/* Day selector */
-.dispatch__days {
+/* Day selector rows */
+.dispatch__days-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.dispatch__tools-row {
   display: flex;
   gap: 6px;
   margin-bottom: 24px;
+}
+
+.dispatch__days {
+  display: flex;
+  gap: 6px;
   background: var(--gray-100);
   padding: 4px;
   border-radius: 10px;

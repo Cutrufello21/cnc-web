@@ -14,6 +14,7 @@ export default function Payroll() {
   const [toast, setToast] = useState(null)
   const [insights, setInsights] = useState(null)
   const [loadingInsights, setLoadingInsights] = useState(false)
+  const [showRevenue, setShowRevenue] = useState(false)
 
   useEffect(() => { loadPayroll() }, [])
 
@@ -567,7 +568,7 @@ export default function Payroll() {
 
         return (
           <div className="pay__recon">
-            <h3 className="pay__recon-title">Driver Reconciliation</h3>
+            <h3 className="pay__recon-title">Driver Reconciliation ({withRecon.length} of {data.drivers.length} submitted)</h3>
             <p className="pay__recon-sub">Drivers reported their actual stop counts. Review and approve below.</p>
             <div className="pay__recon-table-wrap">
               <table className="pay__recon-table">
@@ -624,15 +625,30 @@ export default function Payroll() {
         )
       })()}
 
-      {/* Revenue */}
-      <Revenue weekOf={(() => {
-        const now = new Date()
-        const dow = now.getDay()
-        const off = dow === 0 ? -6 : 1 - dow
-        const mon = new Date(now)
-        mon.setDate(mon.getDate() + off)
-        return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`
-      })()} driverPayroll={adjustedTotal} />
+      {/* Revenue (collapsible) */}
+      <div style={{ marginTop: 24, background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: 12, overflow: 'hidden' }}>
+        <button
+          onClick={() => setShowRevenue(v => !v)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700, color: 'var(--gray-900)' }}
+        >
+          <span>Revenue</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showRevenue ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {showRevenue && (
+          <div style={{ padding: '0 24px 24px' }}>
+            <Revenue weekOf={(() => {
+              const now = new Date()
+              const dow = now.getDay()
+              const off = dow === 0 ? -6 : 1 - dow
+              const mon = new Date(now)
+              mon.setDate(mon.getDate() + off)
+              return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`
+            })()} driverPayroll={adjustedTotal} />
+          </div>
+        )}
+      </div>
 
       {/* AI Insights */}
       <div className="pay__insights">
