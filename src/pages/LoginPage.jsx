@@ -29,7 +29,7 @@ export default function LoginPage() {
           // cc.name → cc.name@cncdeliveryservice.com
           email = `${lower}@cncdeliveryservice.com`
         } else {
-          // Try looking up by driver name
+          // Look up driver by name → get their email from drivers table
           const { data: drivers } = await supabase.from('drivers')
             .select('email, driver_name')
             .ilike('driver_name', lower)
@@ -37,7 +37,7 @@ export default function LoginPage() {
           if (drivers?.length > 0 && drivers[0].email) {
             email = drivers[0].email
           } else {
-            throw new Error('Username not found. Try cc.firstname or your email.')
+            throw new Error('Username not found. Try your first name or email.')
           }
         }
       }
