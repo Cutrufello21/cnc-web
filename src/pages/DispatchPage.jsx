@@ -258,7 +258,7 @@ export default function DispatchPage() {
         sent++
       }
       // Push to Road Warrior for configured drivers
-      const rwDrivers = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
+      const rwDrivers = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom']
       const rwPayload = activeDrivers
         .filter(d => rwDrivers.includes(d['Driver Name']) && d.stopDetails?.length > 0)
         .map(d => ({

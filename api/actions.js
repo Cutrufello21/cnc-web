@@ -93,7 +93,6 @@ export default async function handler(req, res) {
         'Mark': 'ccdelivery.mark',
         'Mike': 'ccdelivery.mike',
         'Nick': 'ccdelivery.nick',
-        'Nicholas': 'ccdelivery.nicholas',
       }
 
       const results = []
