@@ -109,12 +109,12 @@ export default async function handler(req, res) {
               HardStop: false,
               TravelMode: 0,
               Stops: (driver.stops || []).map(s => ({
-                Name: s.order_id || '',
+                Name: `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`,
                 Address: `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`,
                 Lat: 0,
                 Lng: 0,
                 ServiceTime: 2,
-                Note: s.cold_chain ? 'Cold Chain' : '',
+                Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}`,
               })),
             }),
           })
