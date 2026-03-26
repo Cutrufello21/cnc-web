@@ -38,8 +38,8 @@ export default function Analytics() {
   const tl = data.topLocations || []
   const ps = data.pharmaSplit || []
 
-  // Aggregate weekly for All Time
-  const chartData = period === 'all' && vt.length > 60
+  // Aggregate weekly for All Time, reverse so newest is first (left)
+  const chartData = (period === 'all' && vt.length > 60
     ? Array.from({ length: Math.ceil(vt.length / 5) }, (_, i) => {
         const chunk = vt.slice(i * 5, i * 5 + 5)
         return {
@@ -50,6 +50,7 @@ export default function Analytics() {
         }
       })
     : vt
+  ).slice().reverse()
 
   const maxVol = Math.max(...chartData.map(d => d.orders || 0), 1)
   const maxDay = Math.max(...da.map(d => d.avg || 0), 1)
@@ -245,7 +246,7 @@ export default function Analytics() {
 
 function BarChart({ data, maxVol }) {
   const ref = useRef(null)
-  useEffect(() => { if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth }, [data])
+  useEffect(() => { if (ref.current) ref.current.scrollLeft = 0 }, [data])
 
   return (
     <div className="an__vol-scroll" ref={ref}>
@@ -269,7 +270,7 @@ function BarChart({ data, maxVol }) {
 
 function TrendChart({ data, movingAvg }) {
   const ref = useRef(null)
-  useEffect(() => { if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth }, [data])
+  useEffect(() => { if (ref.current) ref.current.scrollLeft = 0 }, [data])
   const maxVol = Math.max(...(data || []).map(d => d.orders || 0), 1)
   const maxAvg = Math.max(...(movingAvg || []).map(d => d.avg || 0), 1)
   const maxY = Math.max(maxVol, maxAvg)
@@ -304,7 +305,7 @@ function TrendChart({ data, movingAvg }) {
 
 function LineChart({ data, color }) {
   const ref = useRef(null)
-  useEffect(() => { if (ref.current) ref.current.scrollLeft = ref.current.scrollWidth }, [data])
+  useEffect(() => { if (ref.current) ref.current.scrollLeft = 0 }, [data])
   const maxVal = Math.max(...(data || []).map(d => d.value || 0), 1)
   const minVal = Math.min(...(data || []).map(d => d.value || 0))
   const range = maxVal - minVal || 1
