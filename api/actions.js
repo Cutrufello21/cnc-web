@@ -108,14 +108,30 @@ export default async function handler(req, res) {
               HardStart: false,
               HardStop: false,
               TravelMode: 0,
-              Stops: (driver.stops || []).map((s, i) => {
-                const addr = `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
-                // Use Canton, OH area coords with small offset per stop so RW doesn't dedupe
-                const lat = 40.80 + (i * 0.001)
-                const lng = -81.38 + (i * 0.001)
-                return { Name: addr, Address: addr, Lat: lat, Lng: lng, ServiceTime: 2,
-                  Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}` }
-              }),
+              Stops: await (async () => {
+                // Geocode unique ZIPs first (fast, 1 lookup per ZIP not per stop)
+                const zipCoords = {}
+                const uniqueZips = [...new Set((driver.stops || []).map(s => s.zip).filter(Boolean))]
+                for (const zip of uniqueZips) {
+                  try {
+                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=${zip}&country=US`, {
+                      headers: { 'User-Agent': 'CNCDelivery/1.0' },
+                    })
+                    const geoData = await geoRes.json()
+                    if (geoData?.[0]) zipCoords[zip] = { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) }
+                    await new Promise(r => setTimeout(r, 1100))
+                  } catch {}
+                }
+                // Each stop gets its ZIP centroid + small random offset so pins spread out
+                return (driver.stops || []).map((s, i) => {
+                  const addr = `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
+                  const base = zipCoords[s.zip] || { lat: 40.80, lng: -81.38 }
+                  const lat = base.lat + ((i % 10) * 0.002 - 0.01) + (Math.random() * 0.004 - 0.002)
+                  const lng = base.lng + ((i % 10) * 0.002 - 0.01) + (Math.random() * 0.004 - 0.002)
+                  return { Name: addr, Address: addr, Lat: lat, Lng: lng, ServiceTime: 2,
+                    Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}` }
+                })
+              })(),
             }),
           })
           const rwData = await rwRes.json()
