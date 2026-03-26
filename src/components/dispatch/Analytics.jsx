@@ -250,15 +250,15 @@ function BarChart({ data, maxVol, target }) {
 
   return (
     <div className="an__vol-scroll" ref={ref}>
-      <div className="an__vol-chart" style={{ position: 'relative' }}>
-        {target > 0 && target <= maxVol && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(target / maxVol) * 100}%`, borderBottom: '2px dashed #22c55e', zIndex: 2, pointerEvents: 'none' }}>
-            <span style={{ position: 'absolute', right: 4, top: -16, fontSize: 10, color: '#22c55e', fontWeight: 600 }}>400 target</span>
-          </div>
-        )}
+      <div className="an__vol-chart">
         {(data || []).map((d, i) => (
           <div className="an__vol-col" key={i} title={`${d.day || ''} ${fmtDate(d.date)}: ${d.orders} (SHSP: ${d.shsp}, Aultman: ${d.aultman})`}>
-            <div className="an__vol-bar-wrap">
+            <div className="an__vol-bar-wrap" style={{ position: 'relative' }}>
+              {i === 0 && target > 0 && target <= maxVol && (
+                <div style={{ position: 'absolute', left: 0, width: '9999px', bottom: `${(target / maxVol) * 100}%`, borderBottom: '2px dashed #22c55e', zIndex: 2, pointerEvents: 'none' }}>
+                  <span style={{ position: 'absolute', left: 0, top: -16, fontSize: 10, color: '#22c55e', fontWeight: 600, whiteSpace: 'nowrap' }}>400 target</span>
+                </div>
+              )}
               <div className="an__vol-bar" style={{ height: `${(d.orders / maxVol) * 100}%` }}>
                 <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
               </div>
@@ -282,17 +282,17 @@ function TrendChart({ data, movingAvg, target }) {
 
   return (
     <div className="an__vol-scroll" ref={ref}>
-      <div className="an__trend-chart" style={{ position: 'relative' }}>
-        {target > 0 && target <= maxY && (
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(target / maxY) * 100}%`, borderBottom: '2px dashed #22c55e', zIndex: 2, pointerEvents: 'none' }}>
-            <span style={{ position: 'absolute', right: 4, top: -16, fontSize: 10, color: '#22c55e', fontWeight: 600 }}>400 target</span>
-          </div>
-        )}
+      <div className="an__trend-chart">
         {(data || []).map((d, i) => {
           const avg = movingAvg[i]?.avg || 0
           return (
             <div className="an__trend-col" key={i} title={`${fmtDate(d.date)}: ${d.orders} orders, 7d avg: ${avg}`}>
               <div className="an__trend-bar-area">
+                {i === 0 && target > 0 && target <= maxY && (
+                  <div style={{ position: 'absolute', left: 0, width: '9999px', bottom: `${(target / maxY) * 100}%`, borderBottom: '2px dashed #22c55e', zIndex: 2, pointerEvents: 'none' }}>
+                    <span style={{ position: 'absolute', left: 0, top: -16, fontSize: 10, color: '#22c55e', fontWeight: 600, whiteSpace: 'nowrap' }}>400 target</span>
+                  </div>
+                )}
                 <div className="an__vol-bar" style={{ height: `${(d.orders / maxY) * 100}%` }}>
                   <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
                 </div>
