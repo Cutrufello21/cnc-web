@@ -18,7 +18,7 @@ export default function Navbar() {
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
       <div className="navbar__inner container">
         <Link to="/" className="navbar__logo">
-          <BrandMark variant="light" />
+          <BrandMark variant="dark" />
         </Link>
 
         <div className={`navbar__links ${menuOpen ? 'navbar__links--open' : ''}`}>
