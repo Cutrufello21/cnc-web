@@ -1,10 +1,16 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoginPage from './pages/LoginPage'
 import DispatchPage from './pages/DispatchPage'
 import DriverPage from './pages/DriverPage'
+import HomePage from './pages/HomePage'
+
+function PreviewGate() {
+  const [params] = useSearchParams()
+  return params.get('key') === 'cnc2026' ? <HomePage /> : <Navigate to="/login" replace />
+}
 
 function App() {
   return (
@@ -12,6 +18,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/preview" element={<PreviewGate />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/dispatch"
