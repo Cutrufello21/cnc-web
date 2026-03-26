@@ -509,26 +509,26 @@ export default function DispatchPage() {
                   <button className="dispatch__zip-clear" onClick={() => setZipSearch('')}>&times;</button>
                 )}
               </div>
-            </div>
-            <div className="dispatch__tools-row">
-              <button
-                className={`dispatch__day dispatch__day--routing ${showSortList ? 'dispatch__day--routing-active' : ''}`}
-                onClick={() => { setShowSortList(!showSortList); setShowRouting(false); setShowUnassigned(false) }}
-              >
-                Sort List
-              </button>
-              <button
-                className={`dispatch__day dispatch__day--routing ${showRouting ? 'dispatch__day--routing-active' : ''}`}
-                onClick={() => { setShowRouting(!showRouting); setShowSortList(false); setShowUnassigned(false) }}
-              >
-                Routing Rules
-              </button>
-              <button
-                className={`dispatch__day dispatch__day--routing ${showUnassigned ? 'dispatch__day--routing-active' : ''}`}
-                onClick={() => { setShowUnassigned(!showUnassigned); setShowRouting(false); setShowSortList(false) }}
-              >
-                Unassigned
-              </button>
+              <div className="dispatch__tools-right">
+                <button
+                  className={`dispatch__day dispatch__day--routing ${showSortList ? 'dispatch__day--routing-active' : ''}`}
+                  onClick={() => { setShowSortList(!showSortList); setShowRouting(false); setShowUnassigned(false) }}
+                >
+                  Sort List
+                </button>
+                <button
+                  className={`dispatch__day dispatch__day--routing ${showRouting ? 'dispatch__day--routing-active' : ''}`}
+                  onClick={() => { setShowRouting(!showRouting); setShowSortList(false); setShowUnassigned(false) }}
+                >
+                  Routing Rules
+                </button>
+                <button
+                  className={`dispatch__day dispatch__day--routing ${showUnassigned ? 'dispatch__day--routing-active' : ''}`}
+                  onClick={() => { setShowUnassigned(!showUnassigned); setShowRouting(false); setShowSortList(false) }}
+                >
+                  Unassigned
+                </button>
+              </div>
             </div>
 
             {showSortList && <SortList deliveryDate={data.deliveryDateObj ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}` : null} />}

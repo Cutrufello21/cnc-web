@@ -6,18 +6,18 @@
 .dispatch__zip-clear { background: none; border: none; font-size: 18px; color: var(--gray-400); cursor: pointer; padding: 0 2px; line-height: 1; }
 .dispatch__zip-clear:hover { color: var(--gray-600); }
 
-/* Day selector rows */
+/* Day selector row */
 .dispatch__days-row {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 8px;
+  margin-bottom: 24px;
 }
 
-.dispatch__tools-row {
+.dispatch__tools-right {
   display: flex;
   gap: 6px;
-  margin-bottom: 24px;
+  margin-left: auto;
 }
 
 .dispatch__days {
