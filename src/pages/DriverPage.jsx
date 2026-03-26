@@ -188,7 +188,7 @@ export default function DriverPage() {
           action: 'email',
           to: 'wfldispatch@biotouchglobal.com',
           subject: `Assign to driver ${toDriverNumber}`,
-          html: `<p>Order #: ${orderList}</p><p>Transferred by ${data.driverName} to ${toDriverName} (${toDriverNumber})</p><p>— CNC Delivery</p>`,
+          html: `<p>Order #: ${orderList}</p>`,
         }),
       })
 
