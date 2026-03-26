@@ -79,6 +79,37 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, moved: orderIds.length })
     }
 
+    if (data.action === 'roadwarrior') {
+      const rwKey = process.env.RW_API_KEY
+      if (!rwKey) return res.status(500).json({ error: 'RW_API_KEY not configured' })
+
+      const results = []
+      for (const driver of (data.drivers || [])) {
+        try {
+          const rwRes = await fetch('https://teamapi.roadwarrior.app/api/Route/Add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Api-Key': rwKey },
+            body: JSON.stringify({
+              Name: driver.routeName || `${driver.name} Route`,
+              HardStart: false,
+              HardStop: false,
+              TravelMode: 0,
+              Stops: (driver.stops || []).map(s => ({
+                Name: s.order_id || '',
+                Address: `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`,
+                Note: s.cold_chain ? 'Cold Chain' : '',
+              })),
+            }),
+          })
+          const rwData = await rwRes.json()
+          results.push({ driver: driver.name, success: rwData.IsSuccess, stopsAdded: rwData.StopsAdded, error: rwData.ErrorMessage })
+        } catch (err) {
+          results.push({ driver: driver.name, success: false, error: err.message })
+        }
+      }
+      return res.status(200).json({ success: true, results })
+    }
+
     return res.status(400).json({ error: 'Unknown action' })
   } catch (err) {
     return res.status(500).json({ error: err.message })

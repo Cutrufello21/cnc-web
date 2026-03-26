@@ -195,8 +195,9 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
 
       // Push to Road Warrior if applicable
       if (RW_DRIVERS.includes(name) && rawDetails.length > 0) {
-        await fetch(APPS_SCRIPT_URL, {
+        await fetch('/api/actions', {
           method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: 'roadwarrior',
             drivers: [{

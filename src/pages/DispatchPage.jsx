@@ -274,8 +274,9 @@ export default function DispatchPage() {
       let rwCount = 0
       if (rwPayload.length > 0) {
         try {
-          const rwRes = await fetch(APPS_SCRIPT_URL, {
+          const rwRes = await fetch('/api/actions', {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'roadwarrior', drivers: rwPayload }),
           })
           const rwData = await rwRes.json()
