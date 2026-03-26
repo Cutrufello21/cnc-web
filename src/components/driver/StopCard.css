@@ -28,6 +28,20 @@
   border-left: 3px solid var(--cornflower);
 }
 
+.stop--sig {
+  border-left: 3px solid #eab308;
+}
+
+.stop--cold.stop--sig {
+  border-left: 3px solid var(--cornflower);
+  border-right: 3px solid #eab308;
+}
+
+.stop__badge--sig {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .stop__main {
   display: flex;
   align-items: center;
