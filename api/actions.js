@@ -84,14 +84,28 @@ export default async function handler(req, res) {
       const rwAccount = process.env.RW_ACCOUNT_ID
       if (!rwKey || !rwAccount) return res.status(500).json({ error: 'RW credentials not configured' })
 
+      // Map driver names to their Road Warrior email/username
+      const RW_EMAILS = {
+        'Dom': 'dcutrufello76@gmail.com',
+        'Alex': 'ccdelivery.Alex',
+        'Josh': 'ccdelivery.josh',
+        'Laura': 'ccdelivery.laura',
+        'Mark': 'ccdelivery.mark',
+        'Mike': 'ccdelivery.mike',
+        'Nick': 'ccdelivery.nick',
+        'Nicholas': 'ccdelivery.nicholas',
+      }
+
       const results = []
       for (const driver of (data.drivers || [])) {
         try {
+          const rwEmail = RW_EMAILS[driver.name] || ''
           const rwRes = await fetch(`https://teamapi.roadwarrior.app/api/Route/Add?token=${rwKey}&accountid=${rwAccount}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               Name: driver.routeName || `${driver.name} Route`,
+              Driver: rwEmail,
               HardStart: false,
               HardStop: false,
               TravelMode: 0,
