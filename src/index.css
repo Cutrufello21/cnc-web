@@ -96,6 +96,63 @@
 [data-theme="dark"] .pay__grand-value { color: #f5f7fa; }
 [data-theme="dark"] .driver__stat-value { color: #f5f7fa; }
 
+/* Dark mode — payroll table */
+[data-theme="dark"] .pay__table { color: #e2e8f0; }
+[data-theme="dark"] .pay__table th { color: #94a3b8; }
+[data-theme="dark"] .pay__table td { border-color: #2a3346; }
+[data-theme="dark"] .pay__cell-name { background: #161b22; color: #f1f5f9; }
+[data-theme="dark"] .pay__table tbody tr:hover .pay__cell-name { background: #1e2530; }
+[data-theme="dark"] .pay__table tbody tr:hover { background: #1e2530; }
+[data-theme="dark"] .pay__edit-input { background: #1c2333; color: #e2e8f0; border-color: #3d4a5c; }
+[data-theme="dark"] .pay__edit-input:focus { border-color: #6495ed; }
+[data-theme="dark"] .pay__cell-pay { color: #4ade80; }
+[data-theme="dark"] .pay__cell-total { color: #f1f5f9; font-weight: 700; }
+[data-theme="dark"] .pay__cell-fee { color: #f87171; }
+[data-theme="dark"] .pay__row--flat { background: #1a2030; }
+[data-theme="dark"] .pay__row--flat .pay__cell-name { background: #1a2030; }
+[data-theme="dark"] .pay__footer td { background: #161b22; color: #f1f5f9; border-top: 2px solid #3d4a5c; }
+
+/* Dark mode — orders table */
+[data-theme="dark"] .orders__table { color: #e2e8f0; }
+[data-theme="dark"] .orders__table th { color: #94a3b8; }
+[data-theme="dark"] .orders__table td { border-color: #2a3346; }
+[data-theme="dark"] .orders__table tbody tr:nth-child(even) { background: #1a2030; }
+[data-theme="dark"] .orders__table tbody tr:hover { background: #1e2a3a; }
+
+/* Dark mode — driver cards */
+[data-theme="dark"] .dcard { background: #1c2333; border-color: #3d4a5c; }
+[data-theme="dark"] .dcard:hover { border-color: #5a6a80; }
+[data-theme="dark"] .dcard__name { color: #f1f5f9; }
+[data-theme="dark"] .dcard__stops { color: #f1f5f9; }
+
+/* Dark mode — search inputs */
+[data-theme="dark"] .dispatch__zip-search { background: #1c2333; border-color: #3d4a5c; }
+[data-theme="dark"] .dispatch__zip-input { color: #e2e8f0; }
+[data-theme="dark"] .dispatch__zip-input::placeholder { color: #64748b; }
+
+/* Dark mode — summary cards */
+[data-theme="dark"] .dispatch__summary-card { background: #1c2333; border-color: #3d4a5c; }
+[data-theme="dark"] .dispatch__summary-value { color: #f1f5f9; }
+
+/* Dark mode — day selector */
+[data-theme="dark"] .dispatch__days { background: #1c2333; }
+[data-theme="dark"] .dispatch__day { color: #94a3b8; }
+[data-theme="dark"] .dispatch__day--active { background: #2d3a4d; color: #f1f5f9; }
+[data-theme="dark"] .dispatch__day--routing { border-color: #3d4a5c; color: #94a3b8; }
+[data-theme="dark"] .dispatch__day--routing-active { background: #2d3a4d; color: #f1f5f9; border-color: #5a6a80; }
+
+/* Dark mode — analytics */
+[data-theme="dark"] .an__vol-val { color: #e2e8f0; }
+[data-theme="dark"] .an__vol-label { color: #94a3b8; }
+[data-theme="dark"] .an__vol-date { color: #64748b; }
+[data-theme="dark"] .an__day-val { color: #e2e8f0; }
+[data-theme="dark"] .an__day-name { color: #94a3b8; }
+[data-theme="dark"] .an__card-title { color: #f1f5f9; }
+
+/* Dark mode — buttons */
+[data-theme="dark"] .dispatch__refresh { color: #94a3b8; border-color: #3d4a5c; }
+[data-theme="dark"] .dispatch__refresh:hover { color: #e2e8f0; border-color: #5a6a80; }
+
 html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
