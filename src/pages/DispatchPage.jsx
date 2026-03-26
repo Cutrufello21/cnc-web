@@ -833,6 +833,7 @@ function UnassignedZips() {
               <th style={{ textAlign: 'left', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>Pharmacy</th>
               <th style={{ textAlign: 'left', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>City</th>
               <th style={{ textAlign: 'right', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>Orders</th>
+              <th style={{ padding: '8px 10px' }}></th>
             </tr>
           </thead>
           <tbody>
@@ -842,6 +843,23 @@ function UnassignedZips() {
                 <td style={{ padding: '8px 10px' }}><span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: d.pharmacy === 'Aultman' ? '#dbeafe' : '#f3f4f6', color: d.pharmacy === 'Aultman' ? '#2563eb' : '#374151' }}>{d.pharmacy}</span></td>
                 <td style={{ padding: '8px 10px', color: '#6b7280' }}>{d.city}</td>
                 <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>{d.count}</td>
+                <td style={{ padding: '8px 10px' }}>
+                  <button
+                    style={{ background: 'none', border: '1px solid #fca5a5', borderRadius: 4, color: '#dc2626', fontSize: 11, fontWeight: 600, padding: '3px 10px', cursor: 'pointer' }}
+                    onClick={async () => {
+                      if (!confirm(`Delete ${d.count} orders for ZIP ${d.zip} (${d.pharmacy})?`)) return
+                      const ids = d.orders.map(o => o.order_id)
+                      for (const id of ids) {
+                        await supabase.from('daily_stops').delete().eq('order_id', id).eq('zip', d.zip)
+                      }
+                      // Also delete any remaining with this zip+pharmacy
+                      await supabase.from('daily_stops').delete().eq('zip', d.zip).eq('pharmacy', d.pharmacy)
+                      setData(prev => prev.filter(x => !(x.zip === d.zip && x.pharmacy === d.pharmacy)))
+                    }}
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
