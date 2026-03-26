@@ -131,9 +131,14 @@ export default function DriverPage() {
 
   async function loadTeamData() {
     if (!data?.deliveryDate) return
-    if (teamData) return // already loaded
-    const { data: allStops } = await supabase.from('daily_stops').select('*')
+    const myPharmacy = data.pharmacy || 'SHSP'
+    const query = supabase.from('daily_stops').select('*')
       .eq('delivery_date', data.deliveryDate)
+    // Filter by pharmacy unless driver covers Both
+    if (myPharmacy !== 'Both') {
+      query.eq('pharmacy', myPharmacy)
+    }
+    const { data: allStops } = await query
     const byDriver = {}
     ;(allStops || []).forEach(s => {
       if (!byDriver[s.driver_name]) byDriver[s.driver_name] = { stops: [], coldChain: 0 }
@@ -376,7 +381,7 @@ export default function DriverPage() {
                   <div className="driver__not-ready"><div className="dispatch__spinner" />Loading team routes...</div>
                 ) : (
                   <>
-                    <p className="driver__team-sub">{data.deliveryDay} — {teamData.reduce((s, d) => s + d.count, 0)} total stops</p>
+                    <p className="driver__team-sub">{data.pharmacy !== 'Both' ? data.pharmacy + ' — ' : ''}{data.deliveryDay} — {teamData.reduce((s, d) => s + d.count, 0)} total stops</p>
                     {teamData.map(d => {
                       const isMe = d.name === data.driverName
                       const isExpanded = expandedDriver === d.name
