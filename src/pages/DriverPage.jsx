@@ -19,6 +19,8 @@ export default function DriverPage() {
   const [selected, setSelected] = useState(new Set())
   const [teamData, setTeamData] = useState(null)
   const [expandedDriver, setExpandedDriver] = useState(null)
+  const [teamSelected, setTeamSelected] = useState(new Set()) // order_ids selected for transfer
+  const [transferring, setTransferring] = useState(false)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -141,14 +143,54 @@ export default function DriverPage() {
     const { data: allStops } = await query
     const byDriver = {}
     ;(allStops || []).forEach(s => {
-      if (!byDriver[s.driver_name]) byDriver[s.driver_name] = { stops: [], coldChain: 0 }
+      if (!byDriver[s.driver_name]) byDriver[s.driver_name] = { stops: [], coldChain: 0, driverNumber: s.driver_number }
       byDriver[s.driver_name].stops.push(s)
       if (s.cold_chain) byDriver[s.driver_name].coldChain++
     })
     const drivers = Object.entries(byDriver)
-      .map(([name, d]) => ({ name, count: d.stops.length, coldChain: d.coldChain, stops: d.stops }))
+      .map(([name, d]) => ({ name, driverNumber: d.driverNumber, count: d.stops.length, coldChain: d.coldChain, stops: d.stops }))
       .sort((a, b) => b.count - a.count)
     setTeamData(drivers)
+    setTeamSelected(new Set())
+  }
+
+  function toggleTeamSelect(orderId) {
+    setTeamSelected(prev => {
+      const next = new Set(prev)
+      next.has(orderId) ? next.delete(orderId) : next.add(orderId)
+      return next
+    })
+  }
+
+  async function handleTransfer(toDriverName, toDriverNumber) {
+    if (teamSelected.size === 0) return
+    setTransferring(true)
+    try {
+      // Move stops in Supabase
+      const orderIds = [...teamSelected]
+      await supabase.from('daily_stops').update({
+        driver_name: toDriverName,
+        driver_number: toDriverNumber,
+        assigned_driver_number: toDriverNumber,
+      }).in('order_id', orderIds)
+
+      // Build email via mailto
+      const orderList = orderIds.join(', ')
+      const subject = encodeURIComponent(`Assign to driver ${toDriverNumber}`)
+      const body = encodeURIComponent(`Order #: ${orderList}`)
+      const fromEmail = data.driverName ? `${data.driverName}` : ''
+      window.open(`mailto:wfldispatch@biotouchglobal.com?subject=${subject}&body=${body}`, '_blank')
+
+      // Reload team data
+      setTeamSelected(new Set())
+      setExpandedDriver(null)
+      setTeamData(null)
+      loadTeamData()
+    } catch (err) {
+      alert('Transfer failed: ' + err.message)
+    } finally {
+      setTransferring(false)
+    }
   }
 
   function getSelectedAddresses() {
@@ -382,23 +424,46 @@ export default function DriverPage() {
                 ) : (
                   <>
                     <p className="driver__team-sub">{data.pharmacy !== 'Both' ? data.pharmacy + ' — ' : ''}{data.deliveryDay} — {teamData.reduce((s, d) => s + d.count, 0)} total stops</p>
+                    {teamSelected.size > 0 && (
+                      <div className="driver__team-transfer-bar">
+                        <span>{teamSelected.size} stop{teamSelected.size > 1 ? 's' : ''} selected</span>
+                        <span className="driver__team-transfer-hint">Tap a driver below to transfer</span>
+                      </div>
+                    )}
                     {teamData.map(d => {
                       const isMe = d.name === data.driverName
                       const isExpanded = expandedDriver === d.name
+                      const canTransferTo = !isMe && teamSelected.size > 0
                       return (
-                        <div key={d.name} className={`driver__team-card ${isMe ? 'driver__team-card--me' : ''}`}>
-                          <div className="driver__team-header" onClick={() => setExpandedDriver(isExpanded ? null : d.name)}>
+                        <div key={d.name} className={`driver__team-card ${isMe ? 'driver__team-card--me' : ''} ${canTransferTo ? 'driver__team-card--target' : ''}`}>
+                          <div className="driver__team-header" onClick={() => {
+                            if (canTransferTo) {
+                              if (confirm(`Transfer ${teamSelected.size} stop${teamSelected.size > 1 ? 's' : ''} to ${d.name}?`)) {
+                                handleTransfer(d.name, d.driverNumber)
+                              }
+                            } else {
+                              setExpandedDriver(isExpanded ? null : d.name)
+                            }
+                          }}>
+                            {canTransferTo && (
+                              <span className="driver__team-transfer-icon">→</span>
+                            )}
                             <span className="driver__team-name">{d.name} {isMe && <span className="driver__team-you">(You)</span>}</span>
                             <span className="driver__team-count">{d.count} stops {d.coldChain > 0 && <span className="driver__team-cc">{d.coldChain} CC</span>}</span>
-                            <svg className={`driver__team-chevron ${isExpanded ? 'driver__team-chevron--open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                            {!canTransferTo && (
+                              <svg className={`driver__team-chevron ${isExpanded ? 'driver__team-chevron--open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                            )}
                           </div>
                           {isExpanded && (
                             <div className="driver__team-stops">
                               <table className="driver__team-table">
-                                <thead><tr><th>#</th><th>Name</th><th>Address</th><th>City</th><th>ZIP</th></tr></thead>
+                                <thead><tr>{isMe && <th></th>}<th>#</th><th>Name</th><th>Address</th><th>City</th><th>ZIP</th></tr></thead>
                                 <tbody>
                                   {d.stops.map((s, i) => (
-                                    <tr key={i}>
+                                    <tr key={i} className={teamSelected.has(s.order_id) ? 'driver__team-row--selected' : ''}>
+                                      {isMe && (
+                                        <td><input type="checkbox" checked={teamSelected.has(s.order_id)} onChange={() => toggleTeamSelect(s.order_id)} /></td>
+                                      )}
                                       <td>{i + 1}</td>
                                       <td>{s.patient_name || '—'}</td>
                                       <td><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.address}, ${s.city}, OH ${s.zip}`)}`} target="_blank" rel="noopener noreferrer" className="driver__list-addr">{s.address || '—'}</a></td>
