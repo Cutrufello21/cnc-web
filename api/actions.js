@@ -81,14 +81,15 @@ export default async function handler(req, res) {
 
     if (data.action === 'roadwarrior') {
       const rwKey = process.env.RW_API_KEY
-      if (!rwKey) return res.status(500).json({ error: 'RW_API_KEY not configured' })
+      const rwAccount = process.env.RW_ACCOUNT_ID
+      if (!rwKey || !rwAccount) return res.status(500).json({ error: 'RW credentials not configured' })
 
       const results = []
       for (const driver of (data.drivers || [])) {
         try {
-          const rwRes = await fetch('https://teamapi.roadwarrior.app/api/Route/Add', {
+          const rwRes = await fetch(`https://teamapi.roadwarrior.app/api/Route/Add?token=${rwKey}&accountid=${rwAccount}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Api-Key': rwKey },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               Name: driver.routeName || `${driver.name} Route`,
               HardStart: false,
