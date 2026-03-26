@@ -75,7 +75,7 @@ export default function DispatchPage() {
       const dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].indexOf(deliveryDay)
       const deliveryDate = new Date(monday)
       deliveryDate.setDate(monday.getDate() + (dayIndex >= 0 ? dayIndex : 0))
-      const dateStr = deliveryDate.toISOString().split('T')[0]
+      const dateStr = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth() + 1).padStart(2, '0')}-${String(deliveryDate.getDate()).padStart(2, '0')}`
 
       // Fetch everything from Supabase in parallel
       const [driversRes, routingRes, logsRes, stopsRes] = await Promise.all([
