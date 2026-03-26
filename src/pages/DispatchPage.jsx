@@ -35,6 +35,7 @@ export default function DispatchPage() {
   const [lastMove, setLastMove] = useState(null) // { orderIds, fromName, fromNumber, toName, count }
   const [undoing, setUndoing] = useState(false)
   const [moveToast, setMoveToast] = useState(null)
+  const [zipSearch, setZipSearch] = useState('')
 
   useEffect(() => {
     fetchDispatchData()
@@ -405,8 +406,18 @@ export default function DispatchPage() {
 
   const totalStops = data?.drivers?.reduce((sum, d) => sum + (d.stops || 0), 0) ?? 0
   const totalColdChain = data?.drivers?.reduce((sum, d) => sum + (d.coldChain || 0), 0) ?? 0
-  const activeDrivers = data?.drivers?.filter((d) => d.stops > 0) ?? []
-  const inactiveDrivers = data?.drivers?.filter((d) => d.stops === 0) ?? []
+  const allActiveDrivers = data?.drivers?.filter((d) => d.stops > 0) ?? []
+  const allInactiveDrivers = data?.drivers?.filter((d) => d.stops === 0) ?? []
+
+  // Filter by ZIP search
+  const driverHasZip = (d) => {
+    if (!zipSearch) return true
+    return (d.stopDetails || []).some(s =>
+      (s.zip || s.ZIP || s['Zip Code'] || '').includes(zipSearch)
+    )
+  }
+  const activeDrivers = allActiveDrivers.filter(driverHasZip)
+  const inactiveDrivers = zipSearch ? [] : allInactiveDrivers
 
   return (
     <div className="shell">
@@ -568,11 +579,28 @@ export default function DispatchPage() {
               }} />
             ))}
 
+            {/* ZIP search */}
+            <div className="dispatch__zip-search">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                className="dispatch__zip-input"
+                placeholder="Search by ZIP..."
+                value={zipSearch}
+                onChange={e => setZipSearch(e.target.value.replace(/[^0-9]/g, ''))}
+              />
+              {zipSearch && (
+                <button className="dispatch__zip-clear" onClick={() => setZipSearch('')}>&times;</button>
+              )}
+            </div>
+
             {/* Summary cards */}
             <DispatchSummary
               totalStops={totalStops}
               totalColdChain={totalColdChain}
-              activeDriverCount={activeDrivers.length}
+              activeDriverCount={allActiveDrivers.length}
               totalDriverCount={data.drivers?.length ?? 0}
               unassignedCount={data.unassigned?.length ?? 0}
               routingRuleCount={data.routingRuleCount ?? 0}
