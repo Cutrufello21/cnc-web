@@ -179,8 +179,9 @@ export default function DriverPage() {
     if (teamSelected.size === 0) return
     setTransferring(true)
     try {
-      // Move stops + send email via server API
+      // Find which driver the selected stops belong to
       const orderIds = [...teamSelected]
+      const sourceDriver = teamData?.find(d => d.stops.some(s => teamSelected.has(s.order_id)))
       const resp = await fetch('/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,7 +190,7 @@ export default function DriverPage() {
           orderIds,
           toDriverName,
           toDriverNumber,
-          fromDriverName: data.driverName,
+          fromDriverName: sourceDriver?.name || data.driverName,
         }),
       })
       const result = await resp.json()
