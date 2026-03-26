@@ -179,26 +179,21 @@ export default function DriverPage() {
     if (teamSelected.size === 0) return
     setTransferring(true)
     try {
-      // Move stops in Supabase
+      // Move stops + send email via server API
       const orderIds = [...teamSelected]
-      await supabase.from('daily_stops').update({
-        driver_name: toDriverName,
-        driver_number: toDriverNumber,
-        assigned_driver_number: toDriverNumber,
-      }).in('order_id', orderIds)
-
-      // Send email to BioTouch via server
-      const orderList = orderIds.join(', ')
-      await fetch('/api/actions', {
+      const resp = await fetch('/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'email',
-          to: 'wfldispatch@biotouchglobal.com',
-          subject: `Assign to driver ${toDriverNumber}`,
-          html: `<p>Order #: ${orderList}</p>`,
+          action: 'transfer',
+          orderIds,
+          toDriverName,
+          toDriverNumber,
+          fromDriverName: data.driverName,
         }),
       })
+      const result = await resp.json()
+      if (result.error) throw new Error(result.error)
 
       // Reload team data
       setTeamSelected(new Set())
