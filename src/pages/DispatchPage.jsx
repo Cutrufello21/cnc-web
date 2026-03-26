@@ -449,7 +449,6 @@ export default function DispatchPage() {
             </div>
           </div>
           <div className="shell__user">
-            <WeatherWidget />
             <ThemeToggle />
             <span className="shell__name">{profile?.full_name}</span>
             <button className="shell__signout" onClick={signOut}>Sign Out</button>
@@ -538,18 +537,21 @@ export default function DispatchPage() {
             {!showRouting && !showSortList && !showUnassigned && <>
             {/* Header row */}
             <div className="dispatch__top">
-              <div>
-                <h1 className="dispatch__heading">
-                  {data.deliveryDay} Delivery
-                </h1>
-                <p className="dispatch__date">
-                  {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div>
+                  <h1 className="dispatch__heading">
+                    {data.deliveryDay} Delivery
+                  </h1>
+                  <p className="dispatch__date">
+                    {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <WeatherWidget />
               </div>
               <div className="dispatch__actions">
                 {moveToast && (
