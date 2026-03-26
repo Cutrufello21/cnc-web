@@ -271,71 +271,33 @@ function BarChart({ data, maxVol }) {
 function TrendChart({ data, movingAvg }) {
   const ref = useRef(null)
   useEffect(() => { if (ref.current) ref.current.scrollLeft = 0 }, [data])
-  const orders = (data || []).map(d => d.orders || 0)
-  const avgs = (movingAvg || []).map(d => d.avg || 0)
-  const maxY = Math.max(...orders, ...avgs, 1)
-  const allOrders = orders.filter(v => v > 0)
-  const low = Math.min(...allOrders)
-  const avg = allOrders.length ? Math.round(allOrders.reduce((s, v) => s + v, 0) / allOrders.length) : 0
-  const high = Math.max(...allOrders)
-  const colW = 30 // px per column
-  const barH = 184 // bar area height in px
-  const chartW = (data || []).length * colW
+  const maxVol = Math.max(...(data || []).map(d => d.orders || 0), 1)
+  const maxAvg = Math.max(...(movingAvg || []).map(d => d.avg || 0), 1)
+  const maxY = Math.max(maxVol, maxAvg)
 
   return (
-    <div style={{ display: 'flex', gap: 0 }}>
-      {/* Y-axis labels */}
-      <div style={{ width: 48, flexShrink: 0, position: 'relative', height: barH, marginTop: 0 }}>
-        {[{ label: high, val: high }, { label: avg, val: avg }, { label: low, val: low }].map(({ label, val }) => (
-          <div key={label + val} style={{ position: 'absolute', bottom: `${(val / maxY) * 100}%`, right: 4, transform: 'translateY(50%)', fontSize: 10, color: 'var(--gray-400)', whiteSpace: 'nowrap' }}>{label}</div>
-        ))}
-      </div>
-      <div className="an__vol-scroll" ref={ref} style={{ flex: 1 }}>
-        <div style={{ position: 'relative', minWidth: chartW }}>
-          {/* Horizontal reference lines */}
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: barH, pointerEvents: 'none', zIndex: 1 }}>
-            {[{ val: high, color: '#ef4444' }, { val: avg, color: '#6495ed' }, { val: low, color: '#f59e0b' }].map(({ val, color }) => (
-              <div key={val + color} style={{ position: 'absolute', bottom: `${(val / maxY) * 100}%`, left: 0, right: 0, borderBottom: `1px dashed ${color}`, opacity: 0.4 }} />
-            ))}
-          </div>
-          {/* SVG moving average line */}
-          <svg style={{ position: 'absolute', top: 0, left: 0, width: chartW, height: barH, pointerEvents: 'none', zIndex: 3 }}>
-            <polyline
-              fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
-              points={(movingAvg || []).map((d, i) => `${i * colW + colW / 2},${barH - (d.avg / maxY) * barH}`).join(' ')}
-            />
-          </svg>
-          <div className="an__trend-chart" style={{ height: barH }}>
-            {(data || []).map((d, i) => {
-              const a = movingAvg[i]?.avg || 0
-              return (
-                <div className="an__trend-col" key={i} style={{ width: colW, minWidth: colW }} title={`${fmtDate(d.date)}: ${d.orders} orders, 7d avg: ${a}`}>
-                  <div className="an__trend-bar-area">
-                    <div className="an__vol-bar" style={{ height: `${(d.orders / maxY) * 100}%` }}>
-                      <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
-                    </div>
-                  </div>
+    <div className="an__vol-scroll" ref={ref}>
+      <div className="an__trend-chart">
+        {(data || []).map((d, i) => {
+          const avg = movingAvg[i]?.avg || 0
+          return (
+            <div className="an__trend-col" key={i} title={`${fmtDate(d.date)}: ${d.orders} orders, 7d avg: ${avg}`}>
+              <div className="an__trend-bar-area">
+                <div className="an__vol-bar" style={{ height: `${(d.orders / maxY) * 100}%` }}>
+                  <div className="an__vol-aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
                 </div>
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', minWidth: chartW }}>
-            {(data || []).map((d, i) => (
-              <div key={i} style={{ width: colW, minWidth: colW, textAlign: 'center' }}>
-                <span className="an__vol-val" style={{ fontSize: 10 }}>{d.orders}</span>
-                <span className="an__vol-date">{fmtDate(d.date)}</span>
+                <div className="an__trend-line" style={{ bottom: `${(avg / maxY) * 100}%` }} />
               </div>
-            ))}
-          </div>
-        </div>
-        <div className="an__legend" style={{ marginTop: 8 }}>
-          <span><span className="an__dot an__dot--shsp" />SHSP</span>
-          <span><span className="an__dot an__dot--aultman" />Aultman</span>
-          <span><span style={{ display: 'inline-block', width: 16, height: 2, background: '#f59e0b', verticalAlign: 'middle', marginRight: 4 }} />7-Day Avg</span>
-          <span style={{ color: '#ef4444', fontSize: 11 }}>┈ High</span>
-          <span style={{ color: '#6495ed', fontSize: 11 }}>┈ Avg</span>
-          <span style={{ color: '#f59e0b', fontSize: 11 }}>┈ Low</span>
-        </div>
+              <span className="an__vol-val" style={{ fontSize: 10 }}>{d.orders}</span>
+              <span className="an__vol-date">{fmtDate(d.date)}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="an__legend" style={{ marginTop: 8 }}>
+        <span><span className="an__dot an__dot--shsp" />SHSP</span>
+        <span><span className="an__dot an__dot--aultman" />Aultman</span>
+        <span><span style={{ display: 'inline-block', width: 16, height: 2, background: '#f59e0b', verticalAlign: 'middle', marginRight: 4 }} />7-Day Avg</span>
       </div>
     </div>
   )
