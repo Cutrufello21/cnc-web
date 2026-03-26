@@ -172,9 +172,10 @@
 }
 
 /* Refresh button */
-.driver__refresh-btn { background: none; border: 1px solid var(--gray-200); border-radius: 8px; padding: 6px; cursor: pointer; color: var(--gray-500); display: flex; align-items: center; }
+.driver__refresh-btn { background: none; border: 1px solid var(--gray-200); border-radius: 8px; padding: 4px 8px; cursor: pointer; color: var(--gray-500); display: flex; align-items: center; gap: 5px; font-size: 11px; }
 .driver__refresh-btn:hover { border-color: var(--gray-400); color: var(--gray-700); }
 .driver__refresh-btn--spin svg { animation: driver-spin 0.8s linear infinite; }
+.driver__last-updated { color: var(--gray-400); font-weight: 500; }
 @keyframes driver-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
 /* Team Routes */

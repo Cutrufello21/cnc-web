@@ -22,6 +22,7 @@ export default function DriverPage() {
   const [teamSelected, setTeamSelected] = useState(new Set()) // order_ids selected for transfer
   const [transferring, setTransferring] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -127,6 +128,7 @@ export default function DriverPage() {
       setError(err.message)
     } finally {
       setLoading(false)
+      setLastUpdated(new Date())
     }
   }
 
@@ -234,10 +236,11 @@ export default function DriverPage() {
           </div>
           <div className="shell__user">
             <button className={`driver__refresh-btn ${refreshing ? 'driver__refresh-btn--spin' : ''}`} onClick={handleRefresh} disabled={refreshing} title="Refresh">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
                 <path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
               </svg>
+              {lastUpdated && <span className="driver__last-updated">{lastUpdated.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>}
             </button>
             <ThemeToggle />
             <span className="shell__name">{data?.driverName || profile?.full_name}</span>
