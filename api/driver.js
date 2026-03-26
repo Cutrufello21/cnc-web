@@ -1,12 +1,11 @@
 import { supabase } from './_lib/supabase.js'
-import { fetchRange, DAILY_SHEETS } from './_lib/sheets.js'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
 export default async function handler(req, res) {
   const driverEmail = req.query.email?.toLowerCase()
   if (!driverEmail) return res.status(400).json({ error: 'Missing email' })
 
-  // Look up driver from Supabase
   const { data: driverRow, error: driverErr } = await supabase.from('drivers')
     .select('*').eq('email', driverEmail).single()
 
@@ -14,73 +13,60 @@ export default async function handler(req, res) {
 
   const driverName = driverRow.driver_name
   const driverId = driverRow.driver_number
+  const pharmacy = driverRow.pharmacy || 'SHSP'
   const tabName = `${driverName} - ${driverId}`
 
-  // Determine today's delivery day
   const todayIdx = new Date().getDay()
   const todayName = DAYS[todayIdx]
-  const sheetId = DAILY_SHEETS[todayName]
 
-  // Weekends — no delivery
-  if (!sheetId) {
+  if (todayIdx === 0 || todayIdx === 6) {
     return res.status(200).json({
       approved: false, noDeliveryToday: true,
-      deliveryDay: todayName, driverName, driverId,
+      deliveryDay: todayName, driverName, driverId, pharmacy,
       stops: [], weekTotal: 0,
     })
   }
 
   try {
-    // Fetch daily stops from Sheets (still live there) + Supabase data in parallel
-    const [driverRows, logsRes, payrollRes] = await Promise.all([
-      fetchRange(sheetId, `'${tabName}'!A1:I200`).catch(() => []),
-      supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(10),
+    // Get today's date for delivery
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+
+    const [stopsRes, logsRes, payrollRes] = await Promise.all([
+      supabase.from('daily_stops').select('*')
+        .eq('delivery_date', todayStr)
+        .eq('driver_name', driverName),
+      supabase.from('dispatch_logs').select('*').eq('date', todayStr),
       supabase.from('payroll').select('*').eq('driver_name', driverName)
         .order('week_of', { ascending: false }).limit(1),
     ])
 
-    // Determine approval status from dispatch logs
-    const today = new Date()
-    const todayStr = today.toLocaleDateString('en-US', {
-      month: '2-digit', day: '2-digit', year: 'numeric',
-    })
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toLocaleDateString('en-US', {
-      month: '2-digit', day: '2-digit', year: 'numeric',
-    })
+    const approved = (logsRes.data && logsRes.data.length > 0)
 
-    let approved = false
-    for (const log of (logsRes.data || [])) {
-      if (log.delivery_day === todayName && log.status === 'Complete') {
-        const logDate = new Date(log.date).toLocaleDateString('en-US', {
-          month: '2-digit', day: '2-digit', year: 'numeric',
-        })
-        if (logDate === todayStr || logDate === yesterdayStr) {
-          approved = true
-          break
-        }
-      }
-    }
+    const stops = (stopsRes.data || []).map((s, idx) => ({
+      _index: idx,
+      'Order ID': s.order_id,
+      'Name': s.patient_name,
+      'Address': s.address,
+      'City': s.city,
+      'ZIP': s.zip,
+      'Zip Code': s.zip,
+      'Pharmacy': s.pharmacy,
+      'Cold Chain': s.cold_chain ? 'Yes' : '',
+      'Notes': s.notes || '',
+      _coldChain: s.cold_chain || false,
+      order_id: s.order_id,
+      patient_name: s.patient_name,
+      address: s.address,
+      city: s.city,
+      zip: s.zip,
+      pharmacy: s.pharmacy,
+      cold_chain: s.cold_chain,
+      notes: s.notes,
+      dispatch_driver_number: s.dispatch_driver_number,
+      assigned_driver_number: s.assigned_driver_number,
+    }))
 
-    // Parse driver stops from daily sheet
-    let stops = []
-    if (driverRows.length > 1) {
-      const headers = driverRows[0].map((h) => h.trim())
-      stops = driverRows.slice(1)
-        .filter((row) => row.some((cell) => cell?.trim()))
-        .map((row, idx) => {
-          const obj = { _index: idx }
-          headers.forEach((h, i) => { obj[h] = row[i] || '' })
-          const isColdChain = Object.values(obj).some((v) =>
-            typeof v === 'string' && v.toLowerCase().match(/^(yes|y|cold chain|cc)$/)
-          )
-          obj._coldChain = isColdChain
-          return obj
-        })
-    }
-
-    // Weekly data from payroll
     const payroll = payrollRes.data?.[0]
     let weekTotal = 0
     let dailyStops = {}
@@ -92,9 +78,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       approved, deliveryDay: todayName,
-      driverName, driverId, tabName, stops,
+      driverName, driverId, tabName, pharmacy, stops,
       stopCount: stops.length,
-      coldChainCount: stops.filter((s) => s._coldChain).length,
+      coldChainCount: stops.filter(s => s._coldChain).length,
       weekTotal, dailyStops,
     })
   } catch (err) {

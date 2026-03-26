@@ -1,12 +1,7 @@
-import { fetchMultipleRanges, getSheetTabs, DAILY_SHEETS } from './_lib/sheets.js'
-
-// GET /api/dispatch — returns daily stop assignments from Google Sheets
-// Supabase data (drivers, routing, logs) is now fetched directly by the frontend
+import { supabase } from './_lib/supabase.js'
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' })
-  }
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -17,7 +12,7 @@ export default async function handler(req, res) {
 
     let deliveryDay = req.query.day
 
-    if (!deliveryDay || !DAILY_SHEETS[deliveryDay]) {
+    if (!deliveryDay || !['Monday','Tuesday','Wednesday','Thursday','Friday'].includes(deliveryDay)) {
       if (hour >= 17) {
         if (todayIdx === 5) deliveryDay = 'Monday'
         else if (todayIdx === 6) deliveryDay = 'Monday'
@@ -29,99 +24,110 @@ export default async function handler(req, res) {
       }
     }
 
-    const dailySheetId = DAILY_SHEETS[deliveryDay]
-    const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    // Calculate delivery date for this day
+    const today = new Date()
+    const targetDayIdx = dayNames.indexOf(deliveryDay)
+    let diff = targetDayIdx - todayIdx
+    if (diff < 0) diff += 7
+    if (diff === 0 && hour >= 17) diff = 7
+    const deliveryDate = new Date(today)
+    deliveryDate.setDate(today.getDate() + diff)
+    const dateStr = deliveryDate.toISOString().split('T')[0]
 
-    // Fetch daily driver tabs from Google Sheets
-    const dailyTabs = dailySheetId ? await getSheetTabs(dailySheetId) : []
+    // Also check today's date and yesterday for the current day
+    const todayStr = today.toISOString().split('T')[0]
+    const yesterday = new Date(today)
+    yesterday.setDate(today.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
 
-    const driverTabs = dailyTabs.filter((tab) => {
-      const title = tab.title || ''
-      return title.includes(' - ') && !['SHSP Sort', 'Aultman Sort', 'Summary', 'Unassigned'].includes(title)
-    })
-
-    let driverStops = {}
-    let summaryData = null
-    let unassignedData = []
-
-    if (dailySheetId && driverTabs.length > 0) {
-      const ranges = [
-        ...driverTabs.map((t) => `'${t.title}'!A1:I100`),
-        'Summary!A1:D10',
-        'Unassigned!A1:K50',
-      ]
-
-      const batchResults = await fetchMultipleRanges(dailySheetId, ranges)
-
-      driverTabs.forEach((tab, i) => {
-        const rows = batchResults[i]?.values || []
-        if (rows.length < 2) {
-          const driverName = tab.title.split(' - ')[0].trim()
-          driverStops[driverName] = {
-            tabName: tab.title, stops: 0, coldChain: 0,
-            hidden: tab.hidden || false, stopDetails: [],
-          }
-          return
-        }
-        const headers = rows[0].map((h) => h.trim())
-        const dataRows = rows.slice(1).filter((r) => r.length > 0 && r[0])
-        const driverName = tab.title.split(' - ')[0].trim()
-
-        const stopDetails = dataRows.map((row) => {
-          const obj = {}
-          headers.forEach((h, idx) => { obj[h] = row[idx] || '' })
-          const ccIdx = headers.indexOf('Cold Chain')
-          const ccVal = ccIdx >= 0 ? (row[ccIdx] || '').trim() : ''
-          obj._coldChain = ccVal !== '' && ccVal.toLowerCase() !== 'no' && ccVal.toLowerCase() !== 'n'
-          return obj
-        })
-
-        driverStops[driverName] = {
-          tabName: tab.title,
-          stops: stopDetails.length,
-          coldChain: stopDetails.filter((s) => s._coldChain).length,
-          hidden: tab.hidden || false,
-          stopDetails,
-        }
-      })
-
-      // Parse summary
-      const summaryIdx = batchResults.length - 2
-      const summaryRows = batchResults[summaryIdx]?.values || []
-      if (summaryRows.length > 0) {
-        summaryData = {}
-        summaryRows.forEach((row) => {
-          if (row[0] && row[1]) summaryData[row[0]] = row[1]
-        })
-      }
-
-      // Parse unassigned
-      const unassignedIdx = batchResults.length - 1
-      const unassignedRows = batchResults[unassignedIdx]?.values || []
-      if (unassignedRows.length > 1) {
-        const uHeaders = unassignedRows[0]
-        unassignedData = unassignedRows.slice(1).filter((r) => r[0]).map((row) => {
-          const obj = {}
-          uHeaders.forEach((h, i) => { obj[h] = row[i] || '' })
-          return obj
-        })
+    // Try delivery date first, then today, then yesterday
+    let stopsData = null
+    for (const d of [dateStr, todayStr, yesterdayStr]) {
+      const { data } = await supabase.from('daily_stops').select('*')
+        .eq('delivery_date', d)
+      if (data && data.length > 0) {
+        stopsData = data
+        break
       }
     }
 
-    // Build warnings
+    const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    const driverStops = {}
+
+    // Get active drivers to include empty ones
+    const { data: activeDrivers } = await supabase.from('drivers').select('*').eq('active', true)
+
+    // Group stops by driver
+    const stopsByDriver = {}
+    for (const s of (stopsData || [])) {
+      const name = s.driver_name
+      if (!stopsByDriver[name]) stopsByDriver[name] = []
+      stopsByDriver[name].push(s)
+    }
+
+    // Build driver data
+    for (const driver of (activeDrivers || [])) {
+      const name = driver.driver_name
+      const id = driver.driver_number
+      const stops = stopsByDriver[name] || []
+
+      const stopDetails = stops.map(s => ({
+        'Order ID': s.order_id,
+        'Name': s.patient_name,
+        'Address': s.address,
+        'City': s.city,
+        'ZIP': s.zip,
+        'Zip Code': s.zip,
+        'Pharmacy': s.pharmacy,
+        'Cold Chain': s.cold_chain ? 'Yes' : '',
+        'Notes': s.notes || '',
+        _coldChain: s.cold_chain || false,
+        order_id: s.order_id,
+        patient_name: s.patient_name,
+        address: s.address,
+        city: s.city,
+        zip: s.zip,
+        pharmacy: s.pharmacy,
+        cold_chain: s.cold_chain,
+        notes: s.notes,
+        dispatch_driver_number: s.dispatch_driver_number,
+        assigned_driver_number: s.assigned_driver_number,
+      }))
+
+      driverStops[name] = {
+        tabName: `${name} - ${id}`,
+        stops: stopDetails.length,
+        coldChain: stopDetails.filter(s => s._coldChain).length,
+        hidden: false,
+        stopDetails,
+      }
+    }
+
+    // Unassigned
+    const { data: unassigned } = await supabase.from('unassigned_orders').select('*')
+      .eq('delivery_date', stopsData?.[0]?.delivery_date || dateStr)
+    const unassignedData = (unassigned || []).map(u => ({
+      'Order ID': u.order_id,
+      'Name': u.patient_name,
+      'Address': u.address,
+      'City': u.city,
+      'ZIP': u.zip,
+      'Pharmacy': u.pharmacy,
+    }))
+
     const warnings = []
     if (unassignedData.length > 0) {
       warnings.push({
         type: 'unassigned', severity: 'high',
         message: `${unassignedData.length} unassigned order${unassignedData.length > 1 ? 's' : ''} — ZIPs need routing rules`,
-        details: unassignedData.map((u) => u.ZIP || 'Unknown').filter(Boolean),
+        details: unassignedData.map(u => u.ZIP || 'Unknown').filter(Boolean),
       })
     }
 
     return res.status(200).json({
       deliveryDay, allDays,
       driverStops,
-      summary: summaryData,
+      summary: null,
       unassigned: unassignedData,
       warnings,
     })
