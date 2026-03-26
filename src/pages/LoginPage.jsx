@@ -24,16 +24,21 @@ export default function LoginPage() {
       // Look up email from username (driver name) or use as-is if it contains @
       let email = username.trim()
       if (!email.includes('@')) {
-        // Strip "cc." prefix if present
-        let name = email.toLowerCase().replace(/^cc\./, '')
-        const { data: drivers } = await supabase.from('drivers')
-          .select('email, driver_name')
-          .ilike('driver_name', name)
-          .limit(1)
-        if (drivers?.length > 0 && drivers[0].email) {
-          email = drivers[0].email
+        const lower = email.toLowerCase()
+        if (lower.startsWith('cc.')) {
+          // cc.name → cc.name@cncdeliveryservice.com
+          email = `${lower}@cncdeliveryservice.com`
         } else {
-          throw new Error('Username not found. Try cc.firstname or your email.')
+          // Try looking up by driver name
+          const { data: drivers } = await supabase.from('drivers')
+            .select('email, driver_name')
+            .ilike('driver_name', lower)
+            .limit(1)
+          if (drivers?.length > 0 && drivers[0].email) {
+            email = drivers[0].email
+          } else {
+            throw new Error('Username not found. Try cc.firstname or your email.')
+          }
         }
       }
 
