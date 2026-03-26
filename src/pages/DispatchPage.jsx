@@ -31,6 +31,7 @@ export default function DispatchPage() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [showRouting, setShowRouting] = useState(false)
   const [showSortList, setShowSortList] = useState(false)
+  const [showUnassigned, setShowUnassigned] = useState(false)
   const [dismissedWarnings, setDismissedWarnings] = useState(new Set())
   const [lastMove, setLastMove] = useState(null) // { orderIds, fromName, fromNumber, toName, count }
   const [undoing, setUndoing] = useState(false)
@@ -486,29 +487,36 @@ export default function DispatchPage() {
                 <button
                   key={day}
                   className={`dispatch__day ${selectedDay === day && !showRouting ? 'dispatch__day--active' : ''}`}
-                  onClick={() => { setShowRouting(false); setShowSortList(false); handleDayChange(day) }}
+                  onClick={() => { setShowRouting(false); setShowSortList(false); setShowUnassigned(false); handleDayChange(day) }}
                 >
                   {day.slice(0, 3)}
                 </button>
               ))}
               <button
                 className={`dispatch__day dispatch__day--routing ${showSortList ? 'dispatch__day--routing-active' : ''}`}
-                onClick={() => { setShowSortList(!showSortList); setShowRouting(false) }}
+                onClick={() => { setShowSortList(!showSortList); setShowRouting(false); setShowUnassigned(false) }}
               >
                 Sort List
               </button>
               <button
                 className={`dispatch__day dispatch__day--routing ${showRouting ? 'dispatch__day--routing-active' : ''}`}
-                onClick={() => { setShowRouting(!showRouting); setShowSortList(false) }}
+                onClick={() => { setShowRouting(!showRouting); setShowSortList(false); setShowUnassigned(false) }}
               >
                 Routing Rules
+              </button>
+              <button
+                className={`dispatch__day dispatch__day--routing ${showUnassigned ? 'dispatch__day--routing-active' : ''}`}
+                onClick={() => { setShowUnassigned(!showUnassigned); setShowRouting(false); setShowSortList(false) }}
+              >
+                Unassigned
               </button>
             </div>
 
             {showSortList && <SortList deliveryDate={data.deliveryDateObj ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}` : null} />}
             {showRouting && <RoutingEditor />}
+            {showUnassigned && <UnassignedZips />}
 
-            {!showRouting && !showSortList && <>
+            {!showRouting && !showSortList && !showUnassigned && <>
             {/* Header row */}
             <div className="dispatch__top">
               <div>
@@ -769,5 +777,76 @@ function UnassignedSection({ unassigned, drivers, selectedDay, onRefresh, onDism
         </table>
       </div>
     </section>
+  )
+}
+
+function UnassignedZips() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadUnassigned()
+  }, [])
+
+  async function loadUnassigned() {
+    setLoading(true)
+    try {
+      const [stopsRes, rulesRes] = await Promise.all([
+        supabase.from('daily_stops').select('zip, pharmacy, city, patient_name, order_id, address').order('delivery_date', { ascending: false }).limit(5000),
+        supabase.from('routing_rules').select('zip_code, pharmacy'),
+      ])
+
+      const ruleSet = new Set((rulesRes.data || []).map(r => `${r.zip_code}|${r.pharmacy}`))
+
+      // Find stops whose zip+pharmacy combo has no routing rule
+      const unmatched = {}
+      ;(stopsRes.data || []).forEach(s => {
+        const key = `${s.zip}|${s.pharmacy}`
+        if (ruleSet.has(key)) return
+        if (!unmatched[key]) unmatched[key] = { zip: s.zip, pharmacy: s.pharmacy, city: s.city || '', count: 0, orders: [] }
+        unmatched[key].count++
+        if (unmatched[key].orders.length < 5) unmatched[key].orders.push(s)
+      })
+
+      setData(Object.values(unmatched).sort((a, b) => b.count - a.count))
+    } catch {
+      setData([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) return <div className="dispatch__loading"><div className="dispatch__spinner" />Loading unassigned...</div>
+
+  return (
+    <div style={{ padding: '0 0 24px' }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Unassigned ZIPs</h2>
+      <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 16 }}>ZIPs from recent orders that don't have routing rules. Add them in Routing Rules to auto-assign.</p>
+
+      {(!data || data.length === 0) ? (
+        <p style={{ color: '#6b7280', fontSize: 14 }}>All ZIPs have routing rules.</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+              <th style={{ textAlign: 'left', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>ZIP</th>
+              <th style={{ textAlign: 'left', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>Pharmacy</th>
+              <th style={{ textAlign: 'left', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>City</th>
+              <th style={{ textAlign: 'right', padding: '8px 10px', color: '#6b7280', fontWeight: 600 }}>Orders</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map(d => (
+              <tr key={`${d.zip}|${d.pharmacy}`} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                <td style={{ padding: '8px 10px', fontWeight: 600 }}>{d.zip}</td>
+                <td style={{ padding: '8px 10px' }}><span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600, background: d.pharmacy === 'Aultman' ? '#dbeafe' : '#f3f4f6', color: d.pharmacy === 'Aultman' ? '#2563eb' : '#374151' }}>{d.pharmacy}</span></td>
+                <td style={{ padding: '8px 10px', color: '#6b7280' }}>{d.city}</td>
+                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>{d.count}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   )
 }
