@@ -14,6 +14,7 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('month')
   const [tab, setTab] = useState('overview')
+  const [monthSort, setMonthSort] = useState('date')
 
   useEffect(() => {
     setLoading(true)
@@ -117,9 +118,24 @@ export default function Analytics() {
 
           {/* Month-over-Month Growth */}
           <div className="an__card an__card--full">
-            <h3 className="an__card-title">Month-over-Month</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <h3 className="an__card-title" style={{ margin: 0 }}>Month-over-Month</h3>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[['date','Date'],['volume','Volume'],['growth','Growth'],['avg','Avg/Day']].map(([key, label]) => (
+                  <button key={key} onClick={() => setMonthSort(key)}
+                    style={{ padding: '3px 10px', fontSize: 11, fontWeight: monthSort === key ? 700 : 500, border: '1px solid var(--gray-200)', borderRadius: 4, background: monthSort === key ? 'var(--navy)' : 'transparent', color: monthSort === key ? '#fff' : 'var(--gray-500)', cursor: 'pointer' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="an__month-grid">
-              {(data.monthlyTrend || []).map(m => (
+              {[...(data.monthlyTrend || [])].sort((a, b) => {
+                if (monthSort === 'volume') return b.orders - a.orders
+                if (monthSort === 'growth') return (b.growth || 0) - (a.growth || 0)
+                if (monthSort === 'avg') return b.avgPerDay - a.avgPerDay
+                return a.month.localeCompare(b.month)
+              }).map(m => (
                 <div className="an__month-card" key={m.month}>
                   <span className="an__month-label">{(() => { const [y, mo] = m.month.split('-'); const names = ['January','February','March','April','May','June','July','August','September','October','November','December']; return `${y} - ${names[+mo - 1]}` })()}</span>
                   <span className="an__month-orders">{m.orders.toLocaleString()}</span>
