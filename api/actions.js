@@ -98,6 +98,9 @@ export default async function handler(req, res) {
               Stops: (driver.stops || []).map(s => ({
                 Name: s.order_id || '',
                 Address: `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`,
+                Lat: 0,
+                Lng: 0,
+                ServiceTime: 2,
                 Note: s.cold_chain ? 'Cold Chain' : '',
               })),
             }),
