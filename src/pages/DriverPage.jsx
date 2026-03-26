@@ -179,17 +179,24 @@ export default function DriverPage() {
         assigned_driver_number: toDriverNumber,
       }).in('order_id', orderIds)
 
-      // Build email via mailto
+      // Send email to BioTouch via server
       const orderList = orderIds.join(', ')
-      const subject = encodeURIComponent(`Assign to driver ${toDriverNumber}`)
-      const body = encodeURIComponent(`Order #: ${orderList}`)
-      const fromEmail = data.driverName ? `${data.driverName}` : ''
-      window.open(`mailto:wfldispatch@biotouchglobal.com?subject=${subject}&body=${body}`, '_blank')
+      await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'email',
+          to: 'wfldispatch@biotouchglobal.com',
+          subject: `Assign to driver ${toDriverNumber}`,
+          html: `<p>Order #: ${orderList}</p><p>Transferred by ${data.driverName} to ${toDriverName} (${toDriverNumber})</p><p>— CNC Delivery</p>`,
+        }),
+      })
 
       // Reload team data
       setTeamSelected(new Set())
       setExpandedDriver(null)
       setTeamData(null)
+      alert(`${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}. Email sent to BioTouch.`)
       loadTeamData()
     } catch (err) {
       alert('Transfer failed: ' + err.message)
