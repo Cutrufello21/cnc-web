@@ -170,3 +170,22 @@
   .driver__list-table { font-size: 12px; }
   .driver__list-table th, .driver__list-table td { padding: 6px 6px; }
 }
+
+/* Team Routes */
+.driver__team { display: flex; flex-direction: column; gap: 8px; }
+.driver__team-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 4px; }
+.driver__team-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px; overflow: hidden; }
+.driver__team-card--me { border-color: var(--cornflower); border-width: 2px; }
+.driver__team-header { display: flex; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; gap: 10px; }
+.driver__team-header:hover { background: var(--gray-50); }
+.driver__team-name { font-size: 15px; font-weight: 600; color: var(--gray-900); flex: 1; }
+.driver__team-you { font-size: 11px; font-weight: 500; color: var(--cornflower); }
+.driver__team-count { font-size: 13px; font-weight: 500; color: var(--gray-500); }
+.driver__team-cc { color: #2563eb; font-size: 11px; margin-left: 4px; }
+.driver__team-chevron { color: var(--gray-400); transition: transform 0.2s; flex-shrink: 0; }
+.driver__team-chevron--open { transform: rotate(180deg); }
+.driver__team-stops { border-top: 1px solid var(--gray-100); overflow-x: auto; }
+.driver__team-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.driver__team-table th { padding: 8px 10px; font-size: 11px; font-weight: 600; color: var(--gray-500); text-align: left; border-bottom: 1px solid var(--gray-100); }
+.driver__team-table td { padding: 6px 10px; border-bottom: 1px solid var(--gray-50); color: var(--gray-700); }
+.driver__team-table tr:last-child td { border-bottom: none; }

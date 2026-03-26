@@ -17,6 +17,8 @@ export default function DriverPage() {
   const [activeTab, setActiveTab] = useState('stops')
   const [listView, setListView] = useState(false)
   const [selected, setSelected] = useState(new Set())
+  const [teamData, setTeamData] = useState(null)
+  const [expandedDriver, setExpandedDriver] = useState(null)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -101,7 +103,7 @@ export default function DriverPage() {
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
       setData({
-        approved, deliveryDay: deliveryDayName, driverName, driverId, tabName,
+        approved, deliveryDay: deliveryDayName, deliveryDate, driverName, driverId, tabName,
         pharmacy: driverRow.pharmacy || 'SHSP',
         stops, stopCount: stops.length,
         coldChainCount: stops.filter(s => s._coldChain).length,
@@ -125,6 +127,23 @@ export default function DriverPage() {
   function toggleSelectAll() {
     if (!data?.stops) return
     setSelected(prev => prev.size === data.stops.length ? new Set() : new Set(data.stops.map((_, i) => i)))
+  }
+
+  async function loadTeamData() {
+    if (!data?.deliveryDate) return
+    if (teamData) return // already loaded
+    const { data: allStops } = await supabase.from('daily_stops').select('*')
+      .eq('delivery_date', data.deliveryDate)
+    const byDriver = {}
+    ;(allStops || []).forEach(s => {
+      if (!byDriver[s.driver_name]) byDriver[s.driver_name] = { stops: [], coldChain: 0 }
+      byDriver[s.driver_name].stops.push(s)
+      if (s.cold_chain) byDriver[s.driver_name].coldChain++
+    })
+    const drivers = Object.entries(byDriver)
+      .map(([name, d]) => ({ name, count: d.stops.length, coldChain: d.coldChain, stops: d.stops }))
+      .sort((a, b) => b.count - a.count)
+    setTeamData(drivers)
   }
 
   function getSelectedAddresses() {
@@ -239,6 +258,12 @@ export default function DriverPage() {
                 Schedule
               </button>
               <button
+                className={`driver__tab ${activeTab === 'team' ? 'driver__tab--active' : ''}`}
+                onClick={() => { setActiveTab('team'); loadTeamData() }}
+              >
+                Team
+              </button>
+              <button
                 className={`driver__tab ${activeTab === 'sort' ? 'driver__tab--active' : ''}`}
                 onClick={() => setActiveTab('sort')}
               >
@@ -343,6 +368,49 @@ export default function DriverPage() {
 
             {activeTab === 'timeoff' && (
               <TimeOffCalendar driverName={data.driverName} />
+            )}
+
+            {activeTab === 'team' && (
+              <div className="driver__team">
+                {!teamData ? (
+                  <div className="driver__not-ready"><div className="dispatch__spinner" />Loading team routes...</div>
+                ) : (
+                  <>
+                    <p className="driver__team-sub">{data.deliveryDay} — {teamData.reduce((s, d) => s + d.count, 0)} total stops</p>
+                    {teamData.map(d => {
+                      const isMe = d.name === data.driverName
+                      const isExpanded = expandedDriver === d.name
+                      return (
+                        <div key={d.name} className={`driver__team-card ${isMe ? 'driver__team-card--me' : ''}`}>
+                          <div className="driver__team-header" onClick={() => setExpandedDriver(isExpanded ? null : d.name)}>
+                            <span className="driver__team-name">{d.name} {isMe && <span className="driver__team-you">(You)</span>}</span>
+                            <span className="driver__team-count">{d.count} stops {d.coldChain > 0 && <span className="driver__team-cc">{d.coldChain} CC</span>}</span>
+                            <svg className={`driver__team-chevron ${isExpanded ? 'driver__team-chevron--open' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
+                          </div>
+                          {isExpanded && (
+                            <div className="driver__team-stops">
+                              <table className="driver__team-table">
+                                <thead><tr><th>#</th><th>Name</th><th>Address</th><th>City</th><th>ZIP</th></tr></thead>
+                                <tbody>
+                                  {d.stops.map((s, i) => (
+                                    <tr key={i}>
+                                      <td>{i + 1}</td>
+                                      <td>{s.patient_name || '—'}</td>
+                                      <td><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${s.address}, ${s.city}, OH ${s.zip}`)}`} target="_blank" rel="noopener noreferrer" className="driver__list-addr">{s.address || '—'}</a></td>
+                                      <td>{s.city || '—'}</td>
+                                      <td>{s.zip || '—'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
+              </div>
             )}
 
             {activeTab === 'sort' && (
