@@ -114,7 +114,7 @@ export default function Analytics() {
           {/* Volume + 7-day Moving Average */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Volume + 7-Day Moving Average</h3>
-            <TrendChart data={data.volumeTrend || []} movingAvg={data.movingAvg || []} />
+            <TrendChart data={(data.volumeTrend || []).slice().reverse()} movingAvg={(data.movingAvg || []).slice().reverse()} />
           </div>
 
           {/* Month-over-Month Growth */}
@@ -154,13 +154,13 @@ export default function Analytics() {
           {/* Cold Chain % Over Time */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Cold Chain % Over Time</h3>
-            <LineChart data={(data.ccTrend || []).map(d => ({ date: d.date, value: d.pct, label: d.pct + '%' }))} color="#6495ed" />
+            <LineChart data={(data.ccTrend || []).slice().reverse().map(d => ({ date: d.date, value: d.pct, label: d.pct + '%' }))} color="#6495ed" />
           </div>
 
           {/* SHSP vs Aultman Shift */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">SHSP vs Aultman Share Over Time</h3>
-            <LineChart data={(data.pharmaTrend || []).map(d => ({ date: d.date, value: d.shspPct, label: 'SHSP ' + d.shspPct + '%' }))} color="#3b82f6" />
+            <LineChart data={(data.pharmaTrend || []).slice().reverse().map(d => ({ date: d.date, value: d.shspPct, label: 'SHSP ' + d.shspPct + '%' }))} color="#3b82f6" />
             <div className="an__legend" style={{ marginTop: 8 }}>
               <span><span className="an__dot an__dot--shsp" />SHSP %</span>
               <span><span className="an__dot an__dot--aultman" />Aultman = remainder</span>
