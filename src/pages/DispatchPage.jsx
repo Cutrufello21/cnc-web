@@ -17,6 +17,7 @@ import SortList from '../components/dispatch/SortList'
 import WeatherWidget from '../components/dispatch/WeatherWidget'
 import StopDistribution from '../components/dispatch/StopDistribution'
 import ThemeToggle from '../components/ThemeToggle'
+import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
 import './DispatchPage.css'
 
@@ -426,8 +427,7 @@ export default function DispatchPage() {
       <header className="shell__header">
         <div className="container shell__header-inner">
           <div className="shell__brand">
-            <span className="shell__logo">CNC</span>
-            <span className="shell__title">Dispatch</span>
+            <BrandMark variant="light" size="sm" />
             <div className="shell__view-toggle">
               {[
                 ['hq', 'HQ', <svg key="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>],

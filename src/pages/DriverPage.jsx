@@ -6,6 +6,7 @@ import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
 import DriverSortList from '../components/driver/DriverSortList'
 import ThemeToggle from '../components/ThemeToggle'
+import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
 import './DriverPage.css'
 
@@ -231,8 +232,7 @@ export default function DriverPage() {
       <header className="shell__header">
         <div className="container shell__header-inner">
           <div className="shell__brand">
-            <span className="shell__logo">CNC</span>
-            <span className="shell__title">Driver Portal</span>
+            <BrandMark variant="light" size="sm" />
           </div>
           <div className="shell__user">
             <button className={`driver__refresh-btn ${refreshing ? 'driver__refresh-btn--spin' : ''}`} onClick={handleRefresh} disabled={refreshing} title="Refresh">

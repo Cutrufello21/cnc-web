@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import BrandMark from '../components/BrandMark'
 import './LoginPage.css'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -111,8 +112,7 @@ export default function LoginPage() {
       <div className="login__card">
         <div className="login__header">
           <div className="login__logo">
-            <span className="login__logo-icon">CNC</span>
-            <span className="login__logo-text">Delivery</span>
+            <BrandMark variant="dark" />
           </div>
           <h1 className="login__title">Sign in</h1>
           <p className="login__sub">Access your dispatch or driver dashboard</p>

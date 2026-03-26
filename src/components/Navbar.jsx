@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
+import BrandMark from './BrandMark'
 import './Navbar.css'
 
 export default function Navbar() {
@@ -17,8 +18,7 @@ export default function Navbar() {
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
       <div className="navbar__inner container">
         <Link to="/" className="navbar__logo">
-          <span className="navbar__logo-icon">CNC</span>
-          <span className="navbar__logo-text">Delivery</span>
+          <BrandMark variant="light" size="sm" />
         </Link>
 
         <div className={`navbar__links ${menuOpen ? 'navbar__links--open' : ''}`}>

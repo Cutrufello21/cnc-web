@@ -1,3 +1,4 @@
+import BrandMark from './BrandMark'
 import './Footer.css'
 
 export default function Footer() {
@@ -5,15 +6,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="container footer__inner">
         <div className="footer__brand">
-          <div className="footer__logo">
-            <span className="footer__logo-icon">CNC</span>
-            <span className="footer__logo-text">Delivery</span>
-          </div>
-          <p className="footer__tagline">
-            Medication delivered with care.
-            <br />
-            Northeast Ohio's trusted pharmacy courier.
-          </p>
+          <BrandMark variant="light" />
         </div>
 
         <div className="footer__links">

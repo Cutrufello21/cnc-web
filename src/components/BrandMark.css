@@ -1,0 +1,92 @@
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
+  user-select: none;
+}
+
+.brand-mark__cnc {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 4px;
+  line-height: 1;
+}
+
+.brand-mark__rule {
+  width: 0.5px;
+  height: 36px;
+  opacity: 0.3;
+  flex-shrink: 0;
+}
+
+.brand-mark__right {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-mark__delivery {
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: 6px;
+  line-height: 1;
+}
+
+.brand-mark__line {
+  width: 100%;
+  height: 0.5px;
+  opacity: 0.2;
+}
+
+.brand-mark__tagline {
+  font-size: 9.5px;
+  letter-spacing: 2.5px;
+  opacity: 0.45;
+  text-transform: uppercase;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+/* Light variant — white text on navy */
+.brand-mark--light .brand-mark__cnc,
+.brand-mark--light .brand-mark__delivery {
+  color: #fff;
+}
+.brand-mark--light .brand-mark__rule,
+.brand-mark--light .brand-mark__line {
+  background: #fff;
+}
+.brand-mark--light .brand-mark__tagline {
+  color: #fff;
+}
+
+/* Dark variant — navy text on white */
+.brand-mark--dark .brand-mark__cnc,
+.brand-mark--dark .brand-mark__delivery {
+  color: #0A2463;
+}
+.brand-mark--dark .brand-mark__rule,
+.brand-mark--dark .brand-mark__line {
+  background: #0A2463;
+}
+.brand-mark--dark .brand-mark__tagline {
+  color: #0A2463;
+}
+
+/* Small size — for nav headers */
+.brand-mark--sm .brand-mark__cnc {
+  font-size: 22px;
+  letter-spacing: 3px;
+}
+.brand-mark--sm .brand-mark__rule {
+  height: 28px;
+}
+.brand-mark--sm .brand-mark__delivery {
+  font-size: 16px;
+  letter-spacing: 5px;
+}
+.brand-mark--sm .brand-mark__tagline {
+  font-size: 8px;
+  letter-spacing: 2px;
+}

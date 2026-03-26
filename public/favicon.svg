@@ -1,4 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <rect width="64" height="64" rx="14" fill="#0A2463"/>
-  <text x="32" y="43" text-anchor="middle" font-family="system-ui" font-weight="700" font-size="24" fill="#6495ED">CNC</text>
+  <text x="32" y="42" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif" font-weight="300" font-size="22" letter-spacing="3" fill="#fff">CNC</text>
 </svg>
