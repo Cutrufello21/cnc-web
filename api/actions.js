@@ -65,12 +65,14 @@ export default async function handler(req, res) {
             service: 'gmail',
             auth: { user: gmailUser, pass: gmailPass },
           })
-          await transporter.sendMail({
-            from: `"CNC Delivery" <${gmailUser}>`,
-            to: 'wfldispatch@biotouchglobal.com',
-            subject: `Assign to driver ${toDriverNumber}`,
-            html: `<p>Order #: ${orderIds.join(', ')}</p>`,
-          })
+          for (const orderId of orderIds) {
+            await transporter.sendMail({
+              from: `"CNC Delivery" <${gmailUser}>`,
+              to: 'wfldispatch@biotouchglobal.com',
+              subject: `Assign Order to driver ${toDriverNumber}`,
+              text: orderId,
+            })
+          }
         } catch (emailErr) {
           console.error('[transfer email]', emailErr.message)
         }
