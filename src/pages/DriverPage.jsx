@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
@@ -27,19 +27,27 @@ export default function DriverPage() {
     if (user?.email) fetchDriverData()
   }, [user?.email])
 
+  // Cache driver info so refresh doesn't re-lookup
+  const driverCache = useRef(null)
+
   async function fetchDriverData() {
-    if (!data) setLoading(true) // Only show spinner on first load
+    if (!data) setLoading(true)
     setError(null)
     try {
-      // Look up driver from Supabase — try email first, then profile's driver_number
-      let { data: driverRow } = await supabase.from('drivers')
-        .select('*').eq('email', user.email.toLowerCase()).single()
-      if (!driverRow && profile?.driver_number) {
-        const { data: byNumber } = await supabase.from('drivers')
-          .select('*').eq('driver_number', profile.driver_number).single()
-        driverRow = byNumber
+      // Look up driver (cached after first load)
+      let driverRow = driverCache.current
+      if (!driverRow) {
+        const { data: byEmail } = await supabase.from('drivers')
+          .select('*').eq('email', user.email.toLowerCase()).single()
+        driverRow = byEmail
+        if (!driverRow && profile?.driver_number) {
+          const { data: byNumber } = await supabase.from('drivers')
+            .select('*').eq('driver_number', profile.driver_number).single()
+          driverRow = byNumber
+        }
+        if (!driverRow) throw new Error('Driver not found')
+        driverCache.current = driverRow
       }
-      if (!driverRow) throw new Error('Driver not found')
 
       const driverName = driverRow.driver_name
       const driverId = driverRow.driver_number
@@ -49,12 +57,16 @@ export default function DriverPage() {
       const todayName = DAYS[new Date().getDay()]
       const isWeekend = todayName === 'Sunday' || todayName === 'Saturday'
 
-      // Get payroll data from Supabase
-      const { data: payrollData } = await supabase.from('payroll')
-        .select('*').eq('driver_name', driverName)
-        .order('week_of', { ascending: false }).limit(1)
+      // Fetch payroll + latest delivery date in parallel
+      const [payrollRes, latestRes] = await Promise.all([
+        supabase.from('payroll').select('*').eq('driver_name', driverName)
+          .order('week_of', { ascending: false }).limit(1),
+        isWeekend ? Promise.resolve({ data: [] }) : supabase.from('daily_stops')
+          .select('delivery_date').eq('driver_name', driverName)
+          .order('delivery_date', { ascending: false }).limit(1),
+      ])
 
-      const payroll = payrollData?.[0]
+      const payroll = payrollRes.data?.[0]
       let weekTotal = 0
       let dailyStops = {}
       if (payroll) {
@@ -71,19 +83,11 @@ export default function DriverPage() {
         return
       }
 
-      // Get the most recent stops for this driver — query by driver name,
-      // order by delivery_date descending, take the latest batch
-      const { data: latestStops } = await supabase.from('daily_stops')
-        .select('delivery_date')
-        .eq('driver_name', driverName)
-        .order('delivery_date', { ascending: false })
-        .limit(1)
-
-      const deliveryDate = latestStops?.[0]?.delivery_date || new Date().toISOString().split('T')[0]
+      const deliveryDate = latestRes.data?.[0]?.delivery_date || new Date().toISOString().split('T')[0]
       const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
       const deliveryDayName = DAYNAMES[new Date(deliveryDate + 'T12:00:00').getDay()]
 
-      // Get daily stops and approval status from Supabase
+      // Get stops + logs in parallel
       const [stopsRes, logsRes] = await Promise.all([
         supabase.from('daily_stops').select('*')
           .eq('delivery_date', deliveryDate).eq('driver_name', driverName),
