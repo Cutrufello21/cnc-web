@@ -437,8 +437,12 @@ export default function DriverPage() {
                     )}
                     {teamData.map(d => {
                       const isMe = d.name === data.driverName
+                      const canManageAll = data.pharmacy === 'Both'
+                      const canSelect = isMe || canManageAll
                       const isExpanded = expandedDriver === d.name
-                      const canTransferTo = !isMe && teamSelected.size > 0
+                      // Can transfer to this driver if stops are selected and they aren't the source
+                      const selectedFromThis = d.stops.some(s => teamSelected.has(s.order_id))
+                      const canTransferTo = !selectedFromThis && teamSelected.size > 0
                       return (
                         <div key={d.name} className={`driver__team-card ${isMe ? 'driver__team-card--me' : ''} ${canTransferTo ? 'driver__team-card--target' : ''}`}>
                           <div className="driver__team-header" onClick={() => {
@@ -462,11 +466,11 @@ export default function DriverPage() {
                           {isExpanded && (
                             <div className="driver__team-stops">
                               <table className="driver__team-table">
-                                <thead><tr>{isMe && <th></th>}<th>#</th><th>Name</th><th>Address</th><th>City</th><th>ZIP</th></tr></thead>
+                                <thead><tr>{canSelect && <th></th>}<th>#</th><th>Name</th><th>Address</th><th>City</th><th>ZIP</th></tr></thead>
                                 <tbody>
                                   {d.stops.map((s, i) => (
                                     <tr key={i} className={teamSelected.has(s.order_id) ? 'driver__team-row--selected' : ''}>
-                                      {isMe && (
+                                      {canSelect && (
                                         <td><input type="checkbox" checked={teamSelected.has(s.order_id)} onChange={() => toggleTeamSelect(s.order_id)} /></td>
                                       )}
                                       <td>{i + 1}</td>
