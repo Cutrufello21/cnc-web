@@ -120,7 +120,7 @@ async function main() {
         const nameIdx = headers.indexOf('Name')
         const addrIdx = headers.indexOf('Address')
         const cityIdx = headers.indexOf('City')
-        const zipIdx = headers.indexOf('ZIP')
+        const zipIdx = headers.indexOf('Zip Code') >= 0 ? headers.indexOf('Zip Code') : headers.indexOf('ZIP')
         const pharmaIdx = headers.indexOf('Pharmacy')
         const ccIdx = headers.indexOf('Cold Chain')
         const dispatchIdx = headers.indexOf('Dispatch Driver #')
