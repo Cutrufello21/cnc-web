@@ -96,6 +96,25 @@
   color: var(--cornflower);
 }
 
+.dcard__stat--alert {
+  background: rgba(239, 68, 68, 0.12);
+  border-radius: 6px;
+  padding: 4px 8px;
+  animation: alertPulse 2s ease-in-out infinite;
+}
+.dcard__stat--alert .dcard__stat-value {
+  color: #ef4444 !important;
+  font-weight: 700;
+}
+.dcard__stat--alert .dcard__stat-label {
+  color: #ef4444;
+  font-weight: 600;
+}
+@keyframes alertPulse {
+  0%, 100% { background: rgba(239, 68, 68, 0.12); }
+  50% { background: rgba(239, 68, 68, 0.25); }
+}
+
 .dcard__stat-label {
   font-size: 12px;
   font-weight: 500;

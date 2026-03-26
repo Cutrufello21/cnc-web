@@ -257,9 +257,9 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           <span className="dcard__stat-label">Stops</span>
         </div>
         {coldChain > 0 && (
-          <div className="dcard__stat dcard__stat--cold">
-            <span className="dcard__stat-value">{coldChain}</span>
-            <span className="dcard__stat-label">Cold Chain</span>
+          <div className={`dcard__stat dcard__stat--cold${coldChain > 26 ? ' dcard__stat--alert' : ''}`}>
+            <span className="dcard__stat-value">{coldChain}{coldChain > 26 ? ' \u{1F6A9}' : ''}</span>
+            <span className="dcard__stat-label">Cold Chain{coldChain > 26 ? ' — Over Limit!' : ''}</span>
           </div>
         )}
         {stops > 0 && (

@@ -84,7 +84,7 @@ export default function Analytics() {
 
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Delivery Volume</h3>
-            <BarChart data={chartData} maxVol={maxVol} />
+            <BarChart data={chartData} maxVol={maxVol} target={400} />
           </div>
 
           <div className="an__grid">
@@ -114,7 +114,7 @@ export default function Analytics() {
           {/* Volume + 7-day Moving Average */}
           <div className="an__card an__card--full">
             <h3 className="an__card-title">Volume + 7-Day Moving Average</h3>
-            <TrendChart data={(data.volumeTrend || []).slice().reverse()} movingAvg={(data.movingAvg || []).slice().reverse()} />
+            <TrendChart data={(data.volumeTrend || []).slice().reverse()} movingAvg={(data.movingAvg || []).slice().reverse()} target={400} />
           </div>
 
           {/* Month-over-Month Growth */}
@@ -244,13 +244,18 @@ export default function Analytics() {
   )
 }
 
-function BarChart({ data, maxVol }) {
+function BarChart({ data, maxVol, target }) {
   const ref = useRef(null)
   useEffect(() => { if (ref.current) ref.current.scrollLeft = 0 }, [data])
 
   return (
     <div className="an__vol-scroll" ref={ref}>
-      <div className="an__vol-chart">
+      <div className="an__vol-chart" style={{ position: 'relative' }}>
+        {target > 0 && target <= maxVol && (
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(target / maxVol) * 100}%`, borderBottom: '2px dashed #22c55e', zIndex: 2, pointerEvents: 'none' }}>
+            <span style={{ position: 'absolute', right: 4, top: -16, fontSize: 10, color: '#22c55e', fontWeight: 600 }}>400 target</span>
+          </div>
+        )}
         {(data || []).map((d, i) => (
           <div className="an__vol-col" key={i} title={`${d.day || ''} ${fmtDate(d.date)}: ${d.orders} (SHSP: ${d.shsp}, Aultman: ${d.aultman})`}>
             <div className="an__vol-bar-wrap">
@@ -268,7 +273,7 @@ function BarChart({ data, maxVol }) {
   )
 }
 
-function TrendChart({ data, movingAvg }) {
+function TrendChart({ data, movingAvg, target }) {
   const ref = useRef(null)
   useEffect(() => { if (ref.current) ref.current.scrollLeft = 0 }, [data])
   const maxVol = Math.max(...(data || []).map(d => d.orders || 0), 1)
@@ -277,7 +282,12 @@ function TrendChart({ data, movingAvg }) {
 
   return (
     <div className="an__vol-scroll" ref={ref}>
-      <div className="an__trend-chart">
+      <div className="an__trend-chart" style={{ position: 'relative' }}>
+        {target > 0 && target <= maxY && (
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${(target / maxY) * 100}%`, borderBottom: '2px dashed #22c55e', zIndex: 2, pointerEvents: 'none' }}>
+            <span style={{ position: 'absolute', right: 4, top: -16, fontSize: 10, color: '#22c55e', fontWeight: 600 }}>400 target</span>
+          </div>
+        )}
         {(data || []).map((d, i) => {
           const avg = movingAvg[i]?.avg || 0
           return (
