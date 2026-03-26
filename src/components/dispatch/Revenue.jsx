@@ -34,12 +34,22 @@ export default function Revenue({ weekOf, driverPayroll }) {
     const monStr = weekOf
     const friStr = `${friday.getFullYear()}-${String(friday.getMonth()+1).padStart(2,'0')}-${String(friday.getDate()).padStart(2,'0')}`
 
-    const { data } = await supabase.from('daily_stops')
-      .select('delivery_date, zip, pharmacy')
-      .gte('delivery_date', monStr)
-      .lte('delivery_date', friStr)
+    // Fetch all stops for the week (may exceed 1000 default limit)
+    let allStops = []
+    let page = 0
+    const pageSize = 1000
+    while (true) {
+      const { data } = await supabase.from('daily_stops')
+        .select('delivery_date, zip, pharmacy')
+        .gte('delivery_date', monStr)
+        .lte('delivery_date', friStr)
+        .range(page * pageSize, (page + 1) * pageSize - 1)
+      allStops = allStops.concat(data || [])
+      if (!data || data.length < pageSize) break
+      page++
+    }
 
-    setStops(data || [])
+    setStops(allStops)
     setLoading(false)
   }
 
