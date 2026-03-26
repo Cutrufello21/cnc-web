@@ -94,7 +94,7 @@ export default function RoutingEditor() {
         mon: newZip.mon || '', tue: newZip.tue || '', wed: newZip.wed || '',
         thu: newZip.thu || '', fri: newZip.fri || '',
         route: newZip.route || '', pharmacy: newZip.pharmacy || '',
-      }, { onConflict: 'zip_code' })
+      }, { onConflict: 'zip_code,pharmacy' })
       if (error) throw new Error(error.message)
 
       setToast(`ZIP ${newZip.zip} added`)
