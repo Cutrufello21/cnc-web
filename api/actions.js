@@ -86,7 +86,7 @@ export default async function handler(req, res) {
 
       // Map driver names to their Road Warrior email/username
       const RW_EMAILS = {
-        'Dom': 'cc.dominic',
+        'Dom': 'ccdelivery.dominic',
         'Alex': 'ccdelivery.Alex',
         'Josh': 'ccdelivery.josh',
         'Laura': 'ccdelivery.laura',
