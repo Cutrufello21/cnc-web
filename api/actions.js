@@ -109,28 +109,20 @@ export default async function handler(req, res) {
               HardStop: false,
               TravelMode: 0,
               Stops: await (async () => {
-                // Geocode unique ZIPs first (fast, 1 lookup per ZIP not per stop)
-                const zipCoords = {}
-                const uniqueZips = [...new Set((driver.stops || []).map(s => s.zip).filter(Boolean))]
-                for (const zip of uniqueZips) {
-                  try {
-                    const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&postalcode=${zip}&country=US`, {
-                      headers: { 'User-Agent': 'CNCDelivery/1.0' },
-                    })
-                    const geoData = await geoRes.json()
-                    if (geoData?.[0]) zipCoords[zip] = { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) }
-                    await new Promise(r => setTimeout(r, 1100))
-                  } catch {}
-                }
-                // Each stop gets its ZIP centroid + small random offset so pins spread out
-                return (driver.stops || []).map((s, i) => {
+                const results = []
+                for (const s of (driver.stops || [])) {
                   const addr = `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
-                  const base = zipCoords[s.zip] || { lat: 40.80, lng: -81.38 }
-                  const lat = base.lat + ((i % 10) * 0.002 - 0.01) + (Math.random() * 0.004 - 0.002)
-                  const lng = base.lng + ((i % 10) * 0.002 - 0.01) + (Math.random() * 0.004 - 0.002)
-                  return { Name: addr, Address: addr, Lat: lat, Lng: lng, ServiceTime: 2,
-                    Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}` }
-                })
+                  let lat = 40.80, lng = -81.38
+                  try {
+                    const geoRes = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(addr)}&benchmark=Public_AR_Current&format=json`)
+                    const geoData = await geoRes.json()
+                    const match = geoData.result?.addressMatches?.[0]
+                    if (match) { lat = match.coordinates.y; lng = match.coordinates.x }
+                  } catch {}
+                  results.push({ Name: addr, Address: addr, Lat: lat, Lng: lng, ServiceTime: 2,
+                    Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}` })
+                }
+                return results
               })(),
             }),
           })
