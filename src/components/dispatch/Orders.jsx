@@ -33,23 +33,12 @@ export default function Orders() {
   const searchRef = useRef(null)
 
   useEffect(() => {
-    async function loadFilters() {
-      const [driversRes, datesRes, sourcesRes, citiesRes] = await Promise.all([
-        supabase.from('orders').select('driver_name').not('driver_name', 'is', null).not('driver_name', 'eq', ''),
-        supabase.from('orders').select('date_delivered').not('date_delivered', 'is', null),
-        supabase.from('orders').select('source').not('source', 'is', null).not('source', 'eq', ''),
-        supabase.from('orders').select('city').not('city', 'is', null).not('city', 'eq', ''),
-      ])
-      const years = [...new Set((datesRes.data || []).map(r => r.date_delivered?.slice(0, 4)).filter(Boolean))].sort().reverse()
-      setFilters({
-        drivers: [...new Set((driversRes.data || []).map(r => r.driver_name))].sort(),
-        pharmacies: ['SHSP', 'Aultman'],
-        sources: [...new Set((sourcesRes.data || []).map(r => r.source))].sort(),
-        cities: [...new Set((citiesRes.data || []).map(r => r.city))].sort(),
-        years,
+    fetch('/api/order-filters')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) setFilters({ ...data, pharmacies: ['SHSP', 'Aultman'] })
       })
-    }
-    loadFilters()
+      .catch(() => {})
   }, [])
 
   useEffect(() => { loadOrders() }, [page, search, driver, pharmacy, zip, coldchain, source, year, month, city, dateFrom, dateTo])
