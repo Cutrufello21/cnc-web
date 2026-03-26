@@ -134,7 +134,7 @@ export default function Analytics() {
                 if (monthSort === 'volume') return b.orders - a.orders
                 if (monthSort === 'growth') return (b.growth || 0) - (a.growth || 0)
                 if (monthSort === 'avg') return b.avgPerDay - a.avgPerDay
-                return a.month.localeCompare(b.month)
+                return b.month.localeCompare(a.month)
               }).map(m => (
                 <div className="an__month-card" key={m.month}>
                   <span className="an__month-label">{(() => { const [y, mo] = m.month.split('-'); const names = ['January','February','March','April','May','June','July','August','September','October','November','December']; return `${y} - ${names[+mo - 1]}` })()}</span>
