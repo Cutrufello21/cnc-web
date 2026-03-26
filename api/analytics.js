@@ -176,24 +176,36 @@ export default async function handler(req, res) {
       }
     })
 
-    // Cold chain % over time (weekly buckets)
-    const ccTrend = []
-    for (let i = 0; i < allForTrends.length; i += 5) {
-      const chunk = allForTrends.slice(i, i + 5)
-      const total = chunk.reduce((s, r) => s + (r.orders_processed || 0), 0)
-      const cc = chunk.reduce((s, r) => s + (r.cold_chain || 0), 0)
-      ccTrend.push({ date: chunk[0]?.date, pct: total ? Math.round((cc / total) * 100) : 0, total, cc })
-    }
+    // Group by payroll week (Mon-Fri, labeled by Week Ending Saturday)
+    const weekBuckets = {}
+    allForTrends.forEach(r => {
+      const d = new Date(r.date + 'T12:00:00')
+      const day = d.getDay() // 0=Sun..6=Sat
+      const satOffset = day === 0 ? 6 : 6 - day
+      const sat = new Date(d)
+      sat.setDate(d.getDate() + satOffset)
+      const key = sat.toISOString().split('T')[0]
+      if (!weekBuckets[key]) weekBuckets[key] = []
+      weekBuckets[key].push(r)
+    })
+    const weekKeys = Object.keys(weekBuckets).sort()
 
-    // SHSP vs Aultman share over time (weekly buckets)
-    const pharmaTrend = []
-    for (let i = 0; i < allForTrends.length; i += 5) {
-      const chunk = allForTrends.slice(i, i + 5)
-      const shsp = chunk.reduce((s, r) => s + (r.shsp_orders || 0), 0)
-      const aultman = chunk.reduce((s, r) => s + (r.aultman_orders || 0), 0)
+    // Cold chain % over time (payroll weeks)
+    const ccTrend = weekKeys.map(wk => {
+      const rows = weekBuckets[wk]
+      const total = rows.reduce((s, r) => s + (r.orders_processed || 0), 0)
+      const cc = rows.reduce((s, r) => s + (r.cold_chain || 0), 0)
+      return { date: wk, pct: total ? Math.round((cc / total) * 100) : 0, total, cc }
+    })
+
+    // SHSP vs Aultman share over time (payroll weeks)
+    const pharmaTrend = weekKeys.map(wk => {
+      const rows = weekBuckets[wk]
+      const shsp = rows.reduce((s, r) => s + (r.shsp_orders || 0), 0)
+      const aultman = rows.reduce((s, r) => s + (r.aultman_orders || 0), 0)
       const total = shsp + aultman || 1
-      pharmaTrend.push({ date: chunk[0]?.date, shsp, aultman, shspPct: Math.round((shsp / total) * 100) })
-    }
+      return { date: wk, shsp, aultman, shspPct: Math.round((shsp / total) * 100) }
+    })
 
     return res.status(200).json({
       period,
