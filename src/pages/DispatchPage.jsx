@@ -427,7 +427,8 @@ export default function DispatchPage() {
       <header className="shell__header">
         <div className="container shell__header-inner">
           <div className="shell__brand">
-            <BrandMark variant="light" size="sm" />
+            <span className="shell__pill">CNC</span>
+            <span className="shell__title">Dispatch</span>
             <div className="shell__view-toggle">
               {[
                 ['hq', 'HQ', <svg key="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>],

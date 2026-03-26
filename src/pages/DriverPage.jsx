@@ -232,7 +232,8 @@ export default function DriverPage() {
       <header className="shell__header">
         <div className="container shell__header-inner">
           <div className="shell__brand">
-            <BrandMark variant="light" size="sm" />
+            <span className="shell__pill">CNC</span>
+            <span className="shell__title">Driver Portal</span>
           </div>
           <div className="shell__user">
             <button className={`driver__refresh-btn ${refreshing ? 'driver__refresh-btn--spin' : ''}`} onClick={handleRefresh} disabled={refreshing} title="Refresh">
