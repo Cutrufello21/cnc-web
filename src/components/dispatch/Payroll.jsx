@@ -549,7 +549,7 @@ export default function Payroll() {
       </div>
 
       {/* Driver Reconciliation */}
-      <ReconSection drivers={data.drivers} />
+      {/* ReconSection temporarily removed — will rebuild */}
 
       {/* Revenue */}
       <Revenue weekOf={(() => {
