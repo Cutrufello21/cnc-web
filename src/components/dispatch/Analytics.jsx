@@ -79,7 +79,6 @@ export default function Analytics() {
             <div className="an__kpi"><span className="an__kpi-label">Cold Chain</span><span className="an__kpi-value an__kpi-value--accent">{(k.totalColdChain || 0).toLocaleString()}</span><span className="an__kpi-sub">{k.coldChainPct || 0}%</span></div>
             <div className="an__kpi"><span className="an__kpi-label">SHSP</span><span className="an__kpi-value">{(k.shspTotal || 0).toLocaleString()}</span><span className="an__kpi-sub">{k.shspPct || 0}%</span></div>
             <div className="an__kpi"><span className="an__kpi-label">Aultman</span><span className="an__kpi-value">{(k.aultmanTotal || 0).toLocaleString()}</span><span className="an__kpi-sub">{100 - (k.shspPct || 0)}%</span></div>
-            <div className={`an__kpi ${k.totalUnassigned > 0 ? 'an__kpi--warn' : ''}`}><span className="an__kpi-label">Unassigned</span><span className={`an__kpi-value ${k.totalUnassigned > 0 ? 'an__kpi-value--warn' : ''}`}>{k.totalUnassigned || 0}</span></div>
           </div>
 
           <div className="an__card an__card--full">
