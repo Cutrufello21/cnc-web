@@ -30,23 +30,72 @@
   margin-top: 2px;
 }
 
-.wx__alert {
+/* Floating weather alert toast */
+.wx__alert-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #991b1b;
-  padding: 10px 20px;
+  padding: 10px 16px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
-  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 300;
+  max-width: 400px;
+  animation: wxToastIn 0.3s ease;
+}
+
+.wx__alert-text {
+  flex: 1;
+}
+
+.wx__alert-close {
+  background: none;
+  border: none;
+  color: #991b1b;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.wx__alert-close:hover {
+  opacity: 1;
+  background: rgba(153, 27, 27, 0.08);
+}
+
+@keyframes wxToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 [data-theme="dark"] .wx {
   background: rgba(255,255,255,0.08);
 }
 
-[data-theme="dark"] .wx__alert {
+[data-theme="dark"] .wx__alert-toast {
   background: rgba(220, 74, 74, 0.15);
   border-color: rgba(220, 74, 74, 0.3);
+  color: #fca5a5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .wx__alert-close {
   color: #fca5a5;
 }

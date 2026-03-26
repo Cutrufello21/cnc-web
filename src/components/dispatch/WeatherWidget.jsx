@@ -34,6 +34,7 @@ const DANGEROUS_CODES = new Set([66, 67, 71, 73, 75, 77, 85, 86])
 
 export default function WeatherWidget() {
   const [weather, setWeather] = useState(null)
+  const [alertDismissed, setAlertDismissed] = useState(false)
 
   useEffect(() => {
     // Akron, OH coordinates
@@ -67,9 +68,18 @@ export default function WeatherWidget() {
           <span className="wx__label">{info.label} · {weather.wind}mph</span>
         </div>
       </div>
-      {isDangerous && (
-        <div className="wx__alert">
-          ⚠️ Weather Alert — Snow/ice expected. Notify drivers.
+      {isDangerous && !alertDismissed && (
+        <div className="wx__alert-toast">
+          <span className="wx__alert-text">
+            Weather Alert — Snow/ice expected. Notify drivers.
+          </span>
+          <button
+            className="wx__alert-close"
+            onClick={() => setAlertDismissed(true)}
+            aria-label="Dismiss alert"
+          >
+            x
+          </button>
         </div>
       )}
     </>

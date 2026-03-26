@@ -388,7 +388,7 @@
 }
 
 /* Reconciliation */
-.pay__recon { margin-top: 32px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 12px; padding: 24px; }
+.pay__recon { margin-top: 32px; background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius-md); padding: 24px; }
 .pay__recon-title { font-size: 18px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
 .pay__recon-sub { font-size: 13px; color: var(--gray-400); margin-bottom: 16px; }
 .pay__recon-table-wrap { overflow-x: auto; }
