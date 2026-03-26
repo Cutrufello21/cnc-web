@@ -108,13 +108,24 @@ export default async function handler(req, res) {
               HardStart: false,
               HardStop: false,
               TravelMode: 0,
-              Stops: (driver.stops || []).map(s => ({
-                Name: `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`,
-                Address: `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`,
-                Lat: 0,
-                Lng: 0,
-                ServiceTime: 2,
-                Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}`,
+              Stops: await Promise.all((driver.stops || []).map(async s => {
+                const addr = `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
+                let lat = 0, lng = 0
+                try {
+                  const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(addr)}`, {
+                    headers: { 'User-Agent': 'CNCDelivery/1.0' },
+                  })
+                  const geoData = await geoRes.json()
+                  if (geoData?.[0]) { lat = parseFloat(geoData[0].lat); lng = parseFloat(geoData[0].lon) }
+                } catch {}
+                return {
+                  Name: addr,
+                  Address: addr,
+                  Lat: lat,
+                  Lng: lng,
+                  ServiceTime: 2,
+                  Note: s.cold_chain ? `Cold Chain | Order #${s.order_id}` : `Order #${s.order_id}`,
+                }
               })),
             }),
           })
