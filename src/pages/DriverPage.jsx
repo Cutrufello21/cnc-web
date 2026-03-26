@@ -30,10 +30,15 @@ export default function DriverPage() {
     if (!data) setLoading(true) // Only show spinner on first load
     setError(null)
     try {
-      // Look up driver from Supabase
-      const { data: driverRow, error: driverErr } = await supabase.from('drivers')
+      // Look up driver from Supabase — try email first, then profile's driver_number
+      let { data: driverRow } = await supabase.from('drivers')
         .select('*').eq('email', user.email.toLowerCase()).single()
-      if (driverErr || !driverRow) throw new Error('Driver not found')
+      if (!driverRow && profile?.driver_number) {
+        const { data: byNumber } = await supabase.from('drivers')
+          .select('*').eq('driver_number', profile.driver_number).single()
+        driverRow = byNumber
+      }
+      if (!driverRow) throw new Error('Driver not found')
 
       const driverName = driverRow.driver_name
       const driverId = driverRow.driver_number
