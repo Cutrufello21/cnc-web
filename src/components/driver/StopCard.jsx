@@ -10,6 +10,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const zip = stop['ZIP'] || ''
   const orderId = stop['Order ID'] || stop['Order_ID'] || ''
   const isColdChain = stop._coldChain
+  const isTransferred = stop._transferred
   const pharmacy = stop['Pharmacy'] || ''
   const notes = stop['Notes'] || stop['Special Instructions'] || ''
 
@@ -41,6 +42,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         <div className="stop__info">
           <div className="stop__top-row">
             <h4 className="stop__name">{name}</h4>
+            {isTransferred && <span className="stop__badge stop__badge--transfer">Transferred</span>}
             {isColdChain && <span className="stop__badge stop__badge--cold">Cold Chain</span>}
             {pharmacy && <span className="stop__badge stop__badge--pharma">{pharmacy}</span>}
           </div>

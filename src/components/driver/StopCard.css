@@ -94,6 +94,11 @@
   color: var(--gray-500);
 }
 
+.stop__badge--transfer {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .stop__note-icon {
   font-size: 14px;
   cursor: help;

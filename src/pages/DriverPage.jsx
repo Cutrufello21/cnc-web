@@ -105,6 +105,7 @@ export default function DriverPage() {
         Address: s.address, City: s.city, ZIP: s.zip,
         Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
         _coldChain: s.cold_chain,
+        _transferred: s.assigned_driver_number && s.dispatch_driver_number && s.assigned_driver_number !== s.dispatch_driver_number,
         Notes: s.notes || '',
       }))
       // Approved if dispatch log exists OR if stops are already in Supabase
