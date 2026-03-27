@@ -80,6 +80,14 @@
   color: var(--white);
 }
 
+.footer__compliance {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  opacity: 0.35;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .footer__bottom {
   padding-top: 32px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);

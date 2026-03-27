@@ -30,6 +30,10 @@ export default function Footer() {
           </div>
         </div>
 
+        <div className="footer__compliance">
+          HIPAA-compliant operations &nbsp;·&nbsp; BAA available upon request
+        </div>
+
         <div className="footer__bottom">
           <p>&copy; {new Date().getFullYear()} CNC Delivery Service. All rights reserved.</p>
           <p className="footer__address">
