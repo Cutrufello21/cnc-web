@@ -59,22 +59,34 @@ export default function DriverPage() {
       const todayName = DAYS[new Date().getDay()]
       const isWeekend = todayName === 'Sunday' || todayName === 'Saturday'
 
-      // Fetch payroll + latest delivery date in parallel
-      const [payrollRes, latestRes] = await Promise.all([
-        supabase.from('payroll').select('*').eq('driver_name', driverName)
-          .order('week_of', { ascending: false }).limit(1),
+      // Get Monday-Friday of current week
+      const now = new Date()
+      const dow = now.getDay()
+      const monOffset = dow === 0 ? -6 : 1 - dow
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + monOffset)
+      const friday = new Date(monday)
+      friday.setDate(monday.getDate() + 4)
+      const fmtD = d => d.toISOString().split('T')[0]
+
+      // Fetch actual stops from daily_stops + latest delivery date
+      const [weekStopsRes, latestRes] = await Promise.all([
+        supabase.from('daily_stops').select('delivery_day')
+          .eq('driver_name', driverName)
+          .gte('delivery_date', fmtD(monday))
+          .lte('delivery_date', fmtD(friday)),
         isWeekend ? Promise.resolve({ data: [] }) : supabase.from('daily_stops')
           .select('delivery_date').eq('driver_name', driverName)
           .order('delivery_date', { ascending: false }).limit(1),
       ])
 
-      const payroll = payrollRes.data?.[0]
-      let weekTotal = 0
-      let dailyStops = {}
-      if (payroll) {
-        dailyStops = { Mon: payroll.mon || 0, Tue: payroll.tue || 0, Wed: payroll.wed || 0, Thu: payroll.thu || 0, Fri: payroll.fri || 0 }
-        weekTotal = payroll.week_total || 0
+      const dayMap = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' }
+      let dailyStops = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
+      for (const s of (weekStopsRes.data || [])) {
+        const abbr = dayMap[s.delivery_day]
+        if (abbr) dailyStops[abbr]++
       }
+      let weekTotal = Object.values(dailyStops).reduce((s, v) => s + v, 0)
 
       if (isWeekend) {
         setData({
