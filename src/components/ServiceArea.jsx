@@ -77,12 +77,12 @@ export default function ServiceArea() {
               <React.Fragment key={i}>
                 <CircleMarker
                   center={[pin.lat, pin.lng]}
-                  radius={14}
+                  radius={28}
                   pathOptions={{
                     color: 'transparent',
                     weight: 0,
                     fillColor: '#0A2463',
-                    fillOpacity: 0.07,
+                    fillOpacity: 0.06,
                   }}
                 />
                 <CircleMarker
