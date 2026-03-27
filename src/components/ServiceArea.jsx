@@ -64,8 +64,8 @@ export default function ServiceArea() {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <MapContainer
-            center={[41.10, -81.35]}
-            zoom={10}
+            center={[41.05, -81.35]}
+            zoom={9}
             scrollWheelZoom={false}
             style={{ height: '480px', width: '100%' }}
           >
@@ -77,7 +77,7 @@ export default function ServiceArea() {
               <React.Fragment key={i}>
                 <CircleMarker
                   center={[pin.lat, pin.lng]}
-                  radius={28}
+                  radius={20}
                   pathOptions={{
                     color: 'transparent',
                     weight: 0,
