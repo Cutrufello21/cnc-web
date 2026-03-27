@@ -626,6 +626,16 @@ export default function DispatchPage() {
                     )}
                   </div>
                 )}
+                {(data.unassigned?.length > 0) && (
+                  <button
+                    className="dispatch__alert-btn"
+                    onClick={() => { setShowUnassigned(true); setShowRouting(false); setShowSortList(false) }}
+                    title={`${data.unassigned.length} unassigned orders`}
+                  >
+                    <span className="dispatch__alert-flag">&#9873;</span>
+                    <span className="dispatch__alert-count">{data.unassigned.length}</span>
+                  </button>
+                )}
                 <button
                   className={`dispatch__callin-btn ${callInsSent ? 'dispatch__callin-btn--done' : ''}`}
                   onClick={handlePreviewCallIns}

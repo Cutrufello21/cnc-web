@@ -149,6 +149,41 @@
   align-items: center;
 }
 
+.dispatch__alert-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+  background: var(--white);
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  animation: alertPulse 2.5s ease-in-out infinite;
+}
+
+.dispatch__alert-btn:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.dispatch__alert-flag {
+  font-size: 14px;
+}
+
+.dispatch__alert-count {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@keyframes alertPulse {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.35); }
+  50% { border-color: rgba(239, 68, 68, 0.7); }
+}
+
 .dispatch__callin-btn {
   display: inline-flex;
   align-items: center;
