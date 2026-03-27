@@ -22,7 +22,7 @@ const pillars = [
       </svg>
     ),
     title: 'Dispatched the Night Before.',
-    desc: "Every order sorted, assigned, and waiting in the driver portal before midnight. Deliveries run 8 AM–6 PM daily. We've never missed that window. We've never returned a late delivery.",
+    desc: "Every order sorted, assigned, and waiting in the driver portal before midnight. Deliveries complete by 6 PM — a window we've kept without exception.",
   },
   {
     icon: (
