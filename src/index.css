@@ -236,6 +236,20 @@
 [data-theme="dark"] .brand-mark--dark .brand-mark__line { background: #fff; }
 [data-theme="dark"] .brand-mark--dark .brand-mark__tagline { color: #fff; }
 
+/* Dark mode — footer BrandMark use blue instead of white */
+[data-theme="dark"] .footer .brand-mark--light .brand-mark__cnc,
+[data-theme="dark"] .footer .brand-mark--light .brand-mark__delivery { color: #89b0f2; }
+[data-theme="dark"] .footer .brand-mark--light .brand-mark__rule,
+[data-theme="dark"] .footer .brand-mark--light .brand-mark__line { background: #89b0f2; }
+[data-theme="dark"] .footer .brand-mark--light .brand-mark__tagline { color: #89b0f2; }
+
+/* Dark mode — navbar Sign In button */
+[data-theme="dark"] .navbar__cta { background: #2d4a8a !important; color: #fff !important; }
+[data-theme="dark"] .navbar__cta:hover { background: #3b5ea0 !important; }
+
+/* Dark mode — pillar cards better contrast */
+[data-theme="dark"] .pillar { background: #1c2333; border-color: #333d4d; }
+
 html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
