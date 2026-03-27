@@ -49,7 +49,7 @@ export default function CTA() {
           <h2 className="cta__title">Ready to talk operations?</h2>
           <p className="cta__sub">
             We work with a small number of pharmacy and hospital partners.
-            Direct line to ownership. Deliveries run 8 AM–6 PM daily — a window we've maintained without exception.
+            Direct line to ownership. 8 AM–6 PM delivery window — maintained without exception.
           </p>
           <div className="cta__actions">
             <a href="mailto:dom@cncdeliveryservice.com" className="cta__btn cta__btn--primary">Request a Consultation</a>
