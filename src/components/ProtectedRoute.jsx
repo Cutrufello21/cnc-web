@@ -5,27 +5,36 @@ import { supabase } from '../lib/supabase'
 
 export default function ProtectedRoute({ children, role }) {
   const { profile, setUser, setProfile } = useAuth()
-  const [checking, setChecking] = useState(!profile)
-  const [restored, setRestored] = useState(false)
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    if (profile || restored) { setChecking(false); return }
+    async function restore() {
+      // Already have profile in context — done
+      if (profile) {
+        setChecking(false)
+        return
+      }
 
-    // Try to restore session from localStorage (once)
-    const savedProfile = localStorage.getItem('cnc-profile')
-    const savedToken = localStorage.getItem('cnc-token')
+      // Try localStorage
+      const savedProfile = localStorage.getItem('cnc-profile')
+      const savedToken = localStorage.getItem('cnc-token')
 
-    if (savedProfile && savedToken) {
-      const p = JSON.parse(savedProfile)
-      setProfile(p)
+      if (savedProfile && savedToken) {
+        const p = JSON.parse(savedProfile)
+        setProfile(p)
 
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) setUser(data.session.user)
-      })
+        // Also restore Supabase session
+        try {
+          const { data } = await supabase.auth.getSession()
+          if (data.session) setUser(data.session.user)
+        } catch {}
+      }
+
+      setChecking(false)
     }
-    setRestored(true)
-    setChecking(false)
-  }, [profile, restored])
+
+    restore()
+  }, [])
 
   if (checking) return null
 
