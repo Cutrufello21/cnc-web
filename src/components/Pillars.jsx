@@ -49,7 +49,7 @@ export default function Pillars() {
           transition={{ duration: 0.6 }}
         >
           <p className="pillars__eyebrow">What We Do Differently</p>
-          <h2 className="pillars__title">Built for healthcare. Not retrofitted for it.</h2>
+          <h2 className="pillars__title">Designed around the delivery. Not the other way around.</h2>
           <p className="pillars__sub">
             Most delivery companies added pharmaceuticals to a general courier operation.
             We were built for it from day one.
