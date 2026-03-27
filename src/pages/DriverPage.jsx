@@ -531,9 +531,13 @@ export default function DriverPage() {
               </div>
             )}
 
-            {activeTab === 'sort' && (
-              <DriverSortList driverName={data.driverName} pharmacy={data.pharmacy || 'SHSP'} />
-            )}
+            {activeTab === 'sort' && (() => {
+              const pharmacies = [...new Set(data.stops.map(s => s.Pharmacy).filter(Boolean))]
+              if (pharmacies.length === 0) pharmacies.push(data.pharmacy || 'SHSP')
+              return pharmacies.map(p => (
+                <DriverSortList key={p} driverName={data.driverName} pharmacy={p} />
+              ))
+            })()}
           </>
         )}
       </main>
