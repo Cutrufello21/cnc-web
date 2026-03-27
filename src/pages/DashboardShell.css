@@ -84,6 +84,33 @@
   box-shadow: var(--shadow-sm);
 }
 
+.shell__view-btn--alert {
+  border: 1.5px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  animation: navAlertPulse 2.5s ease-in-out infinite;
+  position: relative;
+}
+
+.shell__view-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  background: #ef4444;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+
+@keyframes navAlertPulse {
+  0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
+  50% { border-color: rgba(239, 68, 68, 0.8); }
+}
+
 .shell__user {
   display: flex;
   align-items: center;

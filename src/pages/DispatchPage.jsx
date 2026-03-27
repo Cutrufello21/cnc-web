@@ -41,9 +41,13 @@ export default function DispatchPage() {
   const [sendingCallIns, setSendingCallIns] = useState(false)
   const [callInsSent, setCallInsSent] = useState(false)
   const [callInPreview, setCallInPreview] = useState(null)
+  const [pendingTimeOff, setPendingTimeOff] = useState(0)
 
   useEffect(() => {
     fetchDispatchData()
+    supabase.from('time_off_requests').select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .then(({ count }) => setPendingTimeOff(count || 0))
   }, [])
 
   async function fetchDispatchData(day) {
@@ -501,10 +505,13 @@ export default function DispatchPage() {
               ].map(([key, label, icon]) => (
                 <button
                   key={key}
-                  className={`shell__view-btn ${view === key ? 'shell__view-btn--active' : ''}`}
+                  className={`shell__view-btn ${view === key ? 'shell__view-btn--active' : ''} ${key === 'timeoff' && pendingTimeOff > 0 ? 'shell__view-btn--alert' : ''}`}
                   onClick={() => setView(key)}
                 >
                   {icon} {label}
+                  {key === 'timeoff' && pendingTimeOff > 0 && (
+                    <span className="shell__view-badge">{pendingTimeOff}</span>
+                  )}
                 </button>
               ))}
             </div>
