@@ -51,8 +51,7 @@ export default function Pillars() {
           <p className="pillars__eyebrow">What We Do Differently</p>
           <h2 className="pillars__title">Designed around the delivery. Not the other way around.</h2>
           <p className="pillars__sub">
-            Most delivery companies added pharmaceuticals to a general courier operation.
-            We were built for it from day one.
+            Seventeen years without delivering anything except medications.
           </p>
         </motion.div>
 
