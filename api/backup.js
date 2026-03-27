@@ -1,6 +1,7 @@
 import { supabase } from './_lib/supabase.js'
 
-const TABLES = ['orders', 'drivers', 'routing_rules', 'dispatch_logs', 'payroll', 'daily_stops', 'unassigned_orders', 'time_off_requests', 'sort_list']
+// Skip orders (200k+ rows, too large) — those are backed up via Gmail import history
+const TABLES = ['drivers', 'routing_rules', 'dispatch_logs', 'payroll', 'daily_stops', 'unassigned_orders', 'time_off_requests', 'sort_list', 'profiles', 'driver_schedule', 'stop_reconciliation']
 const CRON_SECRET = process.env.CRON_SECRET
 
 async function fetchAll(table) {
