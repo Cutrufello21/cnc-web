@@ -24,7 +24,13 @@ export default function HQDashboard() {
 
       const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
 
-      const recentLogs = logData.slice(-7).reverse().map(r => ({
+      const now = new Date()
+      const dow = now.getDay()
+      const monOffset = dow === 0 ? -6 : 1 - dow
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + monOffset)
+      const mondayStr = monday.toISOString().split('T')[0]
+      const recentLogs = logData.filter(r => r.date >= mondayStr).reverse().map(r => ({
         Date: r.date, 'Delivery Day': r.delivery_day,
         'Orders Processed': r.orders_processed, 'Cold Chain': r.cold_chain,
         'Unassigned Count': r.unassigned_count, 'SHSP Orders': r.shsp_orders,
