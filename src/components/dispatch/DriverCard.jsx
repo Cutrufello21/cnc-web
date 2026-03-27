@@ -15,6 +15,7 @@ const COLUMNS = [
   { key: 'City', label: 'City' },
   { key: 'Zip Code', label: 'ZIP', fallback: 'ZIP' },
   { key: '_coldChainDisplay', label: 'CC' },
+  { key: '_notesDisplay', label: 'Notes' },
   { key: 'Pharmacy', label: 'Pharmacy' },
 ]
 
@@ -51,7 +52,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       ...stop,
       _coldChainDisplay: hasColdChain ? '❄️' : '',
       _hasColdChain: hasColdChain,
-      _notesDisplay: stop.Notes ? '📝' : '',
+      _hasSigRequired: (stop.Notes || stop.notes || '').toLowerCase().includes('signature'),
+      _notesDisplay: (stop.Notes || stop.notes || '').toLowerCase().includes('signature') ? '✍️ SIG' : (stop.Notes || stop.notes) ? '📝' : '',
     }
   }), [rawDetails])
 
