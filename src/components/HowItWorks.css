@@ -24,7 +24,7 @@
   color: var(--gray-900);
 }
 
-.how__grid {
+.how__steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 48px;
@@ -46,7 +46,7 @@
   text-align: center;
 }
 
-.how__num {
+.how__number {
   width: 4rem;
   height: 4rem;
   border-radius: 50%;
@@ -80,7 +80,7 @@
     padding: 72px 0;
   }
 
-  .how__grid {
+  .how__steps {
     grid-template-columns: 1fr;
     gap: 40px;
   }
