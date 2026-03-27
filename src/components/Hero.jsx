@@ -51,8 +51,8 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.25 }}
         >
-          Orders dispatched the night before. Delivered 8 AM–6 PM, every day.
-          300–600 stops across Northeast Ohio — no subcontractors, no exceptions.
+          Prescriptions dispatched before midnight. In patients' hands
+          by 6 PM — a commitment we've kept every single day.
         </motion.p>
 
         <motion.div
