@@ -9,49 +9,34 @@ export default function StopDistribution({ drivers }) {
   const sorted = [...active].sort((a, b) => b.stops - a.stops)
 
   function getColor(stops) {
-    const diff = Math.abs(stops - avg) / avg
-    if (diff > 0.4) return 'sd__seg--red'
-    if (diff > 0.2) return 'sd__seg--amber'
-    return 'sd__seg--green'
+    const diff = (stops - avg) / avg
+    if (diff > 0.4) return 'sd__seg--over'
+    if (diff < -0.4) return 'sd__seg--under'
+    return 'sd__seg--ok'
   }
-
-  const overloaded = active.filter(d => (d.stops - avg) / avg > 0.4)
-  const underloaded = active.filter(d => (avg - d.stops) / avg > 0.4)
 
   return (
     <div className="sd">
       <div className="sd__header">
         <span className="sd__title">Stop Distribution</span>
-        <span className="sd__avg">avg {avg} stops/driver</span>
+        <span className="sd__avg">{totalStops} total — avg {avg}/driver</span>
       </div>
       <div className="sd__bar">
-        {sorted.map(d => (
-          <div
-            key={d['Driver Name']}
-            className={`sd__seg ${getColor(d.stops)}`}
-            style={{ width: `${(d.stops / totalStops) * 100}%` }}
-            title={`${d['Driver Name']}: ${d.stops} stops`}
-          >
-            <span className="sd__seg-label">
-              {d['Driver Name']}
-            </span>
-          </div>
-        ))}
+        {sorted.map(d => {
+          const pct = (d.stops / totalStops) * 100
+          return (
+            <div
+              key={d['Driver Name']}
+              className={`sd__seg ${getColor(d.stops)}`}
+              style={{ width: `${pct}%` }}
+              title={`${d['Driver Name']}: ${d.stops} stops`}
+            >
+              {pct > 4 && <span className="sd__seg-name">{d['Driver Name']}</span>}
+              <span className="sd__seg-count">{d.stops}</span>
+            </div>
+          )
+        })}
       </div>
-      {(overloaded.length > 0 || underloaded.length > 0) && (
-        <div className="sd__flags">
-          {overloaded.map(d => (
-            <span key={d['Driver Name']} className="sd__flag sd__flag--over">
-              {d['Driver Name']} ({d.stops}) — heavy load
-            </span>
-          ))}
-          {underloaded.map(d => (
-            <span key={d['Driver Name']} className="sd__flag sd__flag--under">
-              {d['Driver Name']} ({d.stops}) — light load
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

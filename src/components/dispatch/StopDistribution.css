@@ -2,7 +2,7 @@
   background: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: var(--radius-md);
-  padding: 16px 20px;
+  padding: 14px 18px;
   margin-bottom: 16px;
 }
 
@@ -10,13 +10,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .sd__title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .sd__avg {
@@ -26,55 +28,41 @@
 
 .sd__bar {
   display: flex;
-  height: 28px;
-  border-radius: 6px;
+  height: 32px;
+  border-radius: 8px;
   overflow: hidden;
-  gap: 2px;
+  gap: 1px;
 }
 
 .sd__seg {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  border-radius: 4px;
-  transition: all 0.3s;
+  gap: 4px;
+  min-width: 20px;
+  transition: filter 0.2s;
   cursor: default;
 }
 
-.sd__seg--green { background: #4ADE80; }
-.sd__seg--amber { background: #fbbf24; }
-.sd__seg--red { background: #f87171; }
+.sd__seg:hover {
+  filter: brightness(1.08);
+}
 
-.sd__seg-label {
+.sd__seg--ok { background: var(--cornflower); }
+.sd__seg--over { background: #ef4444; }
+.sd__seg--under { background: #f59e0b; }
+
+.sd__seg-name {
   font-size: 10px;
   font-weight: 600;
   color: white;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
   overflow: hidden;
   white-space: nowrap;
 }
 
-.sd__flags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.sd__flag {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.sd__flag--over {
-  background: #fef2f2;
-  color: #dc4a4a;
-}
-
-.sd__flag--under {
-  background: #fefce8;
-  color: #a16207;
+.sd__seg-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
 }
