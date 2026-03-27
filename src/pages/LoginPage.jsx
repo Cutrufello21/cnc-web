@@ -79,11 +79,11 @@ export default function LoginPage() {
         return
       }
 
-      // 3. Set session on Supabase client so writes use auth token
-      await supabase.auth.setSession({
+      // 3. Set session on Supabase client (non-blocking — don't let this hang login)
+      supabase.auth.setSession({
         access_token: authData.access_token,
         refresh_token: authData.refresh_token,
-      })
+      }).catch(() => {})
 
       // 4. Save to context and localStorage
       setUser(authData.user)
