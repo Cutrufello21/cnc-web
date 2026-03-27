@@ -38,6 +38,8 @@ export default function DispatchPage() {
   const [undoing, setUndoing] = useState(false)
   const [moveToast, setMoveToast] = useState(null)
   const [zipSearch, setZipSearch] = useState('')
+  const [sendingCallIns, setSendingCallIns] = useState(false)
+  const [callInsSent, setCallInsSent] = useState(false)
 
   useEffect(() => {
     fetchDispatchData()
@@ -236,6 +238,50 @@ export default function DispatchPage() {
       if (ids.length > 0) snap[name] = new Set(ids)
     }
     return snap
+  }
+
+  async function handleSendCallIns() {
+    if (!data?.drivers) return
+    // Collect all stops from all drivers, find ones with call-in ZIPs
+    const allStops = data.drivers.flatMap(d => (d.stopDetails || []))
+    // Call-in ZIPs — update this list after running the Gmail extraction script
+    const CALL_IN_ZIPS = ['43986','43988','44230','44270','44423','44460','44651']
+    const zipSet = new Set(CALL_IN_ZIPS)
+    const callIns = allStops.filter(s => zipSet.has(s.zip || s.ZIP || s['Zip Code']))
+    if (callIns.length === 0) {
+      alert('No call-in orders found for today.')
+      return
+    }
+    if (!confirm(`Send ${callIns.length} call-in order${callIns.length > 1 ? 's' : ''} to BioTouch?`)) return
+    setSendingCallIns(true)
+    try {
+      const rows = callIns.map(s => ({
+        orderId: s.order_id || s['Order ID'],
+        address: s.address || s.Address,
+        name: s.patient_name || s.Name,
+        zip: s.zip || s.ZIP || s['Zip Code'],
+      }))
+      const html = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
+        <tr style="background:#0A2463;color:white"><th>Order #</th><th>Address</th><th>Patient Name</th><th>ZIP</th></tr>
+        ${rows.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
+      </table>`
+      const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'email',
+          to: 'wfldispatch@biotouchglobal.com',
+          subject: `Call In Orders — ${data.deliveryDay} ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+          html,
+        }),
+      })
+      setCallInsSent(true)
+      alert(`${callIns.length} call-in orders sent to BioTouch.`)
+    } catch (err) {
+      alert('Failed to send call-ins: ' + err.message)
+    } finally {
+      setSendingCallIns(false)
+    }
   }
 
   async function handleSendRoutes() {
@@ -567,15 +613,15 @@ export default function DispatchPage() {
                   </div>
                 )}
                 <button
-                  className="dispatch__refresh"
-                  onClick={() => fetchDispatchData(selectedDay)}
-                  title="Refresh data"
+                  className={`dispatch__callin-btn ${callInsSent ? 'dispatch__callin-btn--done' : ''}`}
+                  onClick={handleSendCallIns}
+                  disabled={sendingCallIns}
+                  title="Send call-in orders to BioTouch"
                 >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 2v6h-6" /><path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-                    <path d="M3 22v-6h6" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
                   </svg>
-                  Refresh
+                  {sendingCallIns ? 'Sending...' : callInsSent ? 'Sent' : "Send Call In's"}
                 </button>
                 <button
                   className={`dispatch__send-btn ${routesSent ? 'dispatch__send-btn--done' : ''}`}
