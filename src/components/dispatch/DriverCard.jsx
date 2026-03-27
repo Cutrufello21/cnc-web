@@ -15,7 +15,7 @@ const COLUMNS = [
   { key: 'City', label: 'City' },
   { key: 'Zip Code', label: 'ZIP', fallback: 'ZIP' },
   { key: '_coldChainDisplay', label: 'CC' },
-  { key: '_notesDisplay', label: 'Notes' },
+  { key: '_sigDisplay', label: 'SIG' },
   { key: 'Pharmacy', label: 'Pharmacy' },
 ]
 
@@ -53,7 +53,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       _coldChainDisplay: hasColdChain ? '❄️' : '',
       _hasColdChain: hasColdChain,
       _hasSigRequired: (stop.Notes || stop.notes || '').toLowerCase().includes('signature'),
-      _notesDisplay: (stop.Notes || stop.notes || '').toLowerCase().includes('signature') ? '✍️ SIG' : (stop.Notes || stop.notes) ? '📝' : '',
+      _sigDisplay: (stop.Notes || stop.notes || '').toLowerCase().includes('signature') ? '✍️' : '',
     }
   }), [rawDetails])
 
@@ -350,7 +350,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                 <td></td>
                 {COLUMNS.map(col => {
                   const uniques = getUniqueValues(col.key)
-                  const useDropdown = col.key === 'City' || col.key === 'Pharmacy' || col.key === '_coldChainDisplay' || col.key === '_notesDisplay'
+                  const useDropdown = col.key === 'City' || col.key === 'Pharmacy' || col.key === '_coldChainDisplay' || col.key === '_sigDisplay'
                   return (
                     <td key={col.key} className="dcard__filter-cell">
                       {useDropdown && uniques.length <= 30 ? (
@@ -401,7 +401,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     <td>{stop['City'] || '—'}</td>
                     <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td>{stop._coldChainDisplay}</td>
-                    <td className="dcard__cell-notes">{stop._notesDisplay}</td>
+                    <td className="dcard__cell-notes">{stop._sigDisplay}</td>
                     <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
                   </tr>
                 )
