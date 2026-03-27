@@ -252,7 +252,11 @@ export default function DispatchPage() {
   function handlePreviewCallIns() {
     if (!data?.drivers) return
     const allStops = data.drivers.flatMap(d => (d.stopDetails || []))
-    const callIns = allStops.filter(s => CALL_IN_ZIPS.has(s.zip || s.ZIP || s['Zip Code']))
+    const callIns = allStops.filter(s => {
+      const zip = s.zip || s.ZIP || s['Zip Code']
+      const pharma = (s.pharmacy || s.Pharmacy || '').toLowerCase()
+      return CALL_IN_ZIPS.has(zip) && pharma !== 'shsp'
+    })
     if (callIns.length === 0) {
       alert('No call-in orders found for today.')
       return
