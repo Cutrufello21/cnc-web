@@ -38,11 +38,11 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
         >
-          The delivery partner
+          Reliable delivery.
           <br />
-          pharmacies don't have
+          Every prescription.
           <br />
-          <span className="hero__accent">to think about.</span>
+          <span className="hero__accent">Every day.</span>
         </motion.h1>
 
         <motion.p
