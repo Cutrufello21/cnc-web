@@ -64,10 +64,10 @@ export default function ServiceArea() {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <MapContainer
-            center={[41.05, -81.35]}
+            center={[41.05, -81.20]}
             zoom={9}
             scrollWheelZoom={false}
-            style={{ height: '480px', width: '100%' }}
+            style={{ height: '420px', width: '100%' }}
           >
             <TileLayer
               url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"

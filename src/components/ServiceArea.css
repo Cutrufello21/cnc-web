@@ -85,7 +85,7 @@
 }
 
 .service__map .leaflet-container {
-  height: 480px;
+  height: 420px;
   width: 100%;
   font-family: inherit;
 }
