@@ -158,7 +158,7 @@ export default function Payroll() {
         const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0
         const thu = p.thu || 0, fri = p.fri || 0
         const weekTotal = mon + tue + wed + thu + fri
-        const willCalls = afternoonTotals[p.driver_name] || p.will_calls || 0
+        const willCalls = p.will_calls || afternoonTotals[p.driver_name] || 0
         const officeFee = parseFloat(d.office_fee) || 0
         const flatSalary = d.flat_salary ? parseFloat(d.flat_salary) : null
         const rateMth = parseFloat(d.rate_mth) || 0
