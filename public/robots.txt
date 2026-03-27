@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /dispatch
+Disallow: /driver
+
+Sitemap: https://cncdelivery.com/sitemap.xml
