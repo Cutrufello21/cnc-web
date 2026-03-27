@@ -5,7 +5,7 @@ import './Stats.css'
 const stats = [
   { value: '215,000+', label: 'Verified Deliveries', sub: 'Since 2023' },
   { value: 'Since 2007', label: 'Years in Operation', sub: null },
-  { value: '156', label: 'Routing Rules', sub: 'Built for NE Ohio' },
+  { value: '100%', label: 'Owner-Operated', sub: 'Direct accountability' },
   { value: '8AM–6PM', label: 'Delivery Window', sub: 'Never missed' },
 ]
 
