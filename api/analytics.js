@@ -120,47 +120,44 @@ export default async function handler(req, res) {
       .sort((a, b) => b[1] - a[1]).slice(0, 5)
       .map(([name, count]) => ({ name, timesTop: count }))
 
-    // Driver monthly stops (who's carrying the load)
-    const driverMonthly = {}
-    allForTrends.forEach(r => {
-      const m = r.date?.slice(0, 7)
-      if (!m) return
-      // Parse driver stops from daily_stops via dispatch_logs top_driver won't work — use allForTrends
-    })
-    // Build from orders table grouped by driver + month
-    const { data: driverMonthRaw } = await supabase.from('orders')
-      .select('driver_name, date_delivered')
-      .not('driver_name', 'is', null).not('driver_name', 'eq', '')
-      .gte('date_delivered', allForTrends[0]?.date || '2024-01-01')
+    // Driver analytics from daily_stops (smaller table, has driver_name + zip)
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+    const sixMonthStr = sixMonthsAgo.toISOString().split('T')[0]
+
+    // Paginate through daily_stops for last 6 months
+    let driverStopsRaw = []
+    let dsPage = 0
+    while (true) {
+      const { data: batch } = await supabase.from('daily_stops')
+        .select('driver_name, delivery_date, zip')
+        .gte('delivery_date', sixMonthStr)
+        .range(dsPage * 1000, (dsPage + 1) * 1000 - 1)
+      if (!batch || batch.length === 0) break
+      driverStopsRaw = driverStopsRaw.concat(batch)
+      if (batch.length < 1000) break
+      dsPage++
+    }
+
     const driverByMonth = {}
-    const driverDailyCounts = {} // for consistency
-    const driverZipCounts = {} // for top zips
-    ;(driverMonthRaw || []).forEach(r => {
+    const driverDailyCounts = {}
+    const driverZipCounts = {}
+    driverStopsRaw.forEach(r => {
       const name = r.driver_name
-      const m = r.date_delivered?.slice(0, 7)
+      const m = r.delivery_date?.slice(0, 7)
+      const d = r.delivery_date
       if (!name || !m) return
       if (!driverByMonth[name]) driverByMonth[name] = {}
       driverByMonth[name][m] = (driverByMonth[name][m] || 0) + 1
-      // Daily counts for consistency
-      const d = r.date_delivered
       if (!driverDailyCounts[name]) driverDailyCounts[name] = {}
       driverDailyCounts[name][d] = (driverDailyCounts[name][d] || 0) + 1
+      if (r.zip) {
+        if (!driverZipCounts[name]) driverZipCounts[name] = {}
+        driverZipCounts[name][r.zip] = (driverZipCounts[name][r.zip] || 0) + 1
+      }
     })
 
-    // Get top zips per driver from orders
-    const { data: driverZipRaw } = await supabase.from('orders')
-      .select('driver_name, zip')
-      .not('driver_name', 'is', null).not('driver_name', 'eq', '')
-      .not('zip', 'is', null)
-      .gte('date_delivered', allForTrends[0]?.date || '2024-01-01')
-    ;(driverZipRaw || []).forEach(r => {
-      if (!r.driver_name || !r.zip) return
-      if (!driverZipCounts[r.driver_name]) driverZipCounts[r.driver_name] = {}
-      driverZipCounts[r.driver_name][r.zip] = (driverZipCounts[r.driver_name][r.zip] || 0) + 1
-    })
-
-    // Stops per driver per month
-    const months6 = [...new Set((driverMonthRaw || []).map(r => r.date_delivered?.slice(0, 7)).filter(Boolean))].sort().slice(-6)
+    const months6 = [...new Set(driverStopsRaw.map(r => r.delivery_date?.slice(0, 7)).filter(Boolean))].sort().slice(-6)
     const driverMonthlyData = Object.entries(driverByMonth)
       .filter(([name]) => name !== 'Paul')
       .map(([name, monthMap]) => ({
@@ -170,7 +167,6 @@ export default async function handler(req, res) {
       }))
       .sort((a, b) => b.total - a.total)
 
-    // Consistency scores (lower variance = more consistent)
     const driverConsistency = Object.entries(driverDailyCounts)
       .filter(([name]) => name !== 'Paul')
       .map(([name, dailyMap]) => {
@@ -179,13 +175,12 @@ export default async function handler(req, res) {
         const avg = counts.reduce((s, v) => s + v, 0) / counts.length
         const variance = counts.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / counts.length
         const stdDev = Math.sqrt(variance)
-        const cv = avg > 0 ? Math.round((stdDev / avg) * 100) : 0 // coefficient of variation
+        const cv = avg > 0 ? Math.round((stdDev / avg) * 100) : 0
         return { name, avg: Math.round(avg), stdDev: Math.round(stdDev * 10) / 10, consistency: Math.max(0, 100 - cv), days: counts.length }
       })
       .filter(Boolean)
       .sort((a, b) => b.consistency - a.consistency)
 
-    // Top ZIPs per driver
     const driverTopZips = Object.entries(driverZipCounts)
       .filter(([name]) => name !== 'Paul')
       .map(([name, zipMap]) => ({
