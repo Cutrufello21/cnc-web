@@ -4,11 +4,8 @@
   border-top: 1px solid var(--border, #e5e7eb);
 }
 
-.about__inner {
-  display: grid;
-  grid-template-columns: 1fr 220px;
-  gap: 4rem;
-  align-items: center;
+.about__header {
+  margin-bottom: 3rem;
 }
 
 .about__eyebrow {
@@ -22,16 +19,46 @@
 .about__title {
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   font-weight: 700;
-  margin-bottom: 1.5rem;
   line-height: 1.2;
   color: var(--text, #0f172a);
+}
+
+.about__inner {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 4rem;
+  align-items: start;
+}
+
+.about__text {
+  flex: 1;
 }
 
 .about__body {
   font-size: 0.95rem;
   line-height: 1.75;
   opacity: 0.7;
-  margin-bottom: 1rem;
+  margin-bottom: 2rem;
+  max-width: 600px;
+}
+
+.about__blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.about__block-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  margin-bottom: 0.5rem;
+}
+
+.about__block-body {
+  font-size: 0.9rem;
+  line-height: 1.75;
+  opacity: 0.65;
   max-width: 600px;
 }
 
@@ -40,7 +67,9 @@
   flex-wrap: wrap;
   gap: 0.5rem 1rem;
   align-items: center;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border, #e5e7eb);
   font-size: 0.85rem;
   font-weight: 500;
   opacity: 0.65;
@@ -67,6 +96,22 @@
   padding: 2.5rem 2rem;
   text-align: center;
   gap: 0.5rem;
+  position: sticky;
+  top: 6rem;
+}
+
+.about__badge-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.about__badge-divider {
+  width: 40px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0.75rem 0;
 }
 
 .about__year {
@@ -81,25 +126,50 @@
   letter-spacing: 0.15em;
   text-transform: uppercase;
   opacity: 0.5;
-  margin-bottom: 1rem;
 }
 
-.about__years {
-  font-size: 0.85rem;
-  line-height: 1.5;
-  opacity: 0.7;
+.about__stat {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
-@media (max-width: 640px) {
+.about__stat-label {
+  font-size: 0.7rem;
+  line-height: 1.4;
+  opacity: 0.5;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 768px) {
   .about__inner {
     grid-template-columns: 1fr;
   }
+
   .about__badge {
+    position: static;
     flex-direction: row;
     gap: 1.5rem;
-    padding: 1.5rem;
+    padding: 1.5rem 2rem;
   }
+
+  .about__badge-divider {
+    width: 1px;
+    height: 40px;
+    margin: 0;
+  }
+
   .about__year {
     font-size: 2rem;
+  }
+
+  .about__stat {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .about {
+    padding: 4rem 0;
   }
 }
