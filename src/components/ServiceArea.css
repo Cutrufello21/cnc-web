@@ -76,6 +76,20 @@
   line-height: 1.4;
 }
 
+.service__map {
+  margin-top: 2rem;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 8px 32px rgba(10, 36, 99, 0.08);
+}
+
+.service__map .leaflet-container {
+  height: 480px;
+  width: 100%;
+  font-family: inherit;
+}
+
 .service__expand {
   text-align: center;
   margin-top: 2.5rem;
