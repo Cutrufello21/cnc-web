@@ -252,6 +252,9 @@
 
 /* Dark mode — Stats and CTA card match dark theme */
 [data-theme="dark"] .stats { background: #1c2333; }
+[data-theme="dark"] .stat__value { color: #f5f7fa !important; }
+[data-theme="dark"] .stat__label { color: rgba(255, 255, 255, 0.55) !important; }
+[data-theme="dark"] .stat__sub { color: rgba(255, 255, 255, 0.35) !important; }
 [data-theme="dark"] .cta__card { background: #1c2333; }
 [data-theme="dark"] .cta__card::before { background: rgba(100, 149, 237, 0.05); }
 [data-theme="dark"] .cta__title { color: #f5f7fa; }
