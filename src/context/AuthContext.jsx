@@ -10,13 +10,23 @@ function getInitialProfile() {
   } catch { return null }
 }
 
+function getInitialUser() {
+  try {
+    const saved = localStorage.getItem('cnc-user')
+    return saved ? JSON.parse(saved) : null
+  } catch { return null }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(getInitialUser)
   const [profile, setProfile] = useState(getInitialProfile)
   const [loading] = useState(false)
 
   async function signOut() {
     try { await supabase.auth.signOut() } catch {}
+    localStorage.removeItem('cnc-user')
+    localStorage.removeItem('cnc-profile')
+    localStorage.removeItem('cnc-token')
     setUser(null)
     setProfile(null)
     window.location.href = '/login'

@@ -82,6 +82,7 @@ export default function LoginPage() {
       // 3. Save to context and localStorage — then redirect immediately
       setUser(authData.user)
       setProfile(profile)
+      localStorage.setItem('cnc-user', JSON.stringify(authData.user))
       localStorage.setItem('cnc-profile', JSON.stringify(profile))
       localStorage.setItem('cnc-token', authData.access_token)
 
