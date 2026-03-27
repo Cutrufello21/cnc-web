@@ -64,8 +64,8 @@ export default function ServiceArea() {
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <MapContainer
-            center={[41.05, -81.30]}
-            zoom={9}
+            center={[41.10, -81.35]}
+            zoom={10}
             scrollWheelZoom={false}
             style={{ height: '480px', width: '100%' }}
           >
@@ -82,7 +82,7 @@ export default function ServiceArea() {
                     color: 'transparent',
                     weight: 0,
                     fillColor: '#0A2463',
-                    fillOpacity: 0.06,
+                    fillOpacity: 0.04,
                   }}
                 />
                 <CircleMarker
