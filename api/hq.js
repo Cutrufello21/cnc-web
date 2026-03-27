@@ -19,8 +19,14 @@ export default async function handler(req, res) {
     // Parse logs — weekdays only
     const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
 
-    // Recent 7 logs
-    const recentLogs = logData.slice(-7).reverse().map(r => ({
+    // This week's logs only (Monday through today)
+    const now = new Date()
+    const dow = now.getDay()
+    const monOffset = dow === 0 ? -6 : 1 - dow
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + monOffset)
+    const mondayStr = monday.toISOString().split('T')[0]
+    const recentLogs = logData.filter(r => r.date >= mondayStr).reverse().map(r => ({
       Date: r.date,
       'Delivery Day': r.delivery_day,
       'Orders Processed': r.orders_processed,
