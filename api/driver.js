@@ -67,14 +67,28 @@ export default async function handler(req, res) {
       assigned_driver_number: s.assigned_driver_number,
     }))
 
-    const payroll = payrollRes.data?.[0]
-    let weekTotal = 0
-    let dailyStops = {}
-    if (payroll) {
-      const dayAbbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-      dayAbbrevs.forEach(d => { dailyStops[d] = payroll[d.toLowerCase()] || 0 })
-      weekTotal = payroll.week_total || 0
+    // Count actual stops per day from daily_stops (reflects transfers)
+    const today = new Date()
+    const dow = today.getDay()
+    const monOffset = dow === 0 ? -6 : 1 - dow
+    const monday = new Date(today)
+    monday.setDate(today.getDate() + monOffset)
+    const friday = new Date(monday)
+    friday.setDate(monday.getDate() + 4)
+    const fmtD = d => d.toISOString().split('T')[0]
+
+    const { data: weekStops } = await supabase.from('daily_stops').select('delivery_day')
+      .eq('driver_name', driverName)
+      .gte('delivery_date', fmtD(monday))
+      .lte('delivery_date', fmtD(friday))
+
+    const dayMap = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' }
+    let dailyStops = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
+    for (const s of (weekStops || [])) {
+      const abbr = dayMap[s.delivery_day]
+      if (abbr) dailyStops[abbr]++
     }
+    let weekTotal = Object.values(dailyStops).reduce((s, v) => s + v, 0)
 
     return res.status(200).json({
       approved, deliveryDay: todayName,
