@@ -50,7 +50,7 @@ export default function ServiceArea() {
           transition={{ duration: 0.6 }}
         >
           <p className="service__eyebrow">Coverage Area</p>
-          <h2 className="service__title">Northeast Ohio, covered.</h2>
+          <h2 className="service__title">Every ZIP we serve. Every day.</h2>
           <p className="service__sub">
             Eight dedicated zones. 200+ ZIP codes. 17 routes running every delivery day —
             no hand-offs, no subcontractors.
