@@ -1,13 +1,14 @@
 import './TrustBar.css'
 
 const items = [
-  'Serving pharmacies since 2007',
+  'In operation since 2007',
+  '1.3M+ deliveries since 2007',
   '215,000+ verified deliveries since 2023',
-  '300–600 orders nightly',
-  '17 dedicated drivers',
-  'Zero subcontractors',
-  '200+ ZIP codes covered',
-  '8 AM–6 PM delivery window — never missed',
+  '300–600 deliveries daily',
+  'Zero subcontractors. Zero exceptions.',
+  '200+ ZIP codes across Northeast Ohio',
+  '8 AM–6 PM — a window we\'ve never missed',
+  'Routes built for Northeast Ohio, not a national algorithm',
 ]
 
 export default function TrustBar() {
