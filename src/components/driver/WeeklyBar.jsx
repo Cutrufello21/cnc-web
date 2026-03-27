@@ -118,7 +118,9 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
   async function handleLock(day) {
     const r = recon[day] || {}
     const actual = r.actual
-    if (actual == null || actual === '') return
+    const afternoon = r.afternoon
+    const hasData = (actual != null && actual !== '') || (afternoon != null && afternoon !== '')
+    if (!hasData) return
 
     // Save and lock
     if (r.id) {
@@ -184,6 +186,8 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
             const dispatched = dailyStops[day] || 0
             const r = recon[day] || {}
             const hasActual = r.actual != null && r.actual !== ''
+            const hasAfternoon = r.afternoon != null && r.afternoon !== ''
+            const hasAnyData = hasActual || hasAfternoon
             const diff = hasActual ? parseInt(r.actual) - dispatched : null
             const locked = r.locked
 
@@ -253,7 +257,7 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
                   <button
                     className="weekly__recon-lock-btn"
                     onClick={() => handleLock(day)}
-                    disabled={!hasActual}
+                    disabled={!hasAnyData}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" />
