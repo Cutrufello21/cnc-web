@@ -26,7 +26,7 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
       .eq('driver_name', driverName).eq('week_of', weekOf)
       .then(({ data }) => {
         const map = {}
-        ;(data || []).forEach(r => { map[r.day] = { actual: r.actual_stops, locked: r.locked || false, id: r.id } })
+        ;(data || []).forEach(r => { map[r.day] = { actual: r.actual_stops, afternoon: r.afternoon_stops, locked: r.locked || false, id: r.id } })
         setRecon(map)
       })
     supabase.from('drivers').select('rate_mth, rate_wf, office_fee, flat_salary')
@@ -57,6 +57,29 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
   }
 
   const saveTimers = useRef({})
+
+  function handleAfternoonChange(day, value) {
+    const val = value === '' ? null : value
+    setRecon(prev => ({ ...prev, [day]: { ...prev[day], afternoon: val } }))
+    clearTimeout(saveTimers.current['af_' + day])
+    saveTimers.current['af_' + day] = setTimeout(() => saveAfternoon(day, val), 600)
+  }
+
+  async function saveAfternoon(day, value) {
+    const existing = recon[day]
+    const row = {
+      driver_name: driverName,
+      week_of: weekOf,
+      day,
+      afternoon_stops: value == null ? null : parseInt(value),
+    }
+    if (existing?.id) {
+      await supabase.from('stop_reconciliation').update({ afternoon_stops: value == null ? null : parseInt(value) }).eq('id', existing.id)
+    } else if (value != null) {
+      const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
+      if (data?.[0]) setRecon(prev => ({ ...prev, [day]: { ...prev[day], id: data[0].id } }))
+    }
+  }
 
   function handleActualChange(day, value) {
     const val = value === '' ? null : value
@@ -192,6 +215,25 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
                     </span>
                   ) : (
                     <span className="weekly__recon-diff weekly__recon-diff--empty">—</span>
+                  )}
+                </div>
+                <div className="weekly__recon-row">
+                  <span className="weekly__recon-field-label">Afternoon</span>
+                  {locked ? (
+                    <span className="weekly__recon-dispatched">{r.afternoon || 0}</span>
+                  ) : (
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="weekly__recon-input"
+                      placeholder="0"
+                      value={r.afternoon != null && r.afternoon !== '' ? r.afternoon : ''}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^0-9]/g, '')
+                        handleAfternoonChange(day, v)
+                      }}
+                    />
                   )}
                 </div>
                 {locked ? (
