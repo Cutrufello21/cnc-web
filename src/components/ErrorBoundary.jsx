@@ -1,5 +1,25 @@
 import { Component } from 'react'
 
+async function reportError(error, info) {
+  try {
+    await fetch('/api/error-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'react_crash',
+        message: error?.message || 'Unknown error',
+        stack: error?.stack || null,
+        metadata: {
+          componentStack: info?.componentStack?.slice(0, 2000) || null,
+          url: window.location.href,
+          user: localStorage.getItem('cnc-user') || null,
+          userAgent: navigator.userAgent,
+        },
+      }),
+    })
+  } catch (_) { /* best-effort */ }
+}
+
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
@@ -12,6 +32,7 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('ErrorBoundary caught:', error, info)
+    reportError(error, info)
   }
 
   render() {
@@ -31,6 +52,9 @@ export default class ErrorBoundary extends Component {
             </h1>
             <p style={{ fontSize: 15, color: '#6b7280', marginBottom: 20 }}>
               {this.state.error?.message || 'An unexpected error occurred.'}
+            </p>
+            <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 20 }}>
+              This error has been reported automatically.
             </p>
             <button
               onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = '/' }}
