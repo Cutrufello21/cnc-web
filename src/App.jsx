@@ -47,6 +47,9 @@ function SiteGate({ children }) {
           width: '100%', padding: '0.75rem', background: '#0A2463', color: '#fff',
           border: 'none', borderRadius: 8, fontSize: '0.95rem', fontWeight: 600, cursor: 'pointer',
         }}>Enter Site</button>
+        <a href="/login" style={{
+          display: 'block', marginTop: '1.5rem', fontSize: '0.85rem', opacity: 0.5, color: '#0A2463',
+        }}>Driver / Dispatch Login</a>
       </form>
     </div>
   )
