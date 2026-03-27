@@ -51,8 +51,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.25 }}
         >
-          Prescriptions dispatched before midnight. In patients' hands
-          by 6 PM — a commitment we've kept every single day.
+          Prescriptions dispatched before midnight. In patients' hands by 6 PM — every single day.
         </motion.p>
 
         <motion.div
