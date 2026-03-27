@@ -79,6 +79,12 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
       const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
       if (data?.[0]) setRecon(prev => ({ ...prev, [day]: { ...prev[day], id: data[0].id } }))
     }
+
+    // Sum all afternoon deliveries for the week → update payroll will_calls
+    const updatedRecon = { ...recon, [day]: { ...recon[day], afternoon: value } }
+    const totalAfternoon = DAY_LABELS.reduce((s, d) => s + (parseInt(updatedRecon[d]?.afternoon) || 0), 0)
+    await supabase.from('payroll').update({ will_calls: totalAfternoon })
+      .eq('driver_name', driverName).eq('week_of', weekOf)
   }
 
   function handleActualChange(day, value) {
