@@ -632,7 +632,7 @@ export default function DispatchPage() {
                   disabled={sendingCallIns}
                   title="Send call-in orders to BioTouch"
                 >
-                  {sendingCallIns ? 'Sending...' : callInsSent ? 'Sent' : "Send Call In's"}
+                  {sendingCallIns ? 'Sending...' : callInsSent ? 'Sent' : 'SICI'}
                 </button>
                 <button
                   className={`dispatch__send-btn ${routesSent ? 'dispatch__send-btn--done' : ''}`}
