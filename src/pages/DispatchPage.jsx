@@ -40,6 +40,7 @@ export default function DispatchPage() {
   const [zipSearch, setZipSearch] = useState('')
   const [sendingCallIns, setSendingCallIns] = useState(false)
   const [callInsSent, setCallInsSent] = useState(false)
+  const [callInPreview, setCallInPreview] = useState(null)
 
   useEffect(() => {
     fetchDispatchData()
@@ -240,35 +241,37 @@ export default function DispatchPage() {
     return snap
   }
 
-  async function handleSendCallIns() {
+  const CALL_IN_ZIPS = new Set([
+    '43450','43903','43908','43945','43986','43988',
+    '44134','44136','44141','44147','44203','44216','44217','44230','44270','44273','44276','44281','44314',
+    '44423','44427','44460',
+    '44606','44607','44608','44612','44613','44620','44624','44625','44626','44627','44629','44632','44634',
+    '44645','44651','44659','44662','44672','44675','44678','44681','44683','44691','44695','44697',
+  ])
+
+  function handlePreviewCallIns() {
     if (!data?.drivers) return
-    // Collect all stops from all drivers, find ones with call-in ZIPs
     const allStops = data.drivers.flatMap(d => (d.stopDetails || []))
-    const CALL_IN_ZIPS = [
-      '43450','43903','43908','43945','43986','43988',
-      '44134','44136','44141','44147','44203','44216','44217','44230','44270','44273','44276','44281','44314',
-      '44423','44427','44460',
-      '44606','44607','44608','44612','44613','44620','44624','44625','44626','44627','44629','44632','44634',
-      '44645','44651','44659','44662','44672','44675','44678','44681','44683','44691','44695','44697',
-    ]
-    const zipSet = new Set(CALL_IN_ZIPS)
-    const callIns = allStops.filter(s => zipSet.has(s.zip || s.ZIP || s['Zip Code']))
+    const callIns = allStops.filter(s => CALL_IN_ZIPS.has(s.zip || s.ZIP || s['Zip Code']))
     if (callIns.length === 0) {
       alert('No call-in orders found for today.')
       return
     }
-    if (!confirm(`Send ${callIns.length} call-in order${callIns.length > 1 ? 's' : ''} to BioTouch?`)) return
+    setCallInPreview(callIns.map(s => ({
+      orderId: s.order_id || s['Order ID'],
+      address: s.address || s.Address,
+      name: s.patient_name || s.Name,
+      zip: s.zip || s.ZIP || s['Zip Code'],
+    })))
+  }
+
+  async function handleConfirmCallIns() {
+    if (!callInPreview?.length) return
     setSendingCallIns(true)
     try {
-      const rows = callIns.map(s => ({
-        orderId: s.order_id || s['Order ID'],
-        address: s.address || s.Address,
-        name: s.patient_name || s.Name,
-        zip: s.zip || s.ZIP || s['Zip Code'],
-      }))
       const html = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
         <tr style="background:#0A2463;color:white"><th>Order #</th><th>Address</th><th>Patient Name</th><th>ZIP</th></tr>
-        ${rows.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
+        ${callInPreview.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
       </table>`
       const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
       await fetch(APPS_SCRIPT_URL, {
@@ -281,7 +284,8 @@ export default function DispatchPage() {
         }),
       })
       setCallInsSent(true)
-      alert(`${callIns.length} call-in orders sent to BioTouch.`)
+      setCallInPreview(null)
+      alert(`${callInPreview.length} call-in orders sent to BioTouch.`)
     } catch (err) {
       alert('Failed to send call-ins: ' + err.message)
     } finally {
@@ -619,7 +623,7 @@ export default function DispatchPage() {
                 )}
                 <button
                   className={`dispatch__callin-btn ${callInsSent ? 'dispatch__callin-btn--done' : ''}`}
-                  onClick={handleSendCallIns}
+                  onClick={handlePreviewCallIns}
                   disabled={sendingCallIns}
                   title="Send call-in orders to BioTouch"
                 >
@@ -671,6 +675,33 @@ export default function DispatchPage() {
               unassignedCount={data.unassigned?.length ?? 0}
               routingRuleCount={data.routingRuleCount ?? 0}
             />
+
+            {/* Call-in preview */}
+            {callInPreview && (
+              <div className="dispatch__callin-preview">
+                <div className="dispatch__callin-header">
+                  <h3>Call-In Orders Preview — {callInPreview.length} order{callInPreview.length !== 1 ? 's' : ''}</h3>
+                  <div className="dispatch__callin-actions">
+                    <button className="dispatch__callin-cancel" onClick={() => setCallInPreview(null)}>Cancel</button>
+                    <button className="dispatch__callin-confirm" onClick={handleConfirmCallIns} disabled={sendingCallIns}>
+                      {sendingCallIns ? 'Sending...' : 'Confirm & Send to BioTouch'}
+                    </button>
+                  </div>
+                </div>
+                <div className="dispatch__callin-table-wrap">
+                  <table className="dispatch__callin-table">
+                    <thead>
+                      <tr><th>Order #</th><th>Patient Name</th><th>Address</th><th>ZIP</th></tr>
+                    </thead>
+                    <tbody>
+                      {callInPreview.map((r, i) => (
+                        <tr key={i}><td>{r.orderId}</td><td>{r.name}</td><td>{r.address}</td><td>{r.zip}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* Stop distribution */}
             <StopDistribution drivers={data.drivers} />
