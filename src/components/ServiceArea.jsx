@@ -1,3 +1,4 @@
+import React from 'react'
 import { motion } from 'framer-motion'
 import { useInView } from '../hooks/useInView'
 import { MapContainer, TileLayer, CircleMarker, Tooltip, Popup } from 'react-leaflet'
@@ -73,26 +74,37 @@ export default function ServiceArea() {
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             />
             {pins.map((pin, i) => (
-              <CircleMarker
-                key={i}
-                center={[pin.lat, pin.lng]}
-                radius={5}
-                pathOptions={{
-                  color: '#fff',
-                  weight: 1.5,
-                  fillColor: '#0A2463',
-                  fillOpacity: 0.85,
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -4]}>
-                  {pin.city}, OH {pin.zip}
-                </Tooltip>
-                <Popup>
-                  <strong style={{ color: '#0A2463' }}>{pin.city}</strong>
-                  <br />
-                  <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{pin.zip}</span>
-                </Popup>
-              </CircleMarker>
+              <React.Fragment key={i}>
+                <CircleMarker
+                  center={[pin.lat, pin.lng]}
+                  radius={14}
+                  pathOptions={{
+                    color: 'transparent',
+                    weight: 0,
+                    fillColor: '#0A2463',
+                    fillOpacity: 0.07,
+                  }}
+                />
+                <CircleMarker
+                  center={[pin.lat, pin.lng]}
+                  radius={5}
+                  pathOptions={{
+                    color: '#fff',
+                    weight: 1.5,
+                    fillColor: '#0A2463',
+                    fillOpacity: 0.9,
+                  }}
+                >
+                  <Tooltip direction="top" offset={[0, -4]}>
+                    {pin.city}, OH {pin.zip}
+                  </Tooltip>
+                  <Popup>
+                    <strong style={{ color: '#0A2463' }}>{pin.city}</strong>
+                    <br />
+                    <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{pin.zip}</span>
+                  </Popup>
+                </CircleMarker>
+              </React.Fragment>
             ))}
           </MapContainer>
         </motion.div>
