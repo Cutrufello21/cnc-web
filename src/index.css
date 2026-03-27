@@ -229,6 +229,13 @@
 [data-theme="dark"] .trust { background: var(--gray-100); border-color: var(--gray-200); }
 [data-theme="dark"] .trust__item { color: var(--gray-500); }
 
+/* Dark mode — BrandMark in navbar (override dark variant to light) */
+[data-theme="dark"] .brand-mark--dark .brand-mark__cnc,
+[data-theme="dark"] .brand-mark--dark .brand-mark__delivery { color: #fff; }
+[data-theme="dark"] .brand-mark--dark .brand-mark__rule,
+[data-theme="dark"] .brand-mark--dark .brand-mark__line { background: #fff; }
+[data-theme="dark"] .brand-mark--dark .brand-mark__tagline { color: #fff; }
+
 html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
