@@ -76,6 +76,18 @@
   line-height: 1.4;
 }
 
+.service__expand {
+  text-align: center;
+  margin-top: 2.5rem;
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
+.service__expand a {
+  color: var(--primary, #0A2463);
+  text-decoration: underline;
+}
+
 @media (max-width: 1024px) {
   .service__grid {
     grid-template-columns: repeat(2, 1fr);

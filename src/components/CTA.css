@@ -2,6 +2,72 @@
   padding: 100px 0;
 }
 
+.cta__compare {
+  margin-bottom: 64px;
+  text-align: center;
+}
+
+.cta__compare-eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cornflower);
+  margin-bottom: 12px;
+}
+
+.cta__compare-title {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--gray-900);
+  margin-bottom: 48px;
+}
+
+.cta__table-wrap {
+  overflow-x: auto;
+}
+
+.cta__table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cta__table thead th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+  border-bottom: 1px solid var(--gray-200, #e5e7eb);
+  padding: 0.9rem 1rem;
+  font-weight: 600;
+}
+
+.cta__table tbody td {
+  border-bottom: 1px solid var(--gray-200, #e5e7eb);
+  padding: 0.9rem 1rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.cta__table-label {
+  font-weight: 500;
+  opacity: 0.7;
+  width: 25%;
+}
+
+.cta__table-cnc {
+  font-weight: 600;
+  color: var(--primary, #0A2463);
+  width: 37.5%;
+}
+
+.cta__table-national {
+  opacity: 0.5;
+  width: 37.5%;
+}
+
 .cta__card {
   text-align: center;
   padding: 72px 40px;
@@ -88,5 +154,13 @@
   .cta__btn {
     width: 100%;
     justify-content: center;
+  }
+  .cta__table-label {
+    width: auto;
+    min-width: 100px;
+  }
+  .cta__table-cnc,
+  .cta__table-national {
+    width: auto;
   }
 }

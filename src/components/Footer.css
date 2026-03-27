@@ -39,9 +39,10 @@
 }
 
 .footer__tagline {
-  font-size: 14px;
-  line-height: 1.6;
-  max-width: 280px;
+  font-size: 0.8rem;
+  opacity: 0.45;
+  margin-top: 0.5rem;
+  letter-spacing: 0.04em;
 }
 
 .footer__links {

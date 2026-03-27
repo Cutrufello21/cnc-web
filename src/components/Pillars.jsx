@@ -11,8 +11,8 @@ const pillars = [
         <path d="M2 12l10 5 10-5" />
       </svg>
     ),
-    title: 'Cold Chain Integrity',
-    desc: 'Temperature-controlled delivery from pharmacy to patient. Every cold chain package is flagged, tracked, and prioritized for time-sensitive medications.',
+    title: 'Cold Chain, Uncompromised',
+    desc: "Every temperature-sensitive package is flagged at intake, tracked through delivery, and governed by strict per-driver limits. We don't guess — we verify.",
   },
   {
     icon: (
@@ -21,20 +21,18 @@ const pillars = [
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
-    title: 'Same-Day Dispatch',
-    desc: 'Orders processed nightly with automated routing. Prescriptions picked up in the evening are on doorsteps by the next morning.',
+    title: 'Dispatched the Night Before.',
+    desc: "Every order sorted, assigned, and waiting in the driver portal before midnight. Deliveries run 8 AM–6 PM daily. We've never missed that window. We've never returned a late delivery.",
   },
   {
     icon: (
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
-        <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z" />
+        <circle cx="12" cy="10" r="3" />
       </svg>
     ),
-    title: '16 Dedicated Drivers',
-    desc: 'A professional fleet covering every corner of our service area. Each driver knows their route, their patients, and the importance of what they carry.',
+    title: 'We Know This Region',
+    desc: "156 routing rules built from years of real delivery experience — not a national algorithm. Every pharmacy-to-driver assignment reflects how Northeast Ohio actually works. When you bring us a new route, we build the rules before your first order ships.",
   },
 ]
 
@@ -50,11 +48,11 @@ export default function Pillars() {
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
         >
-          <p className="pillars__eyebrow">Why CNC Delivery</p>
-          <h2 className="pillars__title">Built for pharmacy logistics</h2>
+          <p className="pillars__eyebrow">What We Do Differently</p>
+          <h2 className="pillars__title">Built for healthcare. Not retrofitted for it.</h2>
           <p className="pillars__sub">
-            Every part of our operation is designed around one goal: getting medication
-            to patients safely, reliably, and on time.
+            Most delivery companies added pharmaceuticals to a general courier operation.
+            We were built for it from day one.
           </p>
         </motion.div>
 

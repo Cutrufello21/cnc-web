@@ -29,7 +29,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          Northeast Ohio's Trusted Pharmacy Courier
+          Northeast Ohio's Pharmacy Delivery Partner
         </motion.p>
 
         <motion.h1
@@ -38,9 +38,11 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
         >
-          Medication delivered
+          Reliable delivery.
           <br />
-          <span className="hero__accent">with care.</span>
+          Every prescription.
+          <br />
+          <span className="hero__accent">Every night.</span>
         </motion.h1>
 
         <motion.p
@@ -49,8 +51,8 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.25 }}
         >
-          Temperature-controlled, same-day prescription delivery from pharmacy to doorstep.
-          Serving 200+ ZIP codes across Akron, Canton, and surrounding communities.
+          Orders dispatched the night before. Delivered 8 AM–6 PM, every day.
+          300–600 stops across Northeast Ohio — no subcontractors, no exceptions.
         </motion.p>
 
         <motion.div
@@ -62,8 +64,8 @@ export default function Hero() {
           <a href="#coverage" className="hero__btn hero__btn--primary">
             View Coverage Area
           </a>
-          <a href="#services" className="hero__btn hero__btn--secondary">
-            Learn More
+          <a href="mailto:dom@cncdeliveryservice.com" className="hero__btn hero__btn--secondary">
+            Request a Consultation
           </a>
         </motion.div>
       </div>

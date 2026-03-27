@@ -1,0 +1,91 @@
+.how {
+  padding: 100px 0;
+}
+
+.how__header {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 64px;
+}
+
+.how__eyebrow {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--cornflower);
+  margin-bottom: 12px;
+}
+
+.how__title {
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--gray-900);
+}
+
+.how__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 48px;
+  position: relative;
+}
+
+.how__grid::before {
+  content: '';
+  position: absolute;
+  top: 2rem;
+  left: calc(16.67% + 2rem);
+  right: calc(16.67% + 2rem);
+  height: 2px;
+  background: var(--gray-200);
+  z-index: 0;
+}
+
+.how__step {
+  text-align: center;
+}
+
+.how__num {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--navy);
+  color: var(--white);
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.how__step-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gray-900);
+  margin-bottom: 0.75rem;
+}
+
+.how__step-desc {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--gray-500);
+}
+
+@media (max-width: 640px) {
+  .how {
+    padding: 72px 0;
+  }
+
+  .how__grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .how__grid::before {
+    display: none;
+  }
+}

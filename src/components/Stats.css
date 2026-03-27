@@ -29,6 +29,14 @@
   letter-spacing: 0.5px;
 }
 
+.stat__sub {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.55;
+  margin-top: 0.2rem;
+  letter-spacing: 0.04em;
+}
+
 @media (max-width: 768px) {
   .stats {
     padding: 60px 0;

@@ -26,10 +26,9 @@ export default function ServiceArea() {
           transition={{ duration: 0.6 }}
         >
           <p className="service__eyebrow">Coverage Area</p>
-          <h2 className="service__title">Northeast Ohio, covered</h2>
+          <h2 className="service__title">Northeast Ohio, covered.</h2>
           <p className="service__sub">
-            From Medina to Minerva, our routes span the entire region.
-            Eight dedicated zones ensure every patient gets timely delivery.
+            Eight dedicated zones. 200+ ZIP codes. 17 routes running every delivery day — no hand-offs, no subcontractors.
           </p>
         </motion.div>
 
@@ -50,6 +49,15 @@ export default function ServiceArea() {
             </motion.div>
           ))}
         </div>
+
+        <motion.p
+          className="service__expand"
+          initial={{ opacity: 0, y: 20 }}
+          animate={inView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 0.7 }}
+        >
+          Don't see your area? <a href="mailto:dom@cncdeliveryservice.com">Let's talk.</a> We expand routes based on pharmacy partnerships.
+        </motion.p>
       </div>
     </section>
   )

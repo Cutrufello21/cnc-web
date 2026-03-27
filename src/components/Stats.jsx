@@ -3,10 +3,10 @@ import { useInView } from '../hooks/useInView'
 import './Stats.css'
 
 const stats = [
-  { value: '20,000+', label: 'Deliveries Completed' },
-  { value: '200+', label: 'ZIP Codes Served' },
-  { value: '16', label: 'Active Drivers' },
-  { value: '99.5%', label: 'On-Time Rate' },
+  { value: '215,000+', label: 'Verified Deliveries', sub: 'Since 2023' },
+  { value: 'Since 2007', label: 'Years in Operation', sub: null },
+  { value: '17', label: 'Dedicated Drivers', sub: null },
+  { value: '8AM–6PM', label: 'Delivery Window', sub: 'Never missed' },
 ]
 
 export default function Stats() {
@@ -26,6 +26,7 @@ export default function Stats() {
             >
               <span className="stat__value">{s.value}</span>
               <span className="stat__label">{s.label}</span>
+              {s.sub && <span className="stat__sub">{s.sub}</span>}
             </motion.div>
           ))}
         </div>
