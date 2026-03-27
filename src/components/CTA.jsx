@@ -55,7 +55,7 @@ export default function CTA() {
             Prefer to talk? <a href="tel:+13306346260">Call us directly — (330) 634-6260</a>
           </p>
           <div className="cta__actions">
-            <a href="mailto:dom@cncdeliveryservice.com" className="cta__btn cta__btn--primary">Request a Consultation</a>
+            <a href="#contact" className="cta__btn cta__btn--primary">Request a Consultation</a>
             <Link to="/login" className="cta__btn cta__btn--secondary">Partner Sign In</Link>
           </div>
         </motion.div>

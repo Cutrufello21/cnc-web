@@ -39,7 +39,7 @@ export default function Hero() {
         <motion.div className="hero__actions"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }}>
           <a href="#coverage" className="hero__btn hero__btn--primary">View Coverage Area</a>
-          <a href="mailto:dom@cncdeliveryservice.com" className="hero__btn hero__btn--secondary">Request a Consultation</a>
+          <a href="#contact" className="hero__btn hero__btn--secondary">Request a Consultation</a>
         </motion.div>
       </div>
     </section>
