@@ -250,6 +250,11 @@
 /* Dark mode — pillar cards better contrast */
 [data-theme="dark"] .pillar { background: #1c2333; border-color: #333d4d; }
 
+/* Dark mode — Stats and CTA card match dark theme */
+[data-theme="dark"] .stats { background: #1c2333; }
+[data-theme="dark"] .cta__card { background: #1c2333; }
+[data-theme="dark"] .cta__card::before { background: rgba(100, 149, 237, 0.05); }
+
 html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
