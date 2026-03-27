@@ -6,17 +6,17 @@ const steps = [
   {
     num: '01',
     title: 'Orders In',
-    desc: 'Prescriptions are transmitted nightly from the pharmacy system. Orders are automatically imported, reviewed, and queued for routing before the next business day.',
+    desc: 'Pharmacy orders arrive nightly via your system. Automatically imported, verified, and ready for routing before the next business day.',
   },
   {
     num: '02',
     title: 'Dispatch',
-    desc: '156 ZIP-based routing rules automatically assign every order to the right driver — the night before delivery. By the time drivers wake up, their complete route is already waiting in the portal. Last-minute changes push only to affected drivers.',
+    desc: 'Every order matched to a driver using 156 routing rules built from years on these roads — the night before delivery. Drivers wake up with a complete, verified route already waiting.',
   },
   {
     num: '03',
     title: 'Delivery',
-    desc: "Drivers pick up from the pharmacy and execute their assigned routes. Cold chain packages are flagged and prioritized. Deliveries run 8 AM–6 PM — a window we've never missed.",
+    desc: 'Cold chain packages flagged and prioritized. Routes executed start to finish. Every delivery completed by 6 PM — every single day.',
   },
 ]
 
