@@ -4,7 +4,6 @@ import './Hero.css'
 
 export default function Hero() {
   const ref = useRef(null)
-
   useEffect(() => {
     const el = ref.current
     if (!el) return
@@ -23,49 +22,24 @@ export default function Hero() {
     <section className="hero" ref={ref}>
       <div className="hero__bg" />
       <div className="container hero__content">
-        <motion.p
-          className="hero__eyebrow"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
+        <motion.p className="hero__eyebrow"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           Northeast Ohio's Pharmacy Delivery Partner
         </motion.p>
-
-        <motion.h1
-          className="hero__headline"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-        >
-          Reliable delivery.
-          <br />
-          Every prescription.
-          <br />
+        <motion.h1 className="hero__headline"
+          initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }}>
+          Reliable delivery.<br />
+          Every prescription.<br />
           <span className="hero__accent">Every day.</span>
         </motion.h1>
-
-        <motion.p
-          className="hero__sub"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
-        >
-          Prescriptions dispatched before midnight. In patients' hands by 6 PM — every single day.
+        <motion.p className="hero__sub"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}>
+          Orders sorted and assigned before midnight. Delivered to patients by 6 PM the next day.
         </motion.p>
-
-        <motion.div
-          className="hero__actions"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          <a href="#coverage" className="hero__btn hero__btn--primary">
-            View Coverage Area
-          </a>
-          <a href="mailto:dom@cncdeliveryservice.com" className="hero__btn hero__btn--secondary">
-            Request a Consultation
-          </a>
+        <motion.div className="hero__actions"
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }}>
+          <a href="#coverage" className="hero__btn hero__btn--primary">View Coverage Area</a>
+          <a href="mailto:dom@cncdeliveryservice.com" className="hero__btn hero__btn--secondary">Request a Consultation</a>
         </motion.div>
       </div>
     </section>

@@ -48,8 +48,11 @@ export default function CTA() {
           initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ duration: 0.6, delay: 0.2 }}>
           <h2 className="cta__title">Ready to talk operations?</h2>
           <p className="cta__sub">
-            We work with a small number of pharmacy and hospital partners.
-            Direct line to ownership. 8 AM–6 PM delivery window — maintained without exception.
+            Every partner gets direct access to ownership.
+            Not a rep. Not a portal. A real conversation.
+          </p>
+          <p className="cta__phone">
+            Prefer to talk? <a href="tel:+13306346260">Call us directly — (330) 634-6260</a>
           </p>
           <div className="cta__actions">
             <a href="mailto:dom@cncdeliveryservice.com" className="cta__btn cta__btn--primary">Request a Consultation</a>

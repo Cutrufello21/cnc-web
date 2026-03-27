@@ -165,3 +165,15 @@
     width: auto;
   }
 }
+
+.cta__phone {
+  font-size: 0.9rem;
+  opacity: 0.75;
+  margin-bottom: 1.5rem;
+  color: #fff;
+}
+
+.cta__phone a {
+  color: #fff;
+  text-decoration: underline;
+}
