@@ -170,6 +170,65 @@
 [data-theme="dark"] .dispatch__refresh { color: #94a3b8; border-color: #3d4a5c; }
 [data-theme="dark"] .dispatch__refresh:hover { color: #e2e8f0; border-color: #5a6a80; }
 
+/* Dark mode — homepage */
+[data-theme="dark"] .pillars { background: var(--gray-50); }
+[data-theme="dark"] .pillars__title { color: var(--gray-900); }
+[data-theme="dark"] .pillars__sub { color: var(--gray-500); }
+[data-theme="dark"] .pillar { background: var(--gray-100); border-color: var(--gray-200); }
+[data-theme="dark"] .pillar__title { color: var(--gray-900); }
+[data-theme="dark"] .pillar__desc { color: var(--gray-500); }
+[data-theme="dark"] .pillar__icon { color: var(--gray-400); }
+
+[data-theme="dark"] .how { background: var(--gray-50); }
+[data-theme="dark"] .how__title { color: var(--gray-900); }
+[data-theme="dark"] .how__step-title { color: var(--gray-900); }
+[data-theme="dark"] .how__step-desc { color: var(--gray-500); }
+[data-theme="dark"] .how__number { background: #2d3a4d; color: #e2e8f0; }
+[data-theme="dark"] .how__steps::before { background: var(--gray-200); }
+
+[data-theme="dark"] .service { background: var(--gray-100); }
+[data-theme="dark"] .service__title { color: var(--gray-900); }
+[data-theme="dark"] .service__sub { color: var(--gray-500); }
+[data-theme="dark"] .service__expand { color: var(--gray-500); }
+[data-theme="dark"] .service__expand a { color: #89b0f2; }
+[data-theme="dark"] .service__map { border-color: var(--gray-200); }
+
+[data-theme="dark"] .cta__compare { color: var(--gray-900); }
+[data-theme="dark"] .cta__compare-title { color: var(--gray-900); }
+[data-theme="dark"] .cta__eyebrow { color: #89b0f2; }
+[data-theme="dark"] .cta__table { color: var(--gray-800); }
+[data-theme="dark"] .cta__table thead th { color: var(--gray-500); border-color: var(--gray-200); }
+[data-theme="dark"] .cta__table tbody td { border-color: var(--gray-200); }
+[data-theme="dark"] .cta__table-label { color: var(--gray-500); }
+[data-theme="dark"] .cta__table-cnc { color: #89b0f2; }
+[data-theme="dark"] .cta__table-nat { color: var(--gray-400); }
+
+[data-theme="dark"] .about { background: var(--gray-100); border-color: var(--gray-200); }
+[data-theme="dark"] .about__title { color: var(--gray-900); }
+[data-theme="dark"] .about__eyebrow { color: #89b0f2; }
+[data-theme="dark"] .about__body { color: var(--gray-500); }
+[data-theme="dark"] .about__block-title { color: var(--gray-900); }
+[data-theme="dark"] .about__block-body { color: var(--gray-500); }
+[data-theme="dark"] .about__contact { color: var(--gray-500); border-color: var(--gray-200); }
+[data-theme="dark"] .about__contact a { color: #89b0f2; }
+[data-theme="dark"] .about__badge { background: #1c2333; }
+
+[data-theme="dark"] .contact { background: var(--gray-50); }
+[data-theme="dark"] .contact__title { color: var(--gray-900); }
+[data-theme="dark"] .contact__eyebrow { color: #89b0f2; }
+[data-theme="dark"] .contact__desc { color: var(--gray-500); }
+[data-theme="dark"] .contact__direct-label { color: var(--gray-400); }
+[data-theme="dark"] .contact__direct-item a,
+[data-theme="dark"] .contact__direct-item span { color: var(--gray-600); }
+[data-theme="dark"] .contact__form { background: var(--gray-100); border-color: var(--gray-200); }
+[data-theme="dark"] .contact__field label { color: var(--gray-600); }
+[data-theme="dark"] .contact__field input,
+[data-theme="dark"] .contact__field textarea { background: var(--gray-50); color: var(--gray-900); border-color: var(--gray-200); }
+[data-theme="dark"] .contact__submit { background: #2d3a4d; }
+
+[data-theme="dark"] .trust { background: var(--gray-100); border-color: var(--gray-200); }
+[data-theme="dark"] .trust__item { color: var(--gray-500); }
+
 html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
