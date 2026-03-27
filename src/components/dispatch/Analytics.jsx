@@ -194,6 +194,77 @@ export default function Analytics() {
               ))}
             </div>
           )}
+
+          {/* Stops per driver per month */}
+          {(data.driverMonthlyData || []).length > 0 && (
+            <div className="an__card an__card--full">
+              <h3 className="an__card-title">Stops Per Driver — Last 6 Months</h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="an__driver-table">
+                  <thead>
+                    <tr>
+                      <th>Driver</th>
+                      {data.driverMonthlyData[0].months.map(m => {
+                        const [y, mo] = m.month.split('-')
+                        return <th key={m.month}>{['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo - 1]} {y.slice(2)}</th>
+                      })}
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.driverMonthlyData.map(d => (
+                      <tr key={d.name}>
+                        <td style={{ fontWeight: 600 }}>{d.name}</td>
+                        {d.months.map(m => <td key={m.month} style={{ color: m.stops === 0 ? 'var(--gray-300)' : 'var(--gray-700)' }}>{m.stops.toLocaleString()}</td>)}
+                        <td style={{ fontWeight: 700 }}>{d.total.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Driver consistency */}
+          {(data.driverConsistency || []).length > 0 && (
+            <div className="an__card an__card--full">
+              <h3 className="an__card-title">Driver Consistency Score</h3>
+              <p className="an__card-sub">Lower variance = more consistent daily loads. Score 0-100.</p>
+              {data.driverConsistency.map(d => (
+                <div className="an__leader" key={d.name}>
+                  <span className="an__leader-name" style={{ minWidth: 80 }}>{d.name}</span>
+                  <div className="an__leader-bar-wrap">
+                    <div className="an__leader-bar" style={{
+                      width: `${d.consistency}%`,
+                      background: d.consistency >= 80 ? '#22c55e' : d.consistency >= 60 ? '#f59e0b' : '#ef4444',
+                    }} />
+                  </div>
+                  <span className="an__leader-val" style={{ minWidth: 40 }}>{d.consistency}</span>
+                  <span style={{ fontSize: 11, color: 'var(--gray-400)', minWidth: 90 }}>avg {d.avg}/day</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Top ZIPs per driver */}
+          {(data.driverTopZips || []).length > 0 && (
+            <div className="an__card an__card--full">
+              <h3 className="an__card-title">Top ZIP Codes Per Driver</h3>
+              <div className="an__driver-zips-grid">
+                {data.driverTopZips.map(d => (
+                  <div key={d.name} className="an__driver-zip-card">
+                    <h4>{d.name}</h4>
+                    {d.zips.map(z => (
+                      <div key={z.zip} className="an__zip">
+                        <span className="an__zip-code">{z.zip}</span>
+                        <span className="an__zip-count">{z.count.toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -655,3 +655,13 @@
 .an__line-dot { position: absolute; left: 50%; width: 8px; height: 8px; border-radius: 50%; transform: translateX(-50%); z-index: 2; }
 .an__line-connector { position: absolute; left: 50%; width: 2px; transform: translateX(-50%); }
 .an__line-val { font-size: 10px; font-weight: 600; margin-top: 4px; }
+
+/* Driver analytics */
+.an__driver-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.an__driver-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); background: var(--gray-50); border-bottom: 1px solid var(--gray-200); white-space: nowrap; }
+.an__driver-table td { padding: 6px 10px; border-bottom: 1px solid var(--gray-100); white-space: nowrap; font-size: 13px; }
+.an__driver-table tbody tr:hover { background: var(--gray-50); }
+.an__card-sub { font-size: 12px; color: var(--gray-400); margin: -4px 0 12px; }
+.an__driver-zips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+.an__driver-zip-card { padding: 12px; border: 1px solid var(--gray-200); border-radius: 8px; }
+.an__driver-zip-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--gray-900); }

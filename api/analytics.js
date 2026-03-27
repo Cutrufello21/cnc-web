@@ -120,6 +120,80 @@ export default async function handler(req, res) {
       .sort((a, b) => b[1] - a[1]).slice(0, 5)
       .map(([name, count]) => ({ name, timesTop: count }))
 
+    // Driver monthly stops (who's carrying the load)
+    const driverMonthly = {}
+    allForTrends.forEach(r => {
+      const m = r.date?.slice(0, 7)
+      if (!m) return
+      // Parse driver stops from daily_stops via dispatch_logs top_driver won't work — use allForTrends
+    })
+    // Build from orders table grouped by driver + month
+    const { data: driverMonthRaw } = await supabase.from('orders')
+      .select('driver_name, date_delivered')
+      .not('driver_name', 'is', null).not('driver_name', 'eq', '')
+      .gte('date_delivered', allForTrends[0]?.date || '2024-01-01')
+    const driverByMonth = {}
+    const driverDailyCounts = {} // for consistency
+    const driverZipCounts = {} // for top zips
+    ;(driverMonthRaw || []).forEach(r => {
+      const name = r.driver_name
+      const m = r.date_delivered?.slice(0, 7)
+      if (!name || !m) return
+      if (!driverByMonth[name]) driverByMonth[name] = {}
+      driverByMonth[name][m] = (driverByMonth[name][m] || 0) + 1
+      // Daily counts for consistency
+      const d = r.date_delivered
+      if (!driverDailyCounts[name]) driverDailyCounts[name] = {}
+      driverDailyCounts[name][d] = (driverDailyCounts[name][d] || 0) + 1
+    })
+
+    // Get top zips per driver from orders
+    const { data: driverZipRaw } = await supabase.from('orders')
+      .select('driver_name, zip')
+      .not('driver_name', 'is', null).not('driver_name', 'eq', '')
+      .not('zip', 'is', null)
+      .gte('date_delivered', allForTrends[0]?.date || '2024-01-01')
+    ;(driverZipRaw || []).forEach(r => {
+      if (!r.driver_name || !r.zip) return
+      if (!driverZipCounts[r.driver_name]) driverZipCounts[r.driver_name] = {}
+      driverZipCounts[r.driver_name][r.zip] = (driverZipCounts[r.driver_name][r.zip] || 0) + 1
+    })
+
+    // Stops per driver per month
+    const months6 = [...new Set((driverMonthRaw || []).map(r => r.date_delivered?.slice(0, 7)).filter(Boolean))].sort().slice(-6)
+    const driverMonthlyData = Object.entries(driverByMonth)
+      .filter(([name]) => name !== 'Paul')
+      .map(([name, monthMap]) => ({
+        name,
+        months: months6.map(m => ({ month: m, stops: monthMap[m] || 0 })),
+        total: months6.reduce((s, m) => s + (monthMap[m] || 0), 0),
+      }))
+      .sort((a, b) => b.total - a.total)
+
+    // Consistency scores (lower variance = more consistent)
+    const driverConsistency = Object.entries(driverDailyCounts)
+      .filter(([name]) => name !== 'Paul')
+      .map(([name, dailyMap]) => {
+        const counts = Object.values(dailyMap)
+        if (counts.length < 5) return null
+        const avg = counts.reduce((s, v) => s + v, 0) / counts.length
+        const variance = counts.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / counts.length
+        const stdDev = Math.sqrt(variance)
+        const cv = avg > 0 ? Math.round((stdDev / avg) * 100) : 0 // coefficient of variation
+        return { name, avg: Math.round(avg), stdDev: Math.round(stdDev * 10) / 10, consistency: Math.max(0, 100 - cv), days: counts.length }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.consistency - a.consistency)
+
+    // Top ZIPs per driver
+    const driverTopZips = Object.entries(driverZipCounts)
+      .filter(([name]) => name !== 'Paul')
+      .map(([name, zipMap]) => ({
+        name,
+        zips: Object.entries(zipMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([zip, count]) => ({ zip, count })),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
     // Pharmacy split over time
     const pharmaSplit = []
     for (let i = 0; i < logs.length; i += 5) {
@@ -219,6 +293,7 @@ export default async function handler(req, res) {
       volumeTrend, dayAvg, driverLeaderboard: driverStats,
       topDriverOverall, topZips, patientData, topLocations, pharmaSplit,
       movingAvg, monthlyTrend, ccTrend, pharmaTrend,
+      driverMonthlyData, driverConsistency, driverTopZips,
     })
   } catch (err) {
     console.error('[analytics API]', err.message)
