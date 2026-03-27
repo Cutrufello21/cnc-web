@@ -11,7 +11,7 @@ const pillars = [
         <path d="M2 12l10 5 10-5" />
       </svg>
     ),
-    title: 'Cold Chain, Uncompromised',
+    title: 'Every Cold Chain Package Accounted For.',
     desc: "Every temperature-sensitive package is flagged at intake, tracked through delivery, and governed by strict per-driver limits. We don't guess — we verify.",
   },
   {
