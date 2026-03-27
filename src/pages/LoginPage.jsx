@@ -79,23 +79,17 @@ export default function LoginPage() {
         return
       }
 
-      // 3. Set session on Supabase client (non-blocking — don't let this hang login)
-      supabase.auth.setSession({
-        access_token: authData.access_token,
-        refresh_token: authData.refresh_token,
-      }).catch(() => {})
-
-      // 4. Save to context and localStorage
+      // 3. Save to context and localStorage — then redirect immediately
       setUser(authData.user)
       setProfile(profile)
       localStorage.setItem('cnc-profile', JSON.stringify(profile))
       localStorage.setItem('cnc-token', authData.access_token)
 
-      // 4. Redirect
+      // 4. Redirect using window.location for guaranteed navigation
       if (profile.role === 'dispatcher') {
-        navigate('/dispatch', { replace: true })
+        window.location.href = '/dispatch'
       } else {
-        navigate('/driver', { replace: true })
+        window.location.href = '/driver'
       }
     } catch (err) {
       setError(
