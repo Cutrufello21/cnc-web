@@ -244,8 +244,13 @@ export default function DispatchPage() {
     if (!data?.drivers) return
     // Collect all stops from all drivers, find ones with call-in ZIPs
     const allStops = data.drivers.flatMap(d => (d.stopDetails || []))
-    // Call-in ZIPs — update this list after running the Gmail extraction script
-    const CALL_IN_ZIPS = ['43986','43988','44230','44270','44423','44460','44651']
+    const CALL_IN_ZIPS = [
+      '43450','43903','43908','43945','43986','43988',
+      '44134','44136','44141','44147','44203','44216','44217','44230','44270','44273','44276','44281','44314',
+      '44423','44427','44460',
+      '44606','44607','44608','44612','44613','44620','44624','44625','44626','44627','44629','44632','44634',
+      '44645','44651','44659','44662','44672','44675','44678','44681','44683','44691','44695','44697',
+    ]
     const zipSet = new Set(CALL_IN_ZIPS)
     const callIns = allStops.filter(s => zipSet.has(s.zip || s.ZIP || s['Zip Code']))
     if (callIns.length === 0) {
