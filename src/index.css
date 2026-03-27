@@ -254,6 +254,12 @@
 [data-theme="dark"] .stats { background: #1c2333; }
 [data-theme="dark"] .cta__card { background: #1c2333; }
 [data-theme="dark"] .cta__card::before { background: rgba(100, 149, 237, 0.05); }
+[data-theme="dark"] .cta__title { color: #f5f7fa; }
+[data-theme="dark"] .cta__sub { color: rgba(255, 255, 255, 0.6); }
+[data-theme="dark"] .cta__phone { color: rgba(255, 255, 255, 0.55); }
+[data-theme="dark"] .cta__phone a { color: #fff; }
+[data-theme="dark"] .cta__btn--primary { background: #fff; color: #0d1117; }
+[data-theme="dark"] .cta__btn--secondary { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
 
 html {
   font-family: var(--font-sans);
