@@ -95,6 +95,8 @@ export default function About() {
               initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ duration: 0.6, delay: 0.5 }}>
               <span>Dominic Cutrufello, Operations</span>
               <span className="about__divider">·</span>
+              <a href="tel:+13306346260">(330) 634-6260</a>
+              <span className="about__divider">·</span>
               <a href="mailto:dom@cncdeliveryservice.com">dom@cncdeliveryservice.com</a>
               <span className="about__divider">·</span>
               <span>Akron, Ohio</span>
