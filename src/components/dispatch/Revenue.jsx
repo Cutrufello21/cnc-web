@@ -50,6 +50,15 @@ export default function Revenue({ weekOf, driverPayroll }) {
     }
 
     setStops(allStops)
+
+    // Load afternoon deliveries from all drivers → sum into will call trips
+    const { data: reconData } = await supabase.from('stop_reconciliation')
+      .select('afternoon_stops')
+      .eq('week_of', weekOf)
+      .not('afternoon_stops', 'is', null)
+    const totalAfternoon = (reconData || []).reduce((s, r) => s + (r.afternoon_stops || 0), 0)
+    if (totalAfternoon > 0) setWillCallCount(totalAfternoon)
+
     setLoading(false)
   }
 
