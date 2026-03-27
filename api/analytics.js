@@ -130,7 +130,7 @@ export default async function handler(req, res) {
     let dsPage = 0
     while (true) {
       const { data: batch } = await supabase.from('daily_stops')
-        .select('driver_name, delivery_date, zip')
+        .select('driver_name, delivery_date, zip, city')
         .gte('delivery_date', sixMonthStr)
         .range(dsPage * 1000, (dsPage + 1) * 1000 - 1)
       if (!batch || batch.length === 0) break
@@ -142,6 +142,7 @@ export default async function handler(req, res) {
     const driverByMonth = {}
     const driverDailyCounts = {}
     const driverZipCounts = {}
+    const zipCityMap = {}
     driverStopsRaw.forEach(r => {
       const name = r.driver_name
       const m = r.delivery_date?.slice(0, 7)
@@ -154,6 +155,7 @@ export default async function handler(req, res) {
       if (r.zip) {
         if (!driverZipCounts[name]) driverZipCounts[name] = {}
         driverZipCounts[name][r.zip] = (driverZipCounts[name][r.zip] || 0) + 1
+        if (r.city && !zipCityMap[r.zip]) zipCityMap[r.zip] = r.city
       }
     })
 
@@ -185,7 +187,7 @@ export default async function handler(req, res) {
       .filter(([name]) => name !== 'Paul')
       .map(([name, zipMap]) => ({
         name,
-        zips: Object.entries(zipMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([zip, count]) => ({ zip, count })),
+        zips: Object.entries(zipMap).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([zip, count]) => ({ zip, city: zipCityMap[zip] || '', count })),
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
 

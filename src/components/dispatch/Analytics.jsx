@@ -257,6 +257,7 @@ export default function Analytics() {
                     {d.zips.map(z => (
                       <div key={z.zip} className="an__zip">
                         <span className="an__zip-code">{z.zip}</span>
+                        {z.city && <span className="an__zip-city">{z.city}</span>}
                         <span className="an__zip-count">{z.count.toLocaleString()}</span>
                       </div>
                     ))}

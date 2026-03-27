@@ -665,3 +665,4 @@
 .an__driver-zips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
 .an__driver-zip-card { padding: 12px; border: 1px solid var(--gray-200); border-radius: 8px; }
 .an__driver-zip-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--gray-900); }
+.an__zip-city { font-size: 11px; color: var(--gray-400); flex: 1; }
