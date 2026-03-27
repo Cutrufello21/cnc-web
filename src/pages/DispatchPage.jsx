@@ -264,6 +264,7 @@ export default function DispatchPage() {
     setCallInPreview(callIns.map(s => ({
       orderId: s.order_id || s['Order ID'],
       address: s.address || s.Address,
+      city: s.city || s.City || '',
       name: s.patient_name || s.Name,
       zip: s.zip || s.ZIP || s['Zip Code'],
     })))
@@ -274,8 +275,8 @@ export default function DispatchPage() {
     setSendingCallIns(true)
     try {
       const html = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
-        <tr style="background:#0A2463;color:white"><th>Order #</th><th>Address</th><th>Patient Name</th><th>ZIP</th></tr>
-        ${callInPreview.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
+        <tr style="background:#0A2463;color:white"><th>Order #</th><th>Address</th><th>City</th><th>Patient Name</th><th>ZIP</th></tr>
+        ${callInPreview.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.city}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
       </table>`
       const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
       await fetch(APPS_SCRIPT_URL, {
@@ -631,9 +632,6 @@ export default function DispatchPage() {
                   disabled={sendingCallIns}
                   title="Send call-in orders to BioTouch"
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
-                  </svg>
                   {sendingCallIns ? 'Sending...' : callInsSent ? 'Sent' : "Send Call In's"}
                 </button>
                 <button
@@ -695,11 +693,11 @@ export default function DispatchPage() {
                 <div className="dispatch__callin-table-wrap">
                   <table className="dispatch__callin-table">
                     <thead>
-                      <tr><th>Order #</th><th>Patient Name</th><th>Address</th><th>ZIP</th></tr>
+                      <tr><th>Order #</th><th>Patient Name</th><th>Address</th><th>City</th><th>ZIP</th></tr>
                     </thead>
                     <tbody>
                       {callInPreview.map((r, i) => (
-                        <tr key={i}><td>{r.orderId}</td><td>{r.name}</td><td>{r.address}</td><td>{r.zip}</td></tr>
+                        <tr key={i}><td>{r.orderId}</td><td>{r.name}</td><td>{r.address}</td><td>{r.city}</td><td>{r.zip}</td></tr>
                       ))}
                     </tbody>
                   </table>
