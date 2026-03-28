@@ -25,6 +25,7 @@ export default function Navbar() {
           <a href="#services" onClick={() => setMenuOpen(false)}>Services</a>
           <a href="#coverage" onClick={() => setMenuOpen(false)}>Coverage</a>
           <a href="#about" onClick={() => setMenuOpen(false)}>About</a>
+          <a href="#team" onClick={() => setMenuOpen(false)}>Team</a>
           <ThemeToggle />
           <Link to="/login" className="navbar__cta" onClick={() => setMenuOpen(false)}>
             Sign In

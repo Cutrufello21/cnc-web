@@ -93,7 +93,7 @@ export default function About() {
 
             <motion.div className="about__contact"
               initial={{ opacity: 0 }} animate={inView ? { opacity: 1 } : {}} transition={{ duration: 0.6, delay: 0.5 }}>
-              <span>Dominic Cutrufello, Operations</span>
+              <span>Dominic Cutrufello, Director of Operations</span>
               <span className="about__divider">·</span>
               <a href="tel:+13306346260">(330) 634-6260</a>
               <span className="about__divider">·</span>

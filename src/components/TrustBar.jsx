@@ -9,6 +9,7 @@ const items = [
   '200+ ZIP codes across Northeast Ohio',
   '8AM – 6PM — a window we\'ve never missed',
   'Routes built for Northeast Ohio, not a national algorithm',
+  'HIPAA compliant — BAA available',
 ]
 
 export default function TrustBar() {
