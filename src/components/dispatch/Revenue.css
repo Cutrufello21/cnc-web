@@ -32,3 +32,14 @@
 .rev__summary-row--profit { font-size: 18px; font-weight: 700; color: #16a34a; border-top: 2px solid var(--gray-200); padding-top: 12px; margin-top: 8px; }
 .rev__summary-row--loss { color: #dc4a4a; }
 .rev__negative { color: #dc4a4a; }
+
+.rev__profit-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--gray-200); }
+.rev__profit-title { font-size: 15px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
+.rev__profit-sub { font-size: 12px; color: var(--gray-500); margin-bottom: 12px; }
+.rev__profit-table-wrap { overflow-x: auto; }
+.rev__profit-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rev__profit-table thead { background: var(--gray-50); }
+.rev__profit-table th { padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); border-bottom: 2px solid var(--gray-200); }
+.rev__profit-table td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); }
+.rev__profit-table tfoot td { border-top: 2px solid var(--gray-200); background: var(--gray-50); }
+.rev__profit-table tbody tr:hover { background: var(--gray-50); }
