@@ -26,7 +26,9 @@
 }
 
 .hero__eyebrow {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 1.5px;
@@ -38,6 +40,30 @@
   border: 1px solid rgba(100, 149, 237, 0.25);
   background: rgba(100, 149, 237, 0.06);
   animation: pillGlow 3s ease-in-out infinite;
+}
+
+.hero__pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cornflower);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.hero__pulse::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--cornflower);
+  opacity: 0.4;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(2.2); opacity: 0; }
 }
 
 @keyframes pillGlow {
