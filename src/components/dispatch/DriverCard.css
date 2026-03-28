@@ -34,8 +34,31 @@
 
 .dcard__name-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
+}
+
+.dcard__review-check {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #16a34a;
+  flex-shrink: 0;
+}
+
+.dcard__name--reviewed {
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.dcard--reviewed {
+  border-color: #16a34a40;
+  background: #f0fdf4;
+}
+
+[data-theme="dark"] .dcard--reviewed {
+  background: #0d1f0d;
+  border-color: #16a34a30;
 }
 
 .dcard__name {

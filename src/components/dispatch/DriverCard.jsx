@@ -29,6 +29,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [filters, setFilters] = useState({})
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [reviewed, setReviewed] = useState(false)
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
@@ -227,10 +228,18 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const activeFilters = Object.keys(filters).length
 
   return (
-    <div className={`dcard ${inactive ? 'dcard--inactive' : ''} ${expanded ? 'dcard--expanded' : ''}`}>
+    <div className={`dcard ${inactive ? 'dcard--inactive' : ''} ${expanded ? 'dcard--expanded' : ''} ${reviewed ? 'dcard--reviewed' : ''}`}>
       <div className="dcard__header" onClick={() => stops > 0 && setExpanded(!expanded)}>
         <div className="dcard__name-row">
-          <h3 className="dcard__name">{name}</h3>
+          <input
+            type="checkbox"
+            className="dcard__review-check"
+            checked={reviewed}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => { e.stopPropagation(); setReviewed(e.target.checked) }}
+            title="Mark as reviewed"
+          />
+          <h3 className={`dcard__name ${reviewed ? 'dcard__name--reviewed' : ''}`}>{name}</h3>
           <span className="dcard__id">#{id}</span>
         </div>
         <div className="dcard__header-right">
