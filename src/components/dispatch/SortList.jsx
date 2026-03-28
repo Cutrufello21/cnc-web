@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import './SortList.css'
 
+async function apiPost(rows) {
+  return fetch('/api/sort-list', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(rows),
+  })
+}
+
 export default function SortList({ deliveryDate }) {
   const [lines, setLines] = useState({ SHSP: [], Aultman: [] })
   const [loading, setLoading] = useState(true)
@@ -51,7 +59,7 @@ export default function SortList({ deliveryDate }) {
       }
 
       if (rows.length > 0) {
-        await supabase.from('sort_list').insert(rows)
+        await apiPost({ action: 'insert', rows })
         const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', 'Aultman').order('sort_order', { ascending: true })
         result.Aultman = fresh || []
       }
@@ -72,7 +80,7 @@ export default function SortList({ deliveryDate }) {
       }
 
       if (rows.length > 0) {
-        await supabase.from('sort_list').insert(rows)
+        await apiPost({ action: 'insert', rows })
         const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', 'SHSP').order('sort_order', { ascending: true })
         result.SHSP = fresh || []
       }
@@ -86,9 +94,12 @@ export default function SortList({ deliveryDate }) {
     if (!newLine.trim()) return
     setSaving(true)
     const maxOrder = lines[pharmacy].reduce((m, l) => Math.max(m, l.sort_order || 0), 0)
-    await supabase.from('sort_list').insert({
-      delivery_date: dateStr, pharmacy, driver_name: newLine.trim(),
-      display_text: newLine.trim(), sort_order: maxOrder + 1,
+    await apiPost({
+      action: 'insert',
+      rows: [{
+        delivery_date: dateStr, pharmacy, driver_name: newLine.trim(),
+        display_text: newLine.trim(), sort_order: maxOrder + 1,
+      }],
     })
     setNewLine('')
     setAdding(null)
@@ -98,14 +109,14 @@ export default function SortList({ deliveryDate }) {
 
   async function handleSave(id) {
     setSaving(true)
-    await supabase.from('sort_list').update({ display_text: editVal }).eq('id', id)
+    await apiPost({ action: 'update', id, display_text: editVal })
     setEditKey(null)
     setSaving(false)
     loadData()
   }
 
   async function handleDelete(id) {
-    await supabase.from('sort_list').delete().eq('id', id)
+    await apiPost({ action: 'delete', id })
     loadData()
   }
 
