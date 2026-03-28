@@ -84,6 +84,16 @@
   box-shadow: 0 8px 32px rgba(10, 36, 99, 0.08);
 }
 
+.service__map-placeholder {
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-400);
+  font-size: 0.9rem;
+  background: var(--gray-100);
+}
+
 .service__map .leaflet-container {
   height: 420px;
   width: 100%;

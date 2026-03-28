@@ -73,6 +73,10 @@
   color: var(--gray-900);
 }
 
+.navbar__link--active {
+  color: var(--cornflower, #6495ED) !important;
+}
+
 .navbar__cta {
   background: var(--navy) !important;
   color: var(--white) !important;

@@ -3,6 +3,15 @@ html {
   scroll-behavior: smooth;
 }
 
+body {
+  animation: pageIn 0.6s ease-out;
+}
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 *, *::before, *::after {
   margin: 0;
   padding: 0;
