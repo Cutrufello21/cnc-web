@@ -138,8 +138,8 @@ export default async function handler(req, res) {
     }
 
     if (data.action === 'contact_form') {
-      const { name, organization, phone, message } = data
-      if (!name || !message) return res.status(400).json({ error: 'Name and message are required' })
+      const { name, organization, email, phone, message } = data
+      if (!name || !message || !email) return res.status(400).json({ error: 'Name, email, and message are required' })
 
       const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
       const gmailPass = process.env.GMAIL_APP_PASSWORD
@@ -150,17 +150,35 @@ export default async function handler(req, res) {
         auth: { user: gmailUser, pass: gmailPass },
       })
 
+      // Email to Dom
       await transporter.sendMail({
         from: `"CNC Delivery Website" <${gmailUser}>`,
         to: 'dom@cncdeliveryservice.com',
+        replyTo: email,
         subject: `New Consultation Request from ${name}`,
         html: `
           <h2>New Consultation Request</h2>
           <p><strong>Name:</strong> ${name}</p>
           <p><strong>Organization:</strong> ${organization || 'N/A'}</p>
+          <p><strong>Email:</strong> ${email}</p>
           <p><strong>Phone:</strong> ${phone || 'N/A'}</p>
           <p><strong>Message:</strong></p>
           <p>${message}</p>
+        `,
+      })
+
+      // Auto-reply to the person who submitted
+      await transporter.sendMail({
+        from: `"CNC Delivery" <${gmailUser}>`,
+        to: email,
+        subject: `We received your message — CNC Delivery`,
+        html: `
+          <p>Hi ${name},</p>
+          <p>Thank you for reaching out to CNC Delivery. We received your consultation request and a member of our team will be in touch shortly — usually within the same business day.</p>
+          <p>In the meantime, feel free to call us at <a href="tel:+13306346260">(330) 634-6260</a> if you need immediate assistance.</p>
+          <br>
+          <p>Best regards,</p>
+          <p><strong>CNC Delivery</strong><br>The Last Mile in Patient Care<br>(330) 634-6260</p>
         `,
       })
 

@@ -7,7 +7,7 @@ const CONTACT_API = '/api/actions'
 
 export default function ContactForm() {
   const [ref, inView] = useInView(0.15)
-  const [form, setForm] = useState({ name: '', organization: '', phone: '', message: '' })
+  const [form, setForm] = useState({ name: '', organization: '', email: '', phone: '', message: '' })
   const [status, setStatus] = useState('idle') // idle | sending | sent | error
 
   function update(field) {
@@ -25,13 +25,14 @@ export default function ContactForm() {
           action: 'contact_form',
           name: form.name,
           organization: form.organization,
+          email: form.email,
           phone: form.phone,
           message: form.message,
         }),
       })
       if (!resp.ok) throw new Error('Failed')
       setStatus('sent')
-      setForm({ name: '', organization: '', phone: '', message: '' })
+      setForm({ name: '', organization: '', email: '', phone: '', message: '' })
     } catch {
       setStatus('error')
     }
@@ -85,9 +86,15 @@ export default function ContactForm() {
                     <input id="cf-org" type="text" value={form.organization} onChange={update('organization')} placeholder="Pharmacy or hospital name" />
                   </div>
                 </div>
-                <div className="contact__field">
-                  <label htmlFor="cf-phone">Phone</label>
-                  <input id="cf-phone" type="tel" value={form.phone} onChange={update('phone')} placeholder="(555) 555-5555" />
+                <div className="contact__row">
+                  <div className="contact__field">
+                    <label htmlFor="cf-email">Email</label>
+                    <input id="cf-email" type="email" value={form.email} onChange={update('email')} required placeholder="you@company.com" />
+                  </div>
+                  <div className="contact__field">
+                    <label htmlFor="cf-phone">Phone</label>
+                    <input id="cf-phone" type="tel" value={form.phone} onChange={update('phone')} placeholder="(555) 555-5555" />
+                  </div>
                 </div>
                 <div className="contact__field">
                   <label htmlFor="cf-msg">Message</label>
