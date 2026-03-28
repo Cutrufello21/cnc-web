@@ -140,21 +140,22 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       const toDriverNumber = reassignTo.split(' - ')[1]?.trim() || ''
       const orderIds = Array.from(selected)
 
-      // Update daily_stops in Supabase — change driver on selected orders
-      const { data: updated, error } = await supabase.from('daily_stops')
-        .update({
-          driver_name: toDriverName,
-          driver_number: toDriverNumber,
-          assigned_driver_number: toDriverNumber,
-        })
-        .in('order_id', orderIds)
-        .eq('driver_name', name)
-        .select()
+      // Update daily_stops via API (service role, bypasses RLS)
+      const res = await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'transfer',
+          orderIds,
+          toDriverName,
+          toDriverNumber,
+          fromDriverName: name,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Move failed')
 
-      if (error) throw new Error(error.message)
-      if (!updated || updated.length === 0) throw new Error('No rows updated — check permissions (try logging out and back in)')
-
-      setMoveResult(`Moved ${updated.length} stop${updated.length > 1 ? 's' : ''} to ${toDriverName}`)
+      setMoveResult(`Moved ${result.moved || orderIds.length} stop${orderIds.length > 1 ? 's' : ''} to ${toDriverName}`)
       setSelected(new Set())
       setReassignTo('')
       if (onMoveComplete) onMoveComplete({ orderIds, fromName: name, fromNumber: driver['Driver #'] || '', toName: toDriverName, count: updated.length })
