@@ -24,13 +24,13 @@ const team = [
   {
     initials: 'MD',
     name: 'Mia Derita',
-    title: 'Growth Strategy & Partnership Development',
+    title: 'Client Relations & Partnership Outreach',
     desc: 'Operates behind the scenes to drive CNC Delivery\'s long-term growth strategy. Mia analyzes operational performance, identifies opportunities for expansion, and develops the frameworks that support new and existing partnerships. Her focus is on sustainable development — ensuring every partnership we take on is one we can deliver on.',
   },
   {
     initials: 'KE',
     name: 'Kelly Evans',
-    title: 'Client Relations & Partnership Outreach',
+    title: 'Growth Strategy & Partnership Development',
     desc: 'Leads outreach and relationship-building efforts with pharmacy and hospital decision-makers across Northeast Ohio. Kelly focuses on establishing long-term partnerships grounded in trust, operational reliability, and a shared commitment to patient outcomes.',
   },
 ]
