@@ -322,6 +322,31 @@ export default async function handler(req, res) {
       }))
       .sort((a, b) => b.pct - a.pct)
 
+    // Driver rate data for pay simulator
+    const { data: driversForRates } = await supabase.from('drivers').select('driver_name, rate_mth, rate_wf, office_fee, flat_salary').eq('active', true)
+    const driverRates = (driversForRates || []).filter(d => d.driver_name !== 'Paul').map(d => ({
+      name: d.driver_name,
+      rateMth: parseFloat(d.rate_mth) || 0,
+      rateWf: parseFloat(d.rate_wf) || 0,
+      officeFee: parseFloat(d.office_fee) || 0,
+      flatSalary: d.flat_salary ? parseFloat(d.flat_salary) : null,
+    }))
+
+    // Driver stop counts by day of week (for pay simulation)
+    const driverWeekdayStops = {}
+    driverStopsRaw.forEach(r => {
+      if (!r.driver_name || r.driver_name === 'Paul') return
+      const d = new Date(r.delivery_date + 'T12:00:00')
+      const dow = d.getDay() // 1=Mon..5=Fri
+      if (!driverWeekdayStops[r.driver_name]) driverWeekdayStops[r.driver_name] = { mth: 0, wf: 0, days: new Set() }
+      if (dow === 1 || dow === 2 || dow === 4) driverWeekdayStops[r.driver_name].mth++
+      else if (dow === 3 || dow === 5) driverWeekdayStops[r.driver_name].wf++
+      driverWeekdayStops[r.driver_name].days.add(r.delivery_date)
+    })
+    const driverPayData = Object.entries(driverWeekdayStops).map(([name, d]) => ({
+      name, mthStops: d.mth, wfStops: d.wf, totalStops: d.mth + d.wf, activeDays: d.days.size,
+    }))
+
     // Rate calculator data — ZIP-level stop counts grouped by date for revenue simulation
     const rateCalcData = {}
     driverStopsRaw.forEach(r => {
@@ -407,7 +432,7 @@ export default async function handler(req, res) {
       driverImpact,
       zipGrowing, zipDeclining,
       coldChainByDay, coldChainMonthly,
-      rateCalcStops,
+      rateCalcStops, driverRates, driverPayData,
     })
   } catch (err) {
     console.error('[analytics API]', err.message)

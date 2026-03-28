@@ -22,12 +22,22 @@ export default function Analytics() {
   const [tab, setTab] = useState('overview')
   const [monthSort, setMonthSort] = useState('date')
   const [rates, setRates] = useState({ first: 11, additional: 9.40, outlier: 32.50 })
+  const [payRates, setPayRates] = useState({})
 
   useEffect(() => {
     setLoading(true)
     fetch(`/api/analytics?period=${period}`)
       .then(r => r.ok ? r.json() : null)
-      .then(json => setData(json))
+      .then(json => {
+        setData(json)
+        if (json?.driverRates && Object.keys(payRates).length === 0) {
+          const init = {}
+          json.driverRates.forEach(d => {
+            init[d.name] = { mth: d.rateMth, wf: d.rateWf }
+          })
+          setPayRates(init)
+        }
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false))
   }, [period])
@@ -553,6 +563,124 @@ export default function Analytics() {
                       })}
                     </tbody>
                   </table>
+                </>
+              )
+            })()}
+          </div>
+
+          {/* Driver Pay Simulator */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">Driver Pay Simulator</h3>
+            <p className="an__card-sub">Adjust per-stop rates to see how driver pay changes. Based on last 6 months of actual stops.</p>
+
+            {(() => {
+              const driverRatesData = data.driverRates || []
+              const driverPay = data.driverPayData || []
+              if (driverRatesData.length === 0) return <p style={{ color: 'var(--gray-400)', padding: 16 }}>No driver data</p>
+
+              let totalCurrentPay = 0, totalProposedPay = 0
+
+              const rows = driverRatesData.map(dr => {
+                const stops = driverPay.find(d => d.name === dr.name)
+                if (!stops) return null
+                const pr = payRates[dr.name] || { mth: dr.rateMth, wf: dr.rateWf }
+
+                let currentPay, proposedPay
+                if (dr.flatSalary) {
+                  const weeks = Math.ceil(stops.activeDays / 5)
+                  currentPay = dr.flatSalary * weeks
+                  proposedPay = currentPay // can't simulate flat salary
+                } else {
+                  currentPay = (stops.mthStops * dr.rateMth) + (stops.wfStops * dr.rateWf)
+                  proposedPay = (stops.mthStops * pr.mth) + (stops.wfStops * pr.wf)
+                }
+
+                totalCurrentPay += currentPay
+                totalProposedPay += proposedPay
+
+                return {
+                  name: dr.name, mthStops: stops.mthStops, wfStops: stops.wfStops,
+                  totalStops: stops.totalStops, activeDays: stops.activeDays,
+                  currentRate: { mth: dr.rateMth, wf: dr.rateWf },
+                  proposedRate: pr,
+                  currentPay, proposedPay, isFlat: !!dr.flatSalary,
+                  diff: proposedPay - currentPay,
+                }
+              }).filter(Boolean).sort((a, b) => b.currentPay - a.currentPay)
+
+              const payDiff = totalProposedPay - totalCurrentPay
+
+              return (
+                <>
+                  <div className="an__rate-summary" style={{ marginBottom: 16 }}>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Current Total Pay</span>
+                      <span className="an__rate-stat-value">${totalCurrentPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Proposed Total Pay</span>
+                      <span className="an__rate-stat-value" style={{ color: 'var(--navy)' }}>${totalProposedPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Pay Difference</span>
+                      <span className="an__rate-stat-value" style={{ color: payDiff <= 0 ? '#16a34a' : '#dc4a4a' }}>
+                        {payDiff >= 0 ? '+' : ''}${payDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Profit Impact</span>
+                      <span className="an__rate-stat-value" style={{ color: payDiff <= 0 ? '#16a34a' : '#dc4a4a', fontSize: 16 }}>
+                        {payDiff <= 0 ? '+' : '-'}${Math.abs(payDiff).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} profit
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rev__profit-table-wrap" style={{ maxHeight: 500, overflowY: 'auto' }}>
+                    <table className="an__insight-table">
+                      <thead>
+                        <tr>
+                          <th>Driver</th>
+                          <th className="rev__th-num">MTH Stops</th>
+                          <th className="rev__th-num">WF Stops</th>
+                          <th className="rev__th-num">MTH Rate</th>
+                          <th className="rev__th-num">WF Rate</th>
+                          <th className="rev__th-num">Current Pay</th>
+                          <th className="rev__th-num">Proposed Pay</th>
+                          <th className="rev__th-num">Diff</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map(d => (
+                          <tr key={d.name}>
+                            <td style={{ fontWeight: 600 }}>{d.name} {d.isFlat && <span style={{ fontSize: 10, color: 'var(--gray-400)' }}>(flat)</span>}</td>
+                            <td className="rev__cell-num">{d.mthStops.toLocaleString()}</td>
+                            <td className="rev__cell-num">{d.wfStops.toLocaleString()}</td>
+                            <td className="rev__cell-num">
+                              {d.isFlat ? '—' : (
+                                <input type="number" step="0.25" style={{ width: 60, padding: '2px 4px', textAlign: 'center', border: '1px solid var(--gray-200)', borderRadius: 4, fontSize: 13, fontFamily: 'ui-monospace, monospace' }}
+                                  value={payRates[d.name]?.mth ?? d.currentRate.mth}
+                                  onChange={e => setPayRates(p => ({ ...p, [d.name]: { ...p[d.name], mth: parseFloat(e.target.value) || 0, wf: p[d.name]?.wf ?? d.currentRate.wf } }))}
+                                />
+                              )}
+                            </td>
+                            <td className="rev__cell-num">
+                              {d.isFlat ? '—' : (
+                                <input type="number" step="0.25" style={{ width: 60, padding: '2px 4px', textAlign: 'center', border: '1px solid var(--gray-200)', borderRadius: 4, fontSize: 13, fontFamily: 'ui-monospace, monospace' }}
+                                  value={payRates[d.name]?.wf ?? d.currentRate.wf}
+                                  onChange={e => setPayRates(p => ({ ...p, [d.name]: { mth: p[d.name]?.mth ?? d.currentRate.mth, wf: parseFloat(e.target.value) || 0 } }))}
+                                />
+                              )}
+                            </td>
+                            <td className="rev__cell-num">${d.currentPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="rev__cell-num" style={{ fontWeight: 700, color: 'var(--navy)' }}>${d.proposedPay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="rev__cell-num" style={{ fontWeight: 600, color: d.diff <= 0 ? '#16a34a' : '#dc4a4a' }}>
+                              {d.diff >= 0 ? '+' : ''}${d.diff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </>
               )
             })()}
