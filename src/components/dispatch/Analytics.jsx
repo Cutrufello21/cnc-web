@@ -9,12 +9,19 @@ function fmtDate(dateStr) {
   return `${months[+parts[1] - 1]} ${+parts[2]}`
 }
 
+const OUTLIER_ZIPS = new Set([
+  '43450','43986','43988','44230','44270','44273','44276','44281',
+  '44314','44606','44608','44612','44613','44624','44626','44627',
+  '44651','44675','44678','44681','44683','44691',
+])
+
 export default function Analytics() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState('month')
   const [tab, setTab] = useState('overview')
   const [monthSort, setMonthSort] = useState('date')
+  const [rates, setRates] = useState({ first: 11, additional: 9.40, outlier: 32.50 })
 
   useEffect(() => {
     setLoading(true)
@@ -425,6 +432,130 @@ export default function Analytics() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Contract Rate Calculator */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">Contract Rate Calculator</h3>
+            <p className="an__card-sub">Adjust rates below to see how revenue would change across your last 6 months of deliveries</p>
+
+            <div className="an__rate-inputs">
+              <div className="an__rate-field">
+                <label>First Order / ZIP</label>
+                <div className="an__rate-input-wrap">
+                  <span>$</span>
+                  <input type="number" step="0.25" value={rates.first}
+                    onChange={e => setRates(r => ({ ...r, first: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <span className="an__rate-current">Current: $11.00</span>
+              </div>
+              <div className="an__rate-field">
+                <label>Additional / ZIP</label>
+                <div className="an__rate-input-wrap">
+                  <span>$</span>
+                  <input type="number" step="0.25" value={rates.additional}
+                    onChange={e => setRates(r => ({ ...r, additional: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <span className="an__rate-current">Current: $9.40</span>
+              </div>
+              <div className="an__rate-field">
+                <label>Outlier ZIP Rate</label>
+                <div className="an__rate-input-wrap">
+                  <span>$</span>
+                  <input type="number" step="0.50" value={rates.outlier}
+                    onChange={e => setRates(r => ({ ...r, outlier: parseFloat(e.target.value) || 0 }))} />
+                </div>
+                <span className="an__rate-current">Current: $32.50</span>
+              </div>
+            </div>
+
+            {(() => {
+              const stops = data.rateCalcStops || []
+              if (stops.length === 0) return <p style={{ color: 'var(--gray-400)', padding: 16 }}>No stop data available</p>
+
+              // Current rates
+              let currentRev = 0, newRev = 0
+              stops.forEach(s => {
+                const isOutlier = OUTLIER_ZIPS.has(s.zip)
+                const curFirst = isOutlier ? 32.50 : 11.00
+                const newFirst = isOutlier ? rates.outlier : rates.first
+                currentRev += curFirst + (s.count - 1) * 9.40
+                newRev += newFirst + (s.count - 1) * rates.additional
+              })
+
+              const diff = newRev - currentRev
+              const pctChange = currentRev > 0 ? ((diff / currentRev) * 100) : 0
+              const totalStops = stops.reduce((s, r) => s + r.count, 0)
+              const uniqueDays = new Set(stops.map(s => s.date)).size
+
+              // Monthly breakdown
+              const byMonth = {}
+              stops.forEach(s => {
+                const m = s.date.slice(0, 7)
+                if (!byMonth[m]) byMonth[m] = { current: 0, proposed: 0, stops: 0 }
+                const isOutlier = OUTLIER_ZIPS.has(s.zip)
+                const curFirst = isOutlier ? 32.50 : 11.00
+                const newFirst = isOutlier ? rates.outlier : rates.first
+                byMonth[m].current += curFirst + (s.count - 1) * 9.40
+                byMonth[m].proposed += newFirst + (s.count - 1) * rates.additional
+                byMonth[m].stops += s.count
+              })
+              const monthlyRows = Object.entries(byMonth).sort((a, b) => a[0].localeCompare(b[0]))
+
+              return (
+                <>
+                  <div className="an__rate-summary">
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Current Revenue</span>
+                      <span className="an__rate-stat-value">${currentRev.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Proposed Revenue</span>
+                      <span className="an__rate-stat-value" style={{ color: 'var(--navy)' }}>${newRev.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Difference</span>
+                      <span className="an__rate-stat-value" style={{ color: diff >= 0 ? '#16a34a' : '#dc4a4a' }}>
+                        {diff >= 0 ? '+' : ''}${diff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 6 }}>({pctChange >= 0 ? '+' : ''}{pctChange.toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                    <div className="an__rate-stat">
+                      <span className="an__rate-stat-label">Based On</span>
+                      <span className="an__rate-stat-value" style={{ fontSize: 16 }}>{totalStops.toLocaleString()} stops · {uniqueDays} days</span>
+                    </div>
+                  </div>
+
+                  <table className="an__insight-table" style={{ marginTop: 16 }}>
+                    <thead>
+                      <tr>
+                        <th>Month</th>
+                        <th className="rev__th-num">Stops</th>
+                        <th className="rev__th-num">Current</th>
+                        <th className="rev__th-num">Proposed</th>
+                        <th className="rev__th-num">Diff</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyRows.map(([month, d]) => {
+                        const mDiff = d.proposed - d.current
+                        return (
+                          <tr key={month}>
+                            <td style={{ fontWeight: 600 }}>{month}</td>
+                            <td className="rev__cell-num">{d.stops.toLocaleString()}</td>
+                            <td className="rev__cell-num">${d.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="rev__cell-num" style={{ fontWeight: 700, color: 'var(--navy)' }}>${d.proposed.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            <td className="rev__cell-num" style={{ fontWeight: 600, color: mDiff >= 0 ? '#16a34a' : '#dc4a4a' }}>
+                              {mDiff >= 0 ? '+' : ''}${mDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}

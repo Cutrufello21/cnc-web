@@ -322,6 +322,16 @@ export default async function handler(req, res) {
       }))
       .sort((a, b) => b.pct - a.pct)
 
+    // Rate calculator data — ZIP-level stop counts grouped by date for revenue simulation
+    const rateCalcData = {}
+    driverStopsRaw.forEach(r => {
+      if (!r.zip || !r.delivery_date) return
+      const key = `${r.delivery_date}|${r.zip}`
+      if (!rateCalcData[key]) rateCalcData[key] = { date: r.delivery_date, zip: r.zip, count: 0 }
+      rateCalcData[key].count++
+    })
+    const rateCalcStops = Object.values(rateCalcData)
+
     // 3. ZIP growth trends — compare last 3 months vs prior 3 months
     const threeMonthsAgo = new Date()
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
@@ -397,6 +407,7 @@ export default async function handler(req, res) {
       driverImpact,
       zipGrowing, zipDeclining,
       coldChainByDay, coldChainMonthly,
+      rateCalcStops,
     })
   } catch (err) {
     console.error('[analytics API]', err.message)

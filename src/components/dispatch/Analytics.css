@@ -702,3 +702,23 @@
 .an__insight-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
 .an__insight-table td { padding: 6px 10px; border-bottom: 1px solid var(--gray-100); }
 .an__insight-table tbody tr:hover { background: var(--gray-50); }
+
+/* Rate Calculator */
+.an__rate-inputs { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px; background: var(--gray-50); border-radius: 10px; }
+.an__rate-field { display: flex; flex-direction: column; gap: 4px; }
+.an__rate-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); }
+.an__rate-input-wrap { display: flex; align-items: center; gap: 4px; }
+.an__rate-input-wrap span { font-size: 14px; font-weight: 600; color: var(--gray-500); }
+.an__rate-input-wrap input { width: 90px; padding: 8px 10px; font-size: 16px; font-weight: 700; border: 2px solid var(--gray-200); border-radius: 8px; text-align: center; font-family: ui-monospace, monospace; transition: border-color 0.15s; }
+.an__rate-input-wrap input:focus { border-color: var(--cornflower); outline: none; }
+.an__rate-current { font-size: 11px; color: var(--gray-400); }
+
+.an__rate-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 8px; }
+.an__rate-stat { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 8px; }
+.an__rate-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); }
+.an__rate-stat-value { font-size: 20px; font-weight: 700; color: var(--gray-900); font-family: ui-monospace, monospace; }
+
+@media (max-width: 768px) {
+  .an__rate-summary { grid-template-columns: repeat(2, 1fr); }
+  .an__rate-inputs { flex-direction: column; }
+}
