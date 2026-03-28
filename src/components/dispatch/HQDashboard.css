@@ -445,6 +445,140 @@
   color: var(--gray-700);
 }
 
+/* Interactive table */
+.hq__table--interactive { }
+
+.hq__th-sort {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.hq__th-sort:hover {
+  color: var(--cornflower);
+}
+
+.hq__sort-arrow {
+  font-size: 10px;
+  color: var(--cornflower);
+}
+
+.hq__row--today {
+  background: #eef4ff !important;
+  border-left: 3px solid var(--cornflower);
+}
+
+[data-theme="dark"] .hq__row--today {
+  background: #0d1a2e !important;
+}
+
+.hq__row--expanded {
+  background: var(--gray-50) !important;
+}
+
+.hq__table--interactive tbody tr:hover {
+  background: var(--gray-50);
+}
+
+/* Inline bar in orders column */
+.hq__inline-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.hq__inline-bar {
+  height: 6px;
+  background: linear-gradient(90deg, var(--navy), var(--cornflower));
+  border-radius: 3px;
+  min-width: 2px;
+  transition: width 0.4s ease;
+}
+
+.hq__inline-bar-wrap span {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* Expanded detail row */
+.hq__detail-row td {
+  padding: 0 !important;
+  border-bottom: 2px solid var(--gray-200) !important;
+}
+
+.hq__detail {
+  padding: 16px 20px;
+  background: var(--gray-50);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hq__detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hq__detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-500);
+}
+
+.hq__detail-split {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hq__detail-split-shsp {
+  background: var(--cornflower);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.hq__detail-split-aultman {
+  background: #4ADE80;
+  color: #064e3b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+}
+
+.hq__detail-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.hq__detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hq__detail-stat span {
+  font-size: 11px;
+  color: var(--gray-500);
+}
+
+.hq__detail-stat strong {
+  font-size: 14px;
+  color: var(--gray-900);
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .hq__kpis {

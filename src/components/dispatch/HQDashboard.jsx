@@ -20,6 +20,8 @@ function fmtDay(dateStr) {
 export default function HQDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [tableSort, setTableSort] = useState({ col: null, dir: 'desc' })
+  const [expandedRow, setExpandedRow] = useState(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -249,37 +251,120 @@ export default function HQDashboard() {
           </div>
         </div>
 
-        {/* Recent Deliveries */}
+        {/* Recent Deliveries — Interactive */}
         <div className="hq__card hq__card--wide">
           <h3 className="hq__card-title">This Week's Dispatches</h3>
           {recentLogs.length === 0 ? (
             <p style={{ color: 'var(--gray-400)', fontSize: 14 }}>No dispatches this week yet</p>
-          ) : (
-            <table className="hq__table">
-              <thead>
-                <tr>
-                  <th>Day</th><th>Date</th><th>Orders</th>
-                  <th>SHSP</th><th>Aultman</th><th>CC</th>
-                  <th>Unassigned</th><th>Top Driver</th><th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentLogs.map((log, i) => (
-                  <tr key={i}>
-                    <td className="hq__cell-date">{log.delivery_day?.slice(0, 3)}</td>
-                    <td>{fmtDate(log.date)}</td>
-                    <td className="hq__cell-num">{log.orders_processed}</td>
-                    <td className="hq__cell-num">{log.shsp_orders}</td>
-                    <td className="hq__cell-num">{log.aultman_orders}</td>
-                    <td className="hq__cell-num">{log.cold_chain}</td>
-                    <td className={parseInt(log.unassigned_count) > 0 ? 'hq__cell-warn' : 'hq__cell-num'}>{log.unassigned_count}</td>
-                    <td>{log.top_driver}</td>
-                    <td><span className={`hq__status-badge ${log.status === 'Complete' ? 'hq__status-badge--ok' : ''}`}>{log.status}</span></td>
+          ) : (() => {
+            const today = new Date().toISOString().split('T')[0]
+            const maxOrders = Math.max(...recentLogs.map(l => l.orders_processed || 0), 1)
+
+            const cols = [
+              { key: 'delivery_day', label: 'Day', get: l => l.delivery_day },
+              { key: 'date', label: 'Date', get: l => l.date },
+              { key: 'orders_processed', label: 'Orders', get: l => l.orders_processed || 0 },
+              { key: 'shsp_orders', label: 'SHSP', get: l => l.shsp_orders || 0 },
+              { key: 'aultman_orders', label: 'Aultman', get: l => l.aultman_orders || 0 },
+              { key: 'cold_chain', label: 'CC', get: l => l.cold_chain || 0 },
+              { key: 'unassigned_count', label: 'Unassigned', get: l => l.unassigned_count || 0 },
+              { key: 'top_driver', label: 'Top Driver', get: l => l.top_driver || '' },
+              { key: 'status', label: 'Status', get: l => l.status || '' },
+            ]
+
+            const sorted = [...recentLogs]
+            if (tableSort.col) {
+              const col = cols.find(c => c.key === tableSort.col)
+              if (col) {
+                sorted.sort((a, b) => {
+                  const av = col.get(a), bv = col.get(b)
+                  const cmp = typeof av === 'number' ? av - bv : String(av).localeCompare(String(bv))
+                  return tableSort.dir === 'asc' ? cmp : -cmp
+                })
+              }
+            }
+
+            function handleSort(key) {
+              setTableSort(prev => prev.col === key ? { col: key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { col: key, dir: 'desc' })
+            }
+
+            return (
+              <table className="hq__table hq__table--interactive">
+                <thead>
+                  <tr>
+                    {cols.map(c => (
+                      <th key={c.key} onClick={() => handleSort(c.key)} className="hq__th-sort">
+                        {c.label}
+                        {tableSort.col === c.key && <span className="hq__sort-arrow">{tableSort.dir === 'asc' ? ' ↑' : ' ↓'}</span>}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {sorted.map((log, i) => {
+                    const isToday = log.date === today
+                    const isExpanded = expandedRow === i
+                    const ordersPct = maxOrders ? (log.orders_processed / maxOrders) * 100 : 0
+                    return (
+                      <>
+                        <tr key={i} className={`${isToday ? 'hq__row--today' : ''} ${isExpanded ? 'hq__row--expanded' : ''}`}
+                          onClick={() => setExpandedRow(isExpanded ? null : i)}
+                          style={{ cursor: 'pointer' }}>
+                          <td className="hq__cell-date">{log.delivery_day?.slice(0, 3)}</td>
+                          <td>{fmtDate(log.date)}</td>
+                          <td className="hq__cell-num">
+                            <div className="hq__inline-bar-wrap">
+                              <div className="hq__inline-bar" style={{ width: `${ordersPct}%` }} />
+                              <span>{log.orders_processed}</span>
+                            </div>
+                          </td>
+                          <td className="hq__cell-num">{log.shsp_orders}</td>
+                          <td className="hq__cell-num">{log.aultman_orders}</td>
+                          <td className="hq__cell-num" style={{ color: log.cold_chain > 0 ? '#3b82f6' : undefined }}>{log.cold_chain}</td>
+                          <td className={parseInt(log.unassigned_count) > 0 ? 'hq__cell-warn' : 'hq__cell-num'}>{log.unassigned_count}</td>
+                          <td><strong>{log.top_driver}</strong></td>
+                          <td><span className={`hq__status-badge ${log.status === 'Complete' ? 'hq__status-badge--ok' : ''}`}>{log.status}</span></td>
+                        </tr>
+                        {isExpanded && (
+                          <tr key={`${i}-detail`} className="hq__detail-row">
+                            <td colSpan={9}>
+                              <div className="hq__detail">
+                                <div className="hq__detail-item">
+                                  <span className="hq__detail-label">Pharmacy Split</span>
+                                  <div className="hq__detail-split">
+                                    <div className="hq__detail-split-shsp" style={{ width: `${log.orders_processed ? (log.shsp_orders / log.orders_processed) * 100 : 50}%` }}>
+                                      SHSP {log.shsp_orders}
+                                    </div>
+                                    <div className="hq__detail-split-aultman" style={{ width: `${log.orders_processed ? (log.aultman_orders / log.orders_processed) * 100 : 50}%` }}>
+                                      Aultman {log.aultman_orders}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="hq__detail-stats">
+                                  <div className="hq__detail-stat">
+                                    <span>Cold Chain %</span>
+                                    <strong>{log.orders_processed ? Math.round((log.cold_chain / log.orders_processed) * 100) : 0}%</strong>
+                                  </div>
+                                  <div className="hq__detail-stat">
+                                    <span>Corrections</span>
+                                    <strong>{log.corrections || 0}</strong>
+                                  </div>
+                                  <div className="hq__detail-stat">
+                                    <span>Dispatched</span>
+                                    <strong>{log.date}</strong>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )
+          })()}
         </div>
       </div>
     </div>
