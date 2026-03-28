@@ -35,11 +35,6 @@
   text-transform: uppercase;
   color: var(--cornflower);
   margin-bottom: 20px;
-  padding: 8px 22px;
-  border-radius: 980px;
-  border: 1px solid rgba(100, 149, 237, 0.25);
-  background: rgba(100, 149, 237, 0.06);
-  animation: pillGlow 3s ease-in-out infinite;
 }
 
 .hero__pulse {
@@ -66,10 +61,6 @@
   50% { transform: scale(2.2); opacity: 0; }
 }
 
-@keyframes pillGlow {
-  0%, 100% { border-color: rgba(100, 149, 237, 0.25); box-shadow: 0 0 0 rgba(100, 149, 237, 0); }
-  50% { border-color: rgba(100, 149, 237, 0.5); box-shadow: 0 0 16px rgba(100, 149, 237, 0.12); }
-}
 
 .hero__headline {
   font-size: clamp(40px, 7vw, 72px);
