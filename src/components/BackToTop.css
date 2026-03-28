@@ -1,0 +1,41 @@
+.btt {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--navy, #0A2463);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(16px);
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 99;
+}
+
+.btt--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.btt:hover {
+  background: var(--navy-light, #0d2d7a);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .btt {
+  background: var(--gray-200, #333d4d);
+  color: var(--gray-900, #f5f7fa);
+}
+
+[data-theme="dark"] .btt:hover {
+  background: var(--gray-300, #48536a);
+}

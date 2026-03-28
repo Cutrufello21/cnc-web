@@ -7,15 +7,21 @@ import './Navbar.css'
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10)
+    const onScroll = () => {
+      setScrolled(window.scrollY > 10)
+      const height = document.documentElement.scrollHeight - window.innerHeight
+      setScrollProgress(height > 0 ? (window.scrollY / height) * 100 : 0)
+    }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
   return (
     <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
+      <div className="navbar__progress" style={{ width: `${scrollProgress}%` }} />
       <div className="navbar__inner container">
         <Link to="/" className="navbar__logo">
           <BrandMark variant="dark" />

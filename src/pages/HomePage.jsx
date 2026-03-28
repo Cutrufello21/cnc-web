@@ -10,6 +10,7 @@ import About from '../components/About'
 import Team from '../components/Team'
 import ContactForm from '../components/ContactForm'
 import Footer from '../components/Footer'
+import BackToTop from '../components/BackToTop'
 
 export default function HomePage() {
   return (
@@ -28,6 +29,7 @@ export default function HomePage() {
         <ContactForm />
       </main>
       <Footer />
+      <BackToTop />
     </>
   )
 }
