@@ -42,13 +42,14 @@ export default function DispatchPage() {
   const [callInsSent, setCallInsSent] = useState(false)
   const [callInPreview, setCallInPreview] = useState(null)
   const [pendingTimeOff, setPendingTimeOff] = useState(0)
+  const [weekOffset, setWeekOffset] = useState(0)
 
   useEffect(() => {
     fetchDispatchData()
     supabase.from('time_off_requests').select('id', { count: 'exact', head: true })
       .eq('status', 'pending')
       .then(({ count }) => setPendingTimeOff(count || 0))
-  }, [])
+  }, [weekOffset])
 
   async function fetchDispatchData(day) {
     if (!data) setLoading(true) // Only show spinner on first load
@@ -79,11 +80,11 @@ export default function DispatchPage() {
         }
       }
 
-      // Get this week's date for the selected day
+      // Get target week's date for the selected day
       const dayOfWeek = now.getDay()
       const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
       const monday = new Date(now)
-      monday.setDate(now.getDate() + mondayOffset)
+      monday.setDate(now.getDate() + mondayOffset + (weekOffset * 7))
       const dayIndex = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].indexOf(deliveryDay)
       const deliveryDate = new Date(monday)
       deliveryDate.setDate(monday.getDate() + (dayIndex >= 0 ? dayIndex : 0))
@@ -153,6 +154,7 @@ export default function DispatchPage() {
       setData({
         deliveryDay,
         deliveryDateObj: deliveryDate,
+        weekMonday: monday,
         allDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         drivers: drivers.map(d => ({
           'Driver Name': d.driver_name,
@@ -554,6 +556,7 @@ export default function DispatchPage() {
             {/* Day selector + Routing Rules */}
             <div className="dispatch__days-row">
               <div className="dispatch__days">
+                <button className="dispatch__week-btn" onClick={() => setWeekOffset(w => w - 1)} title="Previous week">‹</button>
                 {(data.allDays || ['Monday','Tuesday','Wednesday','Thursday','Friday']).map((day) => (
                   <button
                     key={day}
@@ -563,6 +566,18 @@ export default function DispatchPage() {
                     {day.slice(0, 3)}
                   </button>
                 ))}
+                <button className="dispatch__week-btn" onClick={() => setWeekOffset(w => w + 1)} title="Next week">›</button>
+                {weekOffset !== 0 && (
+                  <button className="dispatch__week-today" onClick={() => setWeekOffset(0)}>Today</button>
+                )}
+                {data.weekMonday && (
+                  <span className="dispatch__week-label">
+                    {data.weekMonday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {(() => {
+                      const fri = new Date(data.weekMonday); fri.setDate(fri.getDate() + 4);
+                      return fri.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    })()}
+                  </span>
+                )}
               </div>
               <div className="dispatch__zip-search">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
