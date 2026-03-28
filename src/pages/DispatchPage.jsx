@@ -63,13 +63,16 @@ export default function DispatchPage() {
       let deliveryDay = day
 
       if (!deliveryDay) {
-        if (hour >= 18) {
-          // After 6 PM — show next business day (what was just dispatched)
+        if (todayIdx === 0 && hour >= 13) {
+          // Sunday after 1 PM — show Monday
+          deliveryDay = 'Monday'
+        } else if (hour >= 18) {
+          // After 6 PM — show next business day
           if (todayIdx === 5) deliveryDay = 'Monday'       // Fri evening → Monday
           else if (todayIdx === 6) deliveryDay = 'Monday'   // Saturday → Monday
           else deliveryDay = dayNames[todayIdx + 1]          // Weeknight → tomorrow
         } else {
-          // Before 6 PM — show today
+          // Before cutover — show today (weekends show nearest weekday)
           if (todayIdx === 0) deliveryDay = 'Monday'
           else if (todayIdx === 6) deliveryDay = 'Friday'
           else deliveryDay = dayNames[todayIdx]
