@@ -137,6 +137,36 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, results })
     }
 
+    if (data.action === 'contact_form') {
+      const { name, organization, phone, message } = data
+      if (!name || !message) return res.status(400).json({ error: 'Name and message are required' })
+
+      const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
+      const gmailPass = process.env.GMAIL_APP_PASSWORD
+      if (!gmailPass) return res.status(500).json({ error: 'GMAIL_APP_PASSWORD not configured' })
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      })
+
+      await transporter.sendMail({
+        from: `"CNC Delivery Website" <${gmailUser}>`,
+        to: 'dom@cncdeliveryservice.com',
+        subject: `New Consultation Request from ${name}`,
+        html: `
+          <h2>New Consultation Request</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Organization:</strong> ${organization || 'N/A'}</p>
+          <p><strong>Phone:</strong> ${phone || 'N/A'}</p>
+          <p><strong>Message:</strong></p>
+          <p>${message}</p>
+        `,
+      })
+
+      return res.status(200).json({ success: true })
+    }
+
     return res.status(400).json({ error: 'Unknown action' })
   } catch (err) {
     return res.status(500).json({ error: err.message })

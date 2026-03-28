@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { useInView } from '../hooks/useInView'
 import './ContactForm.css'
 
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+const CONTACT_API = '/api/actions'
 
 export default function ContactForm() {
   const [ref, inView] = useInView(0.15)
@@ -18,9 +18,9 @@ export default function ContactForm() {
     e.preventDefault()
     setStatus('sending')
     try {
-      await fetch(APPS_SCRIPT_URL, {
+      const resp = await fetch(CONTACT_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'contact_form',
           name: form.name,
@@ -29,6 +29,7 @@ export default function ContactForm() {
           message: form.message,
         }),
       })
+      if (!resp.ok) throw new Error('Failed')
       setStatus('sent')
       setForm({ name: '', organization: '', phone: '', message: '' })
     } catch {
