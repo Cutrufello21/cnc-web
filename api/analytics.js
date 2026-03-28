@@ -278,6 +278,107 @@ export default async function handler(req, res) {
       return { date: wk, shsp, aultman, shspPct: Math.round((shsp / total) * 100) }
     })
 
+    // === DEEP CUTS ===
+
+    // 1. Seasonality — average volume by month of year (Jan-Dec) across all years
+    const monthOfYearAvg = {}
+    allForTrends.forEach(r => {
+      const mo = parseInt(r.date?.slice(5, 7))
+      if (!mo) return
+      if (!monthOfYearAvg[mo]) monthOfYearAvg[mo] = { total: 0, days: 0, years: new Set() }
+      monthOfYearAvg[mo].total += r.orders_processed || 0
+      monthOfYearAvg[mo].days++
+      monthOfYearAvg[mo].years.add(r.date?.slice(0, 4))
+    })
+    const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const seasonality = Array.from({ length: 12 }, (_, i) => {
+      const mo = i + 1
+      const d = monthOfYearAvg[mo]
+      return {
+        month: MONTH_NAMES[mo],
+        avgPerDay: d ? Math.round(d.total / d.days) : 0,
+        totalDays: d?.days || 0,
+        yearsOfData: d?.years?.size || 0,
+      }
+    })
+    const peakMonth = seasonality.reduce((best, m) => m.avgPerDay > best.avgPerDay ? m : best, seasonality[0])
+    const slowMonth = seasonality.filter(m => m.totalDays > 0).reduce((best, m) => m.avgPerDay < best.avgPerDay ? m : best, seasonality[0])
+
+    // 2. Driver turnover impact — what % of volume each driver handles
+    const driverVolumeShare = {}
+    let totalDriverStops = 0
+    driverStopsRaw.forEach(r => {
+      if (!r.driver_name || r.driver_name === 'Paul') return
+      driverVolumeShare[r.driver_name] = (driverVolumeShare[r.driver_name] || 0) + 1
+      totalDriverStops++
+    })
+    const driverImpact = Object.entries(driverVolumeShare)
+      .map(([name, stops]) => ({
+        name,
+        stops,
+        pct: totalDriverStops ? Math.round((stops / totalDriverStops) * 100) : 0,
+        avgPerDay: Math.round(stops / (new Set(driverStopsRaw.filter(r => r.driver_name === name).map(r => r.delivery_date)).size || 1)),
+        activeDays: new Set(driverStopsRaw.filter(r => r.driver_name === name).map(r => r.delivery_date)).size,
+      }))
+      .sort((a, b) => b.pct - a.pct)
+
+    // 3. ZIP growth trends — compare last 3 months vs prior 3 months
+    const threeMonthsAgo = new Date()
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+    const threeMonthStr = threeMonthsAgo.toISOString().split('T')[0]
+    const zipRecent = {}, zipOlder = {}
+    driverStopsRaw.forEach(r => {
+      if (!r.zip) return
+      if (r.delivery_date >= threeMonthStr) {
+        zipRecent[r.zip] = (zipRecent[r.zip] || 0) + 1
+      } else {
+        zipOlder[r.zip] = (zipOlder[r.zip] || 0) + 1
+      }
+    })
+    const allZipKeys = new Set([...Object.keys(zipRecent), ...Object.keys(zipOlder)])
+    const zipGrowth = [...allZipKeys].map(zip => {
+      const recent = zipRecent[zip] || 0
+      const older = zipOlder[zip] || 0
+      const growth = older > 0 ? Math.round(((recent - older) / older) * 100) : (recent > 0 ? 100 : 0)
+      return { zip, city: zipCityMap[zip] || '', recent, older, growth }
+    }).filter(z => z.recent + z.older >= 10) // only ZIPs with meaningful volume
+    const zipGrowing = zipGrowth.filter(z => z.growth > 0).sort((a, b) => b.growth - a.growth).slice(0, 15)
+    const zipDeclining = zipGrowth.filter(z => z.growth < 0).sort((a, b) => a.growth - b.growth).slice(0, 10)
+
+    // 4. Cold chain by day of week
+    const ccByDay = {}
+    dayNames.forEach(d => { ccByDay[d] = { cc: 0, total: 0, count: 0 } })
+    allForTrends.forEach(r => {
+      if (ccByDay[r.delivery_day]) {
+        ccByDay[r.delivery_day].cc += r.cold_chain || 0
+        ccByDay[r.delivery_day].total += r.orders_processed || 0
+        ccByDay[r.delivery_day].count++
+      }
+    })
+    const coldChainByDay = dayNames.map(d => ({
+      day: d,
+      avgCC: ccByDay[d].count ? Math.round(ccByDay[d].cc / ccByDay[d].count) : 0,
+      ccPct: ccByDay[d].total ? Math.round((ccByDay[d].cc / ccByDay[d].total) * 100) : 0,
+      totalCC: ccByDay[d].cc,
+    }))
+
+    // Cold chain by month (trend)
+    const ccByMonth = {}
+    allForTrends.forEach(r => {
+      const m = r.date?.slice(0, 7)
+      if (!m) return
+      if (!ccByMonth[m]) ccByMonth[m] = { cc: 0, total: 0 }
+      ccByMonth[m].cc += r.cold_chain || 0
+      ccByMonth[m].total += r.orders_processed || 0
+    })
+    const coldChainMonthly = Object.entries(ccByMonth).sort((a, b) => a[0].localeCompare(b[0])).map(([month, d]) => ({
+      month,
+      avgCC: d.total ? Math.round(d.cc / (Object.keys(ccByDay).length || 1)) : 0,
+      ccPct: d.total ? Math.round((d.cc / d.total) * 100) : 0,
+      cc: d.cc,
+      total: d.total,
+    }))
+
     return res.status(200).json({
       period,
       dispatches: logs.length,
@@ -291,6 +392,11 @@ export default async function handler(req, res) {
       topDriverOverall, topZips, patientData, topLocations, pharmaSplit,
       movingAvg, monthlyTrend, ccTrend, pharmaTrend,
       driverMonthlyData, driverConsistency, driverTopZips,
+      // Deep cuts
+      seasonality, peakMonth, slowMonth,
+      driverImpact,
+      zipGrowing, zipDeclining,
+      coldChainByDay, coldChainMonthly,
     })
   } catch (err) {
     console.error('[analytics API]', err.message)

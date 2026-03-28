@@ -666,3 +666,39 @@
 .an__driver-zip-card { padding: 12px; border: 1px solid var(--gray-200); border-radius: 8px; }
 .an__driver-zip-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--gray-900); }
 .an__zip-city { font-size: 11px; color: var(--gray-400); flex: 1; }
+
+/* Insights — Seasonality */
+.an__season-chart { display: flex; align-items: flex-end; gap: 8px; height: 180px; padding-top: 8px; }
+.an__season-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+.an__season-val { font-size: 11px; font-weight: 600; color: var(--gray-600); }
+.an__season-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.an__season-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--cornflower); opacity: 0.7; transition: all 0.3s ease; min-height: 2px; }
+.an__season-bar:hover { opacity: 1; }
+.an__season-bar--peak { background: #22c55e; opacity: 1; }
+.an__season-bar--slow { background: #f97316; opacity: 1; }
+.an__season-label { font-size: 11px; font-weight: 600; color: var(--gray-500); }
+
+/* Insights — Driver Impact */
+.an__impact-list { display: flex; flex-direction: column; gap: 6px; }
+.an__impact-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.an__impact-name { width: 70px; font-weight: 600; color: var(--gray-900); white-space: nowrap; }
+.an__impact-bar-wrap { flex: 1; height: 18px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+.an__impact-bar { height: 100%; background: var(--cornflower); border-radius: 4px; transition: width 0.5s ease; }
+.an__impact-bar--high { background: #f97316; }
+.an__impact-pct { width: 36px; font-weight: 700; color: var(--gray-700); text-align: right; }
+.an__impact-detail { font-size: 11px; color: var(--gray-400); width: 70px; text-align: right; }
+
+/* Insights — Cold Chain by Day */
+.an__cc-day-list { display: flex; flex-direction: column; gap: 8px; }
+.an__cc-day-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.an__cc-day-name { width: 36px; font-weight: 600; color: var(--gray-600); }
+.an__cc-day-bar-wrap { flex: 1; height: 18px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+.an__cc-day-bar { height: 100%; background: #60a5fa; border-radius: 4px; transition: width 0.5s ease; }
+.an__cc-day-val { width: 55px; font-weight: 600; color: var(--gray-700); text-align: right; }
+.an__cc-day-pct { width: 32px; font-size: 11px; color: var(--gray-400); text-align: right; }
+
+/* Insights — ZIP Growth Tables */
+.an__insight-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.an__insight-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
+.an__insight-table td { padding: 6px 10px; border-bottom: 1px solid var(--gray-100); }
+.an__insight-table tbody tr:hover { background: var(--gray-50); }

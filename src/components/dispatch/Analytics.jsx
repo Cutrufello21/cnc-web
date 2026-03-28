@@ -68,7 +68,7 @@ export default function Analytics() {
       </div>
 
       <div className="an__subtabs">
-        {[['overview','Overview'],['trends','Trends'],['drivers','Drivers'],['geography','Geography'],['pharmacy','Pharmacy']].map(([key, label]) => (
+        {[['overview','Overview'],['trends','Trends'],['drivers','Drivers'],['geography','Geography'],['pharmacy','Pharmacy'],['insights','Insights']].map(([key, label]) => (
           <button key={key} className={`an__subtab ${tab === key ? 'an__subtab--active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -309,6 +309,122 @@ export default function Analytics() {
             <h3 className="an__card-title">Dispatches</h3>
             <span className="an__kpi-value" style={{ fontSize: 32 }}>{data.dispatches || 0}</span>
             <span className="an__kpi-sub">in selected period</span>
+          </div>
+        </div>
+      )}
+
+      {tab === 'insights' && (
+        <div className="an__grid">
+          {/* Seasonality */}
+          <div className="an__card an__card--full">
+            <h3 className="an__card-title">Seasonality — Average Daily Volume by Month</h3>
+            <p className="an__card-sub">
+              Peak: <strong>{data.peakMonth?.month}</strong> ({data.peakMonth?.avgPerDay} avg/day)
+              {' · '}Slowest: <strong>{data.slowMonth?.month}</strong> ({data.slowMonth?.avgPerDay} avg/day)
+            </p>
+            <div className="an__season-chart">
+              {(data.seasonality || []).map(m => {
+                const max = Math.max(...(data.seasonality || []).map(s => s.avgPerDay || 0), 1)
+                const pct = max ? (m.avgPerDay / max) * 100 : 0
+                const isPeak = m.month === data.peakMonth?.month
+                const isSlow = m.month === data.slowMonth?.month && m.totalDays > 0
+                return (
+                  <div key={m.month} className="an__season-col">
+                    <span className="an__season-val">{m.avgPerDay || '—'}</span>
+                    <div className="an__season-bar-wrap">
+                      <div
+                        className={`an__season-bar ${isPeak ? 'an__season-bar--peak' : isSlow ? 'an__season-bar--slow' : ''}`}
+                        style={{ height: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="an__season-label">{m.month}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Driver Turnover Impact */}
+          <div className="an__card">
+            <h3 className="an__card-title">Driver Turnover Impact</h3>
+            <p className="an__card-sub">What % of volume each driver handles (last 6 months)</p>
+            <div className="an__impact-list">
+              {(data.driverImpact || []).map(d => (
+                <div key={d.name} className="an__impact-row">
+                  <span className="an__impact-name">{d.name}</span>
+                  <div className="an__impact-bar-wrap">
+                    <div className={`an__impact-bar ${d.pct >= 15 ? 'an__impact-bar--high' : ''}`} style={{ width: `${d.pct}%` }} />
+                  </div>
+                  <span className="an__impact-pct">{d.pct}%</span>
+                  <span className="an__impact-detail">{d.avgPerDay} avg/day</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cold Chain by Day of Week */}
+          <div className="an__card">
+            <h3 className="an__card-title">Cold Chain by Day of Week</h3>
+            <p className="an__card-sub">Average cold chain packages per day</p>
+            <div className="an__cc-day-list">
+              {(data.coldChainByDay || []).map(d => {
+                const max = Math.max(...(data.coldChainByDay || []).map(x => x.avgCC || 0), 1)
+                return (
+                  <div key={d.day} className="an__cc-day-row">
+                    <span className="an__cc-day-name">{d.day.slice(0, 3)}</span>
+                    <div className="an__cc-day-bar-wrap">
+                      <div className="an__cc-day-bar" style={{ width: `${(d.avgCC / max) * 100}%` }} />
+                    </div>
+                    <span className="an__cc-day-val">{d.avgCC} avg</span>
+                    <span className="an__cc-day-pct">{d.ccPct}%</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ZIP Growth — Growing */}
+          <div className="an__card">
+            <h3 className="an__card-title">ZIP Codes — Growing</h3>
+            <p className="an__card-sub">Last 3 months vs prior 3 months</p>
+            <table className="an__insight-table">
+              <thead>
+                <tr><th>ZIP</th><th>City</th><th>Recent</th><th>Prior</th><th>Growth</th></tr>
+              </thead>
+              <tbody>
+                {(data.zipGrowing || []).map(z => (
+                  <tr key={z.zip}>
+                    <td style={{ fontWeight: 700 }}>{z.zip}</td>
+                    <td>{z.city}</td>
+                    <td>{z.recent}</td>
+                    <td>{z.older}</td>
+                    <td style={{ color: '#16a34a', fontWeight: 600 }}>+{z.growth}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ZIP Growth — Declining */}
+          <div className="an__card">
+            <h3 className="an__card-title">ZIP Codes — Declining</h3>
+            <p className="an__card-sub">Last 3 months vs prior 3 months</p>
+            <table className="an__insight-table">
+              <thead>
+                <tr><th>ZIP</th><th>City</th><th>Recent</th><th>Prior</th><th>Change</th></tr>
+              </thead>
+              <tbody>
+                {(data.zipDeclining || []).map(z => (
+                  <tr key={z.zip}>
+                    <td style={{ fontWeight: 700 }}>{z.zip}</td>
+                    <td>{z.city}</td>
+                    <td>{z.recent}</td>
+                    <td>{z.older}</td>
+                    <td style={{ color: '#dc4a4a', fontWeight: 600 }}>{z.growth}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
