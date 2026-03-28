@@ -214,7 +214,7 @@ export default function HQDashboard() {
         <div className="hq__card hq__card--wide">
           <h3 className="hq__card-title">Volume Trend</h3>
           <div className="hq__chart">
-            {volumeChart?.map((d, i) => (
+            {[...(volumeChart || [])].reverse().map((d, i) => (
               <div className="hq__bar-col" key={i}>
                 <div className="hq__bar-stack" style={{ height: `${(d.orders / maxVolume) * 100}%` }}>
                   <div className="hq__bar-segment hq__bar-segment--aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} title={`Aultman: ${d.aultman}`} />
