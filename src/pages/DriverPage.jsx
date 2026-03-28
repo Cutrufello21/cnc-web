@@ -69,16 +69,49 @@ export default function DriverPage() {
       friday.setDate(monday.getDate() + 4)
       const fmtD = d => d.toISOString().split('T')[0]
 
-      // Fetch actual stops from daily_stops + latest delivery date
-      const [weekStopsRes, latestRes] = await Promise.all([
-        supabase.from('daily_stops').select('delivery_day')
-          .eq('driver_name', driverName)
-          .gte('delivery_date', fmtD(monday))
-          .lte('delivery_date', fmtD(friday)),
-        isWeekend ? Promise.resolve({ data: [] }) : supabase.from('daily_stops')
-          .select('delivery_date').eq('driver_name', driverName)
-          .order('delivery_date', { ascending: false }).limit(1),
-      ])
+      // Determine which delivery date to show based on cutover rules
+      const hour = now.getHours()
+      const todayIdx = now.getDay()
+      let targetDate
+      if (todayIdx === 6) {
+        // Saturday → show Monday (next week)
+        const nextMon = new Date(now)
+        nextMon.setDate(now.getDate() + 2)
+        targetDate = fmtD(nextMon)
+      } else if (todayIdx === 0) {
+        // Sunday → show Monday
+        const nextMon = new Date(now)
+        nextMon.setDate(now.getDate() + 1)
+        targetDate = fmtD(nextMon)
+      } else if (hour >= 18) {
+        // After 6 PM weeknight → show next business day
+        if (todayIdx === 5) {
+          // Friday evening → Monday
+          const nextMon = new Date(now)
+          nextMon.setDate(now.getDate() + 3)
+          targetDate = fmtD(nextMon)
+        } else {
+          const tomorrow = new Date(now)
+          tomorrow.setDate(now.getDate() + 1)
+          targetDate = fmtD(tomorrow)
+        }
+      } else {
+        targetDate = fmtD(now)
+      }
+
+      // For weekly summary, fetch next week's Monday-Friday if viewing next week
+      const targetMon = new Date(targetDate + 'T12:00:00')
+      const tDow = targetMon.getDay()
+      const tMonOffset = tDow === 0 ? -6 : 1 - tDow
+      const weekMon = new Date(targetMon)
+      weekMon.setDate(targetMon.getDate() + tMonOffset)
+      const weekFri = new Date(weekMon)
+      weekFri.setDate(weekMon.getDate() + 4)
+
+      const weekStopsRes = await supabase.from('daily_stops').select('delivery_day')
+        .eq('driver_name', driverName)
+        .gte('delivery_date', fmtD(weekMon))
+        .lte('delivery_date', fmtD(weekFri))
 
       const dayMap = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri' }
       let dailyStops = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 }
@@ -88,16 +121,7 @@ export default function DriverPage() {
       }
       let weekTotal = Object.values(dailyStops).reduce((s, v) => s + v, 0)
 
-      if (isWeekend) {
-        setData({
-          approved: false, noDeliveryToday: true,
-          deliveryDay: todayName, driverName, driverId,
-          stops: [], stopCount: 0, coldChainCount: 0, weekTotal, dailyStops,
-        })
-        return
-      }
-
-      const deliveryDate = latestRes.data?.[0]?.delivery_date || new Date().toISOString().split('T')[0]
+      const deliveryDate = targetDate
       const DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
       const deliveryDayName = DAYNAMES[new Date(deliveryDate + 'T12:00:00').getDay()]
 
