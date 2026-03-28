@@ -12,7 +12,6 @@ export default function DriverSortList({ driverName, pharmacy }) {
 
   async function loadData() {
     setLoading(true)
-    // Get most recent delivery date
     const { data: latest } = await supabase.from('sort_list').select('delivery_date')
       .eq('pharmacy', myPharmacy).order('delivery_date', { ascending: false }).limit(1)
     const dateStr = latest?.[0]?.delivery_date || new Date().toISOString().split('T')[0]
@@ -25,7 +24,11 @@ export default function DriverSortList({ driverName, pharmacy }) {
   }
 
   function handleCopy() {
-    const text = lines.map(l => l.display_text).join('\n')
+    const text = lines.map(l => {
+      let line = l.display_text
+      if (l.late_start) line += ' [9 AM]'
+      return line
+    }).join('\n')
     navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -51,13 +54,24 @@ export default function DriverSortList({ driverName, pharmacy }) {
       )}
       {lines.map(l => {
         const isMe = l.display_text.toLowerCase().includes(driverName.toLowerCase())
+        const isLate = !!l.late_start
         return (
           <div key={l.id} style={{
             padding: '10px 16px', borderBottom: '1px solid var(--gray-100)',
             fontSize: 14, fontWeight: 600, color: 'var(--gray-900)', letterSpacing: 0.3,
-            background: isMe ? '#eef4ff' : 'transparent',
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: isLate ? '#fff7ed' : isMe ? '#eef4ff' : 'transparent',
+            borderLeft: isLate ? '3px solid #f97316' : isMe ? '3px solid #3b82f6' : '3px solid transparent',
           }}>
-            {l.display_text}
+            <span style={{ flex: 1 }}>{l.display_text}</span>
+            {isLate && (
+              <span style={{
+                padding: '2px 8px', fontSize: 10, fontWeight: 700,
+                color: '#f97316', background: '#ffedd5', borderRadius: 4,
+              }}>
+                9 AM
+              </span>
+            )}
           </div>
         )
       })}

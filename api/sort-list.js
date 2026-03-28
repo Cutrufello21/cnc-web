@@ -14,7 +14,11 @@ export default async function handler(req, res) {
     }
 
     if (data.action === 'update') {
-      const { error } = await supabase.from('sort_list').update({ display_text: data.display_text }).eq('id', data.id)
+      const updates = {}
+      if (data.display_text !== undefined) updates.display_text = data.display_text
+      if (data.checked !== undefined) updates.checked = data.checked
+      if (data.late_start !== undefined) updates.late_start = data.late_start
+      const { error } = await supabase.from('sort_list').update(updates).eq('id', data.id)
       if (error) throw error
       return res.status(200).json({ success: true })
     }

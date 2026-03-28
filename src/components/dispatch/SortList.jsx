@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import './SortList.css'
 
-async function apiPost(rows) {
+async function apiPost(body) {
   return fetch('/api/sort-list', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(rows),
+    body: JSON.stringify(body),
   })
 }
 
@@ -39,7 +39,7 @@ export default function SortList({ deliveryDate }) {
     const aultmanExists = existing.some(r => r.pharmacy === 'Aultman')
     const shspExists = existing.some(r => r.pharmacy === 'SHSP')
 
-    // Auto-populate Aultman: driver name + cities from their stops
+    // Auto-populate Aultman
     if (!aultmanExists && allStops.length > 0) {
       const driverCities = {}
       allStops.forEach(s => {
@@ -47,7 +47,6 @@ export default function SortList({ deliveryDate }) {
         if (!driverCities[s.driver_name]) driverCities[s.driver_name] = new Set()
         if (s.city) driverCities[s.driver_name].add(s.city.toUpperCase().trim())
       })
-
       const rows = []
       let order = 0
       for (const [name, cities] of Object.entries(driverCities).sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -55,9 +54,9 @@ export default function SortList({ deliveryDate }) {
         rows.push({
           delivery_date: dateStr, pharmacy: 'Aultman', driver_name: name,
           display_text: `${name.toUpperCase()} — ${cityList}`, sort_order: order++,
+          checked: false, late_start: false,
         })
       }
-
       if (rows.length > 0) {
         await apiPost({ action: 'insert', rows })
         const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', 'Aultman').order('sort_order', { ascending: true })
@@ -65,20 +64,19 @@ export default function SortList({ deliveryDate }) {
       }
     }
 
-    // Auto-populate SHSP: driver name with blank route (manual)
+    // Auto-populate SHSP
     if (!shspExists && allStops.length > 0) {
       const shspDrivers = new Set()
       allStops.forEach(s => { if (s.pharmacy === 'SHSP') shspDrivers.add(s.driver_name) })
-
       const rows = []
       let order = 0
       for (const name of [...shspDrivers].sort()) {
         rows.push({
           delivery_date: dateStr, pharmacy: 'SHSP', driver_name: name,
           display_text: `${name.toUpperCase()} — `, sort_order: order++,
+          checked: false, late_start: false,
         })
       }
-
       if (rows.length > 0) {
         await apiPost({ action: 'insert', rows })
         const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', 'SHSP').order('sort_order', { ascending: true })
@@ -99,6 +97,7 @@ export default function SortList({ deliveryDate }) {
       rows: [{
         delivery_date: dateStr, pharmacy, driver_name: newLine.trim(),
         display_text: newLine.trim(), sort_order: maxOrder + 1,
+        checked: false, late_start: false,
       }],
     })
     setNewLine('')
@@ -115,13 +114,39 @@ export default function SortList({ deliveryDate }) {
     loadData()
   }
 
+  async function handleToggleCheck(id, current) {
+    await apiPost({ action: 'update', id, checked: !current })
+    setLines(prev => {
+      const next = { ...prev }
+      for (const p of ['SHSP', 'Aultman']) {
+        next[p] = prev[p].map(l => l.id === id ? { ...l, checked: !current } : l)
+      }
+      return next
+    })
+  }
+
+  async function handleToggleLate(id, current) {
+    await apiPost({ action: 'update', id, late_start: !current })
+    setLines(prev => {
+      const next = { ...prev }
+      for (const p of ['SHSP', 'Aultman']) {
+        next[p] = prev[p].map(l => l.id === id ? { ...l, late_start: !current } : l)
+      }
+      return next
+    })
+  }
+
   async function handleDelete(id) {
     await apiPost({ action: 'delete', id })
     loadData()
   }
 
   function handleCopy(pharmacy) {
-    const text = lines[pharmacy].map(l => l.display_text).join('\n')
+    const text = lines[pharmacy].map(l => {
+      let line = l.display_text
+      if (l.late_start) line += ' [9 AM]'
+      return line
+    }).join('\n')
     navigator.clipboard.writeText(text)
     setCopied(pharmacy)
     setTimeout(() => setCopied(null), 2000)
@@ -153,7 +178,7 @@ export default function SortList({ deliveryDate }) {
             {lines[pharmacy].map(line => {
               const isEditing = editKey === line.id
               return (
-                <div key={line.id} className="sl__row">
+                <div key={line.id} className={`sl__row ${line.checked ? 'sl__row--checked' : ''} ${line.late_start ? 'sl__row--late' : ''}`}>
                   {isEditing ? (
                     <div className="sl__edit">
                       <input className="sl__edit-input" value={editVal}
@@ -164,9 +189,25 @@ export default function SortList({ deliveryDate }) {
                     </div>
                   ) : (
                     <div className="sl__display">
-                      <span className="sl__text" onClick={() => { setEditKey(line.id); setEditVal(line.display_text) }}>
+                      <input
+                        type="checkbox"
+                        className="sl__check"
+                        checked={!!line.checked}
+                        onChange={() => handleToggleCheck(line.id, line.checked)}
+                      />
+                      <span
+                        className={`sl__text ${line.checked ? 'sl__text--checked' : ''}`}
+                        onClick={() => { setEditKey(line.id); setEditVal(line.display_text) }}
+                      >
                         {line.display_text}
                       </span>
+                      <button
+                        className={`sl__late-btn ${line.late_start ? 'sl__late-btn--active' : ''}`}
+                        onClick={() => handleToggleLate(line.id, line.late_start)}
+                        title="Toggle 9 AM start"
+                      >
+                        9AM
+                      </button>
                       <button className="sl__delete" onClick={() => handleDelete(line.id)}>&times;</button>
                     </div>
                   )}
