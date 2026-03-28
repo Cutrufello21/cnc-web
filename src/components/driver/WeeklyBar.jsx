@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbInsert, dbUpdate } from '../../lib/db'
 import './WeeklyBar.css'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
@@ -74,17 +75,16 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
       afternoon_stops: value == null ? null : parseInt(value),
     }
     if (existing?.id) {
-      await supabase.from('stop_reconciliation').update({ afternoon_stops: value == null ? null : parseInt(value) }).eq('id', existing.id)
+      await dbUpdate('stop_reconciliation', { afternoon_stops: value == null ? null : parseInt(value) }, { id: existing.id })
     } else if (value != null) {
-      const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
+      const data = await dbInsert('stop_reconciliation', row)
       if (data?.[0]) setRecon(prev => ({ ...prev, [day]: { ...prev[day], id: data[0].id } }))
     }
 
     // Sum all afternoon deliveries for the week → update payroll will_calls
     const updatedRecon = { ...recon, [day]: { ...recon[day], afternoon: value } }
     const totalAfternoon = DAY_LABELS.reduce((s, d) => s + (parseInt(updatedRecon[d]?.afternoon) || 0), 0)
-    await supabase.from('payroll').update({ will_calls: totalAfternoon })
-      .eq('driver_name', driverName).eq('week_of', weekOf)
+    await dbUpdate('payroll', { will_calls: totalAfternoon }, { driver_name: driverName, week_of: weekOf })
   }
 
   function handleActualChange(day, value) {
@@ -106,9 +106,9 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
     }
 
     if (existing?.id) {
-      await supabase.from('stop_reconciliation').update(row).eq('id', existing.id)
+      await dbUpdate('stop_reconciliation', row, { id: existing.id })
     } else if (value != null) {
-      const { data } = await supabase.from('stop_reconciliation').insert(row).select('id')
+      const data = await dbInsert('stop_reconciliation', row)
       if (data?.[0]) {
         setRecon(prev => ({ ...prev, [day]: { ...prev[day], id: data[0].id } }))
       }
@@ -124,11 +124,11 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
 
     // Save and lock
     if (r.id) {
-      await supabase.from('stop_reconciliation').update({ actual_stops: parseInt(actual), locked: true }).eq('id', r.id)
+      await dbUpdate('stop_reconciliation', { actual_stops: parseInt(actual), locked: true }, { id: r.id })
     } else {
-      const { data } = await supabase.from('stop_reconciliation').insert({
+      const data = await dbInsert('stop_reconciliation', {
         driver_name: driverName, week_of: weekOf, day, actual_stops: parseInt(actual), locked: true,
-      }).select('id')
+      })
       if (data?.[0]) r.id = data[0].id
     }
     setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: true, id: r.id || prev[day]?.id } }))
@@ -137,7 +137,7 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
   async function handleUnlock(day) {
     const r = recon[day]
     if (!r?.id) return
-    await supabase.from('stop_reconciliation').update({ locked: false }).eq('id', r.id)
+    await dbUpdate('stop_reconciliation', { locked: false }, { id: r.id })
     setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: false } }))
   }
 

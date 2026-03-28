@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate } from '../../lib/db'
 import Revenue from './Revenue'
 import './Payroll.css'
 
@@ -574,7 +575,7 @@ export default function Payroll() {
           // Mark reconciliation rows as approved
           const ids = Object.values(recon).filter(r => r.id).map(r => r.id)
           for (const id of ids) {
-            await supabase.from('stop_reconciliation').update({ approved: true }).eq('id', id)
+            await dbUpdate('stop_reconciliation', { approved: true }, { id })
           }
 
           // Override payroll with driver's reported actual stop counts

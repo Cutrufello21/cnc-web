@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate, dbInsert } from '../../lib/db'
 import './Drivers.css'
 
 export default function Drivers() {
@@ -44,8 +45,7 @@ export default function Drivers() {
       update.rate_wf = parseFloat(update.rate_wf) || 0
       update.office_fee = parseFloat(update.office_fee) || 0
 
-      const { error } = await supabase.from('drivers').update(update).eq('id', editId)
-      if (error) throw new Error(error.message)
+      await dbUpdate('drivers', update, { id: editId })
 
       setToast(`${editData.driver_name} updated`)
       setTimeout(() => setToast(null), 3000)
@@ -68,7 +68,7 @@ export default function Drivers() {
     setSaving(true)
     try {
       // 1. Add to drivers table
-      const { error: drvErr } = await supabase.from('drivers').insert({
+      await dbInsert('drivers', {
         driver_name: newDriver.driver_name,
         driver_number: newDriver.driver_number,
         email: newDriver.email || null,
@@ -79,7 +79,6 @@ export default function Drivers() {
         flat_salary: newDriver.flat_salary ? parseFloat(newDriver.flat_salary) : null,
         active: true,
       })
-      if (drvErr) throw new Error(drvErr.message)
 
       // 2. Create auth account if email + password provided
       if (newDriver.email && newDriver.password) {

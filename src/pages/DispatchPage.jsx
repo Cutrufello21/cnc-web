@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
+import { dbDelete } from '../lib/db'
 import DriverCard from '../components/dispatch/DriverCard'
 import WarningBanner from '../components/dispatch/WarningBanner'
 import DispatchSummary from '../components/dispatch/DispatchSummary'
@@ -975,10 +976,10 @@ function UnassignedZips() {
                       if (!confirm(`Delete ${d.count} orders for ZIP ${d.zip} (${d.pharmacy})?`)) return
                       const ids = d.orders.map(o => o.order_id)
                       for (const id of ids) {
-                        await supabase.from('daily_stops').delete().eq('order_id', id).eq('zip', d.zip)
+                        await dbDelete('daily_stops', { order_id: id, zip: d.zip })
                       }
                       // Also delete any remaining with this zip+pharmacy
-                      await supabase.from('daily_stops').delete().eq('zip', d.zip).eq('pharmacy', d.pharmacy)
+                      await dbDelete('daily_stops', { zip: d.zip, pharmacy: d.pharmacy })
                       setData(prev => prev.filter(x => !(x.zip === d.zip && x.pharmacy === d.pharmacy)))
                     }}
                   >

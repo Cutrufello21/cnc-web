@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbInsert, dbUpdate, dbDelete, dbUpsert } from '../../lib/db'
 import './TimeOff.css'
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -68,8 +69,7 @@ export default function TimeOff() {
         reviewed_by: 'Dispatch',
       }))
 
-      const { error } = await supabase.from('time_off_requests').insert(rows)
-      if (error) throw new Error(error.message)
+      await dbInsert('time_off_requests', rows)
 
       showToastMsg(`${newReq.driver_name} off — ${allDates.length} day${allDates.length > 1 ? 's' : ''} added`)
       setNewReq({ driver_name: '', date_from: '', date_to: '', reason: '', recurring: '' })
@@ -99,7 +99,7 @@ export default function TimeOff() {
   async function handleStatus(id, status) {
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
     const req = requests.find(r => r.id === id)
-    await supabase.from('time_off_requests').update({ status, reviewed_by: 'Dispatch' }).eq('id', id)
+    await dbUpdate('time_off_requests', { status, reviewed_by: 'Dispatch' }, { id })
 
     // Email the driver
     if (req) {
@@ -133,7 +133,7 @@ export default function TimeOff() {
 
   async function handleDelete(id) {
     if (!confirm('Delete this request?')) return
-    await supabase.from('time_off_requests').delete().eq('id', id)
+    await dbDelete('time_off_requests', { id })
     loadData()
   }
 
@@ -411,11 +411,11 @@ function WeeklyGrid({ drivers, requests, onToggle }) {
         // They're working because of an override on a default-off day
         // Remove the override to go back to default (off)
         if (hasRequest) {
-          await supabase.from('time_off_requests').delete().eq('id', findRequest(driverName, dateStr).id)
+          await dbDelete('time_off_requests', { id: findRequest(driverName, dateStr).id })
         }
       } else {
         // Normally working → mark as off with time_off_request
-        await supabase.from('time_off_requests').insert({
+        await dbInsert('time_off_requests', {
           driver_name: driverName, date_off: dateStr,
           reason: 'Day off', status: 'approved', reviewed_by: 'Dispatch',
         })
@@ -428,7 +428,7 @@ function WeeklyGrid({ drivers, requests, onToggle }) {
         // Just skip — default off days stay off unless schedule is changed
       } else if (hasRequest) {
         // Has a time_off_request → remove it to go back to working
-        await supabase.from('time_off_requests').delete().eq('id', findRequest(driverName, dateStr).id)
+        await dbDelete('time_off_requests', { id: findRequest(driverName, dateStr).id })
       }
     }
     setSaving(null)
@@ -445,9 +445,9 @@ function WeeklyGrid({ drivers, requests, onToggle }) {
           pattern[col] = isWorking(name, dates[i], i)
         })
 
-        await supabase.from('driver_schedule').upsert({
+        await dbUpsert('driver_schedule', {
           driver_name: name, ...pattern,
-        }, { onConflict: 'driver_name' })
+        }, 'driver_name')
       }
       // Reload schedule
       const { data } = await supabase.from('driver_schedule').select('*')

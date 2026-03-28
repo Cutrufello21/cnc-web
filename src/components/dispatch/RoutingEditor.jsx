@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate, dbUpsert, dbDelete } from '../../lib/db'
 import './RoutingEditor.css'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
@@ -59,11 +60,7 @@ export default function RoutingEditor() {
       const col = { Mon: 'mon', Tue: 'tue', Wed: 'wed', Thu: 'thu', Fri: 'fri' }[day]
       if (!col) throw new Error(`Invalid day: ${day}`)
 
-      const { error } = await supabase.from('routing_rules')
-        .update({ [col]: newDriver })
-        .eq('zip_code', zip.trim())
-        .eq('pharmacy', pharmacy)
-      if (error) throw new Error(error.message)
+      await dbUpdate('routing_rules', { [col]: newDriver }, { zip_code: zip.trim(), pharmacy })
 
       setRules(prev => ({
         ...prev,
@@ -90,13 +87,12 @@ export default function RoutingEditor() {
     if (!newZip.zip) return
     setAddingZip(true)
     try {
-      const { error } = await supabase.from('routing_rules').upsert({
+      await dbUpsert('routing_rules', {
         zip_code: newZip.zip,
         mon: newZip.mon || '', tue: newZip.tue || '', wed: newZip.wed || '',
         thu: newZip.thu || '', fri: newZip.fri || '',
         route: newZip.route || '', pharmacy: newZip.pharmacy || '',
-      }, { onConflict: 'zip_code,pharmacy' })
-      if (error) throw new Error(error.message)
+      }, 'zip_code,pharmacy')
 
       setToast(`ZIP ${newZip.zip} added`)
       setTimeout(() => setToast(null), 3000)
@@ -126,15 +122,11 @@ export default function RoutingEditor() {
     const editZip = editRow.split('|')[0]
     setSaving(true)
     try {
-      const { error } = await supabase.from('routing_rules')
-        .update({
+      await dbUpdate('routing_rules', {
           mon: editData.mon, tue: editData.tue, wed: editData.wed,
           thu: editData.thu, fri: editData.fri,
           route: editData.route, pharmacy: editData.pharmacy,
-        })
-        .eq('zip_code', editZip)
-        .eq('pharmacy', editData.originalPharmacy || editData.pharmacy)
-      if (error) throw new Error(error.message)
+        }, { zip_code: editZip, pharmacy: editData.originalPharmacy || editData.pharmacy })
       setToast(`ZIP ${editRow} updated`)
       setTimeout(() => setToast(null), 3000)
       setEditRow(null)
@@ -151,9 +143,7 @@ export default function RoutingEditor() {
     if (!confirm(`Delete ZIP ${zip} (${pharmacy}) from routing rules?`)) return
     setDeleting(zip)
     try {
-      const { error } = await supabase.from('routing_rules')
-        .delete().eq('zip_code', zip).eq('pharmacy', pharmacy)
-      if (error) throw new Error(error.message)
+      await dbDelete('routing_rules', { zip_code: zip, pharmacy })
       setToast(`ZIP ${zip} deleted`)
       setTimeout(() => setToast(null), 3000)
       loadData()

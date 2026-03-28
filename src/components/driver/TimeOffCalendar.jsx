@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbInsert } from '../../lib/db'
 import './TimeOffCalendar.css'
 
 export default function TimeOffCalendar({ driverName }) {
@@ -81,8 +82,7 @@ export default function TimeOffCalendar({ driverName }) {
         reason: reason || '',
         status: 'pending',
       }))
-      const { error } = await supabase.from('time_off_requests').insert(rows)
-      if (error) throw new Error(error.message)
+      await dbInsert('time_off_requests', rows)
       setRequestSent(true)
       setTimeout(() => setRequestSent(false), 3000)
       setStartDate(null)
