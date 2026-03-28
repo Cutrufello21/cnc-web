@@ -31,6 +31,7 @@ export default function HowItWorks() {
           <h2 className="how__title">From pharmacy to patient. Every step covered.</h2>
         </motion.div>
         <div className="how__steps">
+          <div className={`how__connector ${inView ? 'how__connector--active' : ''}`} />
           {steps.map((s, i) => (
             <motion.div className="how__step" key={i}
               initial={{ opacity: 0, y: 30 }} animate={inView ? { opacity: 1, y: 0 } : {}}
