@@ -8,7 +8,7 @@ import ServiceArea from '../components/ServiceArea'
 import CTA from '../components/CTA'
 import About from '../components/About'
 import Team from '../components/Team'
-import ContactForm from '../components/ContactForm'
+import FAQ from '../components/FAQ'
 import Footer from '../components/Footer'
 import BackToTop from '../components/BackToTop'
 
@@ -26,7 +26,7 @@ export default function HomePage() {
         <CTA />
         <About />
         <Team />
-        <ContactForm />
+        <FAQ />
       </main>
       <Footer />
       <BackToTop />

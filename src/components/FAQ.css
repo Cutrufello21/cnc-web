@@ -1,0 +1,130 @@
+.faq {
+  padding: 6rem 0;
+  background: var(--surface, #f8f9fb);
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.faq__header {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.faq__eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent, #3B82F6);
+  margin-bottom: 1rem;
+}
+
+.faq__title {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  color: var(--text, #0f172a);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.faq__sub {
+  font-size: 0.95rem;
+  opacity: 0.6;
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+.faq__list {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.faq__item {
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.faq__item:first-child {
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.faq__question {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  line-height: 1.4;
+}
+
+.faq__icon {
+  font-size: 1.25rem;
+  font-weight: 300;
+  color: var(--primary, #0A2463);
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.faq__answer {
+  overflow: hidden;
+}
+
+.faq__answer p {
+  padding-bottom: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  opacity: 0.65;
+  max-width: 680px;
+}
+
+.faq__item--open .faq__question {
+  color: var(--primary, #0A2463);
+}
+
+/* Dark mode */
+[data-theme="dark"] .faq {
+  background: var(--white);
+  border-top-color: var(--gray-200);
+}
+
+[data-theme="dark"] .faq__title {
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] .faq__sub {
+  color: var(--gray-500);
+}
+
+[data-theme="dark"] .faq__item {
+  border-color: var(--gray-200);
+}
+
+[data-theme="dark"] .faq__question {
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] .faq__item--open .faq__question {
+  color: var(--cornflower, #6495ED);
+}
+
+[data-theme="dark"] .faq__icon {
+  color: var(--cornflower, #6495ED);
+}
+
+[data-theme="dark"] .faq__answer p {
+  color: var(--gray-500);
+  opacity: 0.8;
+}
