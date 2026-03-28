@@ -9,6 +9,7 @@ import CTA from '../components/CTA'
 import About from '../components/About'
 import Team from '../components/Team'
 import FAQ from '../components/FAQ'
+import ContactForm from '../components/ContactForm'
 import Footer from '../components/Footer'
 import BackToTop from '../components/BackToTop'
 
@@ -27,6 +28,7 @@ export default function HomePage() {
         <About />
         <Team />
         <FAQ />
+        <ContactForm />
       </main>
       <Footer />
       <BackToTop />
