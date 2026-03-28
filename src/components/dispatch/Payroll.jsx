@@ -15,8 +15,9 @@ export default function Payroll() {
   const [insights, setInsights] = useState(null)
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [showRevenue, setShowRevenue] = useState(false)
+  const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, 1 = next, -1 = previous
 
-  useEffect(() => { loadPayroll() }, [])
+  useEffect(() => { loadPayroll() }, [weekOffset])
 
   async function loadInsights() {
     setLoadingInsights(true)
@@ -126,12 +127,12 @@ export default function Payroll() {
   async function loadPayroll() {
     setLoading(true)
     try {
-      // Get current week's Monday (use local date, not UTC)
+      // Get target week's Monday (use local date, not UTC)
       const now = new Date()
       const dayOfWeek = now.getDay()
       const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
       const monday = new Date(now)
-      monday.setDate(now.getDate() + mondayOffset)
+      monday.setDate(now.getDate() + mondayOffset + (weekOffset * 7))
       const weekOf = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
 
       const [payrollRes, driversRes, reconRes] = await Promise.all([
@@ -400,7 +401,14 @@ export default function Payroll() {
       {/* Header */}
       <div className="pay__header">
         <div>
-          <h3 className="pay__title">Weekly Payroll</h3>
+          <div className="pay__week-nav">
+            <button className="pay__week-btn" onClick={() => setWeekOffset(w => w - 1)} title="Previous week">‹</button>
+            <h3 className="pay__title">Weekly Payroll</h3>
+            <button className="pay__week-btn" onClick={() => setWeekOffset(w => w + 1)} title="Next week">›</button>
+            {weekOffset !== 0 && (
+              <button className="pay__week-today" onClick={() => setWeekOffset(0)}>Today</button>
+            )}
+          </div>
           <p className="pay__sub">
             {data.weekEnding ? `Week Ending ${data.weekEnding}` : 'Review and adjust before sending to accountant'}
             {' — '}accumulated Mon-Fri, clears after approval

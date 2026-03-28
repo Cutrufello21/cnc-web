@@ -37,6 +37,49 @@
   flex-wrap: wrap;
 }
 
+.pay__week-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pay__week-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--gray-200);
+  background: var(--white);
+  color: var(--gray-600);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pay__week-btn:hover {
+  background: var(--gray-100);
+  color: var(--gray-900);
+}
+
+.pay__week-today {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--cornflower);
+  background: transparent;
+  color: var(--cornflower);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pay__week-today:hover {
+  background: var(--cornflower);
+  color: #fff;
+}
+
 .pay__title {
   font-size: 20px;
   font-weight: 700;
