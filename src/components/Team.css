@@ -98,6 +98,38 @@
   opacity: 0.62;
 }
 
+[data-theme="dark"] .team {
+  background: var(--white);
+  border-top-color: var(--gray-200);
+}
+
+[data-theme="dark"] .team__title {
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] .team__sub {
+  color: var(--gray-500);
+}
+
+[data-theme="dark"] .team__card {
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+  border-top-color: #3B82F6;
+}
+
+[data-theme="dark"] .team__card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .team__name {
+  color: var(--gray-900);
+}
+
+[data-theme="dark"] .team__desc {
+  color: var(--gray-500);
+  opacity: 0.8;
+}
+
 @media (max-width: 768px) {
   .team__card {
     width: calc(50% - 1rem);
