@@ -1,0 +1,102 @@
+.team {
+  padding: 6rem 0;
+  background: var(--bg, #fff);
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.team__header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.team__eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent, #3B82F6);
+  margin-bottom: 1rem;
+}
+
+.team__title {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  color: var(--text, #0f172a);
+}
+
+.team__sub {
+  font-size: 0.95rem;
+  opacity: 0.6;
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.65;
+}
+
+.team__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+.team__card {
+  background: var(--surface, #f8f9fb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.team__avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary, #0A2463);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.team__initials {
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.team__name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  line-height: 1.2;
+}
+
+.team__role {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent, #3B82F6);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.team__desc {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  opacity: 0.62;
+}
+
+@media (max-width: 768px) {
+  .team__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .team__grid {
+    grid-template-columns: 1fr;
+  }
+}

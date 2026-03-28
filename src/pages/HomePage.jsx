@@ -7,6 +7,7 @@ import HowItWorks from '../components/HowItWorks'
 import ServiceArea from '../components/ServiceArea'
 import CTA from '../components/CTA'
 import About from '../components/About'
+import Team from '../components/Team'
 import ContactForm from '../components/ContactForm'
 import Footer from '../components/Footer'
 
@@ -23,6 +24,7 @@ export default function HomePage() {
         <ServiceArea />
         <CTA />
         <About />
+        <Team />
         <ContactForm />
       </main>
       <Footer />
