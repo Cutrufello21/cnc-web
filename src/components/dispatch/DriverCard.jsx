@@ -158,7 +158,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       setMoveResult(`Moved ${result.moved || orderIds.length} stop${orderIds.length > 1 ? 's' : ''} to ${toDriverName}`)
       setSelected(new Set())
       setReassignTo('')
-      if (onMoveComplete) onMoveComplete({ orderIds, fromName: name, fromNumber: driver['Driver #'] || '', toName: toDriverName, count: updated.length })
+      if (onMoveComplete) onMoveComplete({ orderIds, fromName: name, fromNumber: driver['Driver #'] || '', toName: toDriverName, count: result.moved || orderIds.length })
       if (onRefresh) setTimeout(onRefresh, 500)
     } catch (err) {
       setMoveResult(`Error: ${err.message}`)
