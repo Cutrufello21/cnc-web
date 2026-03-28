@@ -7,31 +7,31 @@ const team = [
     initials: 'PC',
     name: 'Paul Cutrufello',
     title: 'Founder & Owner',
-    desc: 'Founded CNC Delivery in 2007. His standard was simple — always ask what\'s best for the patient, even when the outcome seems unreachable. That question still drives every decision we make.',
+    desc: 'Founded CNC Delivery in 2007 with a standard that has never wavered: if it helps the patient, do it. If we can, we will. That principle has guided every leader of this operation since — and it hasn\'t changed.',
   },
   {
     initials: 'MC',
     name: 'Mark Cutrufello',
-    title: 'Director of Operations',
-    desc: 'Built the operational foundation of this business before modern routing software existed — paper logs, handwritten records, direct communication. Still actively involved in daily operations and every major decision.',
+    title: 'Operations Manager',
+    desc: 'A foundational figure in building CNC Delivery into the operation it is today. Mark manages day-to-day operational logistics, driver coordination, and route execution — bringing decades of hands-on experience to every decision.',
   },
   {
     initials: 'DC',
     name: 'Dominic Cutrufello',
-    title: 'Operations Manager & Business Development',
-    desc: 'Personally dispatches every route and manages every driver relationship. Seven years running day-to-day operations while leading the company\'s growth and new partnerships.',
+    title: 'Director of Operations & Business Development',
+    desc: 'Directs the full scope of CNC Delivery\'s operations — from strategic planning and system development to personally overseeing nightly dispatch. Dominic manages driver relationships, routing infrastructure, and leads the company\'s growth and new partnership development across Northeast Ohio.',
   },
   {
     initials: 'MiC',
     name: 'Mia Cutrufello',
     title: 'Client Relations & Partnership Outreach',
-    desc: 'Leads client relationship strategy and partnership development. Focused on connecting pharmacy and hospital decision-makers with the right solutions for their delivery needs.',
+    desc: 'Manages client relationships and drives strategic partnership development. Mia serves as a primary point of contact for pharmacy and hospital leadership, ensuring partners have direct, responsive support at every stage of the relationship.',
   },
   {
     initials: 'KE',
     name: 'Kelly Evans',
     title: 'Client Relations & Partnership Outreach',
-    desc: 'Drives outreach and relationship-building with pharmacy and hospital leaders across Northeast Ohio. Focused on long-term partnerships built on trust and operational reliability.',
+    desc: 'Leads outreach and relationship-building efforts with pharmacy and hospital decision-makers across Northeast Ohio. Kelly focuses on establishing long-term partnerships grounded in trust, operational reliability, and shared commitment to patient outcomes.',
   },
 ]
 
