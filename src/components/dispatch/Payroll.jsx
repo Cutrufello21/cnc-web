@@ -571,11 +571,29 @@ export default function Payroll() {
         if (withRecon.length === 0) return null
 
         async function approveDriver(name, recon) {
+          // Mark reconciliation rows as approved
           const ids = Object.values(recon).filter(r => r.id).map(r => r.id)
           for (const id of ids) {
             await supabase.from('stop_reconciliation').update({ approved: true }).eq('id', id)
           }
+
+          // Override payroll with driver's reported actual stop counts
+          const driver = data.drivers.find(d => d.name === name)
+          if (driver) {
+            const dayFieldMap = { Mon: 'Mon', Tue: 'Tue', Wed: 'Wed', Thu: 'Thu', Fri: 'Fri' }
+            for (const [day, field] of Object.entries(dayFieldMap)) {
+              if (recon[day]?.actual != null) {
+                await fetch('/api/payroll', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ driverRow: driver.rowIndex, field, value: recon[day].actual }),
+                })
+              }
+            }
+          }
+
           setReconApproved(prev => ({ ...prev, [name]: true }))
+          await loadPayroll()
         }
 
         return (
