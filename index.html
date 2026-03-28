@@ -70,6 +70,24 @@
     <link rel="manifest" href="/manifest.json" />
   </head>
   <body>
+    <div id="preloader" style="position:fixed;inset:0;z-index:9999;background:#0A2463;display:flex;align-items:center;justify-content:center;transition:opacity 0.4s ease,visibility 0.4s ease;">
+      <div style="text-align:center;animation:preloaderIn 0.5s ease-out both;">
+        <div style="display:flex;align-items:center;gap:12px;justify-content:center;">
+          <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:28px;font-weight:300;letter-spacing:6px;color:rgba(255,255,255,0.9);">CNC</span>
+          <span style="width:1px;height:32px;background:rgba(255,255,255,0.25);"></span>
+          <div>
+            <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:22px;font-weight:700;letter-spacing:4px;color:#fff;display:block;">DELIVERY</span>
+          </div>
+        </div>
+        <div style="margin-top:16px;width:60px;height:2px;background:rgba(255,255,255,0.15);border-radius:2px;margin-left:auto;margin-right:auto;overflow:hidden;">
+          <div style="width:100%;height:100%;background:#6495ED;animation:preloaderBar 1s ease-in-out infinite;transform-origin:left;"></div>
+        </div>
+      </div>
+    </div>
+    <style>
+      @keyframes preloaderIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+      @keyframes preloaderBar { 0% { transform:scaleX(0); } 50% { transform:scaleX(1); } 100% { transform:scaleX(0); transform-origin:right; } }
+    </style>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
