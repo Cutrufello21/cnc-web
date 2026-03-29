@@ -301,7 +301,7 @@ export default function DriverPage() {
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stops: stopsPayload, mode }),
+        body: JSON.stringify({ stops: stopsPayload, mode, pharmacy: data.pharmacy }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
