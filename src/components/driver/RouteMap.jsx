@@ -494,7 +494,10 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
               <MapContainer
                 center={[startPoint.lat, startPoint.lng]}
                 zoom={11}
-                scrollWheelZoom={false}
+                scrollWheelZoom={true}
+                touchZoom={true}
+                dragging={true}
+                zoomControl={false}
                 className="route-map__leaflet"
               >
                 <TileLayer
