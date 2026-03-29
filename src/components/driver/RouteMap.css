@@ -48,58 +48,187 @@
   padding: 0 16px 16px;
 }
 
-.route-map__svg {
+/* Navigate button */
+.route-map__navigate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
-  height: auto;
-  background: var(--gray-50);
+  padding: 14px 20px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
   border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: background 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+}
+
+.route-map__navigate-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
+}
+
+.route-map__navigate-btn:active {
+  transform: translateY(0);
+}
+
+/* Stats bar */
+.route-map__stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.route-map__stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.route-map__stat svg {
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.route-map__fallback-notice {
+  font-size: 12px;
+  color: var(--gray-500);
+  padding: 6px 10px;
+  background: #fef3c7;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+/* Map container */
+.route-map__container {
+  border-radius: 10px;
+  overflow: hidden;
   border: 1px solid var(--gray-100);
 }
 
-[data-theme="dark"] .route-map__svg {
+.route-map__leaflet {
+  width: 100%;
+  height: 350px;
+  z-index: 0;
+}
+
+/* Numbered circle markers */
+.route-map__marker-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.route-map__marker-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+}
+
+/* Pulsing blue dot for current position */
+.route-map__current-pos {
+  background: none !important;
+  border: none !important;
+}
+
+.route-map__pulse-dot {
+  width: 14px;
+  height: 14px;
+  background: #3b82f6;
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.route-map__pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  margin-left: -15px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.25);
+  animation: routeMapPulse 2s ease-out infinite;
+}
+
+@keyframes routeMapPulse {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+/* Popup styling */
+.route-map__popup {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.route-map__popup strong {
+  color: #0A2463;
+}
+
+.route-map__popup-addr {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .route-map__stats {
   background: var(--gray-800);
   border-color: var(--gray-700);
 }
 
-.route-map__legend {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
-  max-height: 200px;
-  overflow-y: auto;
+[data-theme="dark"] .route-map__container {
+  border-color: var(--gray-700);
 }
 
-.route-map__legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+[data-theme="dark"] .route-map__fallback-notice {
+  background: #78350f;
+  color: #fef3c7;
 }
 
-.route-map__legend-num {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.route-map__legend-text {
-  font-size: 12px;
-  color: var(--gray-600);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+/* Responsive */
 @media (max-width: 480px) {
-  .route-map__legend {
-    max-height: 150px;
+  .route-map__leaflet {
+    height: 300px;
+  }
+
+  .route-map__navigate-btn {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+
+  .route-map__stats {
+    gap: 12px;
+    padding: 6px 10px;
+  }
+
+  .route-map__stat {
+    font-size: 12px;
   }
 }
