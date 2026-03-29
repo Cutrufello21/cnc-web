@@ -103,10 +103,12 @@ export default function Revenue({ weekOf, driverPayroll }) {
       }
 
       let shsp = calc('SHSP')
-      let aultman = calc('Aultman')
+      let aultmanRaw = calc('Aultman')
+      let aultman = aultmanRaw
 
       // Aultman daily minimum
-      if (aultman > 0 && aultman < AULTMAN_DAILY_MIN) {
+      const aultmanHitMin = aultmanRaw > 0 && aultmanRaw < AULTMAN_DAILY_MIN
+      if (aultmanHitMin) {
         aultman = AULTMAN_DAILY_MIN
       }
 
@@ -117,6 +119,9 @@ export default function Revenue({ weekOf, driverPayroll }) {
         day: dayName, date,
         shsp: Math.round(shsp * 100) / 100,
         aultman: Math.round(aultman * 100) / 100,
+        aultmanRaw: Math.round(aultmanRaw * 100) / 100,
+        aultmanHitMin,
+        aultmanGap: aultmanHitMin ? Math.round((AULTMAN_DAILY_MIN - aultmanRaw) * 100) / 100 : 0,
         total: Math.round((shsp + aultman) * 100) / 100,
         shspStops: dayStops.filter(s => s.pharmacy === 'SHSP').length,
         aultmanStops: dayStops.filter(s => s.pharmacy === 'Aultman').length,
@@ -247,6 +252,46 @@ export default function Revenue({ weekOf, driverPayroll }) {
           </tfoot>
         </table>
       </div>
+
+      {/* Aultman Daily Minimum Tracker */}
+      {(() => {
+        const aultmanDays = revenue.daily.filter(d => d.aultmanStops > 0)
+        if (aultmanDays.length === 0) return null
+        const daysHitMin = aultmanDays.filter(d => d.aultmanHitMin)
+        const totalGap = daysHitMin.reduce((s, d) => s + d.aultmanGap, 0)
+        return (
+          <div className="rev__aultman-tracker">
+            <div className="rev__aultman-header">
+              <h4 className="rev__aultman-title">Aultman Daily Minimum Tracker</h4>
+              <span className="rev__aultman-summary">
+                {daysHitMin.length === 0
+                  ? <span style={{ color: '#16a34a', fontWeight: 700 }}>All days above $220</span>
+                  : <span style={{ color: '#f59e0b', fontWeight: 700 }}>{daysHitMin.length} of {aultmanDays.length} days below minimum (${totalGap.toFixed(2)} gap)</span>
+                }
+              </span>
+            </div>
+            <div className="rev__aultman-bars">
+              {aultmanDays.map(d => {
+                const pct = Math.min((d.aultmanRaw / AULTMAN_DAILY_MIN) * 100, 100)
+                return (
+                  <div key={d.date} className="rev__aultman-day">
+                    <span className="rev__aultman-day-label">{d.day}</span>
+                    <div className="rev__aultman-bar-wrap">
+                      <div className={`rev__aultman-bar ${d.aultmanHitMin ? 'rev__aultman-bar--below' : 'rev__aultman-bar--above'}`}
+                        style={{ width: `${pct}%` }} />
+                      <div className="rev__aultman-min-line" />
+                    </div>
+                    <span className="rev__aultman-day-val">
+                      ${d.aultmanRaw.toFixed(0)}
+                      {d.aultmanHitMin && <span className="rev__aultman-gap"> (-${d.aultmanGap.toFixed(0)})</span>}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Will Calls / Returns */}
       <div className="rev__willcall">

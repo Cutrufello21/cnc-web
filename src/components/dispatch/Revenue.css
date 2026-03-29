@@ -33,6 +33,101 @@
 .rev__summary-row--loss { color: #dc4a4a; }
 .rev__negative { color: #dc4a4a; }
 
+/* Aultman Daily Minimum Tracker */
+.rev__aultman-tracker {
+  padding: 16px;
+  background: var(--gray-50);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.rev__aultman-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rev__aultman-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-700);
+}
+
+.rev__aultman-summary {
+  font-size: 13px;
+}
+
+.rev__aultman-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rev__aultman-day {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rev__aultman-day-label {
+  width: 32px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-600);
+  flex-shrink: 0;
+}
+
+.rev__aultman-bar-wrap {
+  flex: 1;
+  height: 22px;
+  background: var(--gray-200);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.rev__aultman-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.5s ease;
+}
+
+.rev__aultman-bar--above {
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+}
+
+.rev__aultman-bar--below {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.rev__aultman-min-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 2px;
+  background: var(--gray-900);
+  opacity: 0.2;
+}
+
+.rev__aultman-day-val {
+  width: 90px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+  text-align: right;
+  flex-shrink: 0;
+  font-family: ui-monospace, monospace;
+}
+
+.rev__aultman-gap {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
 .rev__profit-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--gray-200); }
 .rev__profit-title { font-size: 15px; font-weight: 700; color: var(--gray-900); margin-bottom: 4px; }
 .rev__profit-sub { font-size: 12px; color: var(--gray-500); margin-bottom: 12px; }
