@@ -5,7 +5,6 @@ import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
 import DriverSortList from '../components/driver/DriverSortList'
-import DriverScorecard from '../components/driver/DriverScorecard'
 import RouteMap from '../components/driver/RouteMap'
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
@@ -516,12 +515,6 @@ export default function DriverPage() {
                 Schedule
               </button>
               <button
-                className={`driver__tab ${activeTab === 'stats' ? 'driver__tab--active' : ''}`}
-                onClick={() => setActiveTab('stats')}
-              >
-                Stats
-              </button>
-              <button
                 className={`driver__tab ${activeTab === 'team' ? 'driver__tab--active' : ''}`}
                 onClick={() => { setActiveTab('team'); loadTeamData() }}
               >
@@ -634,9 +627,6 @@ export default function DriverPage() {
                                   e.dataTransfer.effectAllowed = 'copy'
                                 }
                               }}
-                              deliveryDate={data.deliveryDate}
-                              driverName={data.driverName}
-                              onDeliveryChange={() => setDeliveryTick(t => t + 1)}
                             />
                           )
                         }
@@ -771,10 +761,6 @@ export default function DriverPage() {
 
             {activeTab === 'timeoff' && (
               <TimeOffCalendar driverName={data.driverName} />
-            )}
-
-            {activeTab === 'stats' && (
-              <DriverScorecard driverName={data.driverName} deliveryDate={data.deliveryDate} />
             )}
 
             {activeTab === 'team' && (
