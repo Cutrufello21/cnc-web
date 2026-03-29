@@ -40,23 +40,42 @@ export default async function handler(req, res) {
     const origin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const hasEnd = endLat != null && endLng != null
 
-    // 2. Split cold chain (priority) vs regular
+    // 2. Split by priority
+    // Cold chain always first. Signature required only prioritized when 40+ stops.
+    const totalStops = withCoords.length
     const coldStops = withCoords.filter(c => c.coldChain)
-    const regularStops = withCoords.filter(c => !c.coldChain)
+    const sigStops = totalStops >= 40
+      ? withCoords.filter(c => !c.coldChain && c.sigRequired)
+      : []
+    const regularStops = withCoords.filter(c => {
+      if (c.coldChain) return false
+      if (totalStops >= 40 && c.sigRequired) return false
+      return true
+    })
 
     // 3. Optimize each group separately
     let coldOrder = []
+    let sigOrder = []
     let regularOrder = []
 
-    // Cold chain: pharmacy → cold stops (ordered by real road distance)
+    // Phase 1: Cold chain stops first
     if (coldStops.length > 0) {
       coldOrder = await optimizeGroup(coldStops, origin[0], origin[1], null, null)
     }
 
-    // Regular: last cold stop (or pharmacy) → regular stops → end destination
-    const regStart = coldOrder.length > 0
+    // Phase 2: Signature required (only when 40+ stops)
+    const sigStart = coldOrder.length > 0
       ? [coldOrder[coldOrder.length - 1].lat, coldOrder[coldOrder.length - 1].lng]
       : origin
+
+    if (sigStops.length > 0) {
+      sigOrder = await optimizeGroup(sigStops, sigStart[0], sigStart[1], null, null)
+    }
+
+    // Phase 3: Regular stops → end destination
+    const regStart = sigOrder.length > 0
+      ? [sigOrder[sigOrder.length - 1].lat, sigOrder[sigOrder.length - 1].lng]
+      : sigStart
 
     if (regularStops.length > 0) {
       regularOrder = await optimizeGroup(
@@ -65,8 +84,8 @@ export default async function handler(req, res) {
       )
     }
 
-    // 4. Combine: cold chain first → regular → ungeocoded at end
-    const finalOrder = [...coldOrder, ...regularOrder]
+    // 4. Combine: cold chain → sig required → regular → ungeocoded
+    const finalOrder = [...coldOrder, ...sigOrder, ...regularOrder]
     const optimizedOrder = [...finalOrder.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
     // Calculate total distance
@@ -161,11 +180,11 @@ async function geocodeStops(stops) {
 
   return stops.map((s, i) => {
     const c = cacheMap.get(cacheKeys[i])
-    if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain }
+    if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
     const zip = String(s.zip || '').trim()
     const zc = ZIP_COORDS[zip] || ZIP_COORDS[zip.padStart(5, '0')]
-    if (zc) return { index: i, lat: zc[0], lng: zc[1], coldChain: !!s.coldChain }
-    return { index: i, lat: null, lng: null, coldChain: !!s.coldChain }
+    if (zc) return { index: i, lat: zc[0], lng: zc[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
+    return { index: i, lat: null, lng: null, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
   })
 }
 

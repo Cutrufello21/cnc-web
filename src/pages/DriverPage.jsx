@@ -293,7 +293,7 @@ export default function DriverPage() {
     try {
       const stopsPayload = data.stops
         .filter(s => s.status !== 'delivered' && s.status !== 'failed')
-        .map(s => ({ address: s.Address, city: s.City, zip: s.ZIP, coldChain: !!s._coldChain }))
+        .map(s => ({ address: s.Address, city: s.City, zip: s.ZIP, coldChain: !!s._coldChain, sigRequired: !!s._sigRequired }))
       if (stopsPayload.length < 2) {
         setOptimizing(false)
         return
