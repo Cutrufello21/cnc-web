@@ -773,22 +773,17 @@ export default function DispatchPage() {
             {showUnassigned && <UnassignedZips />}
 
             {!showRouting && !showSortList && !showUnassigned && <>
-            {/* Header row */}
-            <div className="dispatch__top">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div>
-                  <h1 className="dispatch__heading">
-                    {data.deliveryDay} Delivery
-                  </h1>
-                  <p className="dispatch__date">
-                    {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
+            {/* Context bar — heading, weather, actions */}
+            <div className="dispatch__context-bar">
+              <div className="dispatch__context-left">
+                <h1 className="dispatch__heading">{data.deliveryDay} Delivery</h1>
+                <span className="dispatch__date-inline">
+                  {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
                 <WeatherWidget />
               </div>
               <div className="dispatch__actions">
@@ -842,7 +837,7 @@ export default function DispatchPage() {
                   onClick={handleSendCorrections}
                   disabled={sendingCorrections || correctionsSent || totalStops === 0}
                 >
-                  {correctionsSent ? 'Sent' : sendingCorrections ? 'Sending...' : 'Send Corrections'}
+                  {correctionsSent ? 'Sent' : sendingCorrections ? 'Sending...' : 'Corrections'}
                 </button>
               </div>
             </div>
@@ -853,7 +848,6 @@ export default function DispatchPage() {
                 setDismissedWarnings(prev => new Set([...prev, w.type]))
               }} />
             ))}
-
 
             {/* Summary cards */}
             <DispatchSummary
