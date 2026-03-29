@@ -6,6 +6,7 @@ import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
 import DriverSortList from '../components/driver/DriverSortList'
 import DriverScorecard from '../components/driver/DriverScorecard'
+import RouteMap from '../components/driver/RouteMap'
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
@@ -541,6 +542,9 @@ export default function DriverPage() {
                         </div>
                       )}
                     </div>
+                    {optimizeMode && optimizedStops && (
+                      <RouteMap stops={optimizedStops} mode={optimizeMode} />
+                    )}
                     <div className="driver__select-bar">
                       <label className="driver__select-all">
                         <input type="checkbox" checked={selected.size === data.stops.length && data.stops.length > 0} onChange={toggleSelectAll} />
