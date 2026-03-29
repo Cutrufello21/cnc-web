@@ -389,6 +389,16 @@
   letter-spacing: 0;
 }
 
+.stop__badge--failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.stop__badge--signed {
+  background: #ecfdf5;
+  color: #059669;
+}
+
 .stop__delivered-label--queued {
   background: #ffedd5;
   color: #ea580c;
@@ -509,6 +519,132 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Failed state */
+.stop--failed {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+[data-theme="dark"] .stop--failed {
+  background: #1f0d0d;
+  border-color: #dc262640;
+}
+
+.stop__number--failed {
+  background: #dc2626;
+  animation: checkBounce 0.4s ease-out;
+}
+
+.stop__failure-reason {
+  font-size: 11px;
+  color: #dc2626;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.stop__delivered-label--failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Can't Deliver button */
+.stop__btn--cant-deliver {
+  background: #fef2f2;
+  color: #dc2626;
+  font-weight: 600;
+  border: 1px solid #fecaca;
+  flex: 1;
+  justify-content: center;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.stop__btn--cant-deliver:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.stop__btn--cant-deliver:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Failure reason selector */
+.stop__fail-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 0;
+}
+
+.stop__fail-option {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stop__fail-option:hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+/* Sign button */
+.stop__btn--sign {
+  background: #fef3c7;
+  color: #b45309;
+  font-weight: 600;
+  padding: 12px 14px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.stop__btn--sign:hover:not(:disabled) {
+  background: #fde68a;
+}
+
+.stop__btn--sign-done {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.stop__btn--sign-done:hover:not(:disabled) {
+  background: #d1fae5;
+}
+
+/* Signature preview */
+.stop__signature-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stop__signature-img {
+  width: 120px;
+  height: 60px;
+  object-fit: contain;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.stop__signature-img:hover {
+  border-color: var(--gray-400);
+}
+
+.stop__signature-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #059669;
 }
 
 @media (max-width: 480px) {

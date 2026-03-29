@@ -5,6 +5,7 @@ import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
 import DriverSortList from '../components/driver/DriverSortList'
+import DriverScorecard from '../components/driver/DriverScorecard'
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
@@ -151,6 +152,13 @@ export default function DriverPage() {
         _sigRequired: (s.notes || '').toLowerCase().includes('signature'),
         _transferred: s.assigned_driver_number && s.dispatch_driver_number && s.assigned_driver_number !== s.dispatch_driver_number,
         Notes: s.notes || '',
+        status: s.status || 'dispatched',
+        delivered_at: s.delivered_at || null,
+        photo_url: s.photo_url || null,
+        photo_urls: s.photo_urls || null,
+        barcode: s.barcode || null,
+        signature_url: s.signature_url || null,
+        failure_reason: s.failure_reason || null,
       }))
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
@@ -374,6 +382,12 @@ export default function DriverPage() {
                 Schedule
               </button>
               <button
+                className={`driver__tab ${activeTab === 'stats' ? 'driver__tab--active' : ''}`}
+                onClick={() => setActiveTab('stats')}
+              >
+                Stats
+              </button>
+              <button
                 className={`driver__tab ${activeTab === 'team' ? 'driver__tab--active' : ''}`}
                 onClick={() => { setActiveTab('team'); loadTeamData() }}
               >
@@ -521,6 +535,10 @@ export default function DriverPage() {
 
             {activeTab === 'timeoff' && (
               <TimeOffCalendar driverName={data.driverName} />
+            )}
+
+            {activeTab === 'stats' && (
+              <DriverScorecard driverName={data.driverName} deliveryDate={data.deliveryDate} />
             )}
 
             {activeTab === 'team' && (

@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo } = body
+    const { orderId, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo, signatureUrl, failed, failureReason } = body
 
     if (!orderId || !deliveryDate || !driverName) {
       return res.status(400).json({ error: 'orderId, deliveryDate, and driverName are required' })
@@ -23,6 +23,7 @@ export default async function handler(req, res) {
         .update({
           status: 'dispatched',
           delivered_at: null,
+          failure_reason: null,
         })
         .eq('order_id', orderId)
         .eq('delivery_date', deliveryDate)
@@ -33,6 +34,24 @@ export default async function handler(req, res) {
     }
 
     const now = new Date().toISOString()
+
+    // Failed delivery
+    if (failed) {
+      const failPayload = {
+        status: 'failed',
+        failure_reason: failureReason || 'Unknown',
+        delivered_at: now,
+      }
+      const { data: failData, error: failError } = await supabase
+        .from('daily_stops')
+        .update(failPayload)
+        .eq('order_id', orderId)
+        .eq('delivery_date', deliveryDate)
+        .select()
+      if (failError) throw new Error(failError.message)
+      return res.status(200).json({ success: true, failed: failData?.length || 0, delivered_at: now })
+    }
+
     const urls = photoUrls || (photoUrl ? [photoUrl] : [])
 
     const updatePayload = {
@@ -42,6 +61,7 @@ export default async function handler(req, res) {
       delivered_at: now,
     }
     if (barcode) updatePayload.barcode = barcode
+    if (signatureUrl) updatePayload.signature_url = signatureUrl
 
     const { data, error } = await supabase
       .from('daily_stops')

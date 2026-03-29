@@ -1,15 +1,19 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { isOnline, queueDelivery, queuePhoto, processQueue } from '../../lib/offlineQueue'
 import BarcodeScanner from './BarcodeScanner'
+import SignaturePad from './SignaturePad'
 import './StopCard.css'
 
 const UNDO_WINDOW_MS = 120_000 // 2 minutes
+
+const FAILURE_REASONS = ['Not home', 'Refused', 'Wrong address', 'Business closed', 'Access issue', 'Other']
 
 export default function StopCard({ stop, index, total, isSelected, onToggleSelect, onExportDrag, deliveryDate, driverName, onDeliveryChange }) {
   const [expanded, setExpanded] = useState(false)
   const [delivering, setDelivering] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [delivered, setDelivered] = useState(stop.status === 'delivered')
+  const [failed, setFailed] = useState(stop.status === 'failed')
   const [deliveredAt, setDeliveredAt] = useState(stop.delivered_at || null)
   const [canUndo, setCanUndo] = useState(false)
   const [queued, setQueued] = useState(false)
@@ -21,6 +25,11 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     return []
   })
   const [lightboxUrl, setLightboxUrl] = useState(null)
+  const [signaturePadOpen, setSignaturePadOpen] = useState(false)
+  const [signatureUrl, setSignatureUrl] = useState(stop.signature_url || null)
+  const [failMenuOpen, setFailMenuOpen] = useState(false)
+  const [customReason, setCustomReason] = useState('')
+  const [failureReason, setFailureReason] = useState(stop.failure_reason || null)
   const fileRef = useRef(null)
   const undoTimer = useRef(null)
 
@@ -43,6 +52,8 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const fullAddress = [address, city, zip ? `OH ${zip}` : ''].filter(Boolean).join(', ')
   const mapQuery = encodeURIComponent(fullAddress)
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`
+
+  const isDone = delivered || failed
 
   // Cleanup undo timer
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
@@ -101,13 +112,33 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     }
   }
 
+  async function handleSignatureSave(blob) {
+    setSignaturePadOpen(false)
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', blob, `signature_${orderId}_${Date.now()}.png`)
+      formData.append('deliveryDate', deliveryDate)
+      formData.append('orderId', orderId)
+      const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      if (result.url) setSignatureUrl(result.url)
+    } catch (err) {
+      console.error('Signature upload error:', err)
+      alert('Failed to upload signature: ' + err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function handleConfirmDelivery() {
-    if (delivering || delivered) return
+    if (delivering || isDone) return
     setDelivering(true)
     try {
       if (!isOnline()) {
         // Offline: queue delivery in IndexedDB
-        await queueDelivery({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined })
+        await queueDelivery({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined })
         setDelivered(true)
         setDeliveredAt(new Date().toISOString())
         setQueued(true)
@@ -116,7 +147,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         const res = await fetch('/api/deliver', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined }),
+          body: JSON.stringify({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined }),
         })
         const result = await res.json()
         if (!res.ok) throw new Error(result.error)
@@ -135,6 +166,32 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     }
   }
 
+  async function handleFailDelivery(reason) {
+    if (delivering || isDone) return
+    setDelivering(true)
+    setFailMenuOpen(false)
+    try {
+      const res = await fetch('/api/deliver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, deliveryDate, driverName, failed: true, failureReason: reason }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      setFailed(true)
+      setFailureReason(reason)
+      setDeliveredAt(new Date().toISOString())
+      setCanUndo(true)
+      onDeliveryChange?.()
+      undoTimer.current = setTimeout(() => setCanUndo(false), UNDO_WINDOW_MS)
+    } catch (err) {
+      console.error('Fail delivery error:', err)
+      alert('Failed to mark as failed: ' + err.message)
+    } finally {
+      setDelivering(false)
+    }
+  }
+
   async function handleUndo() {
     if (!canUndo) return
     try {
@@ -146,7 +203,9 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
       setDelivered(false)
+      setFailed(false)
       setDeliveredAt(null)
+      setFailureReason(null)
       setCanUndo(false)
       if (undoTimer.current) clearTimeout(undoTimer.current)
       onDeliveryChange?.()
@@ -166,13 +225,13 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
 
   // Swipe-to-deliver handlers
   const onTouchStart = useCallback((e) => {
-    if (delivered || expanded) return
+    if (isDone || expanded) return
     touchStart.current = e.touches[0].clientX
     touchDelta.current = 0
-  }, [delivered, expanded])
+  }, [isDone, expanded])
 
   const onTouchMove = useCallback((e) => {
-    if (!touchStart.current || delivered || expanded) return
+    if (!touchStart.current || isDone || expanded) return
     const delta = e.touches[0].clientX - touchStart.current
     if (delta < 0) { touchDelta.current = 0; return } // Only swipe right
     touchDelta.current = delta
@@ -182,7 +241,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       cardRef.current.style.transform = `translateX(${clamped}px)`
       cardRef.current.style.opacity = `${1 - (clamped / 300)}`
     }
-  }, [delivered, expanded])
+  }, [isDone, expanded])
 
   const onTouchEnd = useCallback(() => {
     if (!touchStart.current) return
@@ -193,16 +252,16 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       cardRef.current.style.transform = ''
       cardRef.current.style.opacity = ''
     }
-    if (delta > 120 && !delivered) {
+    if (delta > 120 && !isDone) {
       handleConfirmDelivery()
     }
-  }, [delivered])
+  }, [isDone])
 
   return (
     <>
       <div
         ref={cardRef}
-        className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSigRequired ? 'stop--sig' : ''} ${isSelected ? 'stop--selected' : ''} ${delivered ? (queued ? 'stop--queued' : 'stop--delivered') : ''} ${swiping ? 'stop--swiping' : ''}`}
+        className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSigRequired ? 'stop--sig' : ''} ${isSelected ? 'stop--selected' : ''} ${delivered ? (queued ? 'stop--queued' : 'stop--delivered') : ''} ${failed ? 'stop--failed' : ''} ${swiping ? 'stop--swiping' : ''}`}
         draggable={isSelected}
         onDragStart={onExportDrag}
         onTouchStart={onTouchStart}
@@ -210,7 +269,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         onTouchEnd={onTouchEnd}
       >
         {/* Swipe hint background */}
-        {!delivered && !expanded && (
+        {!isDone && !expanded && (
           <div className="stop__swipe-hint">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="20 6 9 17 4 12"/>
@@ -220,7 +279,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         )}
 
         <div className="stop__main" onClick={() => setExpanded(!expanded)}>
-          {!delivered ? (
+          {!isDone ? (
             <input
               type="checkbox"
               className="stop__checkbox"
@@ -229,9 +288,13 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
               onClick={(e) => e.stopPropagation()}
             />
           ) : null}
-          <div className={`stop__number ${delivered ? (queued ? 'stop__number--queued' : 'stop__number--done') : ''}`}>
-            {delivered ? (
-              queued ? (
+          <div className={`stop__number ${delivered ? (queued ? 'stop__number--queued' : 'stop__number--done') : ''} ${failed ? 'stop__number--failed' : ''}`}>
+            {isDone ? (
+              failed ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              ) : queued ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
@@ -251,16 +314,19 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
 
           <div className="stop__info">
             <div className="stop__top-row">
-              <h4 className={`stop__name ${delivered ? 'stop__name--done' : ''}`}>{name}</h4>
+              <h4 className={`stop__name ${isDone ? 'stop__name--done' : ''}`}>{name}</h4>
               {isColdChain && <span className="stop__badge stop__badge--cold">Cold Chain</span>}
               {isSigRequired && <span className="stop__badge stop__badge--sig">Sig Required</span>}
-              {pharmacy && !delivered && <span className="stop__badge stop__badge--pharma">{pharmacy}</span>}
+              {pharmacy && !isDone && <span className="stop__badge stop__badge--pharma">{pharmacy}</span>}
               {delivered && !queued && <span className="stop__badge stop__badge--delivered">Delivered</span>}
               {delivered && queued && <span className="stop__badge stop__badge--queued">Queued</span>}
+              {failed && <span className="stop__badge stop__badge--failed">Failed</span>}
+              {signatureUrl && <span className="stop__badge stop__badge--signed">Signed</span>}
               {scannedBarcode && <span className="stop__badge stop__badge--barcode" title={scannedBarcode}>{scannedBarcode.length > 12 ? scannedBarcode.slice(0, 12) + '...' : scannedBarcode}</span>}
             </div>
-            <p className={`stop__address ${delivered ? 'stop__address--done' : ''}`}>{fullAddress || 'No address'}</p>
+            <p className={`stop__address ${isDone ? 'stop__address--done' : ''}`}>{fullAddress || 'No address'}</p>
             {orderId && <p className="stop__order">Order #{orderId}</p>}
+            {failed && failureReason && <p className="stop__failure-reason">{failureReason}</p>}
           </div>
 
           <svg
@@ -288,11 +354,18 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                     <span className="stop__photo-stamp">
                       {deliveredAt ? new Date(deliveredAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
                     </span>
-                    {!delivered && (
+                    {!isDone && (
                       <button className="stop__photo-remove" onClick={(e) => { e.stopPropagation(); handleRemovePhoto(i) }} title="Remove photo">&times;</button>
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+            {/* Signature thumbnail */}
+            {signatureUrl && (
+              <div className="stop__signature-preview">
+                <img src={signatureUrl} alt="Signature" className="stop__signature-img" onClick={() => setLightboxUrl(signatureUrl)} />
+                <span className="stop__signature-label">Signature captured</span>
               </div>
             )}
             <div className="stop__actions">
@@ -303,7 +376,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                 </svg>
                 Maps
               </a>
-              {!delivered ? (
+              {!isDone ? (
                 <>
                   <input
                     ref={fileRef}
@@ -324,6 +397,18 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                     </svg>
                     {uploading ? 'Uploading...' : photos.length > 0 ? `Photo (${photos.length})` : 'Add Photo'}
                   </button>
+                  {isSigRequired && (
+                    <button
+                      className={`stop__btn stop__btn--sign ${signatureUrl ? 'stop__btn--sign-done' : ''}`}
+                      onClick={() => setSignaturePadOpen(true)}
+                      disabled={uploading}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                      </svg>
+                      {signatureUrl ? 'Re-sign' : 'Sign'}
+                    </button>
+                  )}
                   <button
                     className="stop__btn stop__btn--scan"
                     onClick={() => setScannerOpen(true)}
@@ -347,11 +432,45 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                     </svg>
                     {delivering ? 'Confirming...' : 'Confirm Delivery'}
                   </button>
+                  <button
+                    className="stop__btn stop__btn--cant-deliver"
+                    onClick={() => setFailMenuOpen(!failMenuOpen)}
+                    disabled={delivering}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    Can't Deliver
+                  </button>
+                  {failMenuOpen && (
+                    <div className="stop__fail-menu">
+                      {FAILURE_REASONS.map(reason => (
+                        <button
+                          key={reason}
+                          className="stop__fail-option"
+                          onClick={() => {
+                            if (reason === 'Other') {
+                              const custom = prompt('Enter reason:')
+                              if (custom && custom.trim()) handleFailDelivery(custom.trim())
+                            } else {
+                              handleFailDelivery(reason)
+                            }
+                          }}
+                        >
+                          {reason}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="stop__delivered-row">
-                  <span className={`stop__delivered-label ${queued ? 'stop__delivered-label--queued' : ''}`}>
-                    {queued ? (
+                  <span className={`stop__delivered-label ${queued ? 'stop__delivered-label--queued' : ''} ${failed ? 'stop__delivered-label--failed' : ''}`}>
+                    {failed ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                      </svg>
+                    ) : queued ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
@@ -361,7 +480,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                     )}
-                    {queued ? 'Queued' : 'Delivered'}{photos.length > 0 ? ` (${photos.length})` : ''}
+                    {failed ? `Failed: ${failureReason || 'Unknown'}` : queued ? 'Queued' : 'Delivered'}{photos.length > 0 ? ` (${photos.length})` : ''}
                   </span>
                   {canUndo && (
                     <button className="stop__btn stop__btn--undo" onClick={handleUndo}>Undo</button>
@@ -386,6 +505,14 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         <BarcodeScanner
           onScan={handleBarcodeScan}
           onClose={() => setScannerOpen(false)}
+        />
+      )}
+
+      {/* Signature Pad */}
+      {signaturePadOpen && (
+        <SignaturePad
+          onSave={handleSignatureSave}
+          onCancel={() => setSignaturePadOpen(false)}
         />
       )}
     </>
