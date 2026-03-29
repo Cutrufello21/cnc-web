@@ -42,7 +42,7 @@ export default function Navbar() {
         </Link>
 
         <div className={`navbar__links ${menuOpen ? 'navbar__links--open' : ''}`}>
-          <a href="#services" className={active === 'services' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Services</a>
+          <Link to="/services" className={active === 'services' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Services</Link>
           <a href="#coverage" className={active === 'coverage' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Coverage</a>
           <a href="#about" className={active === 'about' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>About</a>
           <a href="#team" className={active === 'team' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Team</a>

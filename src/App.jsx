@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage'
 import DispatchPage from './pages/DispatchPage'
 import DriverPage from './pages/DriverPage'
 import HomePage from './pages/HomePage'
+import ServicesPage from './pages/ServicesPage'
 import BrandMark from './components/BrandMark'
 
 function SiteGate({ children }) {
@@ -61,6 +62,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<SiteGate><HomePage /></SiteGate>} />
+          <Route path="/services" element={<SiteGate><ServicesPage /></SiteGate>} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/dispatch"
