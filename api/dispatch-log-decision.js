@@ -74,10 +74,50 @@ export default async function handler(req, res) {
 
     if (data.action === 'get_patterns') {
       // Analyze historical decisions and return learned patterns
-      const { data: decisions } = await supabase.from('dispatch_decisions')
-        .select('*')
-        .in('decision_type', ['manual_move', 'optimize_accepted'])
-        .order('created_at', { ascending: false })
+      // Include initial→final diffs alongside manual moves
+      const [movesRes, snapshotsRes] = await Promise.all([
+        supabase.from('dispatch_decisions').select('*')
+          .in('decision_type', ['manual_move', 'optimize_accepted'])
+          .order('created_at', { ascending: false }).limit(5000),
+        supabase.from('dispatch_decisions').select('*')
+          .in('decision_type', ['initial_state', 'final_state'])
+          .order('created_at', { ascending: false }).limit(10000),
+      ])
+
+      // Build diff from initial vs final snapshots
+      const snapshots = snapshotsRes.data || []
+      const byDateType = {}
+      snapshots.forEach(s => {
+        const key = `${s.delivery_date}|${s.decision_type}`
+        if (!byDateType[key]) byDateType[key] = {}
+        byDateType[key][s.order_id] = s
+      })
+
+      // Find dates that have both initial and final
+      const dates = new Set(snapshots.map(s => s.delivery_date))
+      const diffDecisions = []
+      for (const date of dates) {
+        const initial = byDateType[`${date}|initial_state`] || {}
+        const final = byDateType[`${date}|final_state`] || {}
+        for (const [orderId, finalRow] of Object.entries(final)) {
+          const initialRow = initial[orderId]
+          if (initialRow && initialRow.from_driver !== finalRow.from_driver) {
+            diffDecisions.push({
+              delivery_date: date,
+              delivery_day: finalRow.delivery_day,
+              order_id: orderId,
+              zip: finalRow.zip,
+              city: finalRow.city,
+              pharmacy: finalRow.pharmacy,
+              from_driver: initialRow.from_driver,
+              to_driver: finalRow.from_driver,
+              decision_type: 'snapshot_diff',
+            })
+          }
+        }
+      }
+
+      const decisions = [...(movesRes.data || []), ...diffDecisions]
         .limit(5000)
 
       if (!decisions || decisions.length < 10) {
@@ -156,6 +196,40 @@ export default async function handler(req, res) {
           ? `Found ${allPatterns.length} patterns from ${decisions.length} decisions.`
           : `${decisions.length} decisions logged. Patterns will emerge with more data.`,
       })
+    }
+
+    if (data.action === 'snapshot_initial') {
+      // Only save if no initial snapshot exists for this date
+      const { count } = await supabase.from('dispatch_decisions')
+        .select('id', { count: 'exact', head: true })
+        .eq('delivery_date', data.deliveryDate)
+        .eq('decision_type', 'initial_state')
+
+      if (count > 0) {
+        return res.status(200).json({ success: true, message: 'Initial snapshot already exists' })
+      }
+
+      const { data: stops } = await supabase.from('daily_stops')
+        .select('order_id, driver_name, zip, city, pharmacy')
+        .eq('delivery_date', data.deliveryDate)
+
+      const rows = (stops || []).map(s => ({
+        delivery_date: data.deliveryDate,
+        delivery_day: data.deliveryDay || null,
+        order_id: s.order_id,
+        zip: s.zip,
+        city: s.city,
+        pharmacy: s.pharmacy,
+        from_driver: s.driver_name,
+        to_driver: s.driver_name,
+        decision_type: 'initial_state',
+        context: null,
+      }))
+
+      if (rows.length > 0) {
+        await supabase.from('dispatch_decisions').insert(rows)
+      }
+      return res.status(200).json({ success: true, logged: rows.length })
     }
 
     if (data.action === 'log_sort_list') {
