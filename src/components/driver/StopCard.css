@@ -647,6 +647,66 @@
   color: #059669;
 }
 
+/* Consolidated stop styles */
+.stop__package-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #ede9fe;
+  color: #7c3aed;
+  letter-spacing: 0.3px;
+}
+
+.stop__sub-orders {
+  margin-bottom: 14px;
+  background: var(--gray-50);
+  border-radius: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--gray-200);
+}
+
+.stop__sub-orders-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.stop__sub-order {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.stop__sub-order:last-child {
+  border-bottom: none;
+}
+
+.stop__sub-order-id {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-600);
+  font-family: ui-monospace, monospace;
+  min-width: 80px;
+}
+
+.stop__sub-order-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  flex: 1;
+}
+
+.stop__sub-order .stop__badge {
+  font-size: 10px;
+  padding: 1px 6px;
+}
+
 @media (max-width: 480px) {
   .stop__main {
     padding: 8px 12px;

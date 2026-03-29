@@ -48,6 +48,10 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const isSigRequired = stop._sigRequired
   const pharmacy = stop['Pharmacy'] || ''
   const notes = stop['Notes'] || stop['Special Instructions'] || ''
+  const packageCount = stop._packageCount || 1
+  const consolidatedOrders = stop._consolidatedOrders || []
+  const isConsolidated = packageCount > 1
+  const allOrderIds = isConsolidated ? consolidatedOrders.map(o => o.orderId) : [orderId]
 
   const fullAddress = [address, city, zip ? `OH ${zip}` : ''].filter(Boolean).join(', ')
   const mapQuery = encodeURIComponent(fullAddress)
@@ -137,8 +141,10 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     setDelivering(true)
     try {
       if (!isOnline()) {
-        // Offline: queue delivery in IndexedDB
-        await queueDelivery({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined })
+        // Offline: queue delivery for all order IDs in this stop
+        for (const oid of allOrderIds) {
+          await queueDelivery({ orderId: oid, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined })
+        }
         setDelivered(true)
         setDeliveredAt(new Date().toISOString())
         setQueued(true)
@@ -147,7 +153,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         const res = await fetch('/api/deliver', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined }),
+          body: JSON.stringify({ orderIds: allOrderIds, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined }),
         })
         const result = await res.json()
         if (!res.ok) throw new Error(result.error)
@@ -174,7 +180,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       const res = await fetch('/api/deliver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, deliveryDate, driverName, failed: true, failureReason: reason }),
+        body: JSON.stringify({ orderIds: allOrderIds, deliveryDate, driverName, failed: true, failureReason: reason }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
@@ -198,7 +204,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       const res = await fetch('/api/deliver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, deliveryDate, driverName, undo: true }),
+        body: JSON.stringify({ orderIds: allOrderIds, deliveryDate, driverName, undo: true }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
@@ -315,6 +321,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
           <div className="stop__info">
             <div className="stop__top-row">
               <h4 className={`stop__name ${isDone ? 'stop__name--done' : ''}`}>{name}</h4>
+              {isConsolidated && <span className="stop__package-count">{packageCount} packages</span>}
               {isColdChain && <span className="stop__badge stop__badge--cold">Cold Chain</span>}
               {isSigRequired && <span className="stop__badge stop__badge--sig">Sig Required</span>}
               {pharmacy && !isDone && <span className="stop__badge stop__badge--pharma">{pharmacy}</span>}
@@ -325,7 +332,8 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
               {scannedBarcode && <span className="stop__badge stop__badge--barcode" title={scannedBarcode}>{scannedBarcode.length > 12 ? scannedBarcode.slice(0, 12) + '...' : scannedBarcode}</span>}
             </div>
             <p className={`stop__address ${isDone ? 'stop__address--done' : ''}`}>{fullAddress || 'No address'}</p>
-            {orderId && <p className="stop__order">Order #{orderId}</p>}
+            {!isConsolidated && orderId && <p className="stop__order">Order #{orderId}</p>}
+            {isConsolidated && <p className="stop__order">{allOrderIds.map(id => `#${id}`).join(', ')}</p>}
             {failed && failureReason && <p className="stop__failure-reason">{failureReason}</p>}
           </div>
 
@@ -340,6 +348,19 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
 
         {expanded && (
           <div className="stop__details">
+            {isConsolidated && (
+              <div className="stop__sub-orders">
+                <div className="stop__sub-orders-title">{packageCount} orders at this address</div>
+                {consolidatedOrders.map((o, i) => (
+                  <div key={o.orderId || i} className="stop__sub-order">
+                    <span className="stop__sub-order-id">#{o.orderId}</span>
+                    <span className="stop__sub-order-name">{o.name}</span>
+                    {o.coldChain && <span className="stop__badge stop__badge--cold">CC</span>}
+                    {o.sigRequired && <span className="stop__badge stop__badge--sig">Sig</span>}
+                  </div>
+                ))}
+              </div>
+            )}
             {notes && (
               <div className="stop__notes">
                 <span className="stop__notes-label">Notes:</span> {notes}

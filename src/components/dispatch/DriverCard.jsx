@@ -42,6 +42,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const pharmacy = driver['Pharmacy'] || driver.pharmacy || ''
   const pharma = PHARMACY_COLORS[pharmacy] || PHARMACY_COLORS.SHSP
   const stops = driver.stops || 0
+  const totalPackages = driver.totalPackages || stops
   const coldChain = driver.coldChain || 0
   const rawDetails = driver.stopDetails || []
   const tabName = driver.tabName || ''
@@ -290,7 +291,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       <div className="dcard__stats">
         <div className="dcard__stat">
           <span className="dcard__stat-value">{stops}</span>
-          <span className="dcard__stat-label">Stops</span>
+          <span className="dcard__stat-label">Stops{totalPackages > stops ? ` (${totalPackages} pkg)` : ''}</span>
         </div>
         {stops > 0 && (() => {
           const deliveredCount = rawDetails.filter(s => s.status === 'delivered').length
@@ -450,8 +451,22 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                       />
                     </td>
                     <td className="dcard__cell-num">{i + 1}</td>
-                    <td className="dcard__cell-order">{orderId || '—'}</td>
-                    <td>{stop['Name'] || '—'}</td>
+                    <td className="dcard__cell-order">
+                      {stop._packageCount > 1 ? (
+                        <span title={stop._consolidatedOrderIds?.join(', ')}>
+                          {stop._consolidatedOrderIds?.join(', ')}
+                          <span className="dcard__pkg-badge">{stop._packageCount} pkg</span>
+                        </span>
+                      ) : (orderId || '—')}
+                    </td>
+                    <td>
+                      {stop._packageCount > 1 ? (
+                        <span title={stop._consolidatedNames?.join(', ')}>
+                          {stop['Name'] || '—'}
+                          {stop._consolidatedNames?.length > 1 && <span className="dcard__multi-name"> +{stop._consolidatedNames.length - 1}</span>}
+                        </span>
+                      ) : (stop['Name'] || '—')}
+                    </td>
                     <td className="dcard__cell-addr">{stop['Address'] || '—'}</td>
                     <td>{stop['City'] || '—'}</td>
                     <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>

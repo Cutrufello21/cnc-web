@@ -112,10 +112,11 @@ export default function DispatchPage() {
       const driversOff = new Set((timeOffData || []).map(r => r.driver_name))
 
       // Group stops by driver
+      const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
       const driverStops = {}
       stops.forEach(s => {
         if (!driverStops[s.driver_name]) {
-          driverStops[s.driver_name] = { stops: 0, coldChain: 0, stopDetails: [] }
+          driverStops[s.driver_name] = { stops: 0, coldChain: 0, totalPackages: 0, stopDetails: [] }
         }
         const ds = driverStops[s.driver_name]
         ds.stops++
@@ -132,6 +133,41 @@ export default function DispatchPage() {
           barcode: s.barcode || null,
         })
       })
+
+      // Consolidate stops by address within each driver
+      for (const dName of Object.keys(driverStops)) {
+        const ds = driverStops[dName]
+        const rawDetails = ds.stopDetails
+        const addrGroups = {}
+        for (const stop of rawDetails) {
+          const key = normalizeAddr(stop.Address)
+          if (!addrGroups[key]) addrGroups[key] = []
+          addrGroups[key].push(stop)
+        }
+        const consolidated = []
+        const seen = new Set()
+        for (const stop of rawDetails) {
+          const key = normalizeAddr(stop.Address)
+          if (seen.has(key)) continue
+          seen.add(key)
+          const group = addrGroups[key]
+          if (group.length === 1) {
+            consolidated.push({ ...group[0], _packageCount: 1, _consolidatedOrderIds: [group[0]['Order ID']] })
+          } else {
+            const primary = { ...group[0] }
+            primary._packageCount = group.length
+            primary._coldChain = group.some(s => s._coldChain)
+            primary['Cold Chain'] = primary._coldChain ? 'Yes' : ''
+            primary.Notes = group.map(s => s.Notes).filter(Boolean).join(' | ')
+            primary._consolidatedOrderIds = group.map(s => s['Order ID'])
+            primary._consolidatedNames = group.map(s => s.Name)
+            consolidated.push(primary)
+          }
+        }
+        ds.totalPackages = ds.stops
+        ds.consolidatedStops = consolidated.length
+        ds.stopDetails = consolidated
+      }
 
       const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
       const recentLogs = (logsRes.data || [])
@@ -170,7 +206,8 @@ export default function DispatchPage() {
           Pharmacy: d.pharmacy || '',
           Email: d.email,
           isOff: driversOff.has(d.driver_name),
-          stops: driverStops[d.driver_name]?.stops ?? 0,
+          stops: driverStops[d.driver_name]?.consolidatedStops ?? driverStops[d.driver_name]?.stops ?? 0,
+          totalPackages: driverStops[d.driver_name]?.totalPackages ?? 0,
           coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
           hidden: false,
           tabName: `${d.driver_name} - ${d.driver_number}`,

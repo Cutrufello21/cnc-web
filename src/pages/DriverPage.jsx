@@ -142,7 +142,7 @@ export default function DriverPage() {
         ? [...rawStops].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
         : rawStops
 
-      const stops = sorted.map((s, idx) => ({
+      const rawMappedStops = sorted.map((s, idx) => ({
         _index: idx,
         _id: s.id,
         'Order ID': s.order_id, Name: s.patient_name,
@@ -160,14 +160,47 @@ export default function DriverPage() {
         signature_url: s.signature_url || null,
         failure_reason: s.failure_reason || null,
       }))
+
+      // Consolidate stops by normalized address
+      const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
+      const addrGroups = {}
+      for (const stop of rawMappedStops) {
+        const key = normalizeAddr(stop.Address)
+        if (!addrGroups[key]) addrGroups[key] = []
+        addrGroups[key].push(stop)
+      }
+      const stops = []
+      const seen = new Set()
+      for (const stop of rawMappedStops) {
+        const key = normalizeAddr(stop.Address)
+        if (seen.has(key)) continue
+        seen.add(key)
+        const group = addrGroups[key]
+        if (group.length === 1) {
+          stops.push({ ...group[0], _packageCount: 1, _consolidatedOrders: [{ orderId: group[0]['Order ID'], name: group[0].Name, coldChain: group[0]._coldChain, sigRequired: group[0]._sigRequired, notes: group[0].Notes, status: group[0].status, _id: group[0]._id }] })
+        } else {
+          const primary = { ...group[0] }
+          primary._packageCount = group.length
+          primary._coldChain = group.some(s => s._coldChain)
+          primary['Cold Chain'] = primary._coldChain ? 'Yes' : ''
+          primary._sigRequired = group.some(s => s._sigRequired)
+          primary.Notes = group.map(s => s.Notes).filter(Boolean).join(' | ')
+          primary._consolidatedOrders = group.map(s => ({ orderId: s['Order ID'], name: s.Name, coldChain: s._coldChain, sigRequired: s._sigRequired, notes: s.Notes, status: s.status, _id: s._id }))
+          stops.push(primary)
+        }
+      }
+
+      // Total packages = total orders (for progress tracking)
+      const totalPackages = rawMappedStops.length
+
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
       setData({
         approved, deliveryDay: deliveryDayName, deliveryDate, driverName, driverId, tabName,
         pharmacy: driverRow.pharmacy || 'SHSP',
-        stops, stopCount: stops.length,
-        coldChainCount: stops.filter(s => s._coldChain).length,
+        stops, stopCount: stops.length, totalPackages,
+        coldChainCount: rawMappedStops.filter(s => s._coldChain).length,
         weekTotal, dailyStops,
       })
     } catch (err) {
@@ -340,7 +373,7 @@ export default function DriverPage() {
                 </svg>
                 <div>
                   <h3>Route approved</h3>
-                  <p>Your {data.deliveryDay} route is ready. {data.stopCount} stop{data.stopCount !== 1 ? 's' : ''} today.</p>
+                  <p>Your {data.deliveryDay} route is ready. {data.stopCount} stop{data.stopCount !== 1 ? 's' : ''}{data.totalPackages > data.stopCount ? ` (${data.totalPackages} packages)` : ''} today.</p>
                 </div>
               </div>
             )}
@@ -416,8 +449,9 @@ export default function DriverPage() {
                   <>
                     {/* Delivery progress bar */}
                     {(() => {
-                      const deliveredCount = data.stops.filter(s => s.status === 'delivered').length
-                      const totalCount = data.stops.length
+                      const allOrders = data.stops.flatMap(s => s._consolidatedOrders || [])
+                      const deliveredCount = allOrders.filter(o => o.status === 'delivered').length
+                      const totalCount = allOrders.length
                       const pct = totalCount ? Math.round((deliveredCount / totalCount) * 100) : 0
                       return deliveredCount > 0 ? (
                         <div className="driver__progress">

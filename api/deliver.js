@@ -10,10 +10,13 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo, signatureUrl, failed, failureReason } = body
+    const { orderId, orderIds: rawOrderIds, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo, signatureUrl, failed, failureReason } = body
 
-    if (!orderId || !deliveryDate || !driverName) {
-      return res.status(400).json({ error: 'orderId, deliveryDate, and driverName are required' })
+    // Support both single orderId and orderIds array
+    const orderIds = rawOrderIds || (orderId ? [orderId] : [])
+
+    if (orderIds.length === 0 || !deliveryDate || !driverName) {
+      return res.status(400).json({ error: 'orderId/orderIds, deliveryDate, and driverName are required' })
     }
 
     // Undo delivery
@@ -25,7 +28,7 @@ export default async function handler(req, res) {
           delivered_at: null,
           failure_reason: null,
         })
-        .eq('order_id', orderId)
+        .in('order_id', orderIds)
         .eq('delivery_date', deliveryDate)
         .select()
 
@@ -45,7 +48,7 @@ export default async function handler(req, res) {
       const { data: failData, error: failError } = await supabase
         .from('daily_stops')
         .update(failPayload)
-        .eq('order_id', orderId)
+        .in('order_id', orderIds)
         .eq('delivery_date', deliveryDate)
         .select()
       if (failError) throw new Error(failError.message)
@@ -66,7 +69,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabase
       .from('daily_stops')
       .update(updatePayload)
-      .eq('order_id', orderId)
+      .in('order_id', orderIds)
       .eq('delivery_date', deliveryDate)
       .select()
 
