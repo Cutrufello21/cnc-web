@@ -146,6 +146,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
   const [routeCoords, setRouteCoords] = useState(null)
   const [routeStats, setRouteStats] = useState(null)
   const [routeError, setRouteError] = useState(false)
+  const [routeLegs, setRouteLegs] = useState([])
   const [currentPos, setCurrentPos] = useState(null)
   const [geocoding, setGeocoding] = useState(false)
   const [points, setPoints] = useState([])
@@ -242,7 +243,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
           allWaypoints.push({ lat: endPoint.lat, lng: endPoint.lng })
         }
         const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';')
-        const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson&steps=false`
         const resp = await fetch(url)
         const data = await resp.json()
         if (data.code === 'Ok' && data.routes?.length > 0) {
@@ -252,11 +253,17 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
             distance: (route.distance / 1609.344).toFixed(1),
             duration: Math.round(route.duration / 60),
           })
+          // Leg-by-leg breakdown (start→stop1, stop1→stop2, etc.)
+          const legs = (route.legs || []).map(leg => ({
+            distance: (leg.distance / 1609.344).toFixed(1),
+            duration: Math.round(leg.duration / 60),
+          }))
+          setRouteLegs(legs)
           setRouteError(false)
         } else throw new Error('No routes')
       } catch (err) {
         console.warn('OSRM route failed:', err)
-        setRouteError(true); setRouteCoords(null); setRouteStats(null)
+        setRouteError(true); setRouteCoords(null); setRouteStats(null); setRouteLegs([])
       }
     }
     fetchRoute()
@@ -413,51 +420,74 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
                 </div>
               </div>
 
-              {/* Delivery stops */}
+              {/* Delivery stops with leg-by-leg info */}
               {points.map((p, i) => {
                 const stopType = p._coldChain ? 'cold' : p._sigRequired ? 'sig' : 'regular'
+                // routeLegs[i] = leg from previous waypoint to this stop
+                // (leg 0 = pharmacy→stop1, leg 1 = stop1→stop2, etc.)
+                const leg = routeLegs[i]
                 return (
-                  <div
-                    key={`${p.address}-${p.zip}-${i}`}
-                    className={`route-map__stop-item route-map__stop-item--${stopType} ${dragOverIdx === i ? 'route-map__stop-item--dragover' : ''} ${dragIdx === i ? 'route-map__stop-item--dragging' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, i)}
-                    onDragOver={(e) => handleDragOver(e, i)}
-                    onDrop={(e) => handleDrop(e, i)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <span className="route-map__stop-grip">⠿</span>
-                    <span
-                      className="route-map__stop-num"
-                      style={{
-                        background: p._coldChain ? '#2563eb' : p._sigRequired ? '#d97706' : '#6b7280',
-                      }}
+                  <div key={`${p.address}-${p.zip}-${i}`}>
+                    {/* Leg divider showing drive time/distance from previous stop */}
+                    {leg && (
+                      <div className="route-map__leg">
+                        <div className="route-map__leg-line"></div>
+                        <span className="route-map__leg-info">
+                          {leg.duration} min · {leg.distance} mi
+                        </span>
+                      </div>
+                    )}
+                    <div
+                      className={`route-map__stop-item route-map__stop-item--${stopType} ${dragOverIdx === i ? 'route-map__stop-item--dragover' : ''} ${dragIdx === i ? 'route-map__stop-item--dragging' : ''}`}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onDragEnd={handleDragEnd}
                     >
-                      {p.label}
-                    </span>
-                    <div className="route-map__stop-info">
-                      <span className="route-map__stop-name">{p.name || 'Unknown'}</span>
-                      <span className="route-map__stop-addr">{p.address}{p.city ? `, ${p.city}` : ''}</span>
+                      <span className="route-map__stop-grip">⠿</span>
+                      <span
+                        className="route-map__stop-num"
+                        style={{
+                          background: p._coldChain ? '#2563eb' : p._sigRequired ? '#d97706' : '#6b7280',
+                        }}
+                      >
+                        {p.label}
+                      </span>
+                      <div className="route-map__stop-info">
+                        <span className="route-map__stop-name">{p.name || 'Unknown'}</span>
+                        <span className="route-map__stop-addr">{p.address}{p.city ? `, ${p.city}` : ''}</span>
+                      </div>
+                      {p._coldChain && <span className="route-map__stop-badge route-map__stop-badge--cold">CC</span>}
+                      {p._sigRequired && <span className="route-map__stop-badge route-map__stop-badge--sig">SIG</span>}
+                      {p._packageCount > 1 && <span className="route-map__stop-pkgs">{p._packageCount}x</span>}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.address}, ${p.city}, OH ${p.zip}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="route-map__stop-nav"
+                        onClick={(e) => e.stopPropagation()}
+                        title="Navigate to this stop"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                        </svg>
+                      </a>
                     </div>
-                    {p._coldChain && <span className="route-map__stop-badge route-map__stop-badge--cold">CC</span>}
-                    {p._sigRequired && <span className="route-map__stop-badge route-map__stop-badge--sig">SIG</span>}
-                    {p._packageCount > 1 && <span className="route-map__stop-pkgs">{p._packageCount}x</span>}
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.address}, ${p.city}, OH ${p.zip}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="route-map__stop-nav"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Navigate to this stop"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-                      </svg>
-                    </a>
                   </div>
                 )
               })}
 
+              {/* Last leg to end point */}
+              {(() => {
+                const lastLeg = routeLegs[points.length]
+                return lastLeg ? (
+                  <div className="route-map__leg">
+                    <div className="route-map__leg-line"></div>
+                    <span className="route-map__leg-info">{lastLeg.duration} min · {lastLeg.distance} mi</span>
+                  </div>
+                ) : null
+              })()}
               {/* End point (driver-entered) */}
               <div className="route-map__stop-item route-map__stop-item--fixed route-map__stop-item--end">
                 <span className="route-map__stop-num" style={{ background: '#dc2626' }}>E</span>

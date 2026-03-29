@@ -178,6 +178,33 @@
   background: #f0f4ff;
 }
 
+/* Leg-by-leg dividers */
+.route-map__leg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 28px;
+}
+
+.route-map__leg-line {
+  width: 2px;
+  height: 16px;
+  background: var(--gray-200);
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.route-map__leg-info {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-400);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .route-map__leg-line {
+  background: var(--gray-600);
+}
+
 /* Color-coded stop types */
 .route-map__stop-item--cold {
   border-left: 3px solid #2563eb;
