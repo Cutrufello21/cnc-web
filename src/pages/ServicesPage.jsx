@@ -38,7 +38,7 @@ const coreServices = [
   {
     title: 'Dedicated Driver Network',
     items: [
-      '20+ drivers — W-2 employees, not subcontractors',
+      '20+ vetted, long-term drivers — not gig workers or temp labor',
       'Average driver tenure of 5+ years (longest: 16 years)',
       'Background-checked and trained on pharmacy protocols',
       'Named drivers assigned to consistent routes',
