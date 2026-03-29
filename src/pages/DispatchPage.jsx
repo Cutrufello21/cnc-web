@@ -399,6 +399,18 @@ export default function DispatchPage() {
       setSentSnapshot(takeSnapshot())
       setRoutesSent(true)
       setMoveToast(`Routes sent to ${sent} drivers${rwCount > 0 ? `, Road Warrior pushed to ${rwCount}` : ''}`)
+
+      // Log final state for learning engine
+      const dateStr = data.deliveryDateObj
+        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+        : null
+      if (dateStr) {
+        fetch('/api/dispatch-log-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'snapshot', deliveryDate: dateStr, deliveryDay: data.deliveryDay }),
+        }).catch(() => {})
+      }
     } catch (err) {
       setMoveToast(`Error sending routes: ${err.message}`)
     } finally {
@@ -655,11 +667,15 @@ export default function DispatchPage() {
                   Unassigned
                 </button>
                 <button
-                  className="dispatch__optimize-btn"
-                  onClick={() => handleOptimize('preview')}
+                  className={`dispatch__optimize-btn ${routesSent ? 'dispatch__optimize-btn--sent' : ''}`}
+                  onClick={() => {
+                    if (routesSent && !confirm('Routes have already been sent for this day. Optimizing now will change assignments drivers already received. Continue?')) return
+                    handleOptimize('preview')
+                  }}
                   disabled={optimizing}
+                  title={routesSent ? 'Routes already sent — changes will need to be resent' : 'Optimize route assignments'}
                 >
-                  {optimizing ? 'Analyzing...' : '⚡ Optimize'}
+                  {optimizing ? 'Analyzing...' : routesSent ? '⚡ Optimize (Sent)' : '⚡ Optimize'}
                 </button>
               </div>
             </div>

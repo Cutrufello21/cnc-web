@@ -13,6 +13,8 @@
 }
 .dispatch__optimize-btn:hover { transform: scale(1.03); box-shadow: 0 4px 12px rgba(10, 36, 99, 0.3); }
 .dispatch__optimize-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.dispatch__optimize-btn--sent { background: linear-gradient(135deg, #92400e, #b45309); }
+.dispatch__optimize-btn--sent:hover { box-shadow: 0 4px 12px rgba(180, 83, 9, 0.3); }
 
 /* Optimize Preview */
 .dispatch__optimize-preview {
