@@ -320,6 +320,14 @@ export default function DriverPage() {
     }
   }
 
+  // Auto-optimize when Route tab opens
+  useEffect(() => {
+    if (activeTab === 'route' && !optimizeMode && !optimizing && data?.stops?.length >= 2) {
+      const undelivered = data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed')
+      if (undelivered.length >= 2) handleOptimize('oneway')
+    }
+  }, [activeTab, data?.stops?.length])
+
   function handleResetOrder() {
     setOptimizedStops(null)
     setOptimizeMode(null)
