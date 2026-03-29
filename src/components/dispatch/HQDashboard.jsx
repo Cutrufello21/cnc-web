@@ -22,6 +22,7 @@ export default function HQDashboard() {
   const [loading, setLoading] = useState(true)
   const [tableSort, setTableSort] = useState({ col: null, dir: 'desc' })
   const [expandedRow, setExpandedRow] = useState(null)
+  const [hoveredBar, setHoveredBar] = useState(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -212,21 +213,47 @@ export default function HQDashboard() {
       )}
 
       <div className="hq__grid">
-        {/* Volume Trend */}
+        {/* Volume Trend — Interactive */}
         <div className="hq__card hq__card--wide">
-          <h3 className="hq__card-title">Volume Trend</h3>
-          <div className="hq__chart">
-            {(volumeChart || []).map((d, i) => (
-              <div className="hq__bar-col" key={i}>
-                <div className="hq__bar-stack" style={{ height: `${(d.orders / maxVolume) * 100}%` }}>
-                  <div className="hq__bar-segment hq__bar-segment--aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} title={`Aultman: ${d.aultman}`} />
-                  <div className="hq__bar-segment hq__bar-segment--shsp" style={{ height: `${d.orders ? (d.shsp / d.orders) * 100 : 0}%` }} title={`SHSP: ${d.shsp}`} />
-                </div>
-                <span className="hq__bar-val">{d.orders}</span>
-                <span className="hq__bar-label">{d.day?.slice(0, 3)}</span>
-                <span className="hq__bar-date">{fmtDate(d.date)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 className="hq__card-title" style={{ margin: 0 }}>Volume Trend</h3>
+            {hoveredBar !== null && volumeChart[hoveredBar] && (
+              <div className="hq__chart-tooltip">
+                <strong>{volumeChart[hoveredBar].day?.slice(0, 3)} {fmtDate(volumeChart[hoveredBar].date)}</strong>
+                <span>{volumeChart[hoveredBar].orders} total</span>
+                <span style={{ color: 'var(--cornflower)' }}>SHSP: {volumeChart[hoveredBar].shsp}</span>
+                <span style={{ color: '#4ADE80' }}>Aultman: {volumeChart[hoveredBar].aultman}</span>
+                <span style={{ color: '#60a5fa' }}>CC: {volumeChart[hoveredBar].coldChain}</span>
               </div>
-            ))}
+            )}
+          </div>
+          <div className="hq__chart" onMouseLeave={() => setHoveredBar(null)}>
+            {(volumeChart || []).map((d, i) => {
+              const isHovered = hoveredBar === i
+              const avg = volumeChart.length ? Math.round(volumeChart.reduce((s, v) => s + v.orders, 0) / volumeChart.length) : 0
+              return (
+                <div className={`hq__bar-col ${isHovered ? 'hq__bar-col--hover' : ''}`} key={i}
+                  onMouseEnter={() => setHoveredBar(i)}>
+                  <div className="hq__bar-stack" style={{ height: `${(d.orders / maxVolume) * 100}%`, opacity: hoveredBar !== null && !isHovered ? 0.4 : 1 }}>
+                    <div className="hq__bar-segment hq__bar-segment--aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
+                    <div className="hq__bar-segment hq__bar-segment--shsp" style={{ height: `${d.orders ? (d.shsp / d.orders) * 100 : 0}%` }} />
+                  </div>
+                  <span className="hq__bar-val" style={{ fontWeight: isHovered ? 800 : 600 }}>{d.orders}</span>
+                  <span className="hq__bar-label">{d.day?.slice(0, 3)}</span>
+                  <span className="hq__bar-date">{fmtDate(d.date)}</span>
+                </div>
+              )
+            })}
+            {/* Average line */}
+            {volumeChart.length > 0 && (() => {
+              const avg = Math.round(volumeChart.reduce((s, v) => s + v.orders, 0) / volumeChart.length)
+              const avgPct = (avg / maxVolume) * 100
+              return (
+                <div className="hq__avg-line" style={{ bottom: `${avgPct}%` }}>
+                  <span className="hq__avg-label">{avg} avg</span>
+                </div>
+              )
+            })()}
           </div>
           <div className="hq__chart-legend">
             <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--shsp" />SHSP</span>
