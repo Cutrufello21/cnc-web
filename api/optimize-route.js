@@ -1,5 +1,5 @@
 // ZIP-code centroid nearest-neighbor route optimizer
-// No external API calls — uses static ZIP→lat/lng lookup + Haversine distance
+// Cold chain stops are prioritized (delivered first) as time-sensitive
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 
@@ -16,14 +16,10 @@ function haversine(lat1, lon1, lat2, lon2) {
 function getCoords(stop) {
   const zip = String(stop.zip || '').trim()
   if (ZIP_COORDS[zip]) return ZIP_COORDS[zip]
-  // Try with leading zeros
   const padded = zip.padStart(5, '0')
   if (ZIP_COORDS[padded]) return ZIP_COORDS[padded]
   return null
 }
-
-// CNC HQ approximate location (used as default start for round trip)
-const CNC_HQ = [41.3995, -81.6954]
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
@@ -37,15 +33,18 @@ export default async function handler(req, res) {
     // Geocode all stops via ZIP centroids
     const coords = stops.map((s, i) => {
       const c = getCoords(s)
-      return { index: i, lat: c ? c[0] : null, lng: c ? c[1] : null }
+      return {
+        index: i,
+        lat: c ? c[0] : null,
+        lng: c ? c[1] : null,
+        coldChain: !!s.coldChain,
+      }
     })
 
-    // Filter out stops without coordinates (keep them at the end)
     const withCoords = coords.filter(c => c.lat !== null)
     const withoutCoords = coords.filter(c => c.lat === null)
 
     if (withCoords.length === 0) {
-      // Can't optimize — return original order
       return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0 })
     }
 
@@ -56,63 +55,83 @@ export default async function handler(req, res) {
       if (startCoord) { startLat = startCoord[0]; startLng = startCoord[1] }
     }
     if (!startLat) {
-      // Default: start from the first stop
       startLat = withCoords[0].lat
       startLng = withCoords[0].lng
     }
 
-    // Nearest-neighbor TSP
-    const visited = new Set()
+    // Split into cold chain (priority) and regular stops
+    const coldStops = withCoords.filter(c => c.coldChain)
+    const regularStops = withCoords.filter(c => !c.coldChain)
+
+    // Nearest-neighbor within each group: cold chain first, then regular
     const order = []
     let totalDistance = 0
     let curLat = startLat
     let curLng = startLng
 
-    // If using startAddress as origin, don't pre-visit any stop
-    // Otherwise first stop is the starting point
-    if (!startAddress) {
-      visited.add(withCoords[0].index)
-      order.push(withCoords[0].index)
+    // Phase 1: Route through all cold chain stops first (time-sensitive)
+    const coldOrder = nearestNeighbor(coldStops, curLat, curLng)
+    for (const { index, lat, lng, dist } of coldOrder) {
+      order.push(index)
+      totalDistance += dist
+      curLat = lat
+      curLng = lng
     }
 
-    while (order.length < withCoords.length) {
-      let bestDist = Infinity
-      let bestIdx = -1
-
-      for (const c of withCoords) {
-        if (visited.has(c.index)) continue
-        const d = haversine(curLat, curLng, c.lat, c.lng)
-        if (d < bestDist) {
-          bestDist = d
-          bestIdx = c.index
-        }
-      }
-
-      if (bestIdx === -1) break
-      visited.add(bestIdx)
-      order.push(bestIdx)
-      totalDistance += bestDist
-      const picked = withCoords.find(c => c.index === bestIdx)
-      curLat = picked.lat
-      curLng = picked.lng
+    // Phase 2: Route through remaining regular stops
+    const regOrder = nearestNeighbor(regularStops, curLat, curLng)
+    for (const { index, lat, lng, dist } of regOrder) {
+      order.push(index)
+      totalDistance += dist
+      curLat = lat
+      curLng = lng
     }
 
-    // Round trip: add return distance to start
+    // Round trip: add return distance
     if (mode === 'roundtrip') {
-      const returnDist = haversine(curLat, curLng, startLat, startLng)
-      totalDistance += returnDist
+      totalDistance += haversine(curLat, curLng, startLat, startLng)
     }
 
-    // Append any stops without coordinates at the end (original order)
+    // Append stops without coordinates at the end
     const optimizedOrder = [...order, ...withoutCoords.map(c => c.index)]
 
     return res.json({
       optimizedOrder,
       totalDistance: Math.round(totalDistance * 10) / 10,
       mode,
+      coldChainFirst: coldStops.length,
     })
   } catch (err) {
     console.error('optimize-route error:', err)
     return res.status(500).json({ error: err.message })
   }
+}
+
+function nearestNeighbor(stops, startLat, startLng) {
+  const visited = new Set()
+  const result = []
+  let curLat = startLat
+  let curLng = startLng
+
+  while (result.length < stops.length) {
+    let bestDist = Infinity
+    let bestStop = null
+
+    for (const s of stops) {
+      if (visited.has(s.index)) continue
+      const d = haversine(curLat, curLng, s.lat, s.lng)
+      if (d < bestDist) {
+        bestDist = d
+        bestStop = s
+      }
+    }
+
+    if (!bestStop) break
+    visited.add(bestStop.index)
+    result.push({ index: bestStop.index, lat: bestStop.lat, lng: bestStop.lng, dist: bestDist })
+    curLat = bestStop.lat
+    curLng = bestStop.lng
+  }
+
+  return result
 }

@@ -92,6 +92,16 @@ function createEndIcon() {
     iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -36],
   })
 }
+function createCompletedIcon(status) {
+  const bg = status === 'failed' ? '#ef4444' : '#9ca3af'
+  const icon = status === 'failed' ? '✕' : '✓'
+  return L.divIcon({
+    className: 'route-map__marker-icon',
+    html: `<div class="route-map__marker-pin route-map__marker-pin--done" style="--pin-bg:${bg};opacity:0.5"><span style="font-size:13px">${icon}</span></div>`,
+    iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -36],
+  })
+}
+
 function createCurrentPosIcon() {
   return L.divIcon({
     className: 'route-map__current-pos',
@@ -184,22 +194,29 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
     }, 1200)
   }
 
-  // Geocode stops
+  const [completedPoints, setCompletedPoints] = useState([])
+
+  // Geocode stops (active + completed)
   useEffect(() => {
-    if (!stops || stops.length < 2) { setPoints([]); return }
+    if (!stops || stops.length < 2) { setPoints([]); setCompletedPoints([]); return }
     let cancelled = false
     const pending = stops.filter(s => s.status !== 'delivered' && s.status !== 'failed')
+    const done = stops.filter(s => s.status === 'delivered' || s.status === 'failed')
+
     async function resolve() {
       setGeocoding(true)
-      const coords = await batchGeocode(pending.map(s => ({
+      // Geocode all in one batch
+      const allStops = [...pending, ...done]
+      const coords = await batchGeocode(allStops.map(s => ({
         address: s.Address || '', city: s.City || '', zip: s.ZIP || '',
       })))
       if (cancelled) return
-      const results = []
+
+      const activeResults = []
       for (let i = 0; i < pending.length; i++) {
         const s = pending[i], c = coords[i]
         if (c) {
-          results.push({
+          activeResults.push({
             lat: c.lat, lng: c.lng, label: i + 1,
             name: s.Name || s['Name'] || '',
             address: s.Address || '', city: s.City || '', zip: s.ZIP || '',
@@ -208,7 +225,25 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
           })
         }
       }
-      if (!cancelled) { setPoints(results); setGeocoding(false) }
+
+      const doneResults = []
+      for (let i = 0; i < done.length; i++) {
+        const s = done[i], c = coords[pending.length + i]
+        if (c) {
+          doneResults.push({
+            lat: c.lat, lng: c.lng,
+            name: s.Name || s['Name'] || '',
+            address: s.Address || '', city: s.City || '', zip: s.ZIP || '',
+            status: s.status,
+          })
+        }
+      }
+
+      if (!cancelled) {
+        setPoints(activeResults)
+        setCompletedPoints(doneResults)
+        setGeocoding(false)
+      }
     }
     resolve()
     return () => { cancelled = true }
@@ -537,6 +572,19 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
           <Popup><div className="route-map__popup"><strong>End Point</strong><div className="route-map__popup-addr">{endPoint.display || endInput}</div></div></Popup>
         </Marker>
       )}
+
+      {/* Completed stops — greyed out */}
+      {completedPoints.map((p, i) => (
+        <Marker key={`done-${i}`} position={[p.lat, p.lng]} icon={createCompletedIcon(p.status)}>
+          <Popup>
+            <div className="route-map__popup">
+              <strong>{p.status === 'failed' ? 'Failed' : 'Delivered'}</strong>
+              <div>{p.name}</div>
+              <div className="route-map__popup-addr">{p.address}</div>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
 
       {currentPos && (
         <Marker position={[currentPos.lat, currentPos.lng]} icon={createCurrentPosIcon()}>
