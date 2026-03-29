@@ -9,57 +9,35 @@
   justify-content: center;
 }
 
-.barcode-scanner__video {
+.barcode-scanner__overlay {
+  position: relative;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-}
-
-.barcode-scanner__overlay {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
 }
 
-.barcode-scanner__viewfinder {
-  width: 280px;
-  height: 160px;
-  border: 2px solid rgba(255, 255, 255, 0.7);
-  border-radius: 16px;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
-  position: relative;
+.barcode-scanner__reader {
+  width: 100%;
+  max-width: 500px;
 }
 
-.barcode-scanner__viewfinder::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: #6495ED;
-  animation: scanLine 2s ease-in-out infinite;
-}
-
-@keyframes scanLine {
-  0%, 100% { transform: translateY(-30px); opacity: 0.5; }
-  50% { transform: translateY(30px); opacity: 1; }
+/* Override html5-qrcode inline styles */
+.barcode-scanner__reader video {
+  border-radius: 12px !important;
 }
 
 .barcode-scanner__hint {
   color: rgba(255, 255, 255, 0.8);
   font-size: 14px;
-  margin-top: 20px;
+  margin-bottom: 16px;
   font-weight: 500;
   text-align: center;
 }
 
 .barcode-scanner__cancel {
-  pointer-events: auto;
   position: absolute;
   bottom: max(env(safe-area-inset-bottom, 20px), 30px);
   left: 50%;
@@ -75,6 +53,7 @@
   border-radius: 14px;
   cursor: pointer;
   transition: background 0.2s;
+  z-index: 10;
 }
 
 .barcode-scanner__cancel:hover {
@@ -87,13 +66,4 @@
   text-align: center;
   padding: 20px;
   max-width: 300px;
-}
-
-.barcode-scanner__unsupported {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 15px;
-  text-align: center;
-  padding: 20px 30px;
-  max-width: 320px;
-  line-height: 1.5;
 }

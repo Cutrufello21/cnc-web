@@ -1,86 +1,52 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 import './BarcodeScanner.css'
 
-/**
- * Full-screen barcode scanner overlay.
- * Uses the BarcodeDetector API (Chrome/Edge) with a live camera stream.
- * Falls back to a "not supported" message on browsers without BarcodeDetector.
- *
- * Props:
- *   onScan(value: string)  — called with the decoded barcode string
- *   onClose()              — called when the user cancels
- */
 export default function BarcodeScanner({ onScan, onClose }) {
-  const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const scanningRef = useRef(true)
+  const scannerRef = useRef(null)
+  const containerRef = useRef(null)
   const [error, setError] = useState(null)
-  const [supported, setSupported] = useState(true)
 
   const cleanup = useCallback(() => {
-    scanningRef.current = false
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {})
+      scannerRef.current.clear().catch(() => {})
+      scannerRef.current = null
     }
   }, [])
 
   useEffect(() => {
-    // Check BarcodeDetector support
-    if (!('BarcodeDetector' in window)) {
-      setSupported(false)
-      return
-    }
-
-    let detector
-    let animFrame
+    const containerId = 'barcode-reader'
 
     async function start() {
       try {
-        detector = new window.BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'data_matrix'],
-        })
+        const scanner = new Html5Qrcode(containerId)
+        scannerRef.current = scanner
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-        })
-        streamRef.current = stream
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play()
-        }
-
-        // Scan loop
-        async function scan() {
-          if (!scanningRef.current || !videoRef.current) return
-          try {
-            const barcodes = await detector.detect(videoRef.current)
-            if (barcodes.length > 0 && scanningRef.current) {
-              scanningRef.current = false
-              cleanup()
-              onScan(barcodes[0].rawValue)
-              return
-            }
-          } catch {
-            // frame not ready yet, ignore
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 280, height: 150 },
+            aspectRatio: 1.777,
+          },
+          (decodedText) => {
+            // Success
+            cleanup()
+            onScan(decodedText)
+          },
+          () => {
+            // Scan failure — ignore, keep scanning
           }
-          animFrame = requestAnimationFrame(scan)
-        }
-
-        scan()
+        )
       } catch (err) {
-        setError(err.message || 'Could not access camera')
+        setError(err?.message || err || 'Could not access camera')
       }
     }
 
     start()
 
-    return () => {
-      scanningRef.current = false
-      if (animFrame) cancelAnimationFrame(animFrame)
-      cleanup()
-    }
+    return () => { cleanup() }
   }, [cleanup, onScan])
 
   function handleCancel() {
@@ -88,33 +54,15 @@ export default function BarcodeScanner({ onScan, onClose }) {
     onClose()
   }
 
-  if (!supported) {
-    return (
-      <div className="barcode-scanner">
-        <div className="barcode-scanner__overlay">
-          <p className="barcode-scanner__unsupported">
-            Barcode scanning is not supported on this browser. Use Chrome or Edge on Android, or update to the latest browser version.
-          </p>
-          <button className="barcode-scanner__cancel" onClick={handleCancel}>
-            Close
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="barcode-scanner">
-      <video ref={videoRef} className="barcode-scanner__video" playsInline muted />
       <div className="barcode-scanner__overlay">
         {error ? (
           <p className="barcode-scanner__error">{error}</p>
         ) : (
-          <>
-            <div className="barcode-scanner__viewfinder" />
-            <p className="barcode-scanner__hint">Point camera at a barcode</p>
-          </>
+          <p className="barcode-scanner__hint">Point camera at a barcode</p>
         )}
+        <div id="barcode-reader" ref={containerRef} className="barcode-scanner__reader" />
         <button className="barcode-scanner__cancel" onClick={handleCancel}>
           Cancel
         </button>

@@ -17,6 +17,7 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "framer-motion": "^12.38.0",
+    "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "nodemailer": "^8.0.3",
     "react": "^19.2.4",
