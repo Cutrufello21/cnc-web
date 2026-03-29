@@ -342,19 +342,22 @@
   position: absolute;
   left: 0;
   right: 0;
-  border-top: 2px dashed var(--gray-300);
+  border-top: 2px dashed rgba(239, 68, 68, 0.4);
   pointer-events: none;
   z-index: 1;
 }
 
 .hq__avg-label {
   position: absolute;
-  right: 0;
+  left: 4px;
   top: -16px;
   font-size: 10px;
-  font-weight: 600;
-  color: var(--gray-400);
+  font-weight: 700;
+  color: #ef4444;
   white-space: nowrap;
+  background: var(--white);
+  padding: 0 4px;
+  border-radius: 3px;
 }
 
 .hq__bar-segment {
@@ -362,11 +365,11 @@
 }
 
 .hq__bar-segment--shsp {
-  background: var(--cornflower);
+  background: #3b82f6;
 }
 
 .hq__bar-segment--aultman {
-  background: #4ADE80;
+  background: #22c55e;
 }
 
 .hq__bar-val {
@@ -409,11 +412,11 @@
 }
 
 .hq__legend-dot--shsp {
-  background: var(--cornflower);
+  background: #3b82f6;
 }
 
 .hq__legend-dot--aultman {
-  background: #4ADE80;
+  background: #22c55e;
 }
 
 /* Leaderboard */
