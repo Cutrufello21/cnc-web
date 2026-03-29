@@ -331,7 +331,7 @@ export default function DriverPage() {
 
   // Auto-optimize when Route tab opens
   useEffect(() => {
-    if (activeTab === 'route' && !optimizeMode && !optimizing && data?.stops?.length >= 2) {
+    if (activeTab === 'map' && !optimizeMode && !optimizing && data?.stops?.length >= 2) {
       const undelivered = data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed')
       if (undelivered.length >= 2) handleOptimize('oneway')
     }
@@ -514,10 +514,10 @@ export default function DriverPage() {
                 Stops ({data.stopCount || 0})
               </button>
               <button
-                className={`driver__tab ${activeTab === 'route' ? 'driver__tab--active' : ''}`}
-                onClick={() => setActiveTab('route')}
+                className={`driver__tab ${activeTab === 'map' ? 'driver__tab--active' : ''}`}
+                onClick={() => setActiveTab('map')}
               >
-                Route
+                Map
               </button>
               <button
                 className={`driver__tab ${activeTab === 'week' ? 'driver__tab--active' : ''}`}
@@ -674,7 +674,7 @@ export default function DriverPage() {
               </div>
             )}
 
-            {activeTab === 'route' && (
+            {activeTab === 'map' && (
               <div className="driver__stops">
                 {data.stops?.length >= 2 ? (
                   <>
