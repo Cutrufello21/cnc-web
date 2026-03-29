@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import { supabase } from '../../lib/supabase'
 import './StopCard.css'
 
 export default function StopCard({ stop, index, total, isSelected, onToggleSelect, onExportDrag, deliveryDate, driverName }) {
@@ -33,24 +32,25 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     if (!file || uploading) return
     setUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${deliveryDate}/${orderId}_${Date.now()}.${ext}`
-      const { error: uploadErr } = await supabase.storage
-        .from('delivery-photos')
-        .upload(path, file, { contentType: file.type })
-      if (uploadErr) throw new Error(uploadErr.message)
+      // Upload via API to bypass RLS (API uses service role key)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('deliveryDate', deliveryDate)
+      formData.append('orderId', orderId)
 
-      const { data: urlData } = supabase.storage
-        .from('delivery-photos')
-        .getPublicUrl(path)
-      const photoUrl = urlData?.publicUrl || null
-      if (photoUrl) setPhotos(prev => [...prev, photoUrl])
+      const res = await fetch('/api/upload-photo', {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+
+      if (result.url) setPhotos(prev => [...prev, result.url])
     } catch (err) {
       console.error('Photo upload error:', err)
       alert('Failed to upload photo: ' + err.message)
     } finally {
       setUploading(false)
-      // Reset file input so same file can be re-selected
       if (fileRef.current) fileRef.current.value = ''
     }
   }
