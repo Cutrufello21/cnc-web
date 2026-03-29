@@ -301,7 +301,16 @@ export default function DriverPage() {
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stops: stopsPayload, mode, pharmacy: data.pharmacy }),
+        body: JSON.stringify({
+          stops: stopsPayload, mode, pharmacy: data.pharmacy,
+          ...(() => {
+            try {
+              const saved = localStorage.getItem('cnc_route_end')
+              if (saved) { const ep = JSON.parse(saved); return { endLat: ep.lat, endLng: ep.lng } }
+            } catch {}
+            return {}
+          })(),
+        }),
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
