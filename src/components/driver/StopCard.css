@@ -280,6 +280,19 @@
   cursor: not-allowed;
 }
 
+.stop__btn--scan {
+  background: #ede9fe;
+  color: #7c3aed;
+  font-weight: 600;
+  padding: 12px 14px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.stop__btn--scan:hover {
+  background: #ddd6fe;
+}
+
 .stop__btn--deliver {
   background: #16a34a;
   color: #fff;
@@ -336,9 +349,49 @@
   border-color: #16a34a40;
 }
 
+/* Queued (offline) state */
+.stop--queued {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+[data-theme="dark"] .stop--queued {
+  background: #1c1308;
+  border-color: #ea580c40;
+}
+
+.stop__number--queued {
+  background: #ea580c;
+  animation: checkBounce 0.4s ease-out;
+}
+
 .stop__badge--delivered {
   background: #dcfce7;
   color: #16a34a;
+}
+
+.stop__badge--queued {
+  background: #ffedd5;
+  color: #ea580c;
+  animation: queuedPulse 2s ease-in-out infinite;
+}
+
+@keyframes queuedPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.stop__badge--barcode {
+  background: #ede9fe;
+  color: #7c3aed;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.stop__delivered-label--queued {
+  background: #ffedd5;
+  color: #ea580c;
 }
 
 .stop__delivered-row {

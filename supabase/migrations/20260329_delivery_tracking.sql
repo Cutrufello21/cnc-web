@@ -5,6 +5,7 @@ ALTER TABLE daily_stops ADD COLUMN IF NOT EXISTS status text DEFAULT 'dispatched
 ALTER TABLE daily_stops ADD COLUMN IF NOT EXISTS photo_url text;
 ALTER TABLE daily_stops ADD COLUMN IF NOT EXISTS photo_urls jsonb;
 ALTER TABLE daily_stops ADD COLUMN IF NOT EXISTS delivered_at timestamptz;
+ALTER TABLE daily_stops ADD COLUMN IF NOT EXISTS barcode text;
 
 -- Index for querying by status (pharmacy dashboard will filter on this)
 CREATE INDEX IF NOT EXISTS idx_daily_stops_status ON daily_stops (delivery_date, status);

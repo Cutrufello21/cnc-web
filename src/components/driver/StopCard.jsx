@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { isOnline, queueDelivery, queuePhoto, processQueue } from '../../lib/offlineQueue'
+import BarcodeScanner from './BarcodeScanner'
 import './StopCard.css'
 
 const UNDO_WINDOW_MS = 120_000 // 2 minutes
@@ -10,6 +12,9 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const [delivered, setDelivered] = useState(stop.status === 'delivered')
   const [deliveredAt, setDeliveredAt] = useState(stop.delivered_at || null)
   const [canUndo, setCanUndo] = useState(false)
+  const [queued, setQueued] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannedBarcode, setScannedBarcode] = useState(stop.barcode || null)
   const [photos, setPhotos] = useState(() => {
     if (stop.photo_urls && Array.isArray(stop.photo_urls)) return stop.photo_urls
     if (stop.photo_url) return [stop.photo_url]
@@ -42,19 +47,51 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   // Cleanup undo timer
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
 
+  // Process offline queue when coming back online
+  useEffect(() => {
+    function handleOnline() {
+      processQueue().then((stats) => {
+        if (stats.delivered > 0) {
+          setQueued(false)
+          onDeliveryChange?.()
+        }
+      }).catch(() => {})
+    }
+    window.addEventListener('online', handleOnline)
+    // Also listen for service worker messages
+    function handleSWMessage(e) {
+      if (e.data?.type === 'PROCESS_OFFLINE_QUEUE') {
+        handleOnline()
+      }
+    }
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      navigator.serviceWorker?.removeEventListener('message', handleSWMessage)
+    }
+  }, [onDeliveryChange])
+
   async function handleAddPhoto(e) {
     const file = e.target.files?.[0]
     if (!file || uploading) return
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('deliveryDate', deliveryDate)
-      formData.append('orderId', orderId)
-      const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      if (result.url) setPhotos(prev => [...prev, result.url])
+      if (!isOnline()) {
+        // Offline: queue photo in IndexedDB and show local preview
+        await queuePhoto(file, deliveryDate, orderId)
+        const localUrl = URL.createObjectURL(file)
+        setPhotos(prev => [...prev, localUrl])
+        setQueued(true)
+      } else {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('deliveryDate', deliveryDate)
+        formData.append('orderId', orderId)
+        const res = await fetch('/api/upload-photo', { method: 'POST', body: formData })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error)
+        if (result.url) setPhotos(prev => [...prev, result.url])
+      }
     } catch (err) {
       console.error('Photo upload error:', err)
       alert('Failed to upload photo: ' + err.message)
@@ -68,19 +105,28 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     if (delivering || delivered) return
     setDelivering(true)
     try {
-      const res = await fetch('/api/deliver', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, deliveryDate, driverName, photoUrls: photos }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      setDelivered(true)
-      setDeliveredAt(new Date().toISOString())
-      setCanUndo(true)
-      onDeliveryChange?.()
-      // Start undo window
-      undoTimer.current = setTimeout(() => setCanUndo(false), UNDO_WINDOW_MS)
+      if (!isOnline()) {
+        // Offline: queue delivery in IndexedDB
+        await queueDelivery({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined })
+        setDelivered(true)
+        setDeliveredAt(new Date().toISOString())
+        setQueued(true)
+        onDeliveryChange?.()
+      } else {
+        const res = await fetch('/api/deliver', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined }),
+        })
+        const result = await res.json()
+        if (!res.ok) throw new Error(result.error)
+        setDelivered(true)
+        setDeliveredAt(new Date().toISOString())
+        setCanUndo(true)
+        onDeliveryChange?.()
+        // Start undo window
+        undoTimer.current = setTimeout(() => setCanUndo(false), UNDO_WINDOW_MS)
+      }
     } catch (err) {
       console.error('Delivery error:', err)
       alert('Failed to mark as delivered: ' + err.message)
@@ -111,6 +157,11 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
 
   function handleRemovePhoto(idx) {
     setPhotos(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function handleBarcodeScan(value) {
+    setScannedBarcode(value)
+    setScannerOpen(false)
   }
 
   // Swipe-to-deliver handlers
@@ -151,7 +202,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     <>
       <div
         ref={cardRef}
-        className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSigRequired ? 'stop--sig' : ''} ${isSelected ? 'stop--selected' : ''} ${delivered ? 'stop--delivered' : ''} ${swiping ? 'stop--swiping' : ''}`}
+        className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSigRequired ? 'stop--sig' : ''} ${isSelected ? 'stop--selected' : ''} ${delivered ? (queued ? 'stop--queued' : 'stop--delivered') : ''} ${swiping ? 'stop--swiping' : ''}`}
         draggable={isSelected}
         onDragStart={onExportDrag}
         onTouchStart={onTouchStart}
@@ -178,11 +229,18 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
               onClick={(e) => e.stopPropagation()}
             />
           ) : null}
-          <div className={`stop__number ${delivered ? 'stop__number--done' : ''}`}>
+          <div className={`stop__number ${delivered ? (queued ? 'stop__number--queued' : 'stop__number--done') : ''}`}>
             {delivered ? (
-              <svg className="stop__check-anim" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+              queued ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+              ) : (
+                <svg className="stop__check-anim" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              )
             ) : (
               <>
                 <span>{index}</span>
@@ -197,7 +255,9 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
               {isColdChain && <span className="stop__badge stop__badge--cold">Cold Chain</span>}
               {isSigRequired && <span className="stop__badge stop__badge--sig">Sig Required</span>}
               {pharmacy && !delivered && <span className="stop__badge stop__badge--pharma">{pharmacy}</span>}
-              {delivered && <span className="stop__badge stop__badge--delivered">Delivered</span>}
+              {delivered && !queued && <span className="stop__badge stop__badge--delivered">Delivered</span>}
+              {delivered && queued && <span className="stop__badge stop__badge--queued">Queued</span>}
+              {scannedBarcode && <span className="stop__badge stop__badge--barcode" title={scannedBarcode}>{scannedBarcode.length > 12 ? scannedBarcode.slice(0, 12) + '...' : scannedBarcode}</span>}
             </div>
             <p className={`stop__address ${delivered ? 'stop__address--done' : ''}`}>{fullAddress || 'No address'}</p>
             {orderId && <p className="stop__order">Order #{orderId}</p>}
@@ -265,6 +325,19 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                     {uploading ? 'Uploading...' : photos.length > 0 ? `Photo (${photos.length})` : 'Add Photo'}
                   </button>
                   <button
+                    className="stop__btn stop__btn--scan"
+                    onClick={() => setScannerOpen(true)}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+                      <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                      <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                      <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                      <line x1="7" y1="12" x2="17" y2="12"/>
+                    </svg>
+                    {scannedBarcode ? 'Rescan' : 'Scan'}
+                  </button>
+                  <button
                     className="stop__btn stop__btn--deliver"
                     onClick={handleConfirmDelivery}
                     disabled={delivering}
@@ -277,11 +350,18 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                 </>
               ) : (
                 <div className="stop__delivered-row">
-                  <span className="stop__delivered-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    Delivered{photos.length > 0 ? ` (${photos.length})` : ''}
+                  <span className={`stop__delivered-label ${queued ? 'stop__delivered-label--queued' : ''}`}>
+                    {queued ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    )}
+                    {queued ? 'Queued' : 'Delivered'}{photos.length > 0 ? ` (${photos.length})` : ''}
                   </span>
                   {canUndo && (
                     <button className="stop__btn stop__btn--undo" onClick={handleUndo}>Undo</button>
@@ -299,6 +379,14 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
           <img src={lightboxUrl} alt="Delivery photo" className="stop__lightbox-img" />
           <button className="stop__lightbox-close">&times;</button>
         </div>
+      )}
+
+      {/* Barcode Scanner */}
+      {scannerOpen && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setScannerOpen(false)}
+        />
       )}
     </>
   )

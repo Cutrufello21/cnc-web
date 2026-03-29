@@ -2,11 +2,16 @@
   "name": "CNC Delivery",
   "short_name": "CNC",
   "description": "Medication delivered with care — Northeast Ohio's pharmacy delivery platform",
-  "start_url": "/",
+  "start_url": "/driver",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#f8f9fb",
   "theme_color": "#0A2463",
   "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -15,7 +20,8 @@
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

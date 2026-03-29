@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId, deliveryDate, driverName, photoUrls, photoUrl, undo } = body
+    const { orderId, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo } = body
 
     if (!orderId || !deliveryDate || !driverName) {
       return res.status(400).json({ error: 'orderId, deliveryDate, and driverName are required' })
@@ -35,14 +35,17 @@ export default async function handler(req, res) {
     const now = new Date().toISOString()
     const urls = photoUrls || (photoUrl ? [photoUrl] : [])
 
+    const updatePayload = {
+      status: 'delivered',
+      photo_url: urls[0] || null,
+      photo_urls: urls.length > 0 ? urls : null,
+      delivered_at: now,
+    }
+    if (barcode) updatePayload.barcode = barcode
+
     const { data, error } = await supabase
       .from('daily_stops')
-      .update({
-        status: 'delivered',
-        photo_url: urls[0] || null,
-        photo_urls: urls.length > 0 ? urls : null,
-        delivered_at: now,
-      })
+      .update(updatePayload)
       .eq('order_id', orderId)
       .eq('delivery_date', deliveryDate)
       .select()
