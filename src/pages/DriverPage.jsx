@@ -35,6 +35,48 @@ export default function DriverPage() {
     if (user?.email) fetchDriverData()
   }, [user?.email])
 
+  // Realtime: auto-refresh when stops change for this driver
+  useEffect(() => {
+    if (!data?.driverName || !data?.deliveryDate) return
+    const channel = supabase
+      .channel('driver-stops-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'daily_stops',
+          filter: `driver_name=eq.${data.driverName}`,
+        },
+        () => {
+          // A stop was added, updated, or removed for this driver — refresh
+          setOptimizedStops(null)
+          setOptimizeMode(null)
+          fetchDriverData()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'daily_stops',
+          filter: `delivery_date=eq.${data.deliveryDate}`,
+        },
+        (payload) => {
+          // Also catch stops transferred AWAY from this driver
+          if (payload.old?.driver_name === data.driverName && payload.new?.driver_name !== data.driverName) {
+            setOptimizedStops(null)
+            setOptimizeMode(null)
+            fetchDriverData()
+          }
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [data?.driverName, data?.deliveryDate])
+
   // Cache driver info so refresh doesn't re-lookup
   const driverCache = useRef(null)
 
