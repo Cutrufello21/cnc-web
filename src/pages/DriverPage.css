@@ -269,3 +269,133 @@
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
+
+/* Add manual stop */
+.driver__add-stop {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.driver__add-stop-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.driver__add-stop-header:hover {
+  background: #eff6ff;
+}
+
+.driver__add-stop-form {
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.driver__add-stop-form input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--gray-800);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.driver__add-stop-form input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.driver__add-stop-form input::placeholder {
+  color: var(--gray-400);
+}
+
+.driver__add-stop-row {
+  display: flex;
+  gap: 8px;
+}
+
+.driver__add-stop-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.driver__add-stop-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.driver__add-stop-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.driver__manual-stops-list {
+  border-top: 1px solid var(--gray-100);
+  padding: 8px 14px;
+}
+
+.driver__manual-stop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--gray-600);
+  border-bottom: 1px solid var(--gray-50);
+}
+
+.driver__manual-stop:last-child {
+  border-bottom: none;
+}
+
+.driver__manual-stop button {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.driver__manual-stop button:hover {
+  color: #991b1b;
+}
+
+[data-theme="dark"] .driver__add-stop {
+  background: var(--gray-900);
+  border-color: var(--gray-700);
+}
+
+[data-theme="dark"] .driver__add-stop-header:hover {
+  background: var(--gray-800);
+}
+
+[data-theme="dark"] .driver__add-stop-form input {
+  background: var(--gray-800);
+  border-color: var(--gray-600);
+  color: var(--gray-200);
+}

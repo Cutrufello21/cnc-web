@@ -30,6 +30,8 @@ export default function DriverPage() {
   const [optimizedStops, setOptimizedStops] = useState(null)
   const [optimizeMode, setOptimizeMode] = useState(null) // 'oneway' | 'roundtrip'
   const [optimizing, setOptimizing] = useState(false)
+  const [manualStops, setManualStops] = useState([])
+  const [manualForm, setManualForm] = useState({ name: '', address: '', city: '', zip: '' })
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -691,13 +693,73 @@ export default function DriverPage() {
                         </div>
                       </div>
                     )}
+                    {/* Add manual stop */}
+                    <div className="driver__add-stop">
+                      <div className="driver__add-stop-header" onClick={() => {
+                        const el = document.querySelector('.driver__add-stop-form')
+                        if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none'
+                      }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>Add Stop</span>
+                      </div>
+                      <div className="driver__add-stop-form" style={{ display: 'none' }}>
+                        <input placeholder="Name" value={manualForm.name} onChange={e => setManualForm(f => ({ ...f, name: e.target.value }))} />
+                        <input placeholder="Address" value={manualForm.address} onChange={e => setManualForm(f => ({ ...f, address: e.target.value }))} />
+                        <div className="driver__add-stop-row">
+                          <input placeholder="City" value={manualForm.city} onChange={e => setManualForm(f => ({ ...f, city: e.target.value }))} />
+                          <input placeholder="ZIP" value={manualForm.zip} onChange={e => setManualForm(f => ({ ...f, zip: e.target.value }))} style={{ width: 80 }} />
+                        </div>
+                        <button
+                          className="driver__add-stop-btn"
+                          disabled={!manualForm.address.trim()}
+                          onClick={() => {
+                            const newStop = {
+                              _id: `manual-${Date.now()}`,
+                              _manual: true,
+                              Name: manualForm.name || 'Manual Stop',
+                              Address: manualForm.address,
+                              City: manualForm.city,
+                              ZIP: manualForm.zip,
+                              _coldChain: false,
+                              _sigRequired: false,
+                              _packageCount: 1,
+                              _consolidatedOrders: [{ orderId: `manual-${Date.now()}`, name: manualForm.name, status: 'dispatched' }],
+                              status: 'dispatched',
+                            }
+                            setManualStops(prev => [...prev, newStop])
+                            setManualForm({ name: '', address: '', city: '', zip: '' })
+                            // Reset optimization since stops changed
+                            setOptimizedStops(null)
+                            setOptimizeMode(null)
+                          }}
+                        >
+                          Add to Route
+                        </button>
+                      </div>
+                      {manualStops.length > 0 && (
+                        <div className="driver__manual-stops-list">
+                          {manualStops.map((s, i) => (
+                            <div key={s._id} className="driver__manual-stop">
+                              <span>{s.Name} — {s.Address}, {s.City} {s.ZIP}</span>
+                              <button onClick={() => {
+                                setManualStops(prev => prev.filter((_, j) => j !== i))
+                                setOptimizedStops(null)
+                                setOptimizeMode(null)
+                              }}>×</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <RouteMap
-                      stops={optimizedStops || data.stops}
+                      stops={[...(optimizedStops || data.stops), ...manualStops]}
                       mode={optimizeMode || 'oneway'}
                       pharmacy={data.pharmacy}
                       onReorder={(newStops) => {
                         const done = (optimizedStops || data.stops).filter(s => s.status === 'delivered' || s.status === 'failed')
-                        setOptimizedStops([...newStops, ...done])
+                        setOptimizedStops([...newStops.filter(s => !s._manual), ...done])
+                        setManualStops(newStops.filter(s => s._manual))
                         if (!optimizeMode) setOptimizeMode('oneway')
                       }}
                     />
