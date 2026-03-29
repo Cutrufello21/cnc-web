@@ -125,6 +125,11 @@ export default function DispatchPage() {
           Address: s.address, City: s.city, ZIP: s.zip,
           Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
           _coldChain: s.cold_chain, Notes: s.notes || '',
+          status: s.status || 'dispatched',
+          delivered_at: s.delivered_at || null,
+          photo_url: s.photo_url || null,
+          photo_urls: s.photo_urls || null,
+          barcode: s.barcode || null,
         })
       })
 
