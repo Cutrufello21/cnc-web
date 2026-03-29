@@ -28,13 +28,17 @@ export default function HQDashboard() {
 
   async function loadData() {
     try {
-      const [logsRes, weeklyRes, driversRes, timeOffRes] = await Promise.all([
+      const [logsRes, weeklyRes, driversRes, timeOffRes, decisionsRes] = await Promise.all([
         supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
         supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
         supabase.from('drivers').select('*').eq('active', true),
         supabase.from('time_off_requests').select('driver_name, date_off, status')
           .in('status', ['approved', 'pending'])
           .gte('date_off', new Date().toISOString().split('T')[0]),
+        supabase.from('dispatch_decisions').select('decision_type, delivery_date, from_driver, to_driver, zip, created_at')
+          .in('decision_type', ['manual_move', 'optimize_accepted', 'optimize_rejected', 'snapshot_diff'])
+          .order('created_at', { ascending: false })
+          .limit(500),
       ])
 
       const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
@@ -118,6 +122,36 @@ export default function HQDashboard() {
 
       const allTimeOrders = logData.reduce((s, r) => s + (r.orders_processed || 0), 0)
 
+      // Optimization stats
+      const decisions = decisionsRes.data || []
+      const manualMoves = decisions.filter(d => d.decision_type === 'manual_move')
+      const optimizeAccepted = decisions.filter(d => d.decision_type === 'optimize_accepted')
+      const optimizeRejected = decisions.filter(d => d.decision_type === 'optimize_rejected')
+      const snapshotDiffs = decisions.filter(d => d.decision_type === 'snapshot_diff')
+
+      // Unique dates with any activity
+      const activeDates = new Set(decisions.map(d => d.delivery_date).filter(Boolean))
+
+      // Top moved ZIPs
+      const zipMoves = {}
+      manualMoves.forEach(d => { if (d.zip) zipMoves[d.zip] = (zipMoves[d.zip] || 0) + 1 })
+      const topMovedZips = Object.entries(zipMoves).sort((a, b) => b[1] - a[1]).slice(0, 5)
+
+      // This week's moves
+      const thisWeekMoves = manualMoves.filter(d => d.delivery_date >= mondayStr)
+      const thisWeekOptimize = optimizeAccepted.filter(d => d.delivery_date >= mondayStr)
+
+      const optimizationStats = {
+        totalMoves: manualMoves.length,
+        totalOptimizeAccepted: optimizeAccepted.length,
+        totalOptimizeRejected: optimizeRejected.length,
+        totalDiffs: snapshotDiffs.length,
+        activeDates: activeDates.size,
+        topMovedZips,
+        thisWeekMoves: thisWeekMoves.length,
+        thisWeekOptimize: thisWeekOptimize.length,
+      }
+
       setData({
         todayLog, lastLog, isToday, isYesterday, lastDispatchDate,
         kpis: {
@@ -127,7 +161,7 @@ export default function HQDashboard() {
           activeDrivers: activeThisWeek, totalDrivers: (driversRes.data || []).length,
           allTimeOrders, totalDispatches: logData.length,
         },
-        leaderboard, recentLogs, volumeChart, timeOffByDate,
+        leaderboard, recentLogs, volumeChart, timeOffByDate, optimizationStats,
       })
     } catch (err) {
       console.error('HQ error:', err)
@@ -138,7 +172,7 @@ export default function HQDashboard() {
   if (loading) return <div className="hq__loading"><div className="dispatch__spinner" />Loading HQ data...</div>
   if (!data) return <div className="hq__loading">Failed to load dashboard</div>
 
-  const { kpis, leaderboard, recentLogs, volumeChart, todayLog, lastLog, isToday, isYesterday, lastDispatchDate, timeOffByDate } = data
+  const { kpis, leaderboard, recentLogs, volumeChart, todayLog, lastLog, isToday, isYesterday, lastDispatchDate, timeOffByDate, optimizationStats } = data
   const maxVolume = Math.max(...(volumeChart?.map(d => d.orders) || [1]))
   const maxLeaderboard = leaderboard?.[0]?.weekTotal || 1
 
@@ -282,6 +316,58 @@ export default function HQDashboard() {
             ))}
           </div>
         </div>
+
+        {/* Route Optimization */}
+        {optimizationStats && (optimizationStats.totalMoves > 0 || optimizationStats.totalOptimizeAccepted > 0) && (
+          <div className="hq__card">
+            <h3 className="hq__card-title">Route Optimization</h3>
+            <div className="hq__opt-stats">
+              <div className="hq__opt-row">
+                <span className="hq__opt-label">Manual Moves</span>
+                <span className="hq__opt-value">{optimizationStats.totalMoves}</span>
+              </div>
+              <div className="hq__opt-row">
+                <span className="hq__opt-label">AI Optimizations</span>
+                <span className="hq__opt-value hq__opt-value--accent">{optimizationStats.totalOptimizeAccepted}</span>
+              </div>
+              {optimizationStats.totalOptimizeRejected > 0 && (
+                <div className="hq__opt-row">
+                  <span className="hq__opt-label">Rejected</span>
+                  <span className="hq__opt-value hq__opt-value--muted">{optimizationStats.totalOptimizeRejected}</span>
+                </div>
+              )}
+              <div className="hq__opt-row">
+                <span className="hq__opt-label">Days with Changes</span>
+                <span className="hq__opt-value">{optimizationStats.activeDates}</span>
+              </div>
+              <div className="hq__opt-divider" />
+              <div className="hq__opt-row">
+                <span className="hq__opt-label">This Week — Moves</span>
+                <span className="hq__opt-value">{optimizationStats.thisWeekMoves}</span>
+              </div>
+              <div className="hq__opt-row">
+                <span className="hq__opt-label">This Week — AI</span>
+                <span className="hq__opt-value hq__opt-value--accent">{optimizationStats.thisWeekOptimize}</span>
+              </div>
+            </div>
+            {optimizationStats.topMovedZips.length > 0 && (
+              <>
+                <h4 className="hq__opt-subtitle">Most Moved ZIPs</h4>
+                <div className="hq__opt-zips">
+                  {optimizationStats.topMovedZips.map(([zip, count]) => (
+                    <div key={zip} className="hq__opt-zip">
+                      <span className="hq__opt-zip-code">{zip}</span>
+                      <div className="hq__opt-zip-bar-wrap">
+                        <div className="hq__opt-zip-bar" style={{ width: `${(count / optimizationStats.topMovedZips[0][1]) * 100}%` }} />
+                      </div>
+                      <span className="hq__opt-zip-count">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Recent Deliveries — Interactive */}
         <div className="hq__card hq__card--wide">
