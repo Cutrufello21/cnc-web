@@ -130,8 +130,8 @@ function FitBounds({ points }) {
   return null
 }
 
-export default function RouteMap({ stops, mode, onReorder, pharmacy }) {
-  const [collapsed, setCollapsed] = useState(false)
+export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen = true }) {
+  const [collapsed, setCollapsed] = useState(!defaultOpen)
   const [routeCoords, setRouteCoords] = useState(null)
   const [routeStats, setRouteStats] = useState(null)
   const [routeError, setRouteError] = useState(false)

@@ -496,6 +496,12 @@ export default function DriverPage() {
                 Stops ({data.stopCount || 0})
               </button>
               <button
+                className={`driver__tab ${activeTab === 'route' ? 'driver__tab--active' : ''}`}
+                onClick={() => setActiveTab('route')}
+              >
+                Route
+              </button>
+              <button
                 className={`driver__tab ${activeTab === 'week' ? 'driver__tab--active' : ''}`}
                 onClick={() => setActiveTab('week')}
               >
@@ -562,39 +568,7 @@ export default function DriverPage() {
                         <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
                         <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
                       </div>
-                      {data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed').length >= 2 && (
-                        <div className="driver__optimize">
-                          {!optimizeMode ? (
-                            <>
-                              <button className="driver__optimize-btn" onClick={() => handleOptimize('oneway')} disabled={optimizing}>
-                                {optimizing ? 'Optimizing...' : 'Optimize One-Way'}
-                              </button>
-                              <button className="driver__optimize-btn" onClick={() => handleOptimize('roundtrip')} disabled={optimizing}>
-                                {optimizing ? '...' : 'Optimize Round Trip'}
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="driver__optimize-badge">
-                                Route optimized — {optimizeMode === 'oneway' ? 'one-way' : 'round trip'}
-                              </span>
-                              <button className="driver__optimize-reset" onClick={handleResetOrder}>Reset Order</button>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </div>
-                    {optimizeMode && optimizedStops && (
-                      <RouteMap
-                        stops={optimizedStops}
-                        mode={optimizeMode}
-                        pharmacy={data.pharmacy}
-                        onReorder={(newStops) => {
-                          const done = optimizedStops.filter(s => s.status === 'delivered' || s.status === 'failed')
-                          setOptimizedStops([...newStops, ...done])
-                        }}
-                      />
-                    )}
                     <div className="driver__select-bar">
                       <label className="driver__select-all">
                         <input type="checkbox" checked={selected.size === data.stops.length && data.stops.length > 0} onChange={toggleSelectAll} />
@@ -686,6 +660,52 @@ export default function DriverPage() {
                   <div className="driver__not-ready">
                     <h3>No stops assigned</h3>
                     <p>You have no deliveries for {data.deliveryDay}.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'route' && (
+              <div className="driver__stops">
+                {data.stops?.length >= 2 ? (
+                  <>
+                    {data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed').length >= 2 && !optimizeMode && (
+                      <div className="driver__toolbar-row">
+                        <div className="driver__optimize">
+                          <button className="driver__optimize-btn" onClick={() => handleOptimize('oneway')} disabled={optimizing}>
+                            {optimizing ? 'Optimizing...' : 'Optimize One-Way'}
+                          </button>
+                          <button className="driver__optimize-btn" onClick={() => handleOptimize('roundtrip')} disabled={optimizing}>
+                            {optimizing ? '...' : 'Optimize Round Trip'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {optimizeMode && (
+                      <div className="driver__toolbar-row">
+                        <div className="driver__optimize">
+                          <span className="driver__optimize-badge">
+                            Route optimized — {optimizeMode === 'oneway' ? 'one-way' : 'round trip'}
+                          </span>
+                          <button className="driver__optimize-reset" onClick={handleResetOrder}>Reset Order</button>
+                        </div>
+                      </div>
+                    )}
+                    <RouteMap
+                      stops={optimizedStops || data.stops}
+                      mode={optimizeMode || 'oneway'}
+                      pharmacy={data.pharmacy}
+                      onReorder={(newStops) => {
+                        const done = (optimizedStops || data.stops).filter(s => s.status === 'delivered' || s.status === 'failed')
+                        setOptimizedStops([...newStops, ...done])
+                        if (!optimizeMode) setOptimizeMode('oneway')
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div className="driver__not-ready">
+                    <h3>Not enough stops</h3>
+                    <p>You need at least 2 stops to view the route map.</p>
                   </div>
                 )}
               </div>
