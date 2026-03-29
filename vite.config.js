@@ -1,7 +1,16 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { devApiMiddleware } from './server/dev-api.js'
 
-export default defineConfig({
-  plugins: [react(), devApiMiddleware()],
-})
+export default defineConfig(({ command }) => ({
+  plugins: [
+    react(),
+    command === 'serve' && {
+      name: 'dev-api-lazy',
+      configureServer: async (server) => {
+        const { devApiMiddleware } = await import('./server/dev-api.js')
+        const plugin = devApiMiddleware()
+        plugin.configureServer(server)
+      },
+    },
+  ].filter(Boolean),
+}))
