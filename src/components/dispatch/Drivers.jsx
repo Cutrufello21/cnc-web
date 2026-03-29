@@ -11,6 +11,8 @@ export default function Drivers() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
+  const [rulesOpen, setRulesOpen] = useState(null)
+  const [rulesSaving, setRulesSaving] = useState(false)
   const [newDriver, setNewDriver] = useState({
     driver_name: '', driver_number: '', email: '', pharmacy: 'SHSP',
     rate_mth: '', rate_wf: '', office_fee: '', flat_salary: '', password: '',
@@ -130,6 +132,21 @@ export default function Drivers() {
       setTimeout(() => setToast(null), 4000)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function saveRules(driverId, updates) {
+    setRulesSaving(true)
+    try {
+      await dbUpdate('drivers', updates, { id: driverId })
+      setToast('Rules updated')
+      setTimeout(() => setToast(null), 3000)
+      loadDrivers()
+    } catch (err) {
+      setToast(`Error: ${err.message}`)
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setRulesSaving(false)
     }
   }
 
@@ -254,29 +271,125 @@ export default function Drivers() {
                 )
               }
 
+              const isRulesOpen = rulesOpen === d.id
+              const hasRules = d.max_stops || d.is_floating || d.zip_only?.length || d.zip_never?.length || d.coverage_area || d.notes
               return (
-                <tr key={d.id} className={!d.active ? 'drv__row--inactive' : ''}>
-                  <td className="drv__cell-name">{d.driver_name}</td>
-                  <td className="drv__cell-id">{d.driver_number}</td>
-                  <td>
-                    <span className={`drv__pharma ${d.pharmacy === 'Aultman' ? 'drv__pharma--aultman' : d.pharmacy === 'Both' ? 'drv__pharma--both' : 'drv__pharma--shsp'}`}>
-                      {d.pharmacy || '—'}
-                    </span>
-                  </td>
-                  <td className="drv__cell-email">{d.email || '—'}</td>
-                  <td className="drv__cell-num">${parseFloat(d.rate_mth || 0).toFixed(2)}</td>
-                  <td className="drv__cell-num">${parseFloat(d.rate_wf || 0).toFixed(2)}</td>
-                  <td className="drv__cell-num">{d.office_fee ? `$${d.office_fee}` : '—'}</td>
-                  <td className="drv__cell-num">{d.flat_salary ? `$${parseFloat(d.flat_salary).toLocaleString()}` : '—'}</td>
-                  <td>{d.active ? '✓' : '—'}</td>
-                  <td className="drv__actions">
-                    <button className="drv__btn drv__btn--edit" onClick={() => startEdit(d)} title="Edit">&#9998;</button>
-                  </td>
-                </tr>
+                <>
+                  <tr key={d.id} className={`${!d.active ? 'drv__row--inactive' : ''} ${isRulesOpen ? 'drv__row--rules-open' : ''}`}>
+                    <td className="drv__cell-name">
+                      {d.driver_name}
+                      {hasRules && <span className="drv__rules-dot" title="Has dispatch rules">●</span>}
+                    </td>
+                    <td className="drv__cell-id">{d.driver_number}</td>
+                    <td>
+                      <span className={`drv__pharma ${d.pharmacy === 'Aultman' ? 'drv__pharma--aultman' : d.pharmacy === 'Both' ? 'drv__pharma--both' : 'drv__pharma--shsp'}`}>
+                        {d.pharmacy || '—'}
+                      </span>
+                    </td>
+                    <td className="drv__cell-email">{d.email || '—'}</td>
+                    <td className="drv__cell-num">${parseFloat(d.rate_mth || 0).toFixed(2)}</td>
+                    <td className="drv__cell-num">${parseFloat(d.rate_wf || 0).toFixed(2)}</td>
+                    <td className="drv__cell-num">{d.office_fee ? `$${d.office_fee}` : '—'}</td>
+                    <td className="drv__cell-num">{d.flat_salary ? `$${parseFloat(d.flat_salary).toLocaleString()}` : '—'}</td>
+                    <td>{d.active ? '✓' : '—'}</td>
+                    <td className="drv__actions">
+                      <button className="drv__btn drv__btn--rules" onClick={() => setRulesOpen(isRulesOpen ? null : d.id)} title="Dispatch rules">
+                        ⚙
+                      </button>
+                      <button className="drv__btn drv__btn--edit" onClick={() => startEdit(d)} title="Edit">&#9998;</button>
+                    </td>
+                  </tr>
+                  {isRulesOpen && (
+                    <tr key={`${d.id}-rules`} className="drv__rules-row">
+                      <td colSpan={10}>
+                        <DriverRules driver={d} onSave={async (updates) => {
+                          setRulesSaving(true)
+                          try {
+                            await dbUpdate('drivers', updates, { id: d.id })
+                            setToast(`${d.driver_name} rules updated`)
+                            setTimeout(() => setToast(null), 3000)
+                            loadDrivers()
+                          } catch (err) {
+                            setToast(`Error: ${err.message}`)
+                            setTimeout(() => setToast(null), 4000)
+                          } finally {
+                            setRulesSaving(false)
+                          }
+                        }} saving={rulesSaving} />
+                      </td>
+                    </tr>
+                  )}
+                </>
               )
             })}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function DriverRules({ driver, onSave, saving }) {
+  const [maxStops, setMaxStops] = useState(driver.max_stops || '')
+  const [isFloating, setIsFloating] = useState(!!driver.is_floating)
+  const [zipOnly, setZipOnly] = useState((driver.zip_only || []).join(', '))
+  const [zipNever, setZipNever] = useState((driver.zip_never || []).join(', '))
+  const [coverage, setCoverage] = useState(driver.coverage_area || '')
+  const [notes, setNotes] = useState(driver.notes || '')
+
+  function handleSave() {
+    onSave({
+      max_stops: maxStops === '' ? null : parseInt(maxStops),
+      is_floating: isFloating,
+      zip_only: zipOnly.trim() ? zipOnly.split(',').map(z => z.trim()).filter(Boolean) : null,
+      zip_never: zipNever.trim() ? zipNever.split(',').map(z => z.trim()).filter(Boolean) : null,
+      coverage_area: coverage.trim() || null,
+      notes: notes.trim() || null,
+    })
+  }
+
+  return (
+    <div className="drv__rules">
+      <h4 className="drv__rules-title">Dispatch Rules — {driver.driver_name}</h4>
+      <div className="drv__rules-grid">
+        <div className="drv__rules-field">
+          <label>Max Stops</label>
+          <input type="number" value={maxStops} onChange={e => setMaxStops(e.target.value)} placeholder="No limit" />
+          <span className="drv__rules-hint">Leave blank for no cap</span>
+        </div>
+        <div className="drv__rules-field">
+          <label>Floating Driver</label>
+          <select value={isFloating ? 'yes' : 'no'} onChange={e => setIsFloating(e.target.value === 'yes')}>
+            <option value="no">No — regular route</option>
+            <option value="yes">Yes — fills in where needed</option>
+          </select>
+          <span className="drv__rules-hint">Floaters pick up overflow and cover offs</span>
+        </div>
+        <div className="drv__rules-field drv__rules-field--wide">
+          <label>Only These ZIPs</label>
+          <input value={zipOnly} onChange={e => setZipOnly(e.target.value)} placeholder="44310, 44305, 44278" />
+          <span className="drv__rules-hint">Comma-separated. Driver will ONLY get orders in these ZIPs. Leave blank for no restriction.</span>
+        </div>
+        <div className="drv__rules-field drv__rules-field--wide">
+          <label>Never These ZIPs</label>
+          <input value={zipNever} onChange={e => setZipNever(e.target.value)} placeholder="44691, 44681" />
+          <span className="drv__rules-hint">Comma-separated. Driver will NEVER get orders in these ZIPs.</span>
+        </div>
+        <div className="drv__rules-field drv__rules-field--wide">
+          <label>Coverage Area</label>
+          <input value={coverage} onChange={e => setCoverage(e.target.value)} placeholder="West side, Canton, Uniontown" />
+          <span className="drv__rules-hint">General description for reference</span>
+        </div>
+        <div className="drv__rules-field drv__rules-field--wide">
+          <label>Notes</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special rules, quirks, or preferences..." rows={3} />
+          <span className="drv__rules-hint">Free text — anything the optimizer should know</span>
+        </div>
+      </div>
+      <div className="drv__rules-actions">
+        <button className="drv__rules-save" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Rules'}
+        </button>
       </div>
     </div>
   )
