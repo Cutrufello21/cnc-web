@@ -203,3 +203,59 @@
 .driver__team-card--target { border-color: #2563eb; cursor: pointer; }
 .driver__team-card--target .driver__team-header:hover { background: #eff6ff; }
 .driver__team-transfer-icon { font-size: 18px; font-weight: 700; color: #2563eb; }
+
+/* Delivery progress bar */
+.driver__progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin-bottom: 8px;
+}
+
+.driver__progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--gray-100);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.driver__progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.driver__progress-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #16a34a;
+  white-space: nowrap;
+}
+
+/* Delivered divider */
+.driver__delivered-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
+.driver__delivered-divider::before,
+.driver__delivered-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--gray-200);
+}
+
+.driver__delivered-divider span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-400);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}

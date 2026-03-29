@@ -24,6 +24,7 @@ export default function DriverPage() {
   const [transferring, setTransferring] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [deliveryTick, setDeliveryTick] = useState(0)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -399,6 +400,22 @@ export default function DriverPage() {
                   </div>
                 ) : data.stops?.length > 0 ? (
                   <>
+                    {/* Delivery progress bar */}
+                    {(() => {
+                      const deliveredCount = data.stops.filter(s => s.status === 'delivered').length
+                      const totalCount = data.stops.length
+                      const pct = totalCount ? Math.round((deliveredCount / totalCount) * 100) : 0
+                      return deliveredCount > 0 ? (
+                        <div className="driver__progress">
+                          <div className="driver__progress-bar">
+                            <div className="driver__progress-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="driver__progress-label">
+                            {deliveredCount === totalCount ? 'All delivered!' : `${deliveredCount}/${totalCount} delivered`}
+                          </span>
+                        </div>
+                      ) : null
+                    })()}
                     <div className="driver__view-toggle">
                       <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
                       <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
@@ -445,25 +462,44 @@ export default function DriverPage() {
                         </table>
                       </div>
                     ) : (
-                      data.stops.map((stop, i) => (
-                        <StopCard
-                          key={stop._id || i}
-                          stop={stop}
-                          index={i + 1}
-                          total={data.stops.length}
-                          isSelected={selected.has(i)}
-                          onToggleSelect={() => toggleSelect(i)}
-                          onExportDrag={(e) => {
-                            const text = getSelectedAddresses()
-                            if (text) {
-                              e.dataTransfer.setData('text/plain', text)
-                              e.dataTransfer.effectAllowed = 'copy'
-                            }
-                          }}
-                          deliveryDate={data.deliveryDate}
-                          driverName={data.driverName}
-                        />
-                      ))
+                      (() => {
+                        const undelivered = data.stops.filter(s => s.status !== 'delivered')
+                        const deliveredStops = data.stops.filter(s => s.status === 'delivered')
+                        const renderStop = (stop) => {
+                          const origIdx = data.stops.indexOf(stop)
+                          return (
+                            <StopCard
+                              key={stop._id || origIdx}
+                              stop={stop}
+                              index={origIdx + 1}
+                              total={data.stops.length}
+                              isSelected={selected.has(origIdx)}
+                              onToggleSelect={() => toggleSelect(origIdx)}
+                              onExportDrag={(e) => {
+                                const text = getSelectedAddresses()
+                                if (text) {
+                                  e.dataTransfer.setData('text/plain', text)
+                                  e.dataTransfer.effectAllowed = 'copy'
+                                }
+                              }}
+                              deliveryDate={data.deliveryDate}
+                              driverName={data.driverName}
+                              onDeliveryChange={() => setDeliveryTick(t => t + 1)}
+                            />
+                          )
+                        }
+                        return (
+                          <>
+                            {undelivered.map(renderStop)}
+                            {deliveredStops.length > 0 && (
+                              <div className="driver__delivered-divider">
+                                <span>Completed ({deliveredStops.length})</span>
+                              </div>
+                            )}
+                            {deliveredStops.map(renderStop)}
+                          </>
+                        )
+                      })()
                     )}
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '16px 0' }}>
                       <CopyRouteButton stops={data.stops} />

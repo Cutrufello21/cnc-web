@@ -10,14 +10,29 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId, deliveryDate, driverName, photoUrls, photoUrl } = body
+    const { orderId, deliveryDate, driverName, photoUrls, photoUrl, undo } = body
 
     if (!orderId || !deliveryDate || !driverName) {
       return res.status(400).json({ error: 'orderId, deliveryDate, and driverName are required' })
     }
 
+    // Undo delivery
+    if (undo) {
+      const { data, error } = await supabase
+        .from('daily_stops')
+        .update({
+          status: 'dispatched',
+          delivered_at: null,
+        })
+        .eq('order_id', orderId)
+        .eq('delivery_date', deliveryDate)
+        .select()
+
+      if (error) throw new Error(error.message)
+      return res.status(200).json({ success: true, undone: data?.length || 0 })
+    }
+
     const now = new Date().toISOString()
-    // Support both array (new) and single url (legacy)
     const urls = photoUrls || (photoUrl ? [photoUrl] : [])
 
     const { data, error } = await supabase
