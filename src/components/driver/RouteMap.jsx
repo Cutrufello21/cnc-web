@@ -77,8 +77,8 @@ async function geocodeFreeform(query) {
   return null
 }
 
-function createNumberedIcon(number, isFirst, isLast, mode) {
-  const bg = isFirst ? '#1e40af' : (isLast && mode === 'oneway') ? '#dc2626' : '#4f8df7'
+function createNumberedIcon(number, stopData) {
+  const bg = stopData?._coldChain ? '#2563eb' : stopData?._sigRequired ? '#d97706' : '#6b7280'
   const size = 32
   const fontSize = number > 99 ? 10 : 12
   return L.divIcon({
@@ -210,8 +210,8 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
             lat: coords.lat, lng: coords.lng, label: i + 1,
             name: s.Name || s['Name'] || '',
             address: s.Address || '', city: s.City || '', zip: s.ZIP || '',
-            _coldChain: s._coldChain, _packageCount: s._packageCount || 1,
-            _stopRef: s,
+            _coldChain: s._coldChain, _sigRequired: s._sigRequired,
+            _packageCount: s._packageCount || 1, _stopRef: s,
           })
         }
       }
@@ -412,45 +412,49 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
               </div>
 
               {/* Delivery stops */}
-              {points.map((p, i) => (
-                <div
-                  key={`${p.address}-${p.zip}-${i}`}
-                  className={`route-map__stop-item ${dragOverIdx === i ? 'route-map__stop-item--dragover' : ''} ${dragIdx === i ? 'route-map__stop-item--dragging' : ''}`}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, i)}
-                  onDragOver={(e) => handleDragOver(e, i)}
-                  onDrop={(e) => handleDrop(e, i)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <span className="route-map__stop-grip">⠿</span>
-                  <span
-                    className="route-map__stop-num"
-                    style={{
-                      background: i === 0 ? '#0A2463' : (i === points.length - 1 && mode === 'oneway') ? '#dc4a4a' : '#3b82f6',
-                    }}
+              {points.map((p, i) => {
+                const stopType = p._coldChain ? 'cold' : p._sigRequired ? 'sig' : 'regular'
+                return (
+                  <div
+                    key={`${p.address}-${p.zip}-${i}`}
+                    className={`route-map__stop-item route-map__stop-item--${stopType} ${dragOverIdx === i ? 'route-map__stop-item--dragover' : ''} ${dragIdx === i ? 'route-map__stop-item--dragging' : ''}`}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, i)}
+                    onDragOver={(e) => handleDragOver(e, i)}
+                    onDrop={(e) => handleDrop(e, i)}
+                    onDragEnd={handleDragEnd}
                   >
-                    {p.label}
-                  </span>
-                  <div className="route-map__stop-info">
-                    <span className="route-map__stop-name">{p.name || 'Unknown'}</span>
-                    <span className="route-map__stop-addr">{p.address}{p.city ? `, ${p.city}` : ''}</span>
+                    <span className="route-map__stop-grip">⠿</span>
+                    <span
+                      className="route-map__stop-num"
+                      style={{
+                        background: p._coldChain ? '#2563eb' : p._sigRequired ? '#d97706' : '#6b7280',
+                      }}
+                    >
+                      {p.label}
+                    </span>
+                    <div className="route-map__stop-info">
+                      <span className="route-map__stop-name">{p.name || 'Unknown'}</span>
+                      <span className="route-map__stop-addr">{p.address}{p.city ? `, ${p.city}` : ''}</span>
+                    </div>
+                    {p._coldChain && <span className="route-map__stop-badge route-map__stop-badge--cold">CC</span>}
+                    {p._sigRequired && <span className="route-map__stop-badge route-map__stop-badge--sig">SIG</span>}
+                    {p._packageCount > 1 && <span className="route-map__stop-pkgs">{p._packageCount}x</span>}
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.address}, ${p.city}, OH ${p.zip}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="route-map__stop-nav"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Navigate to this stop"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                      </svg>
+                    </a>
                   </div>
-                  {p._coldChain && <span className="route-map__stop-badge">CC</span>}
-                  {p._packageCount > 1 && <span className="route-map__stop-pkgs">{p._packageCount}x</span>}
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.address}, ${p.city}, OH ${p.zip}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="route-map__stop-nav"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Navigate to this stop"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-                    </svg>
-                  </a>
-                </div>
-              ))}
+                )
+              })}
 
               {/* End point (driver-entered) */}
               <div className="route-map__stop-item route-map__stop-item--fixed route-map__stop-item--end">
@@ -475,6 +479,13 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
                     {endPoint && !endLoading && <span className="route-map__end-check">Set</span>}
                   </div>
                 )}
+              </div>
+
+              {/* Legend */}
+              <div className="route-map__legend">
+                <span className="route-map__legend-item"><span className="route-map__legend-dot route-map__legend-dot--cold"></span>Cold Chain</span>
+                <span className="route-map__legend-item"><span className="route-map__legend-dot route-map__legend-dot--sig"></span>Signature</span>
+                <span className="route-map__legend-item"><span className="route-map__legend-dot route-map__legend-dot--regular"></span>Standard</span>
               </div>
             </div>
 
@@ -517,7 +528,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
                   <Marker
                     key={i}
                     position={[p.lat, p.lng]}
-                    icon={createNumberedIcon(p.label, false, i === points.length - 1, mode)}
+                    icon={createNumberedIcon(p.label, p)}
                   >
                     <Popup>
                       <div className="route-map__popup">

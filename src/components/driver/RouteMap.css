@@ -178,6 +178,30 @@
   background: #f0f4ff;
 }
 
+/* Color-coded stop types */
+.route-map__stop-item--cold {
+  border-left: 3px solid #2563eb;
+  background: #eff6ff;
+}
+
+.route-map__stop-item--sig {
+  border-left: 3px solid #d97706;
+  background: #fffbeb;
+}
+
+.route-map__stop-item--regular {
+  border-left: 3px solid #d1d5db;
+  background: var(--white);
+}
+
+[data-theme="dark"] .route-map__stop-item--cold {
+  background: #1e3a5f;
+}
+
+[data-theme="dark"] .route-map__stop-item--sig {
+  background: #451a03;
+}
+
 .route-map__stop-item--dragging {
   opacity: 0.4;
 }
@@ -237,10 +261,18 @@
   padding: 1px 5px;
   font-size: 9px;
   font-weight: 700;
-  color: #2563eb;
-  background: #dbeafe;
   border-radius: 3px;
   flex-shrink: 0;
+}
+
+.route-map__stop-badge--cold {
+  color: #2563eb;
+  background: #dbeafe;
+}
+
+.route-map__stop-badge--sig {
+  color: #92400e;
+  background: #fef3c7;
 }
 
 .route-map__stop-pkgs {
@@ -342,6 +374,42 @@
   padding: 1px 6px;
   border-radius: 4px;
   flex-shrink: 0;
+}
+
+/* Legend */
+.route-map__legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--gray-100);
+  background: var(--gray-50);
+  border-radius: 0 0 10px 10px;
+}
+
+.route-map__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+
+.route-map__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.route-map__legend-dot--cold { background: #2563eb; }
+.route-map__legend-dot--sig { background: #d97706; }
+.route-map__legend-dot--regular { background: #d1d5db; }
+
+[data-theme="dark"] .route-map__legend {
+  background: var(--gray-800);
+  border-color: var(--gray-700);
 }
 
 /* Map container */
