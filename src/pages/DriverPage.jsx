@@ -546,6 +546,7 @@ export default function DriverPage() {
                       <RouteMap
                         stops={optimizedStops}
                         mode={optimizeMode}
+                        pharmacy={data.pharmacy}
                         onReorder={(newStops) => {
                           const done = optimizedStops.filter(s => s.status === 'delivered' || s.status === 'failed')
                           setOptimizedStops([...newStops, ...done])

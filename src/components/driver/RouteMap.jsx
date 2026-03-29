@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -12,6 +12,12 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 })
+
+// Pharmacy start locations
+const PHARMACY_ORIGINS = {
+  SHSP: { lat: 41.0758, lng: -81.5193, label: 'SHSP — 70 Arch St, Akron' },
+  Aultman: { lat: 40.7914, lng: -81.3939, label: 'Aultman — 2600 6th St SW, Canton' },
+}
 
 // In-memory geocode cache
 const geocodeCache = new Map()
@@ -37,12 +43,36 @@ async function geocodeAddress(address, city, zip) {
     console.warn('Geocode failed for:', query, err)
   }
 
-  // Fall back to ZIP centroid
   const fallback = ZIP_COORDS[zip]
   if (fallback) {
     const result = { lat: fallback[0], lng: fallback[1] }
     geocodeCache.set(query, result)
     return result
+  }
+  return null
+}
+
+// Geocode a freeform address string (for end point)
+async function geocodeFreeform(query) {
+  if (!query || query.trim().length < 5) return null
+  const cacheKey = `__freeform__${query}`
+  if (geocodeCache.has(cacheKey)) return geocodeCache.get(cacheKey)
+
+  try {
+    const params = new URLSearchParams({
+      q: query, format: 'json', limit: '1', countrycodes: 'us',
+    })
+    const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      headers: { 'User-Agent': 'CNCDeliveryApp/1.0' },
+    })
+    const data = await resp.json()
+    if (data && data.length > 0) {
+      const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name }
+      geocodeCache.set(cacheKey, result)
+      return result
+    }
+  } catch (err) {
+    console.warn('Freeform geocode failed:', err)
   }
   return null
 }
@@ -56,6 +86,26 @@ function createNumberedIcon(number, isFirst, isLast, mode) {
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
+  })
+}
+
+function createStartIcon() {
+  return L.divIcon({
+    className: 'route-map__marker-icon',
+    html: '<div class="route-map__marker-circle route-map__marker-circle--start" style="background:#16a34a;width:32px;height:32px;font-size:14px">S</div>',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16],
+  })
+}
+
+function createEndIcon() {
+  return L.divIcon({
+    className: 'route-map__marker-icon',
+    html: '<div class="route-map__marker-circle route-map__marker-circle--end" style="background:#dc2626;width:32px;height:32px;font-size:14px">E</div>',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -16],
   })
 }
 
@@ -79,7 +129,7 @@ function FitBounds({ points }) {
   return null
 }
 
-export default function RouteMap({ stops, mode, onReorder }) {
+export default function RouteMap({ stops, mode, onReorder, pharmacy }) {
   const [collapsed, setCollapsed] = useState(false)
   const [routeCoords, setRouteCoords] = useState(null)
   const [routeStats, setRouteStats] = useState(null)
@@ -89,7 +139,48 @@ export default function RouteMap({ stops, mode, onReorder }) {
   const [points, setPoints] = useState([])
   const [dragIdx, setDragIdx] = useState(null)
   const [dragOverIdx, setDragOverIdx] = useState(null)
+  const [endInput, setEndInput] = useState('')
+  const [endPoint, setEndPoint] = useState(null)
+  const [endLoading, setEndLoading] = useState(false)
   const watchRef = useRef(null)
+  const endDebounce = useRef(null)
+
+  // Determine start point from pharmacy
+  const startPoint = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
+
+  // Load saved end point from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('cnc_route_end')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        setEndPoint(parsed)
+        setEndInput(parsed.display || '')
+      } catch {}
+    }
+  }, [])
+
+  // Geocode end point when input changes (debounced)
+  function handleEndInputChange(val) {
+    setEndInput(val)
+    if (endDebounce.current) clearTimeout(endDebounce.current)
+    if (!val || val.trim().length < 5) {
+      setEndPoint(null)
+      localStorage.removeItem('cnc_route_end')
+      return
+    }
+    endDebounce.current = setTimeout(async () => {
+      setEndLoading(true)
+      const result = await geocodeFreeform(val)
+      setEndLoading(false)
+      if (result) {
+        setEndPoint(result)
+        localStorage.setItem('cnc_route_end', JSON.stringify(result))
+      } else {
+        setEndPoint(null)
+      }
+    }, 1200)
+  }
 
   // Geocode stops
   useEffect(() => {
@@ -129,14 +220,22 @@ export default function RouteMap({ stops, mode, onReorder }) {
     return () => { cancelled = true }
   }, [stops])
 
-  // Fetch OSRM route
+  // Fetch OSRM route (start → stops → end)
   useEffect(() => {
     if (points.length < 2) { setRouteCoords(null); setRouteStats(null); return }
     async function fetchRoute() {
       try {
-        const waypoints = [...points]
-        if (mode === 'roundtrip') waypoints.push(waypoints[0])
-        const coordStr = waypoints.map(p => `${p.lng},${p.lat}`).join(';')
+        // Build waypoint chain: start → stops → end (or roundtrip back to start)
+        const allWaypoints = [
+          { lat: startPoint.lat, lng: startPoint.lng },
+          ...points,
+        ]
+        if (endPoint && mode === 'oneway') {
+          allWaypoints.push({ lat: endPoint.lat, lng: endPoint.lng })
+        } else if (mode === 'roundtrip') {
+          allWaypoints.push({ lat: startPoint.lat, lng: startPoint.lng })
+        }
+        const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';')
         const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`
         const resp = await fetch(url)
         const data = await resp.json()
@@ -155,7 +254,7 @@ export default function RouteMap({ stops, mode, onReorder }) {
       }
     }
     fetchRoute()
-  }, [points, mode])
+  }, [points, mode, startPoint, endPoint])
 
   // Watch current position
   useEffect(() => {
@@ -180,19 +279,14 @@ export default function RouteMap({ stops, mode, onReorder }) {
   function handleDrop(e, idx) {
     e.preventDefault()
     if (dragIdx == null || dragIdx === idx) { setDragIdx(null); setDragOverIdx(null); return }
-    // Reorder points
     const newPoints = [...points]
     const [moved] = newPoints.splice(dragIdx, 1)
     newPoints.splice(idx, 0, moved)
-    // Re-label
     const relabeled = newPoints.map((p, i) => ({ ...p, label: i + 1 }))
     setPoints(relabeled)
     setDragIdx(null)
     setDragOverIdx(null)
-    // Notify parent of new stop order
-    if (onReorder) {
-      onReorder(relabeled.map(p => p._stopRef))
-    }
+    if (onReorder) onReorder(relabeled.map(p => p._stopRef))
   }
   function handleDragEnd() { setDragIdx(null); setDragOverIdx(null) }
 
@@ -212,20 +306,39 @@ export default function RouteMap({ stops, mode, onReorder }) {
     )
   }
 
+  // All map points for bounds fitting (start + stops + end)
+  const allBoundsPoints = [
+    startPoint,
+    ...points,
+    ...(endPoint ? [endPoint] : []),
+  ]
+
   function buildNavUrl() {
-    const navStops = [...points]
-    if (mode === 'roundtrip') navStops.push(navStops[0])
-    const parts = navStops.map(s => {
+    const parts = []
+    // Start from pharmacy
+    parts.push(startPoint.label.split(' — ')[1]?.replace(/\s+/g, '+') || '')
+    // Stops
+    points.forEach(s => {
       const addr = (s.address || '').replace(/\s+/g, '+')
       const city = (s.city || '').replace(/\s+/g, '+')
-      return `${addr},+${city},+OH+${s.zip || ''}`
+      parts.push(`${addr},+${city},+OH+${s.zip || ''}`)
     })
+    // End point
+    if (endPoint && mode === 'oneway') {
+      parts.push(encodeURIComponent(endPoint.display || endInput))
+    } else if (mode === 'roundtrip') {
+      parts.push(startPoint.label.split(' — ')[1]?.replace(/\s+/g, '+') || '')
+    }
     return `https://www.google.com/maps/dir/${parts.join('/')}`
   }
 
   const fallbackCoords = (() => {
-    const coords = points.map(p => [p.lat, p.lng])
-    if (mode === 'roundtrip') coords.push(coords[0])
+    const coords = [
+      [startPoint.lat, startPoint.lng],
+      ...points.map(p => [p.lat, p.lng]),
+    ]
+    if (endPoint && mode === 'oneway') coords.push([endPoint.lat, endPoint.lng])
+    else if (mode === 'roundtrip') coords.push([startPoint.lat, startPoint.lng])
     return coords
   })()
 
@@ -287,6 +400,17 @@ export default function RouteMap({ stops, mode, onReorder }) {
                 <span>Stop Order</span>
                 <span className="route-map__list-hint">Drag to reorder</span>
               </div>
+
+              {/* Start point (pharmacy) */}
+              <div className="route-map__stop-item route-map__stop-item--fixed route-map__stop-item--start">
+                <span className="route-map__stop-num" style={{ background: '#16a34a' }}>S</span>
+                <div className="route-map__stop-info">
+                  <span className="route-map__stop-name">Start — {pharmacy || 'SHSP'}</span>
+                  <span className="route-map__stop-addr">{startPoint.label.split(' — ')[1] || ''}</span>
+                </div>
+              </div>
+
+              {/* Delivery stops */}
               {points.map((p, i) => (
                 <div
                   key={`${p.address}-${p.zip}-${i}`}
@@ -326,33 +450,70 @@ export default function RouteMap({ stops, mode, onReorder }) {
                   </a>
                 </div>
               ))}
+
+              {/* End point (driver-entered) */}
+              <div className="route-map__stop-item route-map__stop-item--fixed route-map__stop-item--end">
+                <span className="route-map__stop-num" style={{ background: mode === 'roundtrip' ? '#16a34a' : '#dc2626' }}>
+                  {mode === 'roundtrip' ? 'S' : 'E'}
+                </span>
+                {mode === 'roundtrip' ? (
+                  <div className="route-map__stop-info">
+                    <span className="route-map__stop-name">Return — {pharmacy || 'SHSP'}</span>
+                    <span className="route-map__stop-addr">{startPoint.label.split(' — ')[1] || ''}</span>
+                  </div>
+                ) : (
+                  <div className="route-map__stop-info route-map__stop-info--end">
+                    <input
+                      type="text"
+                      className="route-map__end-input"
+                      placeholder="End address (home, etc.)..."
+                      value={endInput}
+                      onChange={(e) => handleEndInputChange(e.target.value)}
+                    />
+                    {endLoading && <span className="route-map__end-loading">...</span>}
+                    {endPoint && !endLoading && <span className="route-map__end-check">Set</span>}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Map */}
             <div className="route-map__container">
               <MapContainer
-                center={[points[0].lat, points[0].lng]}
+                center={[startPoint.lat, startPoint.lng]}
                 zoom={11}
                 scrollWheelZoom={false}
                 className="route-map__leaflet"
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
-                <FitBounds points={points} />
+                <FitBounds points={allBoundsPoints} />
 
+                {/* Route polyline */}
                 {routeCoords ? (
                   <Polyline positions={routeCoords} color="#3b82f6" weight={4} opacity={0.8} />
                 ) : (
                   <Polyline positions={fallbackCoords} color="#3b82f6" weight={3} opacity={0.5} dashArray="8 6" />
                 )}
 
+                {/* Start marker */}
+                <Marker position={[startPoint.lat, startPoint.lng]} icon={createStartIcon()}>
+                  <Popup>
+                    <div className="route-map__popup">
+                      <strong>Start</strong>
+                      <div>{startPoint.label}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+
+                {/* Stop markers */}
                 {points.map((p, i) => (
                   <Marker
                     key={i}
                     position={[p.lat, p.lng]}
-                    icon={createNumberedIcon(p.label, i === 0, i === points.length - 1, mode)}
+                    icon={createNumberedIcon(p.label, false, i === points.length - 1, mode)}
                   >
                     <Popup>
                       <div className="route-map__popup">
@@ -365,6 +526,19 @@ export default function RouteMap({ stops, mode, onReorder }) {
                   </Marker>
                 ))}
 
+                {/* End marker */}
+                {endPoint && mode === 'oneway' && (
+                  <Marker position={[endPoint.lat, endPoint.lng]} icon={createEndIcon()}>
+                    <Popup>
+                      <div className="route-map__popup">
+                        <strong>End Point</strong>
+                        <div className="route-map__popup-addr">{endPoint.display || endInput}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                )}
+
+                {/* Current position */}
                 {currentPos && (
                   <Marker position={[currentPos.lat, currentPos.lng]} icon={createCurrentPosIcon()}>
                     <Popup>Your location</Popup>
