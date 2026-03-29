@@ -78,34 +78,35 @@ async function geocodeFreeform(query) {
 }
 
 function createNumberedIcon(number, isFirst, isLast, mode) {
-  const bg = isFirst ? '#0A2463' : (isLast && mode === 'oneway') ? '#dc4a4a' : '#3b82f6'
-  const size = isFirst || isLast ? 30 : 26
+  const bg = isFirst ? '#1e40af' : (isLast && mode === 'oneway') ? '#dc2626' : '#4f8df7'
+  const size = 32
+  const fontSize = number > 99 ? 10 : 12
   return L.divIcon({
     className: 'route-map__marker-icon',
-    html: `<div class="route-map__marker-circle" style="background:${bg};width:${size}px;height:${size}px;font-size:${isFirst || isLast ? 13 : 11}px">${number}</div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
+    html: `<div class="route-map__marker-pin" style="--pin-bg:${bg}"><span style="font-size:${fontSize}px">${number}</span></div>`,
+    iconSize: [size, 40],
+    iconAnchor: [size / 2, 40],
+    popupAnchor: [0, -36],
   })
 }
 
 function createStartIcon() {
   return L.divIcon({
     className: 'route-map__marker-icon',
-    html: '<div class="route-map__marker-circle route-map__marker-circle--start" style="background:#16a34a;width:32px;height:32px;font-size:14px">S</div>',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    html: '<div class="route-map__marker-pin" style="--pin-bg:#16a34a"><span style="font-size:13px">S</span></div>',
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    popupAnchor: [0, -36],
   })
 }
 
 function createEndIcon() {
   return L.divIcon({
     className: 'route-map__marker-icon',
-    html: '<div class="route-map__marker-circle route-map__marker-circle--end" style="background:#dc2626;width:32px;height:32px;font-size:14px">E</div>',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    html: '<div class="route-map__marker-pin" style="--pin-bg:#dc2626"><span style="font-size:13px">E</span></div>',
+    iconSize: [32, 40],
+    iconAnchor: [16, 40],
+    popupAnchor: [0, -36],
   })
 }
 
@@ -486,16 +487,19 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy }) {
                 className="route-map__leaflet"
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://stadiamaps.com/">Stadia</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                  url="https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png"
                 />
                 <FitBounds points={allBoundsPoints} />
 
-                {/* Route polyline */}
+                {/* Route polyline — shadow underneath for depth */}
                 {routeCoords ? (
-                  <Polyline positions={routeCoords} color="#3b82f6" weight={4} opacity={0.8} />
+                  <>
+                    <Polyline positions={routeCoords} color="#1e3a5f" weight={7} opacity={0.15} lineCap="round" lineJoin="round" />
+                    <Polyline positions={routeCoords} color="#4f8df7" weight={5} opacity={0.9} lineCap="round" lineJoin="round" />
+                  </>
                 ) : (
-                  <Polyline positions={fallbackCoords} color="#3b82f6" weight={3} opacity={0.5} dashArray="8 6" />
+                  <Polyline positions={fallbackCoords} color="#94a3b8" weight={3} opacity={0.5} dashArray="10 8" lineCap="round" />
                 )}
 
                 {/* Start marker */}
