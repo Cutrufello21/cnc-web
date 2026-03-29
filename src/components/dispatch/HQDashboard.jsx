@@ -91,8 +91,7 @@ export default function HQDashboard() {
 
       // Week over week
       const thisWeek = logData.filter(r => r.date >= mondayStr)
-      const lastMonday = new Date(monday)
-      lastMonday.setDate(lastMonday.getDate() - 7)
+      const lastMonday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7)
       const lastMondayStr = `${lastMonday.getFullYear()}-${String(lastMonday.getMonth()+1).padStart(2,'0')}-${String(lastMonday.getDate()).padStart(2,'0')}`
       const lastWeek = logData.filter(r => r.date >= lastMondayStr && r.date < mondayStr)
       const thisWeekOrders = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
