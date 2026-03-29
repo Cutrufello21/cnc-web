@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
-    const { orderId, orderIds: rawOrderIds, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo, signatureUrl, failed, failureReason } = body
+    const { orderId, orderIds: rawOrderIds, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo, signatureUrl, failed, failureReason, deliveryNote } = body
 
     // Support both single orderId and orderIds array
     const orderIds = rawOrderIds || (orderId ? [orderId] : [])
@@ -34,6 +34,21 @@ export default async function handler(req, res) {
 
       if (error) throw new Error(error.message)
       return res.status(200).json({ success: true, undone: data?.length || 0 })
+    }
+
+    // Save delivery note (can be standalone update after delivery)
+    if (deliveryNote !== undefined && !failed && !undo) {
+      const { data: noteData, error: noteErr } = await supabase
+        .from('daily_stops')
+        .update({ delivery_note: deliveryNote })
+        .in('order_id', orderIds)
+        .eq('delivery_date', deliveryDate)
+        .select()
+      if (noteErr) throw new Error(noteErr.message)
+      // If this is just a note update (no status change), return early
+      if (!photoUrls && !photoUrl && !barcode && !signatureUrl) {
+        return res.status(200).json({ success: true, noted: noteData?.length || 0 })
+      }
     }
 
     const now = new Date().toISOString()

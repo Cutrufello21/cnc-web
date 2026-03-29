@@ -17,6 +17,9 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const [deliveredAt, setDeliveredAt] = useState(stop.delivered_at || null)
   const [canUndo, setCanUndo] = useState(false)
   const [queued, setQueued] = useState(false)
+  const [deliveryNote, setDeliveryNote] = useState(stop.delivery_note || '')
+  const [noteSaved, setNoteSaved] = useState(!!stop.delivery_note)
+  const [savingNote, setSavingNote] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scannedBarcode, setScannedBarcode] = useState(stop.barcode || null)
   const [photos, setPhotos] = useState(() => {
@@ -217,6 +220,25 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       onDeliveryChange?.()
     } catch (err) {
       alert('Undo failed: ' + err.message)
+    }
+  }
+
+  async function handleSaveNote() {
+    if (!deliveryNote.trim() || savingNote) return
+    setSavingNote(true)
+    try {
+      const res = await fetch('/api/deliver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: allOrderIds, deliveryDate, driverName, deliveryNote: deliveryNote.trim() }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      setNoteSaved(true)
+    } catch (err) {
+      alert('Failed to save note: ' + err.message)
+    } finally {
+      setSavingNote(false)
     }
   }
 
@@ -485,28 +507,58 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                   )}
                 </>
               ) : (
-                <div className="stop__delivered-row">
-                  <span className={`stop__delivered-label ${queued ? 'stop__delivered-label--queued' : ''} ${failed ? 'stop__delivered-label--failed' : ''}`}>
-                    {failed ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-                      </svg>
-                    ) : queued ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                    ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
+                <>
+                  <div className="stop__delivered-row">
+                    <span className={`stop__delivered-label ${queued ? 'stop__delivered-label--queued' : ''} ${failed ? 'stop__delivered-label--failed' : ''}`}>
+                      {failed ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                      ) : queued ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                      {failed ? `Failed: ${failureReason || 'Unknown'}` : queued ? 'Queued' : 'Delivered'}{photos.length > 0 ? ` (${photos.length})` : ''}
+                    </span>
+                    {canUndo && (
+                      <button className="stop__btn stop__btn--undo" onClick={handleUndo}>Undo</button>
                     )}
-                    {failed ? `Failed: ${failureReason || 'Unknown'}` : queued ? 'Queued' : 'Delivered'}{photos.length > 0 ? ` (${photos.length})` : ''}
-                  </span>
-                  {canUndo && (
-                    <button className="stop__btn stop__btn--undo" onClick={handleUndo}>Undo</button>
+                  </div>
+                  {delivered && !failed && (
+                    <div className="stop__note-input">
+                      {noteSaved ? (
+                        <p className="stop__note-saved">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          {deliveryNote}
+                        </p>
+                      ) : (
+                        <div className="stop__note-form">
+                          <input
+                            type="text"
+                            className="stop__note-field"
+                            placeholder="Where was it left? (front door, back porch...)"
+                            value={deliveryNote}
+                            onChange={(e) => setDeliveryNote(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveNote() }}
+                          />
+                          <button
+                            className="stop__note-save"
+                            onClick={handleSaveNote}
+                            disabled={!deliveryNote.trim() || savingNote}
+                          >
+                            {savingNote ? '...' : 'Save'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>

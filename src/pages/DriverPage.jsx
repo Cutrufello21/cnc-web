@@ -159,6 +159,7 @@ export default function DriverPage() {
         barcode: s.barcode || null,
         signature_url: s.signature_url || null,
         failure_reason: s.failure_reason || null,
+        delivery_note: s.delivery_note || null,
       }))
 
       // Consolidate stops by normalized address

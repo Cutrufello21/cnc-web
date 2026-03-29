@@ -139,6 +139,7 @@ export default function DispatchPage() {
           photo_url: s.photo_url || null,
           photo_urls: s.photo_urls || null,
           barcode: s.barcode || null,
+          delivery_note: s.delivery_note || null,
         })
       })
 
