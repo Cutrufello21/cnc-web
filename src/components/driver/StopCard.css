@@ -228,19 +228,6 @@
   cursor: not-allowed;
 }
 
-.stop__btn--deliver-no-photo {
-  background: var(--gray-100);
-  color: var(--gray-700);
-}
-
-.stop__btn--deliver-no-photo:hover:not(:disabled) {
-  background: var(--gray-200);
-}
-
-.stop__btn--deliver-no-photo:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 .stop__file-input {
   display: none;
@@ -258,25 +245,63 @@
   border-radius: 8px;
 }
 
-.stop__photo-preview {
-  margin-bottom: 12px;
+.stop__photos {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
   align-items: flex-end;
-  gap: 10px;
+}
+
+.stop__photo-thumb {
+  position: relative;
 }
 
 .stop__photo-img {
-  width: 120px;
-  height: 90px;
+  width: 100px;
+  height: 75px;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--gray-200);
+}
+
+.stop__photo-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #dc4a4a;
+  color: #fff;
+  border: 2px solid var(--white);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stop__photo-time {
   font-size: 12px;
   color: #16a34a;
   font-weight: 600;
+  align-self: center;
+}
+
+.stop__btn--add-photo {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.stop__btn--add-photo:hover:not(:disabled) {
+  background: var(--gray-200);
+}
+
+.stop__btn--add-photo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 480px) {

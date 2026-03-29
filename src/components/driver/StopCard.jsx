@@ -5,9 +5,15 @@ import './StopCard.css'
 export default function StopCard({ stop, index, total, isSelected, onToggleSelect, onExportDrag, deliveryDate, driverName }) {
   const [expanded, setExpanded] = useState(false)
   const [delivering, setDelivering] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [delivered, setDelivered] = useState(stop.status === 'delivered')
   const [deliveredAt, setDeliveredAt] = useState(stop.delivered_at || null)
-  const [photoPreview, setPhotoPreview] = useState(stop.photo_url || null)
+  const [photos, setPhotos] = useState(() => {
+    // Parse existing photos from DB — supports both single url and JSON array
+    if (stop.photo_urls && Array.isArray(stop.photo_urls)) return stop.photo_urls
+    if (stop.photo_url) return [stop.photo_url]
+    return []
+  })
   const fileRef = useRef(null)
 
   const name = stop['Name'] || stop['Patient'] || stop['Customer'] || '—'
@@ -22,28 +28,37 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
 
   const fullAddress = [address, city, zip ? `OH ${zip}` : ''].filter(Boolean).join(', ')
 
-  async function handleDeliver(file) {
+  async function handleAddPhoto(e) {
+    const file = e.target.files?.[0]
+    if (!file || uploading) return
+    setUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${deliveryDate}/${orderId}_${Date.now()}.${ext}`
+      const { error: uploadErr } = await supabase.storage
+        .from('delivery-photos')
+        .upload(path, file, { contentType: file.type })
+      if (uploadErr) throw new Error(uploadErr.message)
+
+      const { data: urlData } = supabase.storage
+        .from('delivery-photos')
+        .getPublicUrl(path)
+      const photoUrl = urlData?.publicUrl || null
+      if (photoUrl) setPhotos(prev => [...prev, photoUrl])
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      alert('Failed to upload photo: ' + err.message)
+    } finally {
+      setUploading(false)
+      // Reset file input so same file can be re-selected
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function handleConfirmDelivery() {
     if (delivering || delivered) return
     setDelivering(true)
     try {
-      let photoUrl = null
-
-      // Upload photo if provided
-      if (file) {
-        const ext = file.name.split('.').pop() || 'jpg'
-        const path = `${deliveryDate}/${orderId}_${Date.now()}.${ext}`
-        const { error: uploadErr } = await supabase.storage
-          .from('delivery-photos')
-          .upload(path, file, { contentType: file.type })
-        if (uploadErr) throw new Error(uploadErr.message)
-
-        const { data: urlData } = supabase.storage
-          .from('delivery-photos')
-          .getPublicUrl(path)
-        photoUrl = urlData?.publicUrl || null
-        setPhotoPreview(photoUrl)
-      }
-
       const res = await fetch('/api/deliver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,7 +66,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
           orderId,
           deliveryDate,
           driverName,
-          photoUrl,
+          photoUrls: photos,
         }),
       })
       const result = await res.json()
@@ -67,9 +82,8 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     }
   }
 
-  function onPhotoCapture(e) {
-    const file = e.target.files?.[0]
-    if (file) handleDeliver(file)
+  function handleRemovePhoto(idx) {
+    setPhotos(prev => prev.filter((_, i) => i !== idx))
   }
 
   // Map link — works on both iOS and Android
@@ -123,9 +137,17 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
               <span className="stop__notes-label">Notes:</span> {notes}
             </div>
           )}
-          {photoPreview && (
-            <div className="stop__photo-preview">
-              <img src={photoPreview} alt="Delivery photo" className="stop__photo-img" />
+          {/* Photo gallery */}
+          {photos.length > 0 && (
+            <div className="stop__photos">
+              {photos.map((url, i) => (
+                <div key={i} className="stop__photo-thumb">
+                  <img src={url} alt={`Delivery photo ${i + 1}`} className="stop__photo-img" />
+                  {!delivered && (
+                    <button className="stop__photo-remove" onClick={() => handleRemovePhoto(i)} title="Remove photo">&times;</button>
+                  )}
+                </div>
+              ))}
               {deliveredAt && (
                 <span className="stop__photo-time">
                   Delivered {new Date(deliveredAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
@@ -149,28 +171,28 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                   accept="image/*"
                   capture="environment"
                   className="stop__file-input"
-                  onChange={onPhotoCapture}
+                  onChange={handleAddPhoto}
                 />
                 <button
-                  className="stop__btn stop__btn--deliver"
+                  className="stop__btn stop__btn--add-photo"
                   onClick={() => fileRef.current?.click()}
-                  disabled={delivering}
+                  disabled={uploading}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                     <circle cx="12" cy="13" r="4"/>
                   </svg>
-                  {delivering ? 'Uploading...' : 'Photo + Deliver'}
+                  {uploading ? 'Uploading...' : photos.length > 0 ? `Add Photo (${photos.length})` : 'Add Photo'}
                 </button>
                 <button
-                  className="stop__btn stop__btn--deliver-no-photo"
-                  onClick={() => handleDeliver(null)}
+                  className="stop__btn stop__btn--deliver"
+                  onClick={handleConfirmDelivery}
                   disabled={delivering}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
-                  {delivering ? '...' : 'Mark Delivered'}
+                  {delivering ? 'Confirming...' : 'Confirm Delivery'}
                 </button>
               </>
             ) : (
@@ -178,7 +200,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Delivered
+                Delivered{photos.length > 0 ? ` (${photos.length} photo${photos.length > 1 ? 's' : ''})` : ''}
               </span>
             )}
           </div>
