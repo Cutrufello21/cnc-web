@@ -1,16 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import Map, { Marker, Source, Layer, Popup, NavigationControl } from 'react-map-gl/maplibre'
+import 'maplibre-gl/dist/maplibre-gl.css'
 import ZIP_COORDS from '../../lib/zipCoords.js'
 import './RouteMap.css'
-
-delete L.Icon.Default.prototype._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-})
 
 const PHARMACY_ORIGINS = {
   SHSP: { lat: 41.0758, lng: -81.5193, label: 'SHSP — 70 Arch St, Akron' },
@@ -69,56 +61,37 @@ async function geocodeFreeform(query) {
   return null
 }
 
-function createNumberedIcon(number, stopData) {
-  const bg = stopData?._coldChain ? '#2563eb' : stopData?._sigRequired ? '#d97706' : '#6b7280'
-  const fontSize = number > 99 ? 10 : 12
-  return L.divIcon({
-    className: 'route-map__marker-icon',
-    html: `<div class="route-map__marker-pin" style="--pin-bg:${bg}"><span style="font-size:${fontSize}px">${number}</span></div>`,
-    iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -36],
-  })
-}
-function createStartIcon() {
-  return L.divIcon({
-    className: 'route-map__marker-icon',
-    html: '<div class="route-map__marker-pin" style="--pin-bg:#16a34a"><span style="font-size:13px">S</span></div>',
-    iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -36],
-  })
-}
-function createEndIcon() {
-  return L.divIcon({
-    className: 'route-map__marker-icon',
-    html: '<div class="route-map__marker-pin" style="--pin-bg:#dc2626"><span style="font-size:13px">E</span></div>',
-    iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -36],
-  })
-}
-function createCompletedIcon(status) {
-  const bg = status === 'failed' ? '#ef4444' : '#9ca3af'
-  const icon = status === 'failed' ? '✕' : '✓'
-  return L.divIcon({
-    className: 'route-map__marker-icon',
-    html: `<div class="route-map__marker-pin route-map__marker-pin--done" style="--pin-bg:${bg};opacity:0.5"><span style="font-size:13px">${icon}</span></div>`,
-    iconSize: [32, 40], iconAnchor: [16, 40], popupAnchor: [0, -36],
-  })
+// MapLibre pin marker component
+function PinMarker({ lng, lat, label, color, opacity = 1, children }) {
+  const [showPopup, setShowPopup] = useState(false)
+  return (
+    <>
+      <Marker longitude={lng} latitude={lat} anchor="bottom" onClick={() => setShowPopup(true)}>
+        <div className="route-map__pin" style={{ '--pin-color': color, opacity }} onClick={() => setShowPopup(true)}>
+          <span>{label}</span>
+        </div>
+      </Marker>
+      {showPopup && (
+        <Popup longitude={lng} latitude={lat} anchor="bottom" offset={[0, -36]} onClose={() => setShowPopup(false)}
+          closeButton={true} closeOnClick={false} className="route-map__gl-popup">
+          {children}
+        </Popup>
+      )}
+    </>
+  )
 }
 
-function createCurrentPosIcon() {
-  return L.divIcon({
-    className: 'route-map__current-pos',
-    html: '<div class="route-map__pulse-dot"><div class="route-map__pulse-ring"></div></div>',
-    iconSize: [18, 18], iconAnchor: [9, 9],
-  })
-}
-
-function FitBounds({ points }) {
-  const map = useMap()
-  useEffect(() => {
-    if (points.length > 0) {
-      const bounds = L.latLngBounds(points.map(p => [p.lat, p.lng]))
-      map.fitBounds(bounds, { padding: [40, 40] })
-    }
-  }, [points, map])
-  return null
+// Compute bounds from points array
+function computeBounds(points) {
+  if (!points.length) return null
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity
+  for (const p of points) {
+    if (p.lng < minLng) minLng = p.lng
+    if (p.lng > maxLng) maxLng = p.lng
+    if (p.lat < minLat) minLat = p.lat
+    if (p.lat > maxLat) maxLat = p.lat
+  }
+  return [[minLng, minLat], [maxLng, maxLat]]
 }
 
 export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen = true }) {
@@ -549,73 +522,104 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
     </>
   )
 
-  const mapContent = (
-    <MapContainer
-      center={[startPoint.lat, startPoint.lng]}
-      zoom={11}
-      scrollWheelZoom={true}
-      touchZoom={true}
-      dragging={true}
-      zoomControl={false}
-      className="route-map__leaflet"
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-      />
-      <FitBounds points={allBoundsPoints} />
+  // GeoJSON for route line
+  const routeGeoJSON = routeCoords ? {
+    type: 'Feature',
+    geometry: {
+      type: 'LineString',
+      coordinates: routeCoords.map(c => [c[1], c[0]]), // [lng, lat]
+    },
+  } : fallbackCoords.length > 1 ? {
+    type: 'Feature',
+    geometry: {
+      type: 'LineString',
+      coordinates: fallbackCoords.map(c => [c[1], c[0]]),
+    },
+  } : null
 
-      {routeCoords ? (
-        <>
-          <Polyline positions={routeCoords} color="#1e3a5f" weight={7} opacity={0.15} lineCap="round" lineJoin="round" />
-          <Polyline positions={routeCoords} color="#4f8df7" weight={5} opacity={0.9} lineCap="round" lineJoin="round" />
-        </>
-      ) : (
-        <Polyline positions={fallbackCoords} color="#94a3b8" weight={3} opacity={0.5} dashArray="10 8" lineCap="round" />
+  const bounds = computeBounds(allBoundsPoints)
+
+  const mapContent = (
+    <Map
+      initialViewState={{
+        bounds: bounds || undefined,
+        fitBoundsOptions: { padding: 50 },
+        longitude: startPoint.lng,
+        latitude: startPoint.lat,
+        zoom: 10,
+      }}
+      style={{ width: '100%', height: '100%' }}
+      mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+      attributionControl={true}
+    >
+      {/* Route line */}
+      {routeGeoJSON && (
+        <Source id="route" type="geojson" data={routeGeoJSON}>
+          {/* Shadow */}
+          <Layer id="route-shadow" type="line" paint={{
+            'line-color': '#1e3a5f',
+            'line-width': 7,
+            'line-opacity': routeCoords ? 0.12 : 0,
+          }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+          {/* Main line */}
+          <Layer id="route-line" type="line" paint={{
+            'line-color': routeCoords ? '#4f8df7' : '#94a3b8',
+            'line-width': routeCoords ? 5 : 3,
+            'line-opacity': routeCoords ? 0.9 : 0.5,
+            ...(routeCoords ? {} : { 'line-dasharray': [2, 1.5] }),
+          }} layout={{ 'line-cap': 'round', 'line-join': 'round' }} />
+        </Source>
       )}
 
-      <Marker position={[startPoint.lat, startPoint.lng]} icon={createStartIcon()}>
-        <Popup><div className="route-map__popup"><strong>Start</strong><div>{startPoint.label}</div></div></Popup>
-      </Marker>
+      {/* Start marker */}
+      <PinMarker lng={startPoint.lng} lat={startPoint.lat} label="S" color="#16a34a">
+        <strong>Start</strong>
+        <div>{startPoint.label}</div>
+      </PinMarker>
 
-      {points.map((p, i) => (
-        <Marker key={i} position={[p.lat, p.lng]} icon={createNumberedIcon(p.label, p)}>
-          <Popup>
-            <div className="route-map__popup">
-              <strong>Stop {p.label}</strong>
-              <div>{p.name}</div>
-              <div className="route-map__popup-addr">{p.address}</div>
-              {p.city && <div className="route-map__popup-addr">{p.city}, OH {p.zip}</div>}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+      {/* Stop markers */}
+      {points.map((p, i) => {
+        const color = p._coldChain ? '#2563eb' : p._sigRequired ? '#d97706' : '#6b7280'
+        return (
+          <PinMarker key={i} lng={p.lng} lat={p.lat} label={p.label} color={color}>
+            <strong>Stop {p.label}</strong>
+            <div>{p.name}</div>
+            <div style={{ color: '#64748b', fontSize: 12 }}>{p.address}</div>
+            {p.city && <div style={{ color: '#64748b', fontSize: 12 }}>{p.city}, OH {p.zip}</div>}
+          </PinMarker>
+        )
+      })}
 
+      {/* End marker */}
       {endPoint && (
-        <Marker position={[endPoint.lat, endPoint.lng]} icon={createEndIcon()}>
-          <Popup><div className="route-map__popup"><strong>End Point</strong><div className="route-map__popup-addr">{endPoint.display || endInput}</div></div></Popup>
-        </Marker>
+        <PinMarker lng={endPoint.lng} lat={endPoint.lat} label="E" color="#dc2626">
+          <strong>End Point</strong>
+          <div style={{ color: '#64748b', fontSize: 12 }}>{endPoint.display || endInput}</div>
+        </PinMarker>
       )}
 
       {/* Completed stops — greyed out */}
       {completedPoints.map((p, i) => (
-        <Marker key={`done-${i}`} position={[p.lat, p.lng]} icon={createCompletedIcon(p.status)}>
-          <Popup>
-            <div className="route-map__popup">
-              <strong>{p.status === 'failed' ? 'Failed' : 'Delivered'}</strong>
-              <div>{p.name}</div>
-              <div className="route-map__popup-addr">{p.address}</div>
-            </div>
-          </Popup>
-        </Marker>
+        <PinMarker key={`done-${i}`} lng={p.lng} lat={p.lat}
+          label={p.status === 'failed' ? '✕' : '✓'}
+          color={p.status === 'failed' ? '#ef4444' : '#9ca3af'}
+          opacity={0.5}
+        >
+          <strong>{p.status === 'failed' ? 'Failed' : 'Delivered'}</strong>
+          <div>{p.name}</div>
+          <div style={{ color: '#64748b', fontSize: 12 }}>{p.address}</div>
+        </PinMarker>
       ))}
 
+      {/* Current position */}
       {currentPos && (
-        <Marker position={[currentPos.lat, currentPos.lng]} icon={createCurrentPosIcon()}>
-          <Popup>Your location</Popup>
+        <Marker longitude={currentPos.lng} latitude={currentPos.lat} anchor="center">
+          <div className="route-map__pulse-dot">
+            <div className="route-map__pulse-ring"></div>
+          </div>
         </Marker>
       )}
-    </MapContainer>
+    </Map>
   )
 
   return (
