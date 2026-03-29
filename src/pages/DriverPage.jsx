@@ -67,7 +67,7 @@ export default function DriverPage() {
       monday.setDate(now.getDate() + monOffset)
       const friday = new Date(monday)
       friday.setDate(monday.getDate() + 4)
-      const fmtD = d => d.toISOString().split('T')[0]
+      const fmtD = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
       // Determine which delivery date to show based on cutover rules
       const hour = now.getHours()
