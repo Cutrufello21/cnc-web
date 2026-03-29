@@ -13,7 +13,7 @@ const coreServices = [
       'Daily scheduled delivery to patients across Northeast Ohio',
       'Same-day urgent and add-on order handling',
       'Residential, facility, and long-term care delivery',
-      'Signature capture and proof of delivery',
+      'Delivery confirmation with documented proof of completion',
       'HIPAA-compliant handling with BAA available',
     ],
   },
@@ -27,7 +27,7 @@ const coreServices = [
     ],
   },
   {
-    title: 'Nightly Dispatch Operations',
+    title: 'Dispatch Operations',
     items: [
       'Orders sorted, assigned, and routed before midnight',
       'All deliveries completed by 6 PM next business day',
@@ -38,9 +38,9 @@ const coreServices = [
   {
     title: 'Dedicated Driver Network',
     items: [
-      '20+ vetted, long-term drivers — not gig workers or temp labor',
+      'Drivers trained specifically for healthcare delivery — not general courier work',
       'Average driver tenure of 5+ years (longest: 16 years)',
-      'Trained specifically for healthcare delivery — not general courier work',
+      'Background-checked and trained on pharmacy protocols',
       'Named drivers assigned to consistent routes',
     ],
   },
@@ -97,7 +97,7 @@ export default function ServicesPage() {
                 <motion.div
                   className="sp__card"
                   key={i}
-                  initial={{ opacity: 0, y: 24 }}
+                  initial={{ opacity: 0.2, y: 24 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '-50px' }}
                   transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -129,7 +129,7 @@ export default function ServicesPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.4 }}
             >
-              How We Operate
+              What Working With Us Looks Like
             </motion.h2>
             <div className="sp__ops-grid">
               {operations.map((op, i) => (
@@ -162,11 +162,11 @@ export default function ServicesPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              <h2 className="sp__cta-title">Ready to talk?</h2>
+              <h2 className="sp__cta-title">Ready to talk operations?</h2>
               <p className="sp__cta-desc">
-                We'll scope your volume, configure routes for your service area, and have a delivery plan ready within a week.
+                Every partner gets direct access to ownership. Not a rep. Not a portal. A real conversation. 8 AM–6 PM delivery window — maintained without exception.
               </p>
-              <a href="/#contact" className="sp__cta-btn">Get in Touch</a>
+              <a href="mailto:dom@cncdeliveryservice.com" className="sp__cta-btn">Request a Consultation</a>
             </motion.div>
           </div>
         </section>
