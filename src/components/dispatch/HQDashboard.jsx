@@ -217,18 +217,23 @@ export default function HQDashboard() {
         <div className="hq__card hq__card--wide">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 className="hq__card-title" style={{ margin: 0 }}>Volume Trend</h3>
-            {hoveredBar !== null && volumeChart[hoveredBar] && (
-              <div className="hq__chart-tooltip">
-                <strong>{volumeChart[hoveredBar].day?.slice(0, 3)} {fmtDate(volumeChart[hoveredBar].date)}</strong>
-                <span>{volumeChart[hoveredBar].orders} total</span>
-                <span style={{ color: 'var(--cornflower)' }}>SHSP: {volumeChart[hoveredBar].shsp}</span>
-                <span style={{ color: '#4ADE80' }}>Aultman: {volumeChart[hoveredBar].aultman}</span>
-                <span style={{ color: '#60a5fa' }}>CC: {volumeChart[hoveredBar].coldChain}</span>
-              </div>
-            )}
+            {hoveredBar !== null && (() => {
+              const reversed = [...(volumeChart || [])].reverse()
+              const hd = reversed[hoveredBar]
+              if (!hd) return null
+              return (
+                <div className="hq__chart-tooltip">
+                  <strong>{hd.day?.slice(0, 3)} {fmtDate(hd.date)}</strong>
+                  <span>{hd.orders} total</span>
+                  <span style={{ color: 'var(--cornflower)' }}>SHSP: {hd.shsp}</span>
+                  <span style={{ color: '#4ADE80' }}>Aultman: {hd.aultman}</span>
+                  <span style={{ color: '#60a5fa' }}>CC: {hd.coldChain}</span>
+                </div>
+              )
+            })()}
           </div>
           <div className="hq__chart" onMouseLeave={() => setHoveredBar(null)}>
-            {(volumeChart || []).map((d, i) => {
+            {[...(volumeChart || [])].reverse().map((d, i) => {
               const isHovered = hoveredBar === i
               const avg = volumeChart.length ? Math.round(volumeChart.reduce((s, v) => s + v.orders, 0) / volumeChart.length) : 0
               return (
