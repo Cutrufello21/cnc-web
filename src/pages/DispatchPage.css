@@ -1,3 +1,60 @@
+/* Optimize button */
+.dispatch__optimize-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #0A2463, #1a3a7a);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.dispatch__optimize-btn:hover { transform: scale(1.03); box-shadow: 0 4px 12px rgba(10, 36, 99, 0.3); }
+.dispatch__optimize-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Optimize Preview */
+.dispatch__optimize-preview {
+  background: var(--white);
+  border: 2px solid var(--cornflower);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(100, 149, 237, 0.15);
+}
+.dispatch__optimize-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.dispatch__optimize-header h3 { font-size: 18px; font-weight: 700; color: var(--gray-900); }
+.dispatch__optimize-close { width: 32px; height: 32px; border: none; background: var(--gray-100); border-radius: 8px; font-size: 18px; cursor: pointer; color: var(--gray-500); }
+.dispatch__optimize-close:hover { background: var(--gray-200); }
+
+.dispatch__optimize-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.dispatch__optimize-stat { padding: 12px; background: var(--gray-50); border-radius: 8px; text-align: center; }
+.dispatch__optimize-stat-val { display: block; font-size: 24px; font-weight: 700; color: var(--navy); }
+.dispatch__optimize-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); }
+
+.dispatch__optimize-table-wrap { max-height: 300px; overflow-y: auto; margin-bottom: 16px; border: 1px solid var(--gray-200); border-radius: 8px; }
+.dispatch__optimize-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dispatch__optimize-table th { padding: 8px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray-500); background: var(--gray-50); border-bottom: 1px solid var(--gray-200); position: sticky; top: 0; }
+.dispatch__optimize-table td { padding: 6px 12px; border-bottom: 1px solid var(--gray-100); }
+.dispatch__optimize-table tbody tr:hover { background: var(--gray-50); }
+
+.dispatch__optimize-loads { margin-bottom: 16px; }
+.dispatch__optimize-loads h4 { font-size: 14px; font-weight: 700; color: var(--gray-700); margin-bottom: 10px; }
+.dispatch__optimize-load-bars { display: flex; flex-direction: column; gap: 6px; }
+.dispatch__optimize-load-row { display: flex; align-items: center; gap: 8px; }
+.dispatch__optimize-load-name { width: 70px; font-size: 13px; font-weight: 600; color: var(--gray-700); }
+.dispatch__optimize-load-bar-wrap { flex: 1; height: 18px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+.dispatch__optimize-load-bar { height: 100%; background: linear-gradient(90deg, var(--navy), var(--cornflower)); border-radius: 4px; transition: width 0.4s ease; }
+.dispatch__optimize-load-count { width: 28px; font-size: 13px; font-weight: 700; color: var(--gray-900); text-align: right; }
+
+.dispatch__optimize-actions { display: flex; gap: 12px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid var(--gray-200); }
+.dispatch__optimize-apply { padding: 10px 24px; font-size: 14px; font-weight: 700; color: #fff; background: #16a34a; border: none; border-radius: 8px; cursor: pointer; }
+.dispatch__optimize-apply:hover { background: #15803d; }
+.dispatch__optimize-apply:disabled { opacity: 0.6; cursor: not-allowed; }
+.dispatch__optimize-cancel { padding: 10px 20px; font-size: 14px; font-weight: 500; color: var(--gray-600); background: none; border: 1px solid var(--gray-200); border-radius: 8px; cursor: pointer; }
+.dispatch__optimize-cancel:hover { background: var(--gray-50); }
+
 /* ZIP search */
 .dispatch__zip-search { display: flex; align-items: center; gap: 8px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 8px; padding: 8px 14px; max-width: 280px; }
 .dispatch__zip-search svg { color: var(--gray-400); flex-shrink: 0; }

@@ -44,6 +44,8 @@ export default function DispatchPage() {
   const [callInPreview, setCallInPreview] = useState(null)
   const [pendingTimeOff, setPendingTimeOff] = useState(0)
   const [weekOffset, setWeekOffset] = useState(0)
+  const [optimizing, setOptimizing] = useState(false)
+  const [optimizePreview, setOptimizePreview] = useState(null)
 
   useEffect(() => {
     fetchDispatchData()
@@ -187,6 +189,32 @@ export default function DispatchPage() {
   function handleDayChange(day) {
     setSelectedDay(day)
     fetchDispatchData(day)
+  }
+
+  async function handleOptimize(mode = 'preview') {
+    if (!data?.deliveryDateObj) return
+    setOptimizing(true)
+    try {
+      const dateStr = `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+      const res = await fetch('/api/auto-dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryDate: dateStr, deliveryDay: data.deliveryDay, mode }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+
+      if (mode === 'apply') {
+        setOptimizePreview(null)
+        fetchDispatchData(data.deliveryDay)
+      } else {
+        setOptimizePreview(result)
+      }
+    } catch (err) {
+      alert('Optimize error: ' + err.message)
+    } finally {
+      setOptimizing(false)
+    }
   }
 
   function handleMoveComplete(moveInfo) {
@@ -614,8 +642,94 @@ export default function DispatchPage() {
                 >
                   Unassigned
                 </button>
+                <button
+                  className="dispatch__optimize-btn"
+                  onClick={() => handleOptimize('preview')}
+                  disabled={optimizing}
+                >
+                  {optimizing ? 'Analyzing...' : '⚡ Optimize'}
+                </button>
               </div>
             </div>
+
+            {/* Optimize Preview Modal */}
+            {optimizePreview && (
+              <div className="dispatch__optimize-preview">
+                <div className="dispatch__optimize-header">
+                  <h3>Route Optimization Preview</h3>
+                  <button className="dispatch__optimize-close" onClick={() => setOptimizePreview(null)}>&times;</button>
+                </div>
+                <div className="dispatch__optimize-summary">
+                  <div className="dispatch__optimize-stat">
+                    <span className="dispatch__optimize-stat-val">{optimizePreview.totalStops}</span>
+                    <span className="dispatch__optimize-stat-label">Total Stops</span>
+                  </div>
+                  <div className="dispatch__optimize-stat">
+                    <span className="dispatch__optimize-stat-val">{optimizePreview.changes?.length || 0}</span>
+                    <span className="dispatch__optimize-stat-label">Changes</span>
+                  </div>
+                  <div className="dispatch__optimize-stat">
+                    <span className="dispatch__optimize-stat-val">{optimizePreview.availableDrivers?.length || 0}</span>
+                    <span className="dispatch__optimize-stat-label">Drivers Available</span>
+                  </div>
+                  <div className="dispatch__optimize-stat">
+                    <span className="dispatch__optimize-stat-val">{optimizePreview.driversOff?.length || 0}</span>
+                    <span className="dispatch__optimize-stat-label">Drivers Off</span>
+                  </div>
+                </div>
+                {optimizePreview.driversOff?.length > 0 && (
+                  <p style={{ fontSize: 13, color: '#f59e0b', marginBottom: 12 }}>
+                    Off today: <strong>{optimizePreview.driversOff.join(', ')}</strong>
+                  </p>
+                )}
+                {optimizePreview.changes?.length === 0 ? (
+                  <p style={{ padding: 16, textAlign: 'center', color: 'var(--gray-500)' }}>Routes are already optimized — no changes needed.</p>
+                ) : (
+                  <>
+                    <div className="dispatch__optimize-table-wrap">
+                      <table className="dispatch__optimize-table">
+                        <thead>
+                          <tr><th>Order</th><th>ZIP</th><th>City</th><th>From</th><th>To</th><th>Reason</th></tr>
+                        </thead>
+                        <tbody>
+                          {(optimizePreview.changes || []).map((c, i) => (
+                            <tr key={i}>
+                              <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{c.orderId}</td>
+                              <td style={{ fontWeight: 600 }}>{c.zip}</td>
+                              <td>{c.city}</td>
+                              <td style={{ color: '#dc4a4a' }}>{c.from || 'Unassigned'}</td>
+                              <td style={{ color: '#16a34a', fontWeight: 700 }}>{c.to}</td>
+                              <td style={{ fontSize: 12, color: 'var(--gray-500)' }}>{c.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Load distribution after changes */}
+                    <div className="dispatch__optimize-loads">
+                      <h4>Projected Load Distribution</h4>
+                      <div className="dispatch__optimize-load-bars">
+                        {Object.entries(optimizePreview.loads || {}).sort((a, b) => b[1] - a[1]).map(([name, load]) => (
+                          <div key={name} className="dispatch__optimize-load-row">
+                            <span className="dispatch__optimize-load-name">{name}</span>
+                            <div className="dispatch__optimize-load-bar-wrap">
+                              <div className="dispatch__optimize-load-bar" style={{ width: `${(load / (Math.max(...Object.values(optimizePreview.loads)) || 1)) * 100}%` }} />
+                            </div>
+                            <span className="dispatch__optimize-load-count">{load}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="dispatch__optimize-actions">
+                      <button className="dispatch__optimize-apply" onClick={() => handleOptimize('apply')} disabled={optimizing}>
+                        {optimizing ? 'Applying...' : `Apply ${optimizePreview.changes?.length} Changes`}
+                      </button>
+                      <button className="dispatch__optimize-cancel" onClick={() => setOptimizePreview(null)}>Cancel</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {showSortList && <SortList deliveryDate={data.deliveryDateObj ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}` : null} />}
             {showRouting && <RoutingEditor />}
