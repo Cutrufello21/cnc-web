@@ -20,6 +20,7 @@
   font-size: 14px;
   color: var(--gray-600);
   margin-bottom: 24px;
+  animation: bounceIn 0.4s ease-out both;
 }
 
 .hq__status--live { border-color: #16a34a40; background: #f0fdf4; }
@@ -66,7 +67,19 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  animation: bounceIn 0.5s ease-out both;
+  transition: transform 0.2s ease;
 }
+
+.hq__today-card:hover {
+  transform: translateY(-2px);
+}
+
+.hq__today-card:nth-child(1) { animation-delay: 0s; }
+.hq__today-card:nth-child(2) { animation-delay: 0.05s; }
+.hq__today-card:nth-child(3) { animation-delay: 0.1s; }
+.hq__today-card:nth-child(4) { animation-delay: 0.15s; }
+.hq__today-card:nth-child(5) { animation-delay: 0.2s; }
 
 .hq__today-label {
   font-size: 11px;
@@ -139,6 +152,28 @@
   color: #f59e0b;
 }
 
+/* Bounce-in animation */
+@keyframes bounceIn {
+  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+  60% { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  80% { transform: translateY(2px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes barGrow {
+  0% { transform: scaleY(0); }
+  60% { transform: scaleY(1.04); }
+  80% { transform: scaleY(0.97); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes slideInRight {
+  0% { opacity: 0; transform: translateX(20px); }
+  60% { opacity: 1; transform: translateX(-3px); }
+  80% { transform: translateX(1px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
 /* KPI cards */
 .hq__kpis {
   display: grid;
@@ -154,7 +189,21 @@
   padding: 20px;
   display: flex;
   flex-direction: column;
+  animation: bounceIn 0.5s ease-out both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+
+.hq__kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+
+.hq__kpi:nth-child(1) { animation-delay: 0.05s; }
+.hq__kpi:nth-child(2) { animation-delay: 0.1s; }
+.hq__kpi:nth-child(3) { animation-delay: 0.15s; }
+.hq__kpi:nth-child(4) { animation-delay: 0.2s; }
+.hq__kpi:nth-child(5) { animation-delay: 0.25s; }
+.hq__kpi:nth-child(6) { animation-delay: 0.3s; }
 
 .hq__kpi-label {
   font-size: 12px;
@@ -204,6 +253,8 @@
   border-radius: var(--radius-md);
   padding: 24px;
   overflow: hidden;
+  animation: bounceIn 0.5s ease-out both;
+  animation-delay: 0.35s;
 }
 
 .hq__card--wide {
@@ -252,7 +303,24 @@
   flex-direction: column;
   min-height: 2px;
   transition: opacity 0.2s ease;
+  animation: barGrow 0.6s ease-out both;
+  transform-origin: bottom;
 }
+
+.hq__bar-col:nth-child(1) .hq__bar-stack { animation-delay: 0.05s; }
+.hq__bar-col:nth-child(2) .hq__bar-stack { animation-delay: 0.08s; }
+.hq__bar-col:nth-child(3) .hq__bar-stack { animation-delay: 0.11s; }
+.hq__bar-col:nth-child(4) .hq__bar-stack { animation-delay: 0.14s; }
+.hq__bar-col:nth-child(5) .hq__bar-stack { animation-delay: 0.17s; }
+.hq__bar-col:nth-child(6) .hq__bar-stack { animation-delay: 0.2s; }
+.hq__bar-col:nth-child(7) .hq__bar-stack { animation-delay: 0.23s; }
+.hq__bar-col:nth-child(8) .hq__bar-stack { animation-delay: 0.26s; }
+.hq__bar-col:nth-child(9) .hq__bar-stack { animation-delay: 0.29s; }
+.hq__bar-col:nth-child(10) .hq__bar-stack { animation-delay: 0.32s; }
+.hq__bar-col:nth-child(11) .hq__bar-stack { animation-delay: 0.35s; }
+.hq__bar-col:nth-child(12) .hq__bar-stack { animation-delay: 0.38s; }
+.hq__bar-col:nth-child(13) .hq__bar-stack { animation-delay: 0.41s; }
+.hq__bar-col:nth-child(14) .hq__bar-stack { animation-delay: 0.44s; }
 
 .hq__chart-tooltip {
   display: flex;
@@ -359,7 +427,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  animation: slideInRight 0.4s ease-out both;
 }
+
+.hq__leader:nth-child(1) { animation-delay: 0.1s; }
+.hq__leader:nth-child(2) { animation-delay: 0.15s; }
+.hq__leader:nth-child(3) { animation-delay: 0.2s; }
+.hq__leader:nth-child(4) { animation-delay: 0.25s; }
+.hq__leader:nth-child(5) { animation-delay: 0.3s; }
+.hq__leader:nth-child(6) { animation-delay: 0.35s; }
+.hq__leader:nth-child(7) { animation-delay: 0.4s; }
+.hq__leader:nth-child(8) { animation-delay: 0.45s; }
+.hq__leader:nth-child(9) { animation-delay: 0.5s; }
+.hq__leader:nth-child(10) { animation-delay: 0.55s; }
 
 .hq__leader-rank {
   font-size: 12px;
