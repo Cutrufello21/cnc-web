@@ -55,19 +55,20 @@ export default function DriverSortList({ driverName, pharmacy }) {
       {lines.map(l => {
         const isMe = l.display_text.toLowerCase().includes(driverName.toLowerCase())
         const isLate = !!l.late_start
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
         return (
           <div key={l.id} style={{
             padding: '10px 16px', borderBottom: '1px solid var(--gray-100)',
             fontSize: 14, fontWeight: 600, color: 'var(--gray-900)', letterSpacing: 0.3,
             display: 'flex', alignItems: 'center', gap: 8,
-            background: isLate ? '#fff7ed' : isMe ? '#eef4ff' : 'transparent',
+            background: isLate ? (isDark ? '#5c2d0e' : '#fff7ed') : isMe ? (isDark ? '#1a2744' : '#eef4ff') : 'transparent',
             borderLeft: isLate ? '3px solid #f97316' : isMe ? '3px solid #3b82f6' : '3px solid transparent',
           }}>
             <span style={{ flex: 1 }}>{l.display_text}</span>
             {isLate && (
               <span style={{
                 padding: '2px 8px', fontSize: 10, fontWeight: 700,
-                color: '#f97316', background: '#ffedd5', borderRadius: 4,
+                color: isDark ? '#fbbf24' : '#f97316', background: isDark ? '#78350f' : '#ffedd5', borderRadius: 4,
               }}>
                 9 AM
               </span>
