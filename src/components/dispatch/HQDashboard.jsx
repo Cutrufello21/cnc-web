@@ -20,6 +20,7 @@ function fmtDay(dateStr) {
 export default function HQDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [tableSort, setTableSort] = useState({ col: null, dir: 'desc' })
   const [expandedRow, setExpandedRow] = useState(null)
   const [hoveredBar, setHoveredBar] = useState(null)
@@ -120,9 +121,8 @@ export default function HQDashboard() {
       }))
 
       // Upcoming time off (next 7 days)
-      const sevenDaysOut = new Date(now)
-      sevenDaysOut.setDate(sevenDaysOut.getDate() + 7)
-      const sevenStr = sevenDaysOut.toISOString().split('T')[0]
+      const sevenDaysOut = new Date(now0.getFullYear(), now0.getMonth(), now0.getDate() + 7)
+      const sevenStr = `${sevenDaysOut.getFullYear()}-${String(sevenDaysOut.getMonth()+1).padStart(2,'0')}-${String(sevenDaysOut.getDate()).padStart(2,'0')}`
       const upcomingTimeOff = (timeOffRes.data || [])
         .filter(r => r.date_off <= sevenStr)
         .sort((a, b) => a.date_off.localeCompare(b.date_off))
@@ -243,12 +243,13 @@ export default function HQDashboard() {
       })
     } catch (err) {
       console.error('HQ error:', err)
+      setLoadError(err?.message || String(err))
     }
     finally { setLoading(false) }
   }
 
   if (loading) return <div className="hq__loading"><div className="dispatch__spinner" />Loading HQ data...</div>
-  if (!data) return <div className="hq__loading">Failed to load dashboard</div>
+  if (!data) return <div className="hq__loading">Failed to load dashboard{loadError ? `: ${loadError}` : ''}</div>
 
   const { kpis, leaderboard, recentLogs, volumeChart, todayLog, lastLog, isToday, isYesterday, lastDispatchDate, timeOffByDate, optimizationStats, heatmapDrivers, heatmapMax, weekDates, quickStats } = data
   const maxVolume = Math.max(...(volumeChart?.map(d => d.orders) || [1]))
