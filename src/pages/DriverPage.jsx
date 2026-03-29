@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
 import DriverSortList from '../components/driver/DriverSortList'
-import RouteMap from '../components/driver/RouteMap'
+const RouteMap = lazy(() => import('../components/driver/RouteMap'))
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
@@ -742,17 +742,19 @@ export default function DriverPage() {
                       )}
                     </div>
 
-                    <RouteMap
-                      stops={[...(optimizedStops || data.stops), ...manualStops]}
-                      mode="oneway"
-                      pharmacy={data.pharmacy}
-                      onReorder={(newStops) => {
-                        const done = (optimizedStops || data.stops).filter(s => s.status === 'delivered' || s.status === 'failed')
-                        setOptimizedStops([...newStops.filter(s => !s._manual), ...done])
-                        setManualStops(newStops.filter(s => s._manual))
-                        if (!optimizeMode) setOptimizeMode('oneway')
-                      }}
-                    />
+                    <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Loading route map...</div>}>
+                      <RouteMap
+                        stops={[...(optimizedStops || data.stops), ...manualStops]}
+                        mode="oneway"
+                        pharmacy={data.pharmacy}
+                        onReorder={(newStops) => {
+                          const done = (optimizedStops || data.stops).filter(s => s.status === 'delivered' || s.status === 'failed')
+                          setOptimizedStops([...newStops.filter(s => !s._manual), ...done])
+                          setManualStops(newStops.filter(s => s._manual))
+                          if (!optimizeMode) setOptimizeMode('oneway')
+                        }}
+                      />
+                    </Suspense>
                   </>
                 ) : (
                   <div className="driver__not-ready">
