@@ -113,6 +113,14 @@ export default function DispatchPage() {
 
       // Group stops by driver
       const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
+        .replace(/\bboulevard\b/g, 'blvd').replace(/\bdrive\b/g, 'dr').replace(/\bstreet\b/g, 'st')
+        .replace(/\bavenue\b/g, 'ave').replace(/\broad\b/g, 'rd').replace(/\blane\b/g, 'ln')
+        .replace(/\bcourt\b/g, 'ct').replace(/\bplace\b/g, 'pl').replace(/\bcircle\b/g, 'cir')
+        .replace(/\bparkway\b/g, 'pkwy').replace(/\bhighway\b/g, 'hwy').replace(/\bsuite\b/g, 'ste')
+        .replace(/\bapartment\b/g, 'apt').replace(/\bnorth\b/g, 'n').replace(/\bsouth\b/g, 's')
+        .replace(/\beast\b/g, 'e').replace(/\bwest\b/g, 'w').replace(/\bnortheast\b/g, 'ne')
+        .replace(/\bnorthwest\b/g, 'nw').replace(/\bsoutheast\b/g, 'se').replace(/\bsouthwest\b/g, 'sw')
+        .replace(/[.,#]/g, '')
       const driverStops = {}
       stops.forEach(s => {
         if (!driverStops[s.driver_name]) {
