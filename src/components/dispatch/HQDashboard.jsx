@@ -28,7 +28,26 @@ export default function HQDashboard() {
 
   async function loadData() {
     try {
-      const [logsRes, weeklyRes, driversRes, timeOffRes, decisionsRes] = await Promise.all([
+      // Compute this week's Monday for date range queries
+      const now0 = new Date()
+      const dow0 = now0.getDay()
+      const monOffset0 = dow0 === 0 ? -6 : 1 - dow0
+      const monday0 = new Date(now0)
+      monday0.setDate(now0.getDate() + monOffset0)
+      const mondayStr0 = monday0.toISOString().split('T')[0]
+      const friday0 = new Date(monday0)
+      friday0.setDate(monday0.getDate() + 4)
+      const fridayStr0 = friday0.toISOString().split('T')[0]
+
+      // Previous week Monday
+      const prevMonday0 = new Date(monday0)
+      prevMonday0.setDate(monday0.getDate() - 7)
+      const prevMondayStr0 = prevMonday0.toISOString().split('T')[0]
+      const prevFriday0 = new Date(prevMonday0)
+      prevFriday0.setDate(prevMonday0.getDate() + 4)
+      const prevFridayStr0 = prevFriday0.toISOString().split('T')[0]
+
+      const [logsRes, weeklyRes, driversRes, timeOffRes, decisionsRes, stopsThisWeekRes, stopsPrevWeekRes] = await Promise.all([
         supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
         supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
         supabase.from('drivers').select('*').eq('active', true),
@@ -39,6 +58,10 @@ export default function HQDashboard() {
           .in('decision_type', ['manual_move', 'optimize_accepted', 'optimize_rejected', 'snapshot_diff'])
           .order('created_at', { ascending: false })
           .limit(500),
+        supabase.from('daily_stops').select('driver_name, delivery_date')
+          .gte('delivery_date', mondayStr0).lte('delivery_date', fridayStr0),
+        supabase.from('daily_stops').select('driver_name, delivery_date')
+          .gte('delivery_date', prevMondayStr0).lte('delivery_date', prevFridayStr0),
       ])
 
       const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
@@ -152,6 +175,70 @@ export default function HQDashboard() {
         thisWeekOptimize: thisWeekOptimize.length,
       }
 
+      // Driver heatmap: stops per driver per day this week
+      const stopsThisWeek = stopsThisWeekRes.data || []
+      const activeDriverNames = (driversRes.data || []).filter(d => d.driver_name).map(d => d.driver_name)
+      const weekDates = []
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(monday0)
+        d.setDate(monday0.getDate() + i)
+        weekDates.push(d.toISOString().split('T')[0])
+      }
+
+      const heatmapData = {}
+      stopsThisWeek.forEach(s => {
+        if (!heatmapData[s.driver_name]) heatmapData[s.driver_name] = {}
+        heatmapData[s.driver_name][s.delivery_date] = (heatmapData[s.driver_name][s.delivery_date] || 0) + 1
+      })
+
+      // Only include drivers with stops this week, sorted by total
+      const heatmapDrivers = Object.entries(heatmapData)
+        .map(([name, days]) => ({
+          name,
+          days,
+          total: Object.values(days).reduce((s, v) => s + v, 0),
+        }))
+        .sort((a, b) => b.total - a.total)
+
+      const heatmapMax = Math.max(...heatmapDrivers.flatMap(d => Object.values(d.days)), 1)
+
+      // Quick stats
+      const stopsPrevWeek = stopsPrevWeekRes.data || []
+
+      // Busiest day this week
+      const dayTotals = {}
+      stopsThisWeek.forEach(s => {
+        dayTotals[s.delivery_date] = (dayTotals[s.delivery_date] || 0) + 1
+      })
+      const busiestEntry = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0]
+      const busiestDay = busiestEntry ? { date: busiestEntry[0], count: busiestEntry[1] } : null
+
+      // Average stops per driver (this week, active days only)
+      const driverTotals = {}
+      stopsThisWeek.forEach(s => {
+        driverTotals[s.driver_name] = (driverTotals[s.driver_name] || 0) + 1
+      })
+      const activeDriverCount = Object.keys(driverTotals).length
+      const avgStopsPerDriver = activeDriverCount ? Math.round(stopsThisWeek.length / activeDriverCount) : 0
+
+      // Most improved driver (biggest increase from last week to this week)
+      const prevDriverTotals = {}
+      stopsPrevWeek.forEach(s => {
+        prevDriverTotals[s.driver_name] = (prevDriverTotals[s.driver_name] || 0) + 1
+      })
+      let mostImproved = null
+      let biggestGain = 0
+      for (const [name, thisTotal] of Object.entries(driverTotals)) {
+        const prevTotal = prevDriverTotals[name] || 0
+        const gain = thisTotal - prevTotal
+        if (gain > biggestGain) {
+          biggestGain = gain
+          mostImproved = { name, thisWeek: thisTotal, lastWeek: prevTotal, gain }
+        }
+      }
+
+      const quickStats = { busiestDay, avgStopsPerDriver, mostImproved }
+
       setData({
         todayLog, lastLog, isToday, isYesterday, lastDispatchDate,
         kpis: {
@@ -162,6 +249,7 @@ export default function HQDashboard() {
           allTimeOrders, totalDispatches: logData.length,
         },
         leaderboard, recentLogs, volumeChart, timeOffByDate, optimizationStats,
+        heatmapDrivers, heatmapMax, weekDates, quickStats,
       })
     } catch (err) {
       console.error('HQ error:', err)
@@ -172,7 +260,7 @@ export default function HQDashboard() {
   if (loading) return <div className="hq__loading"><div className="dispatch__spinner" />Loading HQ data...</div>
   if (!data) return <div className="hq__loading">Failed to load dashboard</div>
 
-  const { kpis, leaderboard, recentLogs, volumeChart, todayLog, lastLog, isToday, isYesterday, lastDispatchDate, timeOffByDate, optimizationStats } = data
+  const { kpis, leaderboard, recentLogs, volumeChart, todayLog, lastLog, isToday, isYesterday, lastDispatchDate, timeOffByDate, optimizationStats, heatmapDrivers, heatmapMax, weekDates, quickStats } = data
   const maxVolume = Math.max(...(volumeChart?.map(d => d.orders) || [1]))
   const maxLeaderboard = leaderboard?.[0]?.weekTotal || 1
 
@@ -318,7 +406,7 @@ export default function HQDashboard() {
         </div>
 
         {/* Route Optimization */}
-        {optimizationStats && (optimizationStats.totalMoves > 0 || optimizationStats.totalOptimizeAccepted > 0) && (
+        {optimizationStats && (
           <div className="hq__card">
             <h3 className="hq__card-title">Route Optimization</h3>
             <div className="hq__opt-stats">
@@ -369,122 +457,85 @@ export default function HQDashboard() {
           </div>
         )}
 
-        {/* Recent Deliveries — Interactive */}
-        <div className="hq__card hq__card--wide">
-          <h3 className="hq__card-title">This Week's Dispatches</h3>
-          {recentLogs.length === 0 ? (
-            <p style={{ color: 'var(--gray-400)', fontSize: 14 }}>No dispatches this week yet</p>
-          ) : (() => {
-            const today = new Date().toISOString().split('T')[0]
-            const maxOrders = Math.max(...recentLogs.map(l => l.orders_processed || 0), 1)
-
-            const cols = [
-              { key: 'delivery_day', label: 'Day', get: l => l.delivery_day },
-              { key: 'date', label: 'Date', get: l => l.date },
-              { key: 'orders_processed', label: 'Orders', get: l => l.orders_processed || 0 },
-              { key: 'shsp_orders', label: 'SHSP', get: l => l.shsp_orders || 0 },
-              { key: 'aultman_orders', label: 'Aultman', get: l => l.aultman_orders || 0 },
-              { key: 'cold_chain', label: 'CC', get: l => l.cold_chain || 0 },
-              { key: 'unassigned_count', label: 'Unassigned', get: l => l.unassigned_count || 0 },
-              { key: 'top_driver', label: 'Top Driver', get: l => l.top_driver || '' },
-              { key: 'status', label: 'Status', get: l => l.status || '' },
-            ]
-
-            const sorted = [...recentLogs]
-            if (tableSort.col) {
-              const col = cols.find(c => c.key === tableSort.col)
-              if (col) {
-                sorted.sort((a, b) => {
-                  const av = col.get(a), bv = col.get(b)
-                  const cmp = typeof av === 'number' ? av - bv : String(av).localeCompare(String(bv))
-                  return tableSort.dir === 'asc' ? cmp : -cmp
-                })
-              }
-            }
-
-            function handleSort(key) {
-              setTableSort(prev => prev.col === key ? { col: key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { col: key, dir: 'desc' })
-            }
-
-            return (
-              <table className="hq__table hq__table--interactive">
-                <thead>
-                  <tr>
-                    {cols.map(c => (
-                      <th key={c.key} onClick={() => handleSort(c.key)} className="hq__th-sort">
-                        {c.label}
-                        {tableSort.col === c.key && <span className="hq__sort-arrow">{tableSort.dir === 'asc' ? ' ↑' : ' ↓'}</span>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sorted.map((log, i) => {
-                    const isToday = log.date === today
-                    const isExpanded = expandedRow === i
-                    const ordersPct = maxOrders ? (log.orders_processed / maxOrders) * 100 : 0
+        {/* Driver Heatmap */}
+        <div className="hq__card hq__card--full">
+          <h3 className="hq__card-title">Driver Weekly Heatmap</h3>
+          {heatmapDrivers?.length > 0 ? (
+            <div className="hq__heatmap">
+              <div className="hq__heatmap-header">
+                <span className="hq__heatmap-label" />
+                {weekDates?.map(d => (
+                  <span key={d} className="hq__heatmap-day">{['Mon','Tue','Wed','Thu','Fri'][new Date(d + 'T12:00:00').getDay() - 1] || ''}</span>
+                ))}
+                <span className="hq__heatmap-total-head">Total</span>
+              </div>
+              {heatmapDrivers.map((driver, i) => (
+                <div key={driver.name} className="hq__heatmap-row" style={{ animationDelay: `${i * 0.04}s` }}>
+                  <span className="hq__heatmap-name">{driver.name}</span>
+                  {weekDates?.map(d => {
+                    const count = driver.days[d] || 0
+                    const intensity = count ? Math.max(0.15, count / heatmapMax) : 0
                     return (
-                      <>
-                        <tr key={i} className={`${isToday ? 'hq__row--today' : ''} ${isExpanded ? 'hq__row--expanded' : ''}`}
-                          onClick={() => setExpandedRow(isExpanded ? null : i)}
-                          style={{ cursor: 'pointer' }}>
-                          <td className="hq__cell-date">{log.delivery_day?.slice(0, 3)}</td>
-                          <td>{fmtDate(log.date)}</td>
-                          <td className="hq__cell-num">
-                            <div className="hq__inline-bar-wrap">
-                              <div className="hq__inline-bar" style={{ width: `${ordersPct}%` }} />
-                              <span>{log.orders_processed}</span>
-                            </div>
-                          </td>
-                          <td className="hq__cell-num">{log.shsp_orders}</td>
-                          <td className="hq__cell-num">{log.aultman_orders}</td>
-                          <td className="hq__cell-num" style={{ color: log.cold_chain > 0 ? '#3b82f6' : undefined }}>{log.cold_chain}</td>
-                          <td className={parseInt(log.unassigned_count) > 0 ? 'hq__cell-warn' : 'hq__cell-num'}>{log.unassigned_count}</td>
-                          <td><strong>{log.top_driver}</strong></td>
-                          <td><span className={`hq__status-badge ${log.status === 'Complete' ? 'hq__status-badge--ok' : ''}`}>{log.status}</span></td>
-                        </tr>
-                        {isExpanded && (
-                          <tr key={`${i}-detail`} className="hq__detail-row">
-                            <td colSpan={9}>
-                              <div className="hq__detail">
-                                <div className="hq__detail-item">
-                                  <span className="hq__detail-label">Pharmacy Split</span>
-                                  <div className="hq__detail-split">
-                                    <div className="hq__detail-split-shsp" style={{ width: `${log.orders_processed ? (log.shsp_orders / log.orders_processed) * 100 : 50}%` }}>
-                                      SHSP {log.shsp_orders}
-                                    </div>
-                                    <div className="hq__detail-split-aultman" style={{ width: `${log.orders_processed ? (log.aultman_orders / log.orders_processed) * 100 : 50}%` }}>
-                                      Aultman {log.aultman_orders}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="hq__detail-stats">
-                                  <div className="hq__detail-stat">
-                                    <span>Cold Chain %</span>
-                                    <strong>{log.orders_processed ? Math.round((log.cold_chain / log.orders_processed) * 100) : 0}%</strong>
-                                  </div>
-                                  <div className="hq__detail-stat">
-                                    <span>Corrections</span>
-                                    <strong>{log.corrections || 0}</strong>
-                                  </div>
-                                  <div className="hq__detail-stat">
-                                    <span>Dispatched</span>
-                                    <strong>{log.date}</strong>
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </>
+                      <span
+                        key={d}
+                        className={`hq__heatmap-cell ${count === 0 ? 'hq__heatmap-cell--empty' : ''}`}
+                        style={count > 0 ? { background: `rgba(10, 36, 99, ${intensity})`, color: intensity > 0.5 ? '#fff' : 'var(--gray-700)' } : undefined}
+                        title={`${driver.name}: ${count} stops on ${d}`}
+                      >
+                        {count || ''}
+                      </span>
                     )
                   })}
-                </tbody>
-              </table>
-            )
-          })()}
+                  <span className="hq__heatmap-total">{driver.total}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--gray-400)', fontSize: 14 }}>No stop data this week yet</p>
+          )}
         </div>
       </div>
+
+      {/* Quick Stats */}
+      {quickStats && (
+        <div className="hq__quick-stats">
+          <div className="hq__quick-stat">
+            <span className="hq__quick-stat-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </span>
+            <div className="hq__quick-stat-text">
+              <span className="hq__quick-stat-label">Busiest Day</span>
+              <span className="hq__quick-stat-value">
+                {quickStats.busiestDay
+                  ? `${fmtDay(quickStats.busiestDay.date)} ${fmtDate(quickStats.busiestDay.date)} — ${quickStats.busiestDay.count} stops`
+                  : 'No data yet'}
+              </span>
+            </div>
+          </div>
+          <div className="hq__quick-stat">
+            <span className="hq__quick-stat-icon hq__quick-stat-icon--green">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            </span>
+            <div className="hq__quick-stat-text">
+              <span className="hq__quick-stat-label">Most Improved</span>
+              <span className="hq__quick-stat-value">
+                {quickStats.mostImproved
+                  ? `${quickStats.mostImproved.name} — +${quickStats.mostImproved.gain} stops vs last week (${quickStats.mostImproved.lastWeek} → ${quickStats.mostImproved.thisWeek})`
+                  : 'No comparison data yet'}
+              </span>
+            </div>
+          </div>
+          <div className="hq__quick-stat">
+            <span className="hq__quick-stat-icon hq__quick-stat-icon--blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            <div className="hq__quick-stat-text">
+              <span className="hq__quick-stat-label">Avg Stops / Driver</span>
+              <span className="hq__quick-stat-value">{quickStats.avgStopsPerDriver} this week</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
