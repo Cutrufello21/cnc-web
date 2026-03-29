@@ -118,6 +118,16 @@
 .driver__view-btn { padding: 5px 14px; font-size: 12px; font-weight: 500; color: var(--gray-500); border-radius: 4px; cursor: pointer; border: none; background: transparent; }
 .driver__view-btn--active { background: var(--white); color: var(--gray-900); font-weight: 600; box-shadow: var(--shadow-sm); }
 
+/* Route optimization */
+.driver__toolbar-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.driver__optimize { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.driver__optimize-btn { padding: 5px 12px; font-size: 12px; font-weight: 600; color: #2563eb; background: #dbeafe; border: 1px solid #93c5fd; border-radius: 6px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.driver__optimize-btn:hover:not(:disabled) { background: #bfdbfe; border-color: #60a5fa; }
+.driver__optimize-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.driver__optimize-badge { display: inline-flex; align-items: center; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #16a34a; background: #dcfce7; border-radius: 6px; white-space: nowrap; }
+.driver__optimize-reset { padding: 4px 10px; font-size: 11px; font-weight: 600; color: #dc2626; background: transparent; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.driver__optimize-reset:hover { background: #fef2f2; }
+
 .driver__select-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .driver__select-all { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--gray-500); cursor: pointer; user-select: none; }
 .driver__select-all input { width: 16px; height: 16px; accent-color: var(--cornflower, #6366f1); cursor: pointer; }

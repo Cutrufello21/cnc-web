@@ -26,6 +26,9 @@ export default function DriverPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
   const [deliveryTick, setDeliveryTick] = useState(0)
+  const [optimizedStops, setOptimizedStops] = useState(null)
+  const [optimizeMode, setOptimizeMode] = useState(null) // 'oneway' | 'roundtrip'
+  const [optimizing, setOptimizing] = useState(false)
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
@@ -238,6 +241,44 @@ export default function DriverPage() {
     await fetchDriverData()
     setTeamData(null)
     setRefreshing(false)
+  }
+
+  async function handleOptimize(mode) {
+    if (!data?.stops?.length || optimizing) return
+    setOptimizing(true)
+    try {
+      const stopsPayload = data.stops
+        .filter(s => s.status !== 'delivered' && s.status !== 'failed')
+        .map(s => ({ address: s.Address, city: s.City, zip: s.ZIP }))
+      if (stopsPayload.length < 2) {
+        setOptimizing(false)
+        return
+      }
+      const res = await fetch('/api/optimize-route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stops: stopsPayload, mode }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+
+      // Map optimized indices back to the undelivered stops, then append delivered
+      const undelivered = data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed')
+      const done = data.stops.filter(s => s.status === 'delivered' || s.status === 'failed')
+      const reordered = result.optimizedOrder.map(i => undelivered[i]).filter(Boolean)
+      setOptimizedStops([...reordered, ...done])
+      setOptimizeMode(mode)
+    } catch (err) {
+      console.error('Route optimization failed:', err)
+      alert('Route optimization failed: ' + err.message)
+    } finally {
+      setOptimizing(false)
+    }
+  }
+
+  function handleResetOrder() {
+    setOptimizedStops(null)
+    setOptimizeMode(null)
   }
 
   async function loadTeamData() {
@@ -473,9 +514,32 @@ export default function DriverPage() {
                         </div>
                       ) : null
                     })()}
-                    <div className="driver__view-toggle">
-                      <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
-                      <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
+                    <div className="driver__toolbar-row">
+                      <div className="driver__view-toggle">
+                        <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
+                        <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
+                      </div>
+                      {data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed').length >= 2 && (
+                        <div className="driver__optimize">
+                          {!optimizeMode ? (
+                            <>
+                              <button className="driver__optimize-btn" onClick={() => handleOptimize('oneway')} disabled={optimizing}>
+                                {optimizing ? 'Optimizing...' : 'Optimize One-Way'}
+                              </button>
+                              <button className="driver__optimize-btn" onClick={() => handleOptimize('roundtrip')} disabled={optimizing}>
+                                {optimizing ? '...' : 'Optimize Round Trip'}
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="driver__optimize-badge">
+                                Route optimized — {optimizeMode === 'oneway' ? 'one-way' : 'round trip'}
+                              </span>
+                              <button className="driver__optimize-reset" onClick={handleResetOrder}>Reset Order</button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="driver__select-bar">
                       <label className="driver__select-all">
@@ -500,7 +564,7 @@ export default function DriverPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {data.stops.map((stop, i) => (
+                            {(optimizedStops || data.stops).map((stop, i) => (
                               <tr key={i} className={stop._coldChain ? 'driver__list-row--cold' : ''}>
                                 <td className="driver__list-num">{i + 1}</td>
                                 <td>{stop.Name || '—'}</td>
@@ -520,8 +584,9 @@ export default function DriverPage() {
                       </div>
                     ) : (
                       (() => {
-                        const undelivered = data.stops.filter(s => s.status !== 'delivered')
-                        const deliveredStops = data.stops.filter(s => s.status === 'delivered')
+                        const displayStops = optimizedStops || data.stops
+                        const undelivered = displayStops.filter(s => s.status !== 'delivered')
+                        const deliveredStops = displayStops.filter(s => s.status === 'delivered')
                         const renderStop = (stop) => {
                           const origIdx = data.stops.indexOf(stop)
                           return (

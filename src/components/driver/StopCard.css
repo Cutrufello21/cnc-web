@@ -16,10 +16,6 @@
   background: #eff6ff;
 }
 
-.stop--swiping {
-  z-index: 10;
-}
-
 .stop__checkbox {
   flex-shrink: 0;
   width: 16px;
@@ -44,25 +40,6 @@
 .stop__badge--sig {
   background: #fef3c7;
   color: #b45309;
-}
-
-/* Swipe hint */
-.stop__swipe-hint {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 100%;
-  background: #16a34a;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 20px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 700;
-  z-index: -1;
-  border-radius: var(--radius-md);
 }
 
 .stop__main {

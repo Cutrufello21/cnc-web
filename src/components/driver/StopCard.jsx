@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { isOnline, queueDelivery, queuePhoto, processQueue } from '../../lib/offlineQueue'
 import BarcodeScanner from './BarcodeScanner'
 import SignaturePad from './SignaturePad'
@@ -35,12 +35,6 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const [failureReason, setFailureReason] = useState(stop.failure_reason || null)
   const fileRef = useRef(null)
   const undoTimer = useRef(null)
-
-  // Swipe state
-  const touchStart = useRef(null)
-  const touchDelta = useRef(0)
-  const cardRef = useRef(null)
-  const [swiping, setSwiping] = useState(false)
 
   const name = stop['Name'] || stop['Patient'] || stop['Customer'] || '—'
   const address = stop['Address'] || ''
@@ -252,61 +246,13 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
     setScannerOpen(false)
   }
 
-  // Swipe-to-deliver handlers
-  const onTouchStart = useCallback((e) => {
-    if (isDone || expanded) return
-    touchStart.current = e.touches[0].clientX
-    touchDelta.current = 0
-  }, [isDone, expanded])
-
-  const onTouchMove = useCallback((e) => {
-    if (!touchStart.current || isDone || expanded) return
-    const delta = e.touches[0].clientX - touchStart.current
-    if (delta < 0) { touchDelta.current = 0; return } // Only swipe right
-    touchDelta.current = delta
-    if (delta > 20) setSwiping(true)
-    if (cardRef.current && delta > 20) {
-      const clamped = Math.min(delta, 150)
-      cardRef.current.style.transform = `translateX(${clamped}px)`
-      cardRef.current.style.opacity = `${1 - (clamped / 300)}`
-    }
-  }, [isDone, expanded])
-
-  const onTouchEnd = useCallback(() => {
-    if (!touchStart.current) return
-    const delta = touchDelta.current
-    touchStart.current = null
-    setSwiping(false)
-    if (cardRef.current) {
-      cardRef.current.style.transform = ''
-      cardRef.current.style.opacity = ''
-    }
-    if (delta > 120 && !isDone) {
-      handleConfirmDelivery()
-    }
-  }, [isDone])
-
   return (
     <>
       <div
-        ref={cardRef}
-        className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSigRequired ? 'stop--sig' : ''} ${isSelected ? 'stop--selected' : ''} ${delivered ? (queued ? 'stop--queued' : 'stop--delivered') : ''} ${failed ? 'stop--failed' : ''} ${swiping ? 'stop--swiping' : ''}`}
+        className={`stop ${isColdChain ? 'stop--cold' : ''} ${isSigRequired ? 'stop--sig' : ''} ${isSelected ? 'stop--selected' : ''} ${delivered ? (queued ? 'stop--queued' : 'stop--delivered') : ''} ${failed ? 'stop--failed' : ''}`}
         draggable={isSelected}
         onDragStart={onExportDrag}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
       >
-        {/* Swipe hint background */}
-        {!isDone && !expanded && (
-          <div className="stop__swipe-hint">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-            Deliver
-          </div>
-        )}
-
         <div className="stop__main" onClick={() => setExpanded(!expanded)}>
           {!isDone ? (
             <input
