@@ -602,6 +602,28 @@
   vertical-align: middle;
 }
 
+/* Delivery note */
+.dcard__cell-note {
+  max-width: 140px;
+}
+
+.dcard__note-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #16a34a;
+  background: #f0fdf4;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #dcfce7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+  cursor: help;
+}
+
 .dcard__multi-name {
   font-size: 11px;
   font-weight: 500;

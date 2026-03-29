@@ -398,6 +398,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                 <th className="dcard__th-status">Status</th>
                 <th className="dcard__th-status">Time</th>
                 <th className="dcard__th-status">Proof</th>
+                <th className="dcard__th-status">Note</th>
               </tr>
               {/* Filter row */}
               <tr className="dcard__filter-row">
@@ -431,7 +432,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     </td>
                   )
                 })}
-                <td></td><td></td><td></td>
+                <td></td><td></td><td></td><td></td>
               </tr>
             </thead>
             <tbody>
@@ -493,6 +494,16 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                           </button>
                         )
                       })()}
+                    </td>
+                    <td className="dcard__cell-note">
+                      {stop.delivery_note && (
+                        <span className="dcard__note-badge" title={stop.delivery_note}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                          {stop.delivery_note}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 )
