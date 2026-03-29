@@ -115,16 +115,173 @@
   text-align: center;
 }
 
+/* ============================
+   Planner: list + map layout
+   ============================ */
+.route-map__planner {
+  display: flex;
+  gap: 12px;
+}
+
+/* Draggable stop list */
+.route-map__stop-list {
+  width: 280px;
+  min-width: 280px;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--gray-100);
+  border-radius: 10px;
+  background: var(--gray-50);
+}
+
+.route-map__list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gray-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--gray-200);
+  position: sticky;
+  top: 0;
+  background: var(--gray-50);
+  z-index: 1;
+}
+
+.route-map__list-hint {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--gray-400);
+  font-size: 11px;
+}
+
+.route-map__stop-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--gray-100);
+  cursor: grab;
+  transition: background 0.1s, transform 0.1s;
+  background: var(--white);
+}
+
+.route-map__stop-item:last-child {
+  border-bottom: none;
+}
+
+.route-map__stop-item:hover {
+  background: #f0f4ff;
+}
+
+.route-map__stop-item--dragging {
+  opacity: 0.4;
+}
+
+.route-map__stop-item--dragover {
+  border-top: 2px solid #3b82f6;
+  padding-top: 6px;
+}
+
+.route-map__stop-grip {
+  color: var(--gray-300);
+  font-size: 14px;
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.route-map__stop-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.route-map__stop-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.route-map__stop-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.route-map__stop-addr {
+  display: block;
+  font-size: 11px;
+  color: var(--gray-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.route-map__stop-badge {
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #dbeafe;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.route-map__stop-pkgs {
+  padding: 1px 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #7c3aed;
+  background: #ede9fe;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.route-map__stop-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #16a34a;
+  background: transparent;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.route-map__stop-nav:hover {
+  background: #dcfce7;
+}
+
 /* Map container */
 .route-map__container {
+  flex: 1;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--gray-100);
+  min-width: 0;
 }
 
 .route-map__leaflet {
   width: 100%;
-  height: 350px;
+  height: 400px;
   z-index: 0;
 }
 
@@ -212,12 +369,47 @@
   color: #fef3c7;
 }
 
-/* Responsive */
-@media (max-width: 480px) {
+[data-theme="dark"] .route-map__stop-list {
+  background: var(--gray-800);
+  border-color: var(--gray-700);
+}
+
+[data-theme="dark"] .route-map__list-header {
+  background: var(--gray-800);
+  border-color: var(--gray-700);
+}
+
+[data-theme="dark"] .route-map__stop-item {
+  background: var(--gray-900);
+  border-color: var(--gray-700);
+}
+
+[data-theme="dark"] .route-map__stop-item:hover {
+  background: var(--gray-800);
+}
+
+[data-theme="dark"] .route-map__stop-name {
+  color: var(--gray-200);
+}
+
+/* Responsive — stack list above map on mobile */
+@media (max-width: 768px) {
+  .route-map__planner {
+    flex-direction: column;
+  }
+
+  .route-map__stop-list {
+    width: 100%;
+    min-width: 0;
+    max-height: 250px;
+  }
+
   .route-map__leaflet {
     height: 300px;
   }
+}
 
+@media (max-width: 480px) {
   .route-map__navigate-btn {
     padding: 12px 16px;
     font-size: 15px;
@@ -230,5 +422,13 @@
 
   .route-map__stat {
     font-size: 12px;
+  }
+
+  .route-map__stop-list {
+    max-height: 200px;
+  }
+
+  .route-map__leaflet {
+    height: 260px;
   }
 }

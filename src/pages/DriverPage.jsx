@@ -543,7 +543,14 @@ export default function DriverPage() {
                       )}
                     </div>
                     {optimizeMode && optimizedStops && (
-                      <RouteMap stops={optimizedStops} mode={optimizeMode} />
+                      <RouteMap
+                        stops={optimizedStops}
+                        mode={optimizeMode}
+                        onReorder={(newStops) => {
+                          const done = optimizedStops.filter(s => s.status === 'delivered' || s.status === 'failed')
+                          setOptimizedStops([...newStops, ...done])
+                        }}
+                      />
                     )}
                     <div className="driver__select-bar">
                       <label className="driver__select-all">
