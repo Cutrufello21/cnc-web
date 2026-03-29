@@ -603,6 +603,35 @@
 }
 
 /* Delivery note */
+/* Reopen button */
+.dcard__reopen-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.15s;
+}
+
+.dcard__reopen-btn:hover {
+  background: #fef2f2;
+}
+
+.dcard__reopen-btn:hover .dcard__status-dot--done {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.dcard__status-dot--failed {
+  background: #dc4a4a;
+  box-shadow: 0 0 0 3px rgba(220, 74, 74, 0.15);
+}
+
+.dcard__reopen-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .dcard__cell-note {
   max-width: 140px;
 }

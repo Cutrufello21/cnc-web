@@ -61,6 +61,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapQuery}`
 
   const isDone = delivered || failed
+  const canConfirm = !!scannedBarcode && !!deliveryNote.trim()
 
   // Cleanup undo timer
   useEffect(() => () => { if (undoTimer.current) clearTimeout(undoTimer.current) }, [])
@@ -146,7 +147,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
       if (!isOnline()) {
         // Offline: queue delivery for all order IDs in this stop
         for (const oid of allOrderIds) {
-          await queueDelivery({ orderId: oid, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined })
+          await queueDelivery({ orderId: oid, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined, deliveryNote: deliveryNote.trim() || undefined })
         }
         setDelivered(true)
         setDeliveredAt(new Date().toISOString())
@@ -156,7 +157,7 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
         const res = await fetch('/api/deliver', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderIds: allOrderIds, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined }),
+          body: JSON.stringify({ orderIds: allOrderIds, deliveryDate, driverName, photoUrls: photos, barcode: scannedBarcode || undefined, signatureUrl: signatureUrl || undefined, deliveryNote: deliveryNote.trim() || undefined }),
         })
         const result = await res.json()
         if (!res.ok) throw new Error(result.error)
@@ -465,10 +466,26 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                     </svg>
                     {scannedBarcode ? 'Rescan' : 'Scan'}
                   </button>
+                  <div className="stop__note-form stop__note-form--inline">
+                    <input
+                      type="text"
+                      className="stop__note-field"
+                      placeholder="Where was it left? (required)"
+                      value={deliveryNote}
+                      onChange={(e) => setDeliveryNote(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && canConfirm) handleConfirmDelivery() }}
+                    />
+                  </div>
+                  {!scannedBarcode && (
+                    <p className="stop__require-hint">Scan barcode to enable delivery</p>
+                  )}
+                  {scannedBarcode && !deliveryNote.trim() && (
+                    <p className="stop__require-hint">Add a delivery note to confirm</p>
+                  )}
                   <button
                     className="stop__btn stop__btn--deliver"
                     onClick={handleConfirmDelivery}
-                    disabled={delivering}
+                    disabled={delivering || !canConfirm}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12"/>
@@ -530,33 +547,11 @@ export default function StopCard({ stop, index, total, isSelected, onToggleSelec
                       <button className="stop__btn stop__btn--undo" onClick={handleUndo}>Undo</button>
                     )}
                   </div>
-                  {delivered && !failed && (
-                    <div className="stop__note-input">
-                      {noteSaved ? (
-                        <p className="stop__note-saved">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          {deliveryNote}
-                        </p>
-                      ) : (
-                        <div className="stop__note-form">
-                          <input
-                            type="text"
-                            className="stop__note-field"
-                            placeholder="Where was it left? (front door, back porch...)"
-                            value={deliveryNote}
-                            onChange={(e) => setDeliveryNote(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveNote() }}
-                          />
-                          <button
-                            className="stop__note-save"
-                            onClick={handleSaveNote}
-                            disabled={!deliveryNote.trim() || savingNote}
-                          >
-                            {savingNote ? '...' : 'Save'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                  {delivered && !failed && deliveryNote && (
+                    <p className="stop__note-saved">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      {deliveryNote}
+                    </p>
                   )}
                 </>
               )}

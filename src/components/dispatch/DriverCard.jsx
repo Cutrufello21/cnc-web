@@ -36,6 +36,26 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [sent, setSent] = useState(false)
   const [reviewed, setReviewed] = useState(false)
   const [viewingPhotos, setViewingPhotos] = useState(null) // { urls: [], orderId: '' }
+  const [reopening, setReopening] = useState(null) // order ID being reopened
+
+  async function handleReopen(orderIds, date) {
+    if (!confirm('Reopen this delivery? It will be marked as not delivered.')) return
+    setReopening(orderIds[0])
+    try {
+      const res = await fetch('/api/deliver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds, deliveryDate: date, driverName: driver['Driver Name'], undo: true }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      if (onRefresh) setTimeout(onRefresh, 500)
+    } catch (err) {
+      alert('Reopen failed: ' + err.message)
+    } finally {
+      setReopening(null)
+    }
+  }
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
@@ -474,7 +494,22 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     <td className="dcard__cell-notes">{stop._flagsDisplay}</td>
                     <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
                     <td className="dcard__cell-status">
-                      <span className={`dcard__status-dot ${stop.status === 'delivered' ? 'dcard__status-dot--done' : ''}`} />
+                      {(stop.status === 'delivered' || stop.status === 'failed') ? (
+                        <button
+                          className={`dcard__reopen-btn ${stop.status === 'failed' ? 'dcard__reopen-btn--failed' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const ids = stop._consolidatedOrderIds || [stop['Order ID']]
+                            handleReopen(ids, stop.delivery_date)
+                          }}
+                          disabled={reopening === (stop['Order ID'])}
+                          title="Reopen this delivery"
+                        >
+                          <span className={`dcard__status-dot ${stop.status === 'delivered' ? 'dcard__status-dot--done' : 'dcard__status-dot--failed'}`} />
+                        </button>
+                      ) : (
+                        <span className="dcard__status-dot" />
+                      )}
                     </td>
                     <td className="dcard__cell-time">{stop.status === 'delivered' ? fmtTime(stop.delivered_at) : ''}</td>
                     <td className="dcard__cell-photos">

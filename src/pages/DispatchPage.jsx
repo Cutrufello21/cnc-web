@@ -140,6 +140,7 @@ export default function DispatchPage() {
           photo_urls: s.photo_urls || null,
           barcode: s.barcode || null,
           delivery_note: s.delivery_note || null,
+          delivery_date: s.delivery_date || dateStr,
         })
       })
 

@@ -783,6 +783,17 @@
   cursor: not-allowed;
 }
 
+.stop__note-form--inline {
+  width: 100%;
+}
+
+.stop__require-hint {
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 500;
+  margin: 0;
+}
+
 .stop__note-saved {
   display: flex;
   align-items: center;
