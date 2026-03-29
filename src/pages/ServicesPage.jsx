@@ -40,7 +40,7 @@ const coreServices = [
     items: [
       '20+ vetted, long-term drivers — not gig workers or temp labor',
       'Average driver tenure of 5+ years (longest: 16 years)',
-      'Background-checked and trained on pharmacy protocols',
+      'Trained specifically for healthcare delivery — not general courier work',
       'Named drivers assigned to consistent routes',
     ],
   },
