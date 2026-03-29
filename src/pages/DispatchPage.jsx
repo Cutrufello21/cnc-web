@@ -181,7 +181,7 @@ export default function DispatchPage() {
       setSelectedDay(deliveryDay)
 
       // Snapshot initial assignments if not already captured for this date
-      if (allStops.length > 0) {
+      if (stops.length > 0) {
         fetch('/api/dispatch-log-decision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
