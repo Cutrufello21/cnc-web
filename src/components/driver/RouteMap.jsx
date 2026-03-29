@@ -19,37 +19,48 @@ const PHARMACY_ORIGINS = {
   Aultman: { lat: 40.7914, lng: -81.3939, label: 'Aultman — 2600 6th St SW, Canton' },
 }
 
-// In-memory geocode cache
+// In-memory geocode cache (session-level, backed by Supabase persistent cache)
 const geocodeCache = new Map()
 
-async function geocodeAddress(address, city, zip) {
-  const query = `${address}, ${city}, OH ${zip}`
-  if (geocodeCache.has(query)) return geocodeCache.get(query)
+// Batch geocode via /api/geocode (Census Bureau + Supabase cache)
+async function batchGeocode(addresses) {
+  // Filter out already-cached
+  const uncached = addresses.filter(a => {
+    const key = `${a.address}|${a.city}|${a.zip}`
+    return !geocodeCache.has(key)
+  })
 
-  try {
-    const params = new URLSearchParams({
-      q: query, format: 'json', limit: '1', countrycodes: 'us',
-    })
-    const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      headers: { 'User-Agent': 'CNCDeliveryApp/1.0' },
-    })
-    const data = await resp.json()
-    if (data && data.length > 0) {
-      const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-      geocodeCache.set(query, result)
-      return result
+  if (uncached.length > 0) {
+    try {
+      const resp = await fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: uncached }),
+      })
+      const data = await resp.json()
+      if (data.results) {
+        for (const r of data.results) {
+          if (r.lat != null && r.lng != null) {
+            const key = `${r.address}|${r.city}|${r.zip}`
+            geocodeCache.set(key, { lat: r.lat, lng: r.lng })
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Batch geocode failed:', err)
     }
-  } catch (err) {
-    console.warn('Geocode failed for:', query, err)
   }
 
-  const fallback = ZIP_COORDS[zip]
-  if (fallback) {
-    const result = { lat: fallback[0], lng: fallback[1] }
-    geocodeCache.set(query, result)
-    return result
-  }
-  return null
+  // Return results from cache (including freshly cached), ZIP fallback for misses
+  return addresses.map(a => {
+    const key = `${a.address}|${a.city}|${a.zip}`
+    const cached = geocodeCache.get(key)
+    if (cached) return cached
+    // ZIP centroid fallback
+    const fallback = ZIP_COORDS[a.zip]
+    if (fallback) return { lat: fallback[0], lng: fallback[1] }
+    return null
+  })
 }
 
 // Geocode a freeform address string (for end point)
@@ -59,15 +70,15 @@ async function geocodeFreeform(query) {
   if (geocodeCache.has(cacheKey)) return geocodeCache.get(cacheKey)
 
   try {
-    const params = new URLSearchParams({
-      q: query, format: 'json', limit: '1', countrycodes: 'us',
-    })
-    const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      headers: { 'User-Agent': 'CNCDeliveryApp/1.0' },
+    // Use the batch endpoint with a single address
+    const resp = await fetch('/api/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ addresses: [{ address: query, city: '', zip: '' }] }),
     })
     const data = await resp.json()
-    if (data && data.length > 0) {
-      const result = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), display: data[0].display_name }
+    if (data.results?.[0]?.lat != null) {
+      const result = { lat: data.results[0].lat, lng: data.results[0].lng, display: query }
       geocodeCache.set(cacheKey, result)
       return result
     }
@@ -183,7 +194,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
     }, 1200)
   }
 
-  // Geocode stops
+  // Geocode all stops in one batch request
   useEffect(() => {
     if (!stops || stops.length < 2) { setPoints([]); return }
     let cancelled = false
@@ -191,23 +202,19 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
 
     async function resolve() {
       setGeocoding(true)
-      for (let i = 0; i < pending.length; i++) {
-        const s = pending[i]
-        const query = `${s.Address || ''}, ${s.City || ''}, OH ${s.ZIP || ''}`
-        if (!geocodeCache.has(query)) {
-          await geocodeAddress(s.Address || '', s.City || '', s.ZIP || '')
-          if (cancelled) return
-          if (i < pending.length - 1) await new Promise(r => setTimeout(r, 1100))
-        }
-      }
+      const addressList = pending.map(s => ({
+        address: s.Address || '', city: s.City || '', zip: s.ZIP || '',
+      }))
+      const coords = await batchGeocode(addressList)
+      if (cancelled) return
+
       const results = []
       for (let i = 0; i < pending.length; i++) {
         const s = pending[i]
-        const coords = await geocodeAddress(s.Address || '', s.City || '', s.ZIP || '')
-        if (cancelled) return
-        if (coords) {
+        const c = coords[i]
+        if (c) {
           results.push({
-            lat: coords.lat, lng: coords.lng, label: i + 1,
+            lat: c.lat, lng: c.lng, label: i + 1,
             name: s.Name || s['Name'] || '',
             address: s.Address || '', city: s.City || '', zip: s.ZIP || '',
             _coldChain: s._coldChain, _sigRequired: s._sigRequired,
