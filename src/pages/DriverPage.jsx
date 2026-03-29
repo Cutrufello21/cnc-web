@@ -671,28 +671,20 @@ export default function DriverPage() {
               <div className="driver__stops">
                 {data.stops?.length >= 2 ? (
                   <>
-                    {data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed').length >= 2 && !optimizeMode && (
-                      <div className="driver__toolbar-row">
-                        <div className="driver__optimize">
+                    <div className="driver__toolbar-row">
+                      <div className="driver__optimize">
+                        {!optimizeMode ? (
                           <button className="driver__optimize-btn" onClick={() => handleOptimize('oneway')} disabled={optimizing}>
-                            {optimizing ? 'Optimizing...' : 'Optimize One-Way'}
+                            {optimizing ? 'Optimizing...' : 'Optimize Route'}
                           </button>
-                          <button className="driver__optimize-btn" onClick={() => handleOptimize('roundtrip')} disabled={optimizing}>
-                            {optimizing ? '...' : 'Optimize Round Trip'}
-                          </button>
-                        </div>
+                        ) : (
+                          <>
+                            <span className="driver__optimize-badge">Route optimized</span>
+                            <button className="driver__optimize-reset" onClick={handleResetOrder}>Reset Order</button>
+                          </>
+                        )}
                       </div>
-                    )}
-                    {optimizeMode && (
-                      <div className="driver__toolbar-row">
-                        <div className="driver__optimize">
-                          <span className="driver__optimize-badge">
-                            Route optimized — {optimizeMode === 'oneway' ? 'one-way' : 'round trip'}
-                          </span>
-                          <button className="driver__optimize-reset" onClick={handleResetOrder}>Reset Order</button>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                     {/* Add manual stop */}
                     <div className="driver__add-stop">
                       <div className="driver__add-stop-header" onClick={() => {
@@ -754,7 +746,7 @@ export default function DriverPage() {
 
                     <RouteMap
                       stops={[...(optimizedStops || data.stops), ...manualStops]}
-                      mode={optimizeMode || 'oneway'}
+                      mode="oneway"
                       pharmacy={data.pharmacy}
                       onReorder={(newStops) => {
                         const done = (optimizedStops || data.stops).filter(s => s.status === 'delivered' || s.status === 'failed')

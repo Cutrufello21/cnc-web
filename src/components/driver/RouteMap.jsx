@@ -226,15 +226,13 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
     if (points.length < 2) { setRouteCoords(null); setRouteStats(null); return }
     async function fetchRoute() {
       try {
-        // Build waypoint chain: start → stops → end (or roundtrip back to start)
+        // Build waypoint chain: start → stops → end
         const allWaypoints = [
           { lat: startPoint.lat, lng: startPoint.lng },
           ...points,
         ]
-        if (endPoint && mode === 'oneway') {
+        if (endPoint) {
           allWaypoints.push({ lat: endPoint.lat, lng: endPoint.lng })
-        } else if (mode === 'roundtrip') {
-          allWaypoints.push({ lat: startPoint.lat, lng: startPoint.lng })
         }
         const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';')
         const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=full&geometries=geojson`
@@ -255,7 +253,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
       }
     }
     fetchRoute()
-  }, [points, mode, startPoint, endPoint])
+  }, [points, startPoint, endPoint])
 
   // Watch current position
   useEffect(() => {
@@ -325,10 +323,8 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
       parts.push(`${addr},+${city},+OH+${s.zip || ''}`)
     })
     // End point
-    if (endPoint && mode === 'oneway') {
+    if (endPoint) {
       parts.push(encodeURIComponent(endPoint.display || endInput))
-    } else if (mode === 'roundtrip') {
-      parts.push(startPoint.label.split(' — ')[1]?.replace(/\s+/g, '+') || '')
     }
     return `https://www.google.com/maps/dir/${parts.join('/')}`
   }
@@ -338,8 +334,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
       [startPoint.lat, startPoint.lng],
       ...points.map(p => [p.lat, p.lng]),
     ]
-    if (endPoint && mode === 'oneway') coords.push([endPoint.lat, endPoint.lng])
-    else if (mode === 'roundtrip') coords.push([startPoint.lat, startPoint.lng])
+    if (endPoint) coords.push([endPoint.lat, endPoint.lng])
     return coords
   })()
 
@@ -458,27 +453,18 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
 
               {/* End point (driver-entered) */}
               <div className="route-map__stop-item route-map__stop-item--fixed route-map__stop-item--end">
-                <span className="route-map__stop-num" style={{ background: mode === 'roundtrip' ? '#16a34a' : '#dc2626' }}>
-                  {mode === 'roundtrip' ? 'S' : 'E'}
-                </span>
-                {mode === 'roundtrip' ? (
-                  <div className="route-map__stop-info">
-                    <span className="route-map__stop-name">Return — {pharmacy || 'SHSP'}</span>
-                    <span className="route-map__stop-addr">{startPoint.label.split(' — ')[1] || ''}</span>
-                  </div>
-                ) : (
-                  <div className="route-map__stop-info route-map__stop-info--end">
-                    <input
-                      type="text"
-                      className="route-map__end-input"
-                      placeholder="End address (home, etc.)..."
-                      value={endInput}
-                      onChange={(e) => handleEndInputChange(e.target.value)}
-                    />
-                    {endLoading && <span className="route-map__end-loading">...</span>}
-                    {endPoint && !endLoading && <span className="route-map__end-check">Set</span>}
-                  </div>
-                )}
+                <span className="route-map__stop-num" style={{ background: '#dc2626' }}>E</span>
+                <div className="route-map__stop-info route-map__stop-info--end">
+                  <input
+                    type="text"
+                    className="route-map__end-input"
+                    placeholder="End address (pharmacy, home, etc.)..."
+                    value={endInput}
+                    onChange={(e) => handleEndInputChange(e.target.value)}
+                  />
+                  {endLoading && <span className="route-map__end-loading">...</span>}
+                  {endPoint && !endLoading && <span className="route-map__end-check">Set</span>}
+                </div>
               </div>
 
               {/* Legend */}
@@ -545,7 +531,7 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
                 ))}
 
                 {/* End marker */}
-                {endPoint && mode === 'oneway' && (
+                {endPoint && (
                   <Marker position={[endPoint.lat, endPoint.lng]} icon={createEndIcon()}>
                     <Popup>
                       <div className="route-map__popup">
