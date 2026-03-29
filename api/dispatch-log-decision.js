@@ -158,6 +158,22 @@ export default async function handler(req, res) {
       })
     }
 
+    if (data.action === 'log_sort_list') {
+      await supabase.from('dispatch_decisions').insert({
+        delivery_date: data.deliveryDate,
+        delivery_day: data.deliveryDay || null,
+        order_id: null,
+        zip: null,
+        city: null,
+        pharmacy: data.pharmacy || null,
+        from_driver: data.driverName || null,
+        to_driver: null,
+        decision_type: `sort_${data.sortAction}`, // sort_edit, sort_add, sort_delete, sort_late_start, sort_check
+        context: data.detail || null,
+      })
+      return res.status(200).json({ success: true })
+    }
+
     return res.status(400).json({ error: 'Unknown action' })
   } catch (err) {
     console.error('[dispatch-decisions]', err.message)

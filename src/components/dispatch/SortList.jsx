@@ -10,6 +10,14 @@ async function apiPost(body) {
   })
 }
 
+function logDecision(data) {
+  fetch('/api/dispatch-log-decision', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).catch(() => {})
+}
+
 export default function SortList({ deliveryDate }) {
   const [lines, setLines] = useState({ SHSP: [], Aultman: [] })
   const [loading, setLoading] = useState(true)
@@ -100,6 +108,7 @@ export default function SortList({ deliveryDate }) {
         checked: false, late_start: false,
       }],
     })
+    logDecision({ action: 'log_sort_list', deliveryDate: dateStr, pharmacy, driverName: newLine.trim(), sortAction: 'add', detail: newLine.trim() })
     setNewLine('')
     setAdding(null)
     setSaving(false)
@@ -108,14 +117,18 @@ export default function SortList({ deliveryDate }) {
 
   async function handleSave(id) {
     setSaving(true)
+    const line = [...lines.SHSP, ...lines.Aultman].find(l => l.id === id)
     await apiPost({ action: 'update', id, display_text: editVal })
+    logDecision({ action: 'log_sort_list', deliveryDate: dateStr, pharmacy: line?.pharmacy, driverName: line?.driver_name, sortAction: 'edit', detail: editVal })
     setEditKey(null)
     setSaving(false)
     loadData()
   }
 
   async function handleToggleCheck(id, current) {
+    const line = [...lines.SHSP, ...lines.Aultman].find(l => l.id === id)
     await apiPost({ action: 'update', id, checked: !current })
+    logDecision({ action: 'log_sort_list', deliveryDate: dateStr, pharmacy: line?.pharmacy, driverName: line?.driver_name, sortAction: 'check', detail: !current ? 'checked' : 'unchecked' })
     setLines(prev => {
       const next = { ...prev }
       for (const p of ['SHSP', 'Aultman']) {
@@ -126,7 +139,9 @@ export default function SortList({ deliveryDate }) {
   }
 
   async function handleToggleLate(id, current) {
+    const line = [...lines.SHSP, ...lines.Aultman].find(l => l.id === id)
     await apiPost({ action: 'update', id, late_start: !current })
+    logDecision({ action: 'log_sort_list', deliveryDate: dateStr, pharmacy: line?.pharmacy, driverName: line?.driver_name, sortAction: 'late_start', detail: !current ? '9AM' : 'normal' })
     setLines(prev => {
       const next = { ...prev }
       for (const p of ['SHSP', 'Aultman']) {
@@ -137,7 +152,9 @@ export default function SortList({ deliveryDate }) {
   }
 
   async function handleDelete(id) {
+    const line = [...lines.SHSP, ...lines.Aultman].find(l => l.id === id)
     await apiPost({ action: 'delete', id })
+    logDecision({ action: 'log_sort_list', deliveryDate: dateStr, pharmacy: line?.pharmacy, driverName: line?.driver_name, sortAction: 'delete', detail: line?.display_text })
     loadData()
   }
 
