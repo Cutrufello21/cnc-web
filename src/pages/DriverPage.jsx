@@ -460,6 +460,8 @@ export default function DriverPage() {
                               e.dataTransfer.effectAllowed = 'copy'
                             }
                           }}
+                          deliveryDate={data.deliveryDate}
+                          driverName={data.driverName}
                         />
                       ))
                     )}
