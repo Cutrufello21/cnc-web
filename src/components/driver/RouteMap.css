@@ -423,77 +423,102 @@
 [data-theme="dark"] .route-map__traffic-badge { background: #14532d; color: #4ade80; }
 
 /* ============================
-   Mobile: map + pull-up drawer
+   Mobile: up/down arrow buttons
    ============================ */
+.route-map__stop-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.route-map__arrow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 22px;
+  border: 1px solid var(--gray-200);
+  border-radius: 5px;
+  background: var(--white);
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.route-map__arrow-btn:active:not(:disabled) {
+  background: #dbeafe;
+  color: #2563eb;
+  border-color: #93c5fd;
+}
+
+.route-map__arrow-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+[data-theme="dark"] .route-map__arrow-btn {
+  background: var(--gray-800);
+  border-color: var(--gray-600);
+  color: var(--gray-400);
+}
+
+/* Mobile layout: list on top, map below */
 .route-map__planner--mobile {
   flex-direction: column;
-  position: relative;
+}
+
+.route-map__stop-list--mobile {
+  width: 100%;
+  min-width: 0;
+  max-height: 45vh;
+  border-radius: 10px;
+  margin-bottom: 10px;
 }
 
 .route-map__planner--mobile .route-map__container {
   width: 100%;
-  border-radius: 10px 10px 0 0;
 }
 
 .route-map__planner--mobile .route-map__leaflet {
-  height: 55vh;
+  height: 300px;
 }
 
-/* Pull-up drawer */
-.route-map__drawer {
-  background: var(--white);
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-  height: 130px;
-  overflow: hidden;
-  transition: height 0.25s ease;
-  border: 1px solid var(--gray-100);
-  border-bottom: none;
-  margin-top: -12px;
-  position: relative;
-  z-index: 5;
+/* Mobile stop items — bigger touch targets */
+.route-map__stop-list--mobile .route-map__stop-item {
+  padding: 10px 12px;
+  gap: 10px;
 }
 
-.route-map__drawer--open {
-  height: 65vh;
+.route-map__stop-list--mobile .route-map__stop-name {
+  font-size: 14px;
 }
 
-.route-map__drawer-handle {
-  display: flex;
-  justify-content: center;
-  padding: 10px 0 6px;
-  cursor: grab;
-  user-select: none;
+.route-map__stop-list--mobile .route-map__stop-addr {
+  font-size: 12px;
 }
 
-.route-map__drawer-bar {
-  width: 40px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--gray-300);
+.route-map__stop-list--mobile .route-map__stop-num {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
 }
 
-.route-map__stop-list--drawer {
-  width: 100%;
-  min-width: 0;
-  max-height: calc(100% - 30px);
-  border: none;
-  border-radius: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+.route-map__stop-list--mobile .route-map__stop-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #f0fdf4;
 }
 
-[data-theme="dark"] .route-map__drawer {
-  background: var(--gray-900);
-  border-color: var(--gray-700);
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+.route-map__stop-list--mobile .route-map__stop-badge,
+.route-map__stop-list--mobile .route-map__stop-pkgs {
+  font-size: 10px;
+  padding: 2px 6px;
 }
 
-[data-theme="dark"] .route-map__drawer-bar {
-  background: var(--gray-600);
-}
-
-/* Desktop responsive */
+/* Responsive */
 @media (max-width: 480px) {
   .route-map__navigate-btn { padding: 8px 12px; font-size: 13px; }
   .route-map__stats { gap: 10px; padding: 6px 10px; }

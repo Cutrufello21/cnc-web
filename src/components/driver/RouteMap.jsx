@@ -433,12 +433,19 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
   const activeIdx = dragIdx ?? touchDragIdx
   const activeOverIdx = dragOverIdx ?? touchOverIdx
 
-  // Build the stop list content (shared between desktop and mobile drawer)
+  // Move stop up/down (for mobile arrow buttons)
+  function moveStop(fromIdx, direction) {
+    const toIdx = fromIdx + direction
+    if (toIdx < 0 || toIdx >= points.length) return
+    doReorder(fromIdx, toIdx)
+  }
+
+  // Build the stop list content (shared between desktop and mobile)
   const stopListContent = (
     <>
       <div className="route-map__list-header">
         <span>Stop Order</span>
-        <span className="route-map__list-hint">{isMobile ? 'Hold to reorder' : 'Drag to reorder'}</span>
+        <span className="route-map__list-hint">{isMobile ? 'Use arrows to reorder' : 'Drag to reorder'}</span>
       </div>
 
       <div className="route-map__stop-item route-map__stop-item--fixed route-map__stop-item--start">
@@ -468,11 +475,28 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
               onDragOver={(e) => handleDragOver(e, i)}
               onDrop={(e) => handleDrop(e, i)}
               onDragEnd={handleDragEnd}
-              onTouchStart={(e) => handleTouchStart(e, i)}
-              onTouchMove={(e) => handleTouchMove(e, i)}
-              onTouchEnd={handleTouchEnd}
             >
-              <span className="route-map__stop-grip">⠿</span>
+              {/* Mobile: up/down arrows | Desktop: drag grip */}
+              {isMobile ? (
+                <div className="route-map__stop-arrows">
+                  <button
+                    className="route-map__arrow-btn"
+                    onClick={() => moveStop(i, -1)}
+                    disabled={i === 0}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                  </button>
+                  <button
+                    className="route-map__arrow-btn"
+                    onClick={() => moveStop(i, 1)}
+                    disabled={i === points.length - 1}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <span className="route-map__stop-grip">⠿</span>
+              )}
               <span className="route-map__stop-num" style={{ background: p._coldChain ? '#2563eb' : p._sigRequired ? '#d97706' : '#6b7280' }}>
                 {p.label}
               </span>
@@ -658,28 +682,14 @@ export default function RouteMap({ stops, mode, onReorder, pharmacy, defaultOpen
             <div className="route-map__fallback-notice">Routing unavailable — showing straight-line path</div>
           )}
 
-          {/* Layout: desktop = side by side, mobile = map + drawer */}
+          {/* Layout: desktop = side by side, mobile = list on top + map below */}
           <div className={`route-map__planner ${isMobile ? 'route-map__planner--mobile' : ''}`}>
             {isMobile ? (
               <>
-                <div className="route-map__container">{mapContent}</div>
-                <div
-                  ref={drawerRef}
-                  className={`route-map__drawer ${drawerOpen ? 'route-map__drawer--open' : ''}`}
-                >
-                  <div
-                    className="route-map__drawer-handle"
-                    onTouchStart={handleDrawerTouchStart}
-                    onTouchMove={handleDrawerTouchMove}
-                    onTouchEnd={handleDrawerTouchEnd}
-                    onClick={() => setDrawerOpen(!drawerOpen)}
-                  >
-                    <div className="route-map__drawer-bar"></div>
-                  </div>
-                  <div className="route-map__stop-list route-map__stop-list--drawer">
-                    {stopListContent}
-                  </div>
+                <div className="route-map__stop-list route-map__stop-list--mobile">
+                  {stopListContent}
                 </div>
+                <div className="route-map__container">{mapContent}</div>
               </>
             ) : (
               <>
