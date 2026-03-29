@@ -28,24 +28,20 @@ export default function HQDashboard() {
 
   async function loadData() {
     try {
-      // Compute this week's Monday for date range queries
+      // Compute this week's Monday for date range queries (use local dates)
       const now0 = new Date()
       const dow0 = now0.getDay()
       const monOffset0 = dow0 === 0 ? -6 : 1 - dow0
-      const monday0 = new Date(now0)
-      monday0.setDate(now0.getDate() + monOffset0)
-      const mondayStr0 = monday0.toISOString().split('T')[0]
-      const friday0 = new Date(monday0)
-      friday0.setDate(monday0.getDate() + 4)
-      const fridayStr0 = friday0.toISOString().split('T')[0]
+      const monday0 = new Date(now0.getFullYear(), now0.getMonth(), now0.getDate() + monOffset0)
+      const mondayStr0 = `${monday0.getFullYear()}-${String(monday0.getMonth()+1).padStart(2,'0')}-${String(monday0.getDate()).padStart(2,'0')}`
+      const friday0 = new Date(monday0.getFullYear(), monday0.getMonth(), monday0.getDate() + 4)
+      const fridayStr0 = `${friday0.getFullYear()}-${String(friday0.getMonth()+1).padStart(2,'0')}-${String(friday0.getDate()).padStart(2,'0')}`
 
       // Previous week Monday
-      const prevMonday0 = new Date(monday0)
-      prevMonday0.setDate(monday0.getDate() - 7)
-      const prevMondayStr0 = prevMonday0.toISOString().split('T')[0]
-      const prevFriday0 = new Date(prevMonday0)
-      prevFriday0.setDate(prevMonday0.getDate() + 4)
-      const prevFridayStr0 = prevFriday0.toISOString().split('T')[0]
+      const prevMonday0 = new Date(monday0.getFullYear(), monday0.getMonth(), monday0.getDate() - 7)
+      const prevMondayStr0 = `${prevMonday0.getFullYear()}-${String(prevMonday0.getMonth()+1).padStart(2,'0')}-${String(prevMonday0.getDate()).padStart(2,'0')}`
+      const prevFriday0 = new Date(prevMonday0.getFullYear(), prevMonday0.getMonth(), prevMonday0.getDate() + 4)
+      const prevFridayStr0 = `${prevFriday0.getFullYear()}-${String(prevFriday0.getMonth()+1).padStart(2,'0')}-${String(prevFriday0.getDate()).padStart(2,'0')}`
 
       const [logsRes, weeklyRes, driversRes, timeOffRes, decisionsRes, stopsThisWeekRes, stopsPrevWeekRes] = await Promise.all([
         supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
@@ -65,15 +61,12 @@ export default function HQDashboard() {
       ])
 
       const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
-      const today = new Date().toISOString().split('T')[0]
+      const todayDate = new Date(now0.getFullYear(), now0.getMonth(), now0.getDate())
+      const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth()+1).padStart(2,'0')}-${String(todayDate.getDate()).padStart(2,'0')}`
 
-      // This week's Monday
-      const now = new Date()
-      const dow = now.getDay()
-      const monOffset = dow === 0 ? -6 : 1 - dow
-      const monday = new Date(now)
-      monday.setDate(now.getDate() + monOffset)
-      const mondayStr = monday.toISOString().split('T')[0]
+      // Reuse monday0/mondayStr0 from above
+      const monday = monday0
+      const mondayStr = mondayStr0
 
       // Today's dispatch
       const todayLog = logData.find(r => r.date === today)
@@ -81,9 +74,8 @@ export default function HQDashboard() {
       const lastDispatchDate = lastLog?.date || ''
       const isToday = lastDispatchDate === today
       const isYesterday = (() => {
-        const y = new Date(now)
-        y.setDate(y.getDate() - 1)
-        return lastDispatchDate === y.toISOString().split('T')[0]
+        const y = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate() - 1)
+        return lastDispatchDate === `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`
       })()
 
       // Recent logs (this week)
@@ -101,7 +93,7 @@ export default function HQDashboard() {
       const thisWeek = logData.filter(r => r.date >= mondayStr)
       const lastMonday = new Date(monday)
       lastMonday.setDate(lastMonday.getDate() - 7)
-      const lastMondayStr = lastMonday.toISOString().split('T')[0]
+      const lastMondayStr = `${lastMonday.getFullYear()}-${String(lastMonday.getMonth()+1).padStart(2,'0')}-${String(lastMonday.getDate()).padStart(2,'0')}`
       const lastWeek = logData.filter(r => r.date >= lastMondayStr && r.date < mondayStr)
       const thisWeekOrders = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
       const lastWeekOrders = lastWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
@@ -180,9 +172,8 @@ export default function HQDashboard() {
       const activeDriverNames = (driversRes.data || []).filter(d => d.driver_name).map(d => d.driver_name)
       const weekDates = []
       for (let i = 0; i < 5; i++) {
-        const d = new Date(monday0)
-        d.setDate(monday0.getDate() + i)
-        weekDates.push(d.toISOString().split('T')[0])
+        const d = new Date(monday0.getFullYear(), monday0.getMonth(), monday0.getDate() + i)
+        weekDates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)
       }
 
       const heatmapData = {}
