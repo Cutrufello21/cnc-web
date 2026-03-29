@@ -405,6 +405,44 @@ export default function HQDashboard() {
           </div>
         </div>
 
+        {/* Driver Heatmap */}
+        <div className="hq__card hq__card--wide">
+          <h3 className="hq__card-title">Driver Weekly Heatmap</h3>
+          {heatmapDrivers?.length > 0 ? (
+            <div className="hq__heatmap">
+              <div className="hq__heatmap-header">
+                <span className="hq__heatmap-label" />
+                {weekDates?.map(d => (
+                  <span key={d} className="hq__heatmap-day">{['Mon','Tue','Wed','Thu','Fri'][new Date(d + 'T12:00:00').getDay() - 1] || ''}</span>
+                ))}
+                <span className="hq__heatmap-total-head">Total</span>
+              </div>
+              {heatmapDrivers.map((driver, i) => (
+                <div key={driver.name} className="hq__heatmap-row" style={{ animationDelay: `${i * 0.04}s` }}>
+                  <span className="hq__heatmap-name">{driver.name}</span>
+                  {weekDates?.map(d => {
+                    const count = driver.days[d] || 0
+                    const intensity = count ? Math.max(0.15, count / heatmapMax) : 0
+                    return (
+                      <span
+                        key={d}
+                        className={`hq__heatmap-cell ${count === 0 ? 'hq__heatmap-cell--empty' : ''}`}
+                        style={count > 0 ? { background: `rgba(10, 36, 99, ${intensity})`, color: intensity > 0.5 ? '#fff' : 'var(--gray-700)' } : undefined}
+                        title={`${driver.name}: ${count} stops on ${d}`}
+                      >
+                        {count || ''}
+                      </span>
+                    )
+                  })}
+                  <span className="hq__heatmap-total">{driver.total}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--gray-400)', fontSize: 14 }}>No stop data this week yet</p>
+          )}
+        </div>
+
         {/* Route Optimization */}
         {optimizationStats && (
           <div className="hq__card">
@@ -456,44 +494,6 @@ export default function HQDashboard() {
             )}
           </div>
         )}
-
-        {/* Driver Heatmap */}
-        <div className="hq__card hq__card--full">
-          <h3 className="hq__card-title">Driver Weekly Heatmap</h3>
-          {heatmapDrivers?.length > 0 ? (
-            <div className="hq__heatmap">
-              <div className="hq__heatmap-header">
-                <span className="hq__heatmap-label" />
-                {weekDates?.map(d => (
-                  <span key={d} className="hq__heatmap-day">{['Mon','Tue','Wed','Thu','Fri'][new Date(d + 'T12:00:00').getDay() - 1] || ''}</span>
-                ))}
-                <span className="hq__heatmap-total-head">Total</span>
-              </div>
-              {heatmapDrivers.map((driver, i) => (
-                <div key={driver.name} className="hq__heatmap-row" style={{ animationDelay: `${i * 0.04}s` }}>
-                  <span className="hq__heatmap-name">{driver.name}</span>
-                  {weekDates?.map(d => {
-                    const count = driver.days[d] || 0
-                    const intensity = count ? Math.max(0.15, count / heatmapMax) : 0
-                    return (
-                      <span
-                        key={d}
-                        className={`hq__heatmap-cell ${count === 0 ? 'hq__heatmap-cell--empty' : ''}`}
-                        style={count > 0 ? { background: `rgba(10, 36, 99, ${intensity})`, color: intensity > 0.5 ? '#fff' : 'var(--gray-700)' } : undefined}
-                        title={`${driver.name}: ${count} stops on ${d}`}
-                      >
-                        {count || ''}
-                      </span>
-                    )
-                  })}
-                  <span className="hq__heatmap-total">{driver.total}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--gray-400)', fontSize: 14 }}>No stop data this week yet</p>
-          )}
-        </div>
       </div>
 
       {/* Quick Stats */}
