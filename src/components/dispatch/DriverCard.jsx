@@ -160,6 +160,26 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       setSelected(new Set())
       setReassignTo('')
       if (onMoveComplete) onMoveComplete({ orderIds, fromName: name, fromNumber: driver['Driver #'] || '', toName: toDriverName, count: result.moved || orderIds.length })
+
+      // Log decision for learning engine
+      for (const oid of orderIds) {
+        const stop = details.find(s => s['Order ID'] === oid)
+        fetch('/api/dispatch-log-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'log_move',
+            deliveryDate: stop?.delivery_date || '',
+            deliveryDay: selectedDay || '',
+            orderId: oid,
+            zip: stop?.['Zip Code'] || stop?.ZIP || '',
+            city: stop?.City || '',
+            pharmacy: stop?.Pharmacy || '',
+            fromDriver: name,
+            toDriver: toDriverName,
+          }),
+        }).catch(() => {}) // fire and forget
+      }
       if (onRefresh) setTimeout(onRefresh, 500)
     } catch (err) {
       setMoveResult(`Error: ${err.message}`)

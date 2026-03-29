@@ -205,6 +205,18 @@ export default function DispatchPage() {
       if (!res.ok) throw new Error(result.error)
 
       if (mode === 'apply') {
+        // Log accepted optimize decisions
+        fetch('/api/dispatch-log-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'log_optimize',
+            deliveryDate: dateStr,
+            deliveryDay: data.deliveryDay,
+            accepted: true,
+            changes: optimizePreview?.changes || result.changes || [],
+          }),
+        }).catch(() => {})
         setOptimizePreview(null)
         fetchDispatchData(data.deliveryDay)
       } else {
