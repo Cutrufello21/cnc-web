@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './RouteMap.css'
 
-const ZIP_COORDS_IMPORT = () => import('../../lib/zipCoords.js')
+const ZIP_COORDS_IMPORT = () => import('../../lib/zipCoords.js').then(m => m.default || m.ZIP_COORDS || m)
 
 export default function RouteMap({ stops, mode }) {
   const [mapHtml, setMapHtml] = useState(null)
@@ -11,7 +11,7 @@ export default function RouteMap({ stops, mode }) {
     if (!stops || stops.length < 2) { setMapHtml(null); return }
 
     async function buildMap() {
-      const { ZIP_COORDS } = await ZIP_COORDS_IMPORT()
+      const ZIP_COORDS = await ZIP_COORDS_IMPORT()
 
       // Get coordinates for each stop
       const points = stops
