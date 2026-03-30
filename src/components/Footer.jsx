@@ -35,7 +35,7 @@ export default function Footer() {
         </div>
 
         <div className="footer__bottom">
-          <p>&copy; {new Date().getFullYear()} CNC Delivery Service. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} CNC Delivery Service. All rights reserved. &nbsp;·&nbsp; <a href="/privacy" className="footer__legal-link">Privacy Policy</a></p>
           <p className="footer__address">
             Akron, Ohio &nbsp;·&nbsp; dom@cncdeliveryservice.com &nbsp;·&nbsp; (330) 634-6260 &nbsp;·&nbsp; cncdelivery.com
           </p>
