@@ -120,7 +120,7 @@ export default function DispatchPage() {
         .replace(/\bapartment\b/g, 'apt').replace(/\bnorth\b/g, 'n').replace(/\bsouth\b/g, 's')
         .replace(/\beast\b/g, 'e').replace(/\bwest\b/g, 'w').replace(/\bnortheast\b/g, 'ne')
         .replace(/\bnorthwest\b/g, 'nw').replace(/\bsoutheast\b/g, 'se').replace(/\bsouthwest\b/g, 'sw')
-        .replace(/[.,#]/g, '')
+        .replace(/[.,#]/g, '').replace(/\s+/g, ' ').replace(/\b(ste|suite|unit|apt)\b\s*/g, '').trim()
       const driverStops = {}
       stops.forEach(s => {
         if (!driverStops[s.driver_name]) {
@@ -134,13 +134,6 @@ export default function DispatchPage() {
           Address: s.address, City: s.city, ZIP: s.zip,
           Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
           _coldChain: s.cold_chain, Notes: s.notes || '',
-          status: s.status || 'dispatched',
-          delivered_at: s.delivered_at || null,
-          photo_url: s.photo_url || null,
-          photo_urls: s.photo_urls || null,
-          barcode: s.barcode || null,
-          delivery_note: s.delivery_note || null,
-          delivery_date: s.delivery_date || dateStr,
         })
       })
 
@@ -217,7 +210,7 @@ export default function DispatchPage() {
           Email: d.email,
           isOff: driversOff.has(d.driver_name),
           stops: driverStops[d.driver_name]?.consolidatedStops ?? driverStops[d.driver_name]?.stops ?? 0,
-          totalPackages: driverStops[d.driver_name]?.totalPackages ?? 0,
+          totalPackages: driverStops[d.driver_name]?.totalPackages ?? driverStops[d.driver_name]?.stops ?? 0,
           coldChain: driverStops[d.driver_name]?.coldChain ?? 0,
           hidden: false,
           tabName: `${d.driver_name} - ${d.driver_number}`,
@@ -233,7 +226,8 @@ export default function DispatchPage() {
       setSelectedDay(deliveryDay)
 
       // Snapshot initial assignments if not already captured for this date
-      if (stops.length > 0) {
+      const dateStr = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth()+1).padStart(2,'0')}-${String(deliveryDate.getDate()).padStart(2,'0')}`
+      if (allStops.length > 0) {
         fetch('/api/dispatch-log-decision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -825,17 +819,22 @@ export default function DispatchPage() {
             {showUnassigned && <UnassignedZips />}
 
             {!showRouting && !showSortList && !showUnassigned && <>
-            {/* Context bar — heading, weather, actions */}
-            <div className="dispatch__context-bar">
-              <div className="dispatch__context-left">
-                <h1 className="dispatch__heading">{data.deliveryDay} Delivery</h1>
-                <span className="dispatch__date-inline">
-                  {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </span>
+            {/* Header row */}
+            <div className="dispatch__top">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div>
+                  <h1 className="dispatch__heading">
+                    {data.deliveryDay} Delivery
+                  </h1>
+                  <p className="dispatch__date">
+                    {(data.deliveryDateObj || new Date()).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
                 <WeatherWidget />
               </div>
               <div className="dispatch__actions">
@@ -889,7 +888,7 @@ export default function DispatchPage() {
                   onClick={handleSendCorrections}
                   disabled={sendingCorrections || correctionsSent || totalStops === 0}
                 >
-                  {correctionsSent ? 'Sent' : sendingCorrections ? 'Sending...' : 'Corrections'}
+                  {correctionsSent ? 'Sent' : sendingCorrections ? 'Sending...' : 'Send Corrections'}
                 </button>
               </div>
             </div>
@@ -900,6 +899,7 @@ export default function DispatchPage() {
                 setDismissedWarnings(prev => new Set([...prev, w.type]))
               }} />
             ))}
+
 
             {/* Summary cards */}
             <DispatchSummary

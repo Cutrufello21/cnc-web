@@ -2,11 +2,6 @@ import { useState, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import './DriverCard.css'
 
-function fmtTime(ts) {
-  if (!ts) return ''
-  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-}
-
 const PHARMACY_COLORS = {
   SHSP: { bg: '#eef4ff', text: '#3b82f6', label: 'SHSP' },
   Aultman: { bg: '#dcfce7', text: '#16a34a', label: 'Aultman' },
@@ -35,27 +30,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [reviewed, setReviewed] = useState(false)
-  const [viewingPhotos, setViewingPhotos] = useState(null) // { urls: [], orderId: '' }
-  const [reopening, setReopening] = useState(null) // order ID being reopened
-
-  async function handleReopen(orderIds, date) {
-    if (!confirm('Reopen this delivery? It will be marked as not delivered.')) return
-    setReopening(orderIds[0])
-    try {
-      const res = await fetch('/api/deliver', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderIds, deliveryDate: date, driverName: driver['Driver Name'], undo: true }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-      if (onRefresh) setTimeout(onRefresh, 500)
-    } catch (err) {
-      alert('Reopen failed: ' + err.message)
-    } finally {
-      setReopening(null)
-    }
-  }
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
@@ -166,7 +140,11 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     try {
       const toDriverName = reassignTo.split(' - ')[0].trim()
       const toDriverNumber = reassignTo.split(' - ')[1]?.trim() || ''
-      const orderIds = Array.from(selected)
+      // Expand consolidated order IDs — a single selected row may contain multiple orders
+      const orderIds = Array.from(selected).flatMap(oid => {
+        const stop = details.find(s => s['Order ID'] === oid)
+        return stop?._consolidatedOrderIds || [oid]
+      })
 
       // Update daily_stops via API (service role, bypasses RLS)
       const res = await fetch('/api/actions', {
@@ -313,23 +291,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           <span className="dcard__stat-value">{stops}</span>
           <span className="dcard__stat-label">Stops{totalPackages > stops ? ` (${totalPackages} pkg)` : ''}</span>
         </div>
-        {stops > 0 && (() => {
-          const deliveredCount = rawDetails.filter(s => s.status === 'delivered').length
-          if (deliveredCount === 0) return null
-          const pct = Math.round((deliveredCount / stops) * 100)
-          const allDone = deliveredCount === stops
-          return (
-            <div className={`dcard__stat ${allDone ? 'dcard__stat--done' : ''}`}>
-              <span className="dcard__stat-value dcard__stat-value--progress">
-                {deliveredCount}/{stops}
-              </span>
-              <div className="dcard__progress-bar">
-                <div className="dcard__progress-fill" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="dcard__stat-label">{allDone ? 'Complete' : 'Delivered'}</span>
-            </div>
-          )
-        })()}
         {coldChain > 0 && (
           <div className={`dcard__stat dcard__stat--cold${coldChain > 26 ? ' dcard__stat--alert' : ''}`}>
             <span className="dcard__stat-value">{coldChain}{coldChain > 26 ? ' \u{1F6A9}' : ''}</span>
@@ -415,10 +376,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     )}
                   </th>
                 ))}
-                <th className="dcard__th-status">Status</th>
-                <th className="dcard__th-status">Time</th>
-                <th className="dcard__th-status">Proof</th>
-                <th className="dcard__th-status">Note</th>
               </tr>
               {/* Filter row */}
               <tr className="dcard__filter-row">
@@ -452,7 +409,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     </td>
                   )
                 })}
-                <td></td><td></td><td></td><td></td>
               </tr>
             </thead>
             <tbody>
@@ -493,53 +449,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td className="dcard__cell-notes">{stop._flagsDisplay}</td>
                     <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
-                    <td className="dcard__cell-status">
-                      {(stop.status === 'delivered' || stop.status === 'failed') ? (
-                        <button
-                          className={`dcard__reopen-btn ${stop.status === 'failed' ? 'dcard__reopen-btn--failed' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const ids = stop._consolidatedOrderIds || [stop['Order ID']]
-                            handleReopen(ids, stop.delivery_date)
-                          }}
-                          disabled={reopening === (stop['Order ID'])}
-                          title="Reopen this delivery"
-                        >
-                          <span className={`dcard__status-dot ${stop.status === 'delivered' ? 'dcard__status-dot--done' : 'dcard__status-dot--failed'}`} />
-                        </button>
-                      ) : (
-                        <span className="dcard__status-dot" />
-                      )}
-                    </td>
-                    <td className="dcard__cell-time">{stop.status === 'delivered' ? fmtTime(stop.delivered_at) : ''}</td>
-                    <td className="dcard__cell-photos">
-                      {(() => {
-                        const urls = stop.photo_urls || (stop.photo_url ? [stop.photo_url] : [])
-                        if (urls.length === 0) return null
-                        return (
-                          <button
-                            className="dcard__photo-btn"
-                            onClick={(e) => { e.stopPropagation(); setViewingPhotos({ urls, orderId: stop['Order ID'] || '' }) }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                              <circle cx="12" cy="13" r="4"/>
-                            </svg>
-                            {urls.length}
-                          </button>
-                        )
-                      })()}
-                    </td>
-                    <td className="dcard__cell-note">
-                      {stop.delivery_note && (
-                        <span className="dcard__note-badge" title={stop.delivery_note}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                          </svg>
-                          {stop.delivery_note}
-                        </span>
-                      )}
-                    </td>
                   </tr>
                 )
               })}
@@ -552,22 +461,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
               )}
             </tbody>
           </table>
-        </div>
-      )}
-      {/* Photo lightbox */}
-      {viewingPhotos && (
-        <div className="dcard__lightbox" onClick={() => setViewingPhotos(null)}>
-          <div className="dcard__lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <div className="dcard__lightbox-header">
-              <span>Order #{viewingPhotos.orderId} — {viewingPhotos.urls.length} photo{viewingPhotos.urls.length !== 1 ? 's' : ''}</span>
-              <button className="dcard__lightbox-close" onClick={() => setViewingPhotos(null)}>&times;</button>
-            </div>
-            <div className="dcard__lightbox-gallery">
-              {viewingPhotos.urls.map((url, i) => (
-                <img key={i} src={url} alt={`Delivery photo ${i + 1}`} className="dcard__lightbox-img" />
-              ))}
-            </div>
-          </div>
         </div>
       )}
     </div>
