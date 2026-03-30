@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
 import DriverSortList from '../components/driver/DriverSortList'
-const RouteMap = lazy(() => import('../components/driver/RouteMap'))
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
@@ -25,58 +24,10 @@ export default function DriverPage() {
   const [transferring, setTransferring] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(null)
-  const [deliveryTick, setDeliveryTick] = useState(0)
-  const [optimizedStops, setOptimizedStops] = useState(null)
-  const [optimizeMode, setOptimizeMode] = useState(null) // 'oneway' | 'roundtrip'
-  const [optimizing, setOptimizing] = useState(false)
-  const [manualStops, setManualStops] = useState([])
-  const [manualForm, setManualForm] = useState({ name: '', address: '', city: '', zip: '' })
 
   useEffect(() => {
     if (user?.email) fetchDriverData()
   }, [user?.email])
-
-  // Realtime: auto-refresh when stops change for this driver
-  useEffect(() => {
-    if (!data?.driverName || !data?.deliveryDate) return
-    const channel = supabase
-      .channel('driver-stops-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'daily_stops',
-          filter: `driver_name=eq.${data.driverName}`,
-        },
-        () => {
-          // A stop was added, updated, or removed for this driver — refresh
-          setOptimizedStops(null)
-          setOptimizeMode(null)
-          fetchDriverData()
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'daily_stops',
-          filter: `delivery_date=eq.${data.deliveryDate}`,
-        },
-        (payload) => {
-          // Also catch stops transferred AWAY from this driver
-          if (payload.old?.driver_name === data.driverName && payload.new?.driver_name !== data.driverName) {
-            setOptimizedStops(null)
-            setOptimizeMode(null)
-            fetchDriverData()
-          }
-        }
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [data?.driverName, data?.deliveryDate])
 
   // Cache driver info so refresh doesn't re-lookup
   const driverCache = useRef(null)
@@ -189,7 +140,7 @@ export default function DriverPage() {
         ? [...rawStops].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
         : rawStops
 
-      const rawMappedStops = sorted.map((s, idx) => ({
+      const stops = sorted.map((s, idx) => ({
         _index: idx,
         _id: s.id,
         'Order ID': s.order_id, Name: s.patient_name,
@@ -199,64 +150,15 @@ export default function DriverPage() {
         _sigRequired: (s.notes || '').toLowerCase().includes('signature'),
         _transferred: s.assigned_driver_number && s.dispatch_driver_number && s.assigned_driver_number !== s.dispatch_driver_number,
         Notes: s.notes || '',
-        status: s.status || 'dispatched',
-        delivered_at: s.delivered_at || null,
-        photo_url: s.photo_url || null,
-        photo_urls: s.photo_urls || null,
-        barcode: s.barcode || null,
-        signature_url: s.signature_url || null,
-        failure_reason: s.failure_reason || null,
-        delivery_note: s.delivery_note || null,
       }))
-
-      // Consolidate stops by normalized address
-      const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
-        .replace(/\bboulevard\b/g, 'blvd').replace(/\bdrive\b/g, 'dr').replace(/\bstreet\b/g, 'st')
-        .replace(/\bavenue\b/g, 'ave').replace(/\broad\b/g, 'rd').replace(/\blane\b/g, 'ln')
-        .replace(/\bcourt\b/g, 'ct').replace(/\bplace\b/g, 'pl').replace(/\bcircle\b/g, 'cir')
-        .replace(/\bparkway\b/g, 'pkwy').replace(/\bhighway\b/g, 'hwy').replace(/\bsuite\b/g, 'ste')
-        .replace(/\bapartment\b/g, 'apt').replace(/\bnorth\b/g, 'n').replace(/\bsouth\b/g, 's')
-        .replace(/\beast\b/g, 'e').replace(/\bwest\b/g, 'w').replace(/\bnortheast\b/g, 'ne')
-        .replace(/\bnorthwest\b/g, 'nw').replace(/\bsoutheast\b/g, 'se').replace(/\bsouthwest\b/g, 'sw')
-        .replace(/[.,#]/g, '')
-      const addrGroups = {}
-      for (const stop of rawMappedStops) {
-        const key = normalizeAddr(stop.Address)
-        if (!addrGroups[key]) addrGroups[key] = []
-        addrGroups[key].push(stop)
-      }
-      const stops = []
-      const seen = new Set()
-      for (const stop of rawMappedStops) {
-        const key = normalizeAddr(stop.Address)
-        if (seen.has(key)) continue
-        seen.add(key)
-        const group = addrGroups[key]
-        if (group.length === 1) {
-          stops.push({ ...group[0], _packageCount: 1, _consolidatedOrders: [{ orderId: group[0]['Order ID'], name: group[0].Name, coldChain: group[0]._coldChain, sigRequired: group[0]._sigRequired, notes: group[0].Notes, status: group[0].status, _id: group[0]._id }] })
-        } else {
-          const primary = { ...group[0] }
-          primary._packageCount = group.length
-          primary._coldChain = group.some(s => s._coldChain)
-          primary['Cold Chain'] = primary._coldChain ? 'Yes' : ''
-          primary._sigRequired = group.some(s => s._sigRequired)
-          primary.Notes = group.map(s => s.Notes).filter(Boolean).join(' | ')
-          primary._consolidatedOrders = group.map(s => ({ orderId: s['Order ID'], name: s.Name, coldChain: s._coldChain, sigRequired: s._sigRequired, notes: s.Notes, status: s.status, _id: s._id }))
-          stops.push(primary)
-        }
-      }
-
-      // Total packages = total orders (for progress tracking)
-      const totalPackages = rawMappedStops.length
-
       // Approved if dispatch log exists OR if stops are already in Supabase
       const approved = (logsRes.data && logsRes.data.length > 0) || stops.length > 0
 
       setData({
         approved, deliveryDay: deliveryDayName, deliveryDate, driverName, driverId, tabName,
         pharmacy: driverRow.pharmacy || 'SHSP',
-        stops, stopCount: stops.length, totalPackages,
-        coldChainCount: rawMappedStops.filter(s => s._coldChain).length,
+        stops, stopCount: stops.length,
+        coldChainCount: stops.filter(s => s._coldChain).length,
         weekTotal, dailyStops,
       })
     } catch (err) {
@@ -285,61 +187,6 @@ export default function DriverPage() {
     await fetchDriverData()
     setTeamData(null)
     setRefreshing(false)
-  }
-
-  async function handleOptimize(mode) {
-    if (!data?.stops?.length || optimizing) return
-    setOptimizing(true)
-    try {
-      const stopsPayload = data.stops
-        .filter(s => s.status !== 'delivered' && s.status !== 'failed')
-        .map(s => ({ address: s.Address, city: s.City, zip: s.ZIP, coldChain: !!s._coldChain, sigRequired: !!s._sigRequired }))
-      if (stopsPayload.length < 2) {
-        setOptimizing(false)
-        return
-      }
-      const res = await fetch('/api/optimize-route', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stops: stopsPayload, mode, pharmacy: data.pharmacy,
-          ...(() => {
-            try {
-              const saved = localStorage.getItem('cnc_route_end')
-              if (saved) { const ep = JSON.parse(saved); return { endLat: ep.lat, endLng: ep.lng } }
-            } catch {}
-            return {}
-          })(),
-        }),
-      })
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error)
-
-      // Map optimized indices back to the undelivered stops, then append delivered
-      const undelivered = data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed')
-      const done = data.stops.filter(s => s.status === 'delivered' || s.status === 'failed')
-      const reordered = result.optimizedOrder.map(i => undelivered[i]).filter(Boolean)
-      setOptimizedStops([...reordered, ...done])
-      setOptimizeMode(mode)
-    } catch (err) {
-      console.error('Route optimization failed:', err)
-      alert('Route optimization failed: ' + err.message)
-    } finally {
-      setOptimizing(false)
-    }
-  }
-
-  // Auto-optimize when Route tab opens
-  useEffect(() => {
-    if (activeTab === 'map' && !optimizeMode && !optimizing && data?.stops?.length >= 2) {
-      const undelivered = data.stops.filter(s => s.status !== 'delivered' && s.status !== 'failed')
-      if (undelivered.length >= 2) handleOptimize('oneway')
-    }
-  }, [activeTab, data?.stops?.length])
-
-  function handleResetOrder() {
-    setOptimizedStops(null)
-    setOptimizeMode(null)
   }
 
   async function loadTeamData() {
@@ -389,6 +236,7 @@ export default function DriverPage() {
           toDriverName,
           toDriverNumber,
           fromDriverName: sourceDriver?.name || data.driverName,
+          source: 'driver',
         }),
       })
       const result = await resp.json()
@@ -484,7 +332,7 @@ export default function DriverPage() {
                 </svg>
                 <div>
                   <h3>Route approved</h3>
-                  <p>Your {data.deliveryDay} route is ready. {data.stopCount} stop{data.stopCount !== 1 ? 's' : ''}{data.totalPackages > data.stopCount ? ` (${data.totalPackages} packages)` : ''} today.</p>
+                  <p>Your {data.deliveryDay} route is ready. {data.stopCount} stop{data.stopCount !== 1 ? 's' : ''} today.</p>
                 </div>
               </div>
             )}
@@ -512,12 +360,6 @@ export default function DriverPage() {
                 onClick={() => setActiveTab('stops')}
               >
                 Stops ({data.stopCount || 0})
-              </button>
-              <button
-                className={`driver__tab ${activeTab === 'map' ? 'driver__tab--active' : ''}`}
-                onClick={() => setActiveTab('map')}
-              >
-                Map
               </button>
               <button
                 className={`driver__tab ${activeTab === 'week' ? 'driver__tab--active' : ''}`}
@@ -558,28 +400,9 @@ export default function DriverPage() {
                   </div>
                 ) : data.stops?.length > 0 ? (
                   <>
-                    {/* Delivery progress bar */}
-                    {(() => {
-                      const allOrders = data.stops.flatMap(s => s._consolidatedOrders || [])
-                      const deliveredCount = allOrders.filter(o => o.status === 'delivered').length
-                      const totalCount = allOrders.length
-                      const pct = totalCount ? Math.round((deliveredCount / totalCount) * 100) : 0
-                      return deliveredCount > 0 ? (
-                        <div className="driver__progress">
-                          <div className="driver__progress-bar">
-                            <div className="driver__progress-fill" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="driver__progress-label">
-                            {deliveredCount === totalCount ? 'All delivered!' : `${deliveredCount}/${totalCount} delivered`}
-                          </span>
-                        </div>
-                      ) : null
-                    })()}
-                    <div className="driver__toolbar-row">
-                      <div className="driver__view-toggle">
-                        <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
-                        <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
-                      </div>
+                    <div className="driver__view-toggle">
+                      <button className={`driver__view-btn ${!listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(false)}>Cards</button>
+                      <button className={`driver__view-btn ${listView ? 'driver__view-btn--active' : ''}`} onClick={() => setListView(true)}>List</button>
                     </div>
                     <div className="driver__select-bar">
                       <label className="driver__select-all">
@@ -604,7 +427,7 @@ export default function DriverPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {(optimizedStops || data.stops).map((stop, i) => (
+                            {data.stops.map((stop, i) => (
                               <tr key={i} className={stop._coldChain ? 'driver__list-row--cold' : ''}>
                                 <td className="driver__list-num">{i + 1}</td>
                                 <td>{stop.Name || '—'}</td>
@@ -623,42 +446,23 @@ export default function DriverPage() {
                         </table>
                       </div>
                     ) : (
-                      (() => {
-                        const displayStops = optimizedStops || data.stops
-                        const undelivered = displayStops.filter(s => s.status !== 'delivered')
-                        const deliveredStops = displayStops.filter(s => s.status === 'delivered')
-                        const renderStop = (stop) => {
-                          const origIdx = data.stops.indexOf(stop)
-                          return (
-                            <StopCard
-                              key={stop._id || origIdx}
-                              stop={stop}
-                              index={origIdx + 1}
-                              total={data.stops.length}
-                              isSelected={selected.has(origIdx)}
-                              onToggleSelect={() => toggleSelect(origIdx)}
-                              onExportDrag={(e) => {
-                                const text = getSelectedAddresses()
-                                if (text) {
-                                  e.dataTransfer.setData('text/plain', text)
-                                  e.dataTransfer.effectAllowed = 'copy'
-                                }
-                              }}
-                            />
-                          )
-                        }
-                        return (
-                          <>
-                            {undelivered.map(renderStop)}
-                            {deliveredStops.length > 0 && (
-                              <div className="driver__delivered-divider">
-                                <span>Completed ({deliveredStops.length})</span>
-                              </div>
-                            )}
-                            {deliveredStops.map(renderStop)}
-                          </>
-                        )
-                      })()
+                      data.stops.map((stop, i) => (
+                        <StopCard
+                          key={stop._id || i}
+                          stop={stop}
+                          index={i + 1}
+                          total={data.stops.length}
+                          isSelected={selected.has(i)}
+                          onToggleSelect={() => toggleSelect(i)}
+                          onExportDrag={(e) => {
+                            const text = getSelectedAddresses()
+                            if (text) {
+                              e.dataTransfer.setData('text/plain', text)
+                              e.dataTransfer.effectAllowed = 'copy'
+                            }
+                          }}
+                        />
+                      ))
                     )}
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '16px 0' }}>
                       <CopyRouteButton stops={data.stops} />
@@ -669,106 +473,6 @@ export default function DriverPage() {
                   <div className="driver__not-ready">
                     <h3>No stops assigned</h3>
                     <p>You have no deliveries for {data.deliveryDay}.</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'map' && (
-              <div className="driver__stops">
-                {data.stops?.length >= 2 ? (
-                  <>
-                    <div className="driver__toolbar-row">
-                      <div className="driver__optimize">
-                        {!optimizeMode ? (
-                          <button className="driver__optimize-btn" onClick={() => handleOptimize('oneway')} disabled={optimizing}>
-                            {optimizing ? 'Optimizing...' : 'Optimize Route'}
-                          </button>
-                        ) : (
-                          <>
-                            <span className="driver__optimize-badge">Route optimized</span>
-                            <button className="driver__optimize-reset" onClick={handleResetOrder}>Reset Order</button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {/* Add manual stop */}
-                    <div className="driver__add-stop">
-                      <div className="driver__add-stop-header" onClick={() => {
-                        const el = document.querySelector('.driver__add-stop-form')
-                        if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none'
-                      }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        <span>Add Stop</span>
-                      </div>
-                      <div className="driver__add-stop-form" style={{ display: 'none' }}>
-                        <input placeholder="Name" value={manualForm.name} onChange={e => setManualForm(f => ({ ...f, name: e.target.value }))} />
-                        <input placeholder="Address" value={manualForm.address} onChange={e => setManualForm(f => ({ ...f, address: e.target.value }))} />
-                        <div className="driver__add-stop-row">
-                          <input placeholder="City" value={manualForm.city} onChange={e => setManualForm(f => ({ ...f, city: e.target.value }))} />
-                          <input placeholder="ZIP" value={manualForm.zip} onChange={e => setManualForm(f => ({ ...f, zip: e.target.value }))} style={{ width: 80 }} />
-                        </div>
-                        <button
-                          className="driver__add-stop-btn"
-                          disabled={!manualForm.address.trim()}
-                          onClick={() => {
-                            const newStop = {
-                              _id: `manual-${Date.now()}`,
-                              _manual: true,
-                              Name: manualForm.name || 'Manual Stop',
-                              Address: manualForm.address,
-                              City: manualForm.city,
-                              ZIP: manualForm.zip,
-                              _coldChain: false,
-                              _sigRequired: false,
-                              _packageCount: 1,
-                              _consolidatedOrders: [{ orderId: `manual-${Date.now()}`, name: manualForm.name, status: 'dispatched' }],
-                              status: 'dispatched',
-                            }
-                            setManualStops(prev => [...prev, newStop])
-                            setManualForm({ name: '', address: '', city: '', zip: '' })
-                            // Reset optimization since stops changed
-                            setOptimizedStops(null)
-                            setOptimizeMode(null)
-                          }}
-                        >
-                          Add to Route
-                        </button>
-                      </div>
-                      {manualStops.length > 0 && (
-                        <div className="driver__manual-stops-list">
-                          {manualStops.map((s, i) => (
-                            <div key={s._id} className="driver__manual-stop">
-                              <span>{s.Name} — {s.Address}, {s.City} {s.ZIP}</span>
-                              <button onClick={() => {
-                                setManualStops(prev => prev.filter((_, j) => j !== i))
-                                setOptimizedStops(null)
-                                setOptimizeMode(null)
-                              }}>×</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', color: '#9ca3af' }}>Loading route map...</div>}>
-                      <RouteMap
-                        stops={[...(optimizedStops || data.stops), ...manualStops]}
-                        mode="oneway"
-                        pharmacy={data.pharmacy}
-                        onReorder={(newStops) => {
-                          const done = (optimizedStops || data.stops).filter(s => s.status === 'delivered' || s.status === 'failed')
-                          setOptimizedStops([...newStops.filter(s => !s._manual), ...done])
-                          setManualStops(newStops.filter(s => s._manual))
-                          if (!optimizeMode) setOptimizeMode('oneway')
-                        }}
-                      />
-                    </Suspense>
-                  </>
-                ) : (
-                  <div className="driver__not-ready">
-                    <h3>Not enough stops</h3>
-                    <p>You need at least 2 stops to view the route map.</p>
                   </div>
                 )}
               </div>

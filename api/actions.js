@@ -56,25 +56,27 @@ export default async function handler(req, res) {
         }).eq('order_id', orderId)
       }
 
-      // Send email to BioTouch
-      const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
-      const gmailPass = process.env.GMAIL_APP_PASSWORD
-      if (gmailPass) {
-        try {
-          const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: { user: gmailUser, pass: gmailPass },
-          })
-          for (const orderId of orderIds) {
-            await transporter.sendMail({
-              from: `"CNC Delivery" <${gmailUser}>`,
-              to: 'wfldispatch@biotouchglobal.com',
-              subject: `Assign Order to driver ${toDriverNumber}`,
-              text: orderId,
+      // Only send BioTouch email from driver portal (dispatch uses Send Corrections)
+      if (data.source === 'driver') {
+        const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
+        const gmailPass = process.env.GMAIL_APP_PASSWORD
+        if (gmailPass) {
+          try {
+            const transporter = nodemailer.createTransport({
+              service: 'gmail',
+              auth: { user: gmailUser, pass: gmailPass },
             })
+            for (const orderId of orderIds) {
+              await transporter.sendMail({
+                from: `"CNC Delivery" <${gmailUser}>`,
+                to: 'wfldispatch@biotouchglobal.com',
+                subject: `Assign Order to driver ${toDriverNumber}`,
+                text: orderId,
+              })
+            }
+          } catch (emailErr) {
+            console.error('[transfer email]', emailErr.message)
           }
-        } catch (emailErr) {
-          console.error('[transfer email]', emailErr.message)
         }
       }
 
