@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
   try {
-    const { stops, pharmacy, endLat, endLng } = req.body
+    const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
     // 1. Geocode all stops (Supabase cache → ZIP fallback)
@@ -37,7 +37,9 @@ export default async function handler(req, res) {
       return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0 })
     }
 
-    const origin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
+    // Use driver's GPS or custom start point if provided, otherwise pharmacy
+    const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
+    const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
 
     // 2. Split by priority
