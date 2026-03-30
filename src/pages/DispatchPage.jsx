@@ -226,7 +226,6 @@ export default function DispatchPage() {
       setSelectedDay(deliveryDay)
 
       // Snapshot initial assignments if not already captured for this date
-      const dateStr = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth()+1).padStart(2,'0')}-${String(deliveryDate.getDate()).padStart(2,'0')}`
       if (allStops.length > 0) {
         fetch('/api/dispatch-log-decision', {
           method: 'POST',
