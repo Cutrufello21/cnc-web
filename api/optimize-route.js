@@ -1,12 +1,11 @@
-// Logistics optimization engine
-// Minimizes total drive time while respecting delivery constraints:
-// 1. Cold chain stops delivered first (temperature-sensitive)
-// 2. Route flows from pharmacy → stops → driver's end destination
-// 3. Uses OSRM Trip API for real-road TSP solving (not straight-line)
-// 4. Falls back to haversine nearest-neighbor + 2-opt if OSRM fails
+// Route optimization engine — Mapbox Optimization API
+// Solves TSP using real driving distances on actual road network
+// Falls back to nearest-neighbor + 2-opt if Mapbox fails
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
+
+const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN
 
 function toRad(deg) { return deg * Math.PI / 180 }
 function haversine(lat1, lon1, lat2, lon2) {
@@ -28,7 +27,7 @@ export default async function handler(req, res) {
     const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
-    // 1. Geocode all stops (Supabase cache → Census batch → ZIP fallback)
+    // 1. Geocode all stops
     const coords = await geocodeStops(stops)
     const withCoords = coords.filter(c => c.lat !== null)
     const withoutCoords = coords.filter(c => c.lat === null)
@@ -37,21 +36,20 @@ export default async function handler(req, res) {
       return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0 })
     }
 
-    // Use driver's GPS or custom start point if provided, otherwise pharmacy
+    // Use driver's GPS or custom start, otherwise pharmacy
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
 
-    // 2. Optimize ALL stops together in one pass — pure shortest route
+    // 2. Optimize — Mapbox first, then fallback
     let optimizedAll = await optimizeGroup(
       withCoords, origin[0], origin[1],
       hasEnd ? endLat : null, hasEnd ? endLng : null
     )
 
-    // 4. Build final order
+    // 3. Build response
     const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
-    // Calculate total distance + per-stop reasoning
     let totalDistance = 0
     let curLat = origin[0], curLng = origin[1]
     const reasons = []
@@ -81,29 +79,70 @@ export default async function handler(req, res) {
   }
 }
 
-// Optimize a group of stops using OSRM Trip API (real-road TSP)
-// Falls back to haversine nearest-neighbor + 2-opt
 async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
-  // Try OSRM Trip first (real driving distances, proper TSP)
+  // Try Mapbox Optimization API first
   try {
-    const result = await osrmTrip(stops, startLat, startLng, endLat, endLng)
+    const result = await mapboxOptimize(stops, startLat, startLng, endLat, endLng)
     if (result) return result
   } catch (err) {
-    console.warn('OSRM Trip failed, using haversine fallback:', err.message)
+    console.warn('Mapbox Optimization failed:', err.message)
   }
 
-  // Fallback: haversine nearest-neighbor + 2-opt
+  // Fallback: nearest-neighbor + 2-opt
   let order = nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng)
   order = twoOpt(order, startLat, startLng, endLat, endLng)
   return order
 }
 
-// OSRM Trip API — solves TSP with real road network distances
-async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
-  // OSRM has a limit of ~100 waypoints
-  if (stops.length > 90) return null
+// Mapbox Optimization API v1 — proper TSP with real road network
+// https://docs.mapbox.com/api/navigation/optimization-v1/
+async function mapboxOptimize(stops, startLat, startLng, endLat, endLng) {
+  // Mapbox limit: 12 coordinates (including start/end) on free tier
+  // If more than 10 stops, batch into chunks and chain them
+  const MAX_WAYPOINTS = 10 // 12 total minus start and possible end
 
-  // Build coordinate string: start + stops + end (if present)
+  if (stops.length <= MAX_WAYPOINTS) {
+    return await mapboxOptimizeBatch(stops, startLat, startLng, endLat, endLng)
+  }
+
+  // For large routes: split into geographic clusters, optimize each, chain them
+  const clusters = clusterStops(stops, MAX_WAYPOINTS)
+  const result = []
+  let curLat = startLat, curLng = startLng
+
+  for (let c = 0; c < clusters.length; c++) {
+    const isLast = c === clusters.length - 1
+    const batchEnd = isLast && endLat != null ? { lat: endLat, lng: endLng } : null
+
+    let optimized
+    try {
+      optimized = await mapboxOptimizeBatch(
+        clusters[c], curLat, curLng,
+        batchEnd ? batchEnd.lat : null, batchEnd ? batchEnd.lng : null
+      )
+    } catch {
+      // Fallback for this batch
+      optimized = nearestNeighborWithEnd(
+        clusters[c], curLat, curLng,
+        batchEnd ? batchEnd.lat : null, batchEnd ? batchEnd.lng : null
+      )
+      optimized = twoOpt(optimized, curLat, curLng,
+        batchEnd ? batchEnd.lat : null, batchEnd ? batchEnd.lng : null
+      )
+    }
+
+    result.push(...optimized)
+    if (optimized.length > 0) {
+      const last = optimized[optimized.length - 1]
+      curLat = last.lat; curLng = last.lng
+    }
+  }
+
+  return result
+}
+
+// Single Mapbox Optimization API call (max 12 coordinates)
+async function mapboxOptimizeBatch(stops, startLat, startLng, endLat, endLng) {
   const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
   if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
 
@@ -111,49 +150,63 @@ async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
 
   // source=first: start from origin
   // destination=last: end at driver's end point (if present)
-  // roundtrip=false: one-way trip
+  // roundtrip=false: one-way optimized trip
   const params = endLat != null
     ? 'source=first&destination=last&roundtrip=false'
     : 'source=first&roundtrip=false'
 
-  const url = `https://router.project-osrm.org/trip/v1/driving/${coordStr}?${params}&geometries=geojson&overview=false`
+  const url = `https://api.mapbox.com/optimized-trips/v1/driving/${coordStr}?${params}&geometries=geojson&overview=false&access_token=${MAPBOX_TOKEN}`
 
   const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
   const data = await resp.json()
 
-  if (data.code !== 'Ok' || !data.trips?.length) return null
+  if (data.code !== 'Ok' || !data.trips?.length) {
+    console.warn('Mapbox Optimization response:', data.code, data.message)
+    return null
+  }
 
   const waypoints = data.waypoints || []
 
-  // OSRM waypoints have:
-  // - waypoint_index: position in the ORIGINAL input (which point this corresponds to)
-  // - trips_index: which trip this belongs to
-  // The waypoints array is in the OPTIMIZED trip order.
-  //
-  // We need to map: for each position in the trip, which original stop is it?
-  // waypoints[0] = start (skip), waypoints[last] = end (skip if hasEnd)
-  // The rest are stops in optimized order.
+  // Mapbox returns waypoints in INPUT order, each with a waypoint_index
+  // that indicates its position in the OPTIMIZED trip.
+  // We need to sort by waypoint_index to get trip order.
+  const stopWaypoints = endLat != null
+    ? waypoints.slice(1, -1) // skip start and end
+    : waypoints.slice(1)     // skip start only
 
-  // Build a mapping from trip position to original stop index
-  // waypoints are returned IN TRIP ORDER, and waypoint_index tells us
-  // which input coordinate each one corresponds to
-  const stopWaypoints = waypoints.slice(1, endLat != null ? -1 : undefined)
-
-  // Each waypoint's waypoint_index tells us which input point it is.
-  // Input point 0 = start, so stop index = waypoint_index - 1
-  // The array order IS the trip order.
-  const tripOrder = stopWaypoints.map(wp => {
-    const originalInputIdx = wp.waypoint_index
-    const stopIdx = originalInputIdx - 1 // subtract 1 for the start point
-    return stops[stopIdx]
-  }).filter(Boolean)
+  // Create pairs of (original stop, trip position) and sort by trip position
+  const tripOrder = stopWaypoints
+    .map((wp, i) => ({ stop: stops[i], tripPos: wp.waypoint_index }))
+    .sort((a, b) => a.tripPos - b.tripPos)
+    .map(item => item.stop)
 
   if (tripOrder.length !== stops.length) {
-    console.warn(`OSRM returned ${tripOrder.length} stops but expected ${stops.length}, falling back`)
+    console.warn(`Mapbox returned ${tripOrder.length} stops, expected ${stops.length}`)
     return null
   }
 
   return tripOrder
+}
+
+// Split stops into geographic clusters for batching
+function clusterStops(stops, maxPerCluster) {
+  // Simple geographic clustering: sort by angle from centroid, then split
+  const centLat = stops.reduce((s, p) => s + p.lat, 0) / stops.length
+  const centLng = stops.reduce((s, p) => s + p.lng, 0) / stops.length
+
+  // Sort by angle from centroid (geographic sweep)
+  const sorted = [...stops].sort((a, b) => {
+    const angleA = Math.atan2(a.lat - centLat, a.lng - centLng)
+    const angleB = Math.atan2(b.lat - centLat, b.lng - centLng)
+    return angleA - angleB
+  })
+
+  // Split into chunks
+  const clusters = []
+  for (let i = 0; i < sorted.length; i += maxPerCluster) {
+    clusters.push(sorted.slice(i, i + maxPerCluster))
+  }
+  return clusters
 }
 
 // Geocode stops from Supabase cache with ZIP fallback
@@ -174,11 +227,9 @@ async function geocodeStops(stops) {
     const c = cacheMap.get(cacheKeys[i])
     if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'precise' }
 
-    // ZIP fallback — add small jitter so same-ZIP stops don't stack on exact same point
     const zip = String(s.zip || '').trim()
     const zc = ZIP_COORDS[zip] || ZIP_COORDS[zip.padStart(5, '0')]
     if (zc) {
-      // Jitter by ~0.001 degrees (~100m) so OSRM treats them as separate points
       const jitter = () => (Math.random() - 0.5) * 0.002
       return { index: i, lat: zc[0] + jitter(), lng: zc[1] + jitter(), coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'zip-center' }
     }
@@ -186,7 +237,7 @@ async function geocodeStops(stops) {
   })
 }
 
-// Nearest-neighbor biased toward end destination
+// Nearest-neighbor fallback
 function nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng) {
   const visited = new Set()
   const result = []
