@@ -261,7 +261,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         body: JSON.stringify({
           table: 'daily_stops',
           operation: 'update',
-          data: { status: 'dispatched', delivered_at: null, gps_lat: null, gps_lng: null },
+          data: { status: 'dispatched', delivered_at: null },
           match: { order_id: oid },
         }),
       })
