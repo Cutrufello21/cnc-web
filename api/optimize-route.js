@@ -14,8 +14,8 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 const PHARMACY_ORIGINS = {
-  SHSP: [41.0758, -81.5193],
-  Aultman: [40.7914, -81.3939],
+  SHSP: [41.0534, -81.5185],
+  Aultman: [40.7989, -81.3784],
 }
 
 export default async function handler(req, res) {
