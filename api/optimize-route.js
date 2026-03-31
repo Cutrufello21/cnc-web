@@ -42,10 +42,12 @@ export default async function handler(req, res) {
     const hasEnd = endLat != null && endLng != null
 
     // 2. Optimize — Mapbox first, then fallback
-    let optimizedAll = await optimizeGroup(
+    const result = await optimizeGroup(
       withCoords, origin[0], origin[1],
       hasEnd ? endLat : null, hasEnd ? endLng : null
     )
+    let optimizedAll = result.stops
+    const method = result.method
 
     // 3. Build response
     const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
@@ -71,7 +73,8 @@ export default async function handler(req, res) {
       optimizedOrder,
       totalDistance: Math.round(totalDistance * 10) / 10,
       reasons,
-      summary: `${optimizedAll.length} stops optimized by shortest driving route${hasEnd ? ' → end address' : ''}`,
+      method,
+      summary: `${optimizedAll.length} stops via ${method}${hasEnd ? ' → end address' : ''}`,
     })
   } catch (err) {
     console.error('optimize-route error:', err)
@@ -82,16 +85,19 @@ export default async function handler(req, res) {
 async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
   // Try Mapbox Optimization API first
   try {
+    console.log(`Mapbox optimize: ${stops.length} stops, token=${MAPBOX_TOKEN ? 'set(' + MAPBOX_TOKEN.slice(0,10) + '...)' : 'MISSING'}`)
     const result = await mapboxOptimize(stops, startLat, startLng, endLat, endLng)
-    if (result) return result
+    if (result) { console.log('Mapbox optimization succeeded'); return { stops: result, method: 'mapbox' } }
+    console.log('Mapbox optimization returned null, falling back')
   } catch (err) {
     console.warn('Mapbox Optimization failed:', err.message)
   }
 
   // Fallback: nearest-neighbor + 2-opt
+  console.log('Using nearest-neighbor fallback')
   let order = nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng)
   order = twoOpt(order, startLat, startLng, endLat, endLng)
-  return order
+  return { stops: order, method: 'nearest-neighbor' }
 }
 
 // Mapbox Optimization API v1 — proper TSP with real road network
