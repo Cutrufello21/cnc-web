@@ -255,9 +255,17 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     const oid = stop['Order ID']
     if (!confirm(`Reopen order ${oid} as active (undo delivery)?`)) return
     try {
-      await supabase.from('daily_stops')
-        .update({ status: 'dispatched', delivered_at: null, gps_lat: null, gps_lng: null })
-        .eq('order_id', oid)
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'daily_stops',
+          action: 'update',
+          data: { status: 'dispatched', delivered_at: null, gps_lat: null, gps_lng: null },
+          match: { order_id: oid },
+        }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
       setMoveResult(`Order ${oid} reopened`)
       if (onRefresh) setTimeout(onRefresh, 500)
     } catch (err) {
