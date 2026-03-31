@@ -90,12 +90,28 @@ export default async function handler(req, res) {
     const finalOrder = [...coldOrder, ...sigOrder, ...regularOrder]
     const optimizedOrder = [...finalOrder.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
-    // Calculate total distance
+    // Calculate total distance + per-stop reasoning
     let totalDistance = 0
     let curLat = origin[0], curLng = origin[1]
-    for (const s of finalOrder) {
-      totalDistance += haversine(curLat, curLng, s.lat, s.lng)
+    const reasons = []
+    for (let i = 0; i < finalOrder.length; i++) {
+      const s = finalOrder[i]
+      const legDist = haversine(curLat, curLng, s.lat, s.lng)
+      totalDistance += legDist
+      let reason = ''
+      if (i < coldOrder.length) {
+        reason = `Cold chain priority (#${i + 1} of ${coldOrder.length})`
+      } else if (i < coldOrder.length + sigOrder.length) {
+        reason = `Signature required priority`
+      } else {
+        reason = `Nearest stop (${Math.round(legDist * 10) / 10} mi from previous)`
+      }
+      if (i === 0) reason += ` — ${Math.round(legDist * 10) / 10} mi from start`
+      reasons.push(reason)
       curLat = s.lat; curLng = s.lng
+    }
+    for (const c of withoutCoords) {
+      reasons.push('No geocode — placed at end')
     }
     if (hasEnd) totalDistance += haversine(curLat, curLng, endLat, endLng)
 
@@ -103,6 +119,10 @@ export default async function handler(req, res) {
       optimizedOrder,
       totalDistance: Math.round(totalDistance * 10) / 10,
       coldChainFirst: coldStops.length,
+      sigFirst: sigStops.length,
+      reasons,
+      method: coldOrder.length > 0 || regularOrder.length > 0 ? 'OSRM TSP with fallback' : 'none',
+      summary: `${coldStops.length > 0 ? `${coldStops.length} cold chain first → ` : ''}${sigStops.length > 0 ? `${sigStops.length} signature next → ` : ''}${regularStops.length} stops optimized by shortest driving distance${hasEnd ? ' → end address' : ''}`,
     })
   } catch (err) {
     console.error('optimize-route error:', err)
