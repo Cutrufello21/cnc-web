@@ -378,32 +378,13 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           </div>
         )}
         {stops > 0 && (
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button
-              className="dcard__optimize"
-              onClick={handleOptimizeRoute}
-              disabled={optimizing || stops < 2}
-              title="Optimize stop order by shortest driving route"
-            >
-              {optimizing ? '...' : optimized ? '✓ Optimized' : '⚡ Optimize'}
-            </button>
-            {optimized && (
-              <button
-                className="dcard__clear-order"
-                onClick={handleClearOrder}
-                title="Clear stop order"
-              >
-                ✕
-              </button>
-            )}
-            <button
-              className={`dcard__send ${sent ? 'dcard__send--done' : ''}`}
-              onClick={handleSendOne}
-              disabled={sending || sent}
-            >
-              {sent ? 'Sent' : sending ? '...' : 'Send'}
-            </button>
-          </div>
+          <button
+            className={`dcard__send ${sent ? 'dcard__send--done' : ''}`}
+            onClick={handleSendOne}
+            disabled={sending || sent}
+          >
+            {sent ? 'Sent' : sending ? '...' : 'Send'}
+          </button>
         )}
       </div>
 
