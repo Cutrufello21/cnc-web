@@ -81,25 +81,8 @@ export default function Orders() {
       const total = count || 0
       const pages = Math.ceil(total / pageSize)
 
-      // Enrich with delivery tracking data from daily_stops
-      const orderIds = (orders || []).map(o => o.order_id).filter(Boolean)
-      let deliveryMap = {}
-      if (orderIds.length > 0) {
-        const { data: stops } = await supabase.from('daily_stops')
-          .select('order_id, status, delivered_at, photo_url, photo_urls, delivery_note, barcode, signature_url, failure_reason')
-          .in('order_id', orderIds)
-        if (stops) {
-          stops.forEach(s => { deliveryMap[s.order_id] = s })
-        }
-      }
-
-      const enriched = (orders || []).map(o => ({
-        ...o,
-        _delivery: deliveryMap[o.order_id] || null,
-      }))
-
       setData({
-        orders: enriched,
+        orders: orders || [],
         total, page, pages, pageSize,
       })
     } catch { setData(null) }
@@ -159,8 +142,6 @@ export default function Orders() {
     })
   }
 
-  const [viewingPhotos, setViewingPhotos] = useState(null)
-
   const cols = [
     { key: 'order_id', label: 'Order ID', cls: 'ord__cell-id' },
     { key: 'patient_name', label: 'Name', cls: 'ord__cell-name' },
@@ -172,13 +153,6 @@ export default function Orders() {
     { key: 'date_delivered', label: 'Date', cls: 'ord__cell-date' },
     { key: 'cold_chain', label: 'CC' },
     { key: 'source', label: 'Source' },
-  ]
-
-  const deliveryCols = [
-    { key: '_status', label: 'Status' },
-    { key: '_time', label: 'Time' },
-    { key: '_proof', label: 'Proof' },
-    { key: '_note', label: 'Note' },
   ]
 
   return (
@@ -291,9 +265,6 @@ export default function Orders() {
                       {sortCol === c.key && <span className="ord__sort">{sortDir === 'asc' ? ' ↑' : ' ↓'}</span>}
                     </th>
                   ))}
-                  {deliveryCols.map(c => (
-                    <th key={c.key} className="ord__th ord__th--delivery">{c.label}</th>
-                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -315,39 +286,11 @@ export default function Orders() {
                       <td>
                         <span className={`ord__source ${o.source === 'Live' ? 'ord__source--live' : 'ord__source--hist'}`}>{o.source}</span>
                       </td>
-                      <td className="ord__cell-status">
-                        {o._delivery ? (
-                          <span className={`ord__status-dot ${o._delivery.status === 'delivered' ? 'ord__status-dot--done' : o._delivery.status === 'failed' ? 'ord__status-dot--failed' : ''}`} />
-                        ) : null}
-                      </td>
-                      <td className="ord__cell-time">
-                        {o._delivery?.delivered_at ? new Date(o._delivery.delivered_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
-                      </td>
-                      <td className="ord__cell-proof">
-                        {(() => {
-                          const urls = o._delivery?.photo_urls || (o._delivery?.photo_url ? [o._delivery.photo_url] : [])
-                          if (urls.length === 0) return null
-                          return (
-                            <button className="ord__photo-btn" onClick={() => setViewingPhotos({ urls, orderId: o.order_id })}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                                <circle cx="12" cy="13" r="4"/>
-                              </svg>
-                              {urls.length}
-                            </button>
-                          )
-                        })()}
-                      </td>
-                      <td className="ord__cell-note">
-                        {o._delivery?.delivery_note && (
-                          <span className="ord__note-text" title={o._delivery.delivery_note}>{o._delivery.delivery_note}</span>
-                        )}
-                      </td>
                     </tr>
                   )
                 })}
                 {orders.length === 0 && (
-                  <tr><td colSpan={cols.length + deliveryCols.length} className="ord__empty">No orders found</td></tr>
+                  <tr><td colSpan={cols.length} className="ord__empty">No orders found</td></tr>
                 )}
               </tbody>
             </table>
@@ -364,22 +307,6 @@ export default function Orders() {
             <button className="ord__pager-btn" disabled={page >= data.pages} onClick={() => setPage(data.pages)}>Last</button>
           </div>
         </>
-      )}
-      {/* Photo lightbox */}
-      {viewingPhotos && (
-        <div className="ord__lightbox" onClick={() => setViewingPhotos(null)}>
-          <div className="ord__lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <div className="ord__lightbox-header">
-              <span>Order #{viewingPhotos.orderId} — {viewingPhotos.urls.length} photo{viewingPhotos.urls.length !== 1 ? 's' : ''}</span>
-              <button className="ord__lightbox-close" onClick={() => setViewingPhotos(null)}>&times;</button>
-            </div>
-            <div className="ord__lightbox-gallery">
-              {viewingPhotos.urls.map((url, i) => (
-                <img key={i} src={url} alt={`Delivery photo ${i + 1}`} className="ord__lightbox-img" />
-              ))}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )

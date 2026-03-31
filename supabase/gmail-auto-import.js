@@ -129,14 +129,15 @@ function processThread(thread) {
     .sort()
     .join('\n');
 
+  const [yr, mo, dy] = deliveryDate.split('-');
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const fmtDate = `${monthNames[+mo - 1]} ${+dy}, ${yr}`;
+
   MailApp.sendEmail(NOTIFY_EMAIL,
-    `CNC Auto-Import: ${totalAssigned} orders for ${deliveryDay}`,
-    `Trellis email processed automatically.\n\n` +
-    `Delivery Day: ${deliveryDay} (${deliveryDate})\n` +
-    `Total Orders: ${totalAssigned}\n` +
-    `Unassigned: ${unassigned.length}\n\n` +
+    `${deliveryDay}'s Orders — ${fmtDate}`,
+    `${totalAssigned} orders ready for ${deliveryDay}, ${fmtDate}.\n\n` +
     `Driver Breakdown:\n${driverSummary}\n\n` +
-    (unassigned.length > 0 ? `Unassigned ZIPs: ${unassigned.map(u => u.zip).join(', ')}\n\n` : '') +
+    (unassigned.length > 0 ? `Unassigned: ${unassigned.length} (ZIPs: ${unassigned.map(u => u.zip).join(', ')})\n\n` : '') +
     `View at: https://cncdelivery.com`
   );
 
