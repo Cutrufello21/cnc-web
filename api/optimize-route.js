@@ -1,11 +1,9 @@
-// Route optimization engine — Mapbox Optimization API
+// Route optimization engine — OSRM Trip API
 // Solves TSP using real driving distances on actual road network
-// Falls back to nearest-neighbor + 2-opt if Mapbox fails
+// Falls back to nearest-neighbor + 2-opt if OSRM fails
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
-
-const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN
 
 function toRad(deg) { return deg * Math.PI / 180 }
 function haversine(lat1, lon1, lat2, lon2) {
@@ -27,7 +25,6 @@ export default async function handler(req, res) {
     const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
-    // 1. Geocode all stops
     const coords = await geocodeStops(stops)
     const withCoords = coords.filter(c => c.lat !== null)
     const withoutCoords = coords.filter(c => c.lat === null)
@@ -36,20 +33,16 @@ export default async function handler(req, res) {
       return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0 })
     }
 
-    // Use driver's GPS or custom start, otherwise pharmacy
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
 
-    // 2. Optimize — Mapbox first, then fallback
-    const result = await optimizeGroup(
+    // Optimize all stops in one pass
+    const { stops: optimizedAll, method } = await optimizeGroup(
       withCoords, origin[0], origin[1],
       hasEnd ? endLat : null, hasEnd ? endLng : null
     )
-    let optimizedAll = result.stops
-    const method = result.method
 
-    // 3. Build response
     const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
     let totalDistance = 0
@@ -83,139 +76,74 @@ export default async function handler(req, res) {
 }
 
 async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
-  // Try Mapbox Optimization API first
+  // Try OSRM Trip API
   try {
-    console.log(`Mapbox optimize: ${stops.length} stops, token=${MAPBOX_TOKEN ? 'set(' + MAPBOX_TOKEN.slice(0,10) + '...)' : 'MISSING'}`)
-    const result = await mapboxOptimize(stops, startLat, startLng, endLat, endLng)
-    if (result) { console.log('Mapbox optimization succeeded'); return { stops: result, method: 'mapbox' } }
-    console.log('Mapbox optimization returned null, falling back')
+    const result = await osrmTrip(stops, startLat, startLng, endLat, endLng)
+    if (result) return { stops: result, method: 'osrm' }
   } catch (err) {
-    console.warn('Mapbox Optimization failed:', err.message)
+    console.warn('OSRM failed:', err.message)
   }
 
-  // Fallback: nearest-neighbor + 2-opt
-  console.log('Using nearest-neighbor fallback')
+  // Fallback
   let order = nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng)
   order = twoOpt(order, startLat, startLng, endLat, endLng)
   return { stops: order, method: 'nearest-neighbor' }
 }
 
-// Mapbox Optimization API v1 — proper TSP with real road network
-// https://docs.mapbox.com/api/navigation/optimization-v1/
-async function mapboxOptimize(stops, startLat, startLng, endLat, endLng) {
-  // Mapbox limit: 12 coordinates (including start/end) on free tier
-  // If more than 10 stops, batch into chunks and chain them
-  const MAX_WAYPOINTS = 10 // 12 total minus start and possible end
+async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
+  if (stops.length > 90) return null
 
-  if (stops.length <= MAX_WAYPOINTS) {
-    return await mapboxOptimizeBatch(stops, startLat, startLng, endLat, endLng)
-  }
-
-  // For large routes: split into geographic clusters, optimize each, chain them
-  const clusters = clusterStops(stops, MAX_WAYPOINTS)
-  const result = []
-  let curLat = startLat, curLng = startLng
-
-  for (let c = 0; c < clusters.length; c++) {
-    const isLast = c === clusters.length - 1
-    const batchEnd = isLast && endLat != null ? { lat: endLat, lng: endLng } : null
-
-    let optimized
-    try {
-      optimized = await mapboxOptimizeBatch(
-        clusters[c], curLat, curLng,
-        batchEnd ? batchEnd.lat : null, batchEnd ? batchEnd.lng : null
-      )
-    } catch {
-      // Fallback for this batch
-      optimized = nearestNeighborWithEnd(
-        clusters[c], curLat, curLng,
-        batchEnd ? batchEnd.lat : null, batchEnd ? batchEnd.lng : null
-      )
-      optimized = twoOpt(optimized, curLat, curLng,
-        batchEnd ? batchEnd.lat : null, batchEnd ? batchEnd.lng : null
-      )
-    }
-
-    result.push(...optimized)
-    if (optimized.length > 0) {
-      const last = optimized[optimized.length - 1]
-      curLat = last.lat; curLng = last.lng
-    }
-  }
-
-  return result
-}
-
-// Single Mapbox Optimization API call (max 12 coordinates)
-async function mapboxOptimizeBatch(stops, startLat, startLng, endLat, endLng) {
+  // Build points: start + all stops + optional end
   const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
   if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
 
   const coordStr = allPoints.map(p => `${p.lng},${p.lat}`).join(';')
-
-  // source=first: start from origin
-  // destination=last: end at driver's end point (if present)
-  // roundtrip=false: one-way optimized trip
   const params = endLat != null
     ? 'source=first&destination=last&roundtrip=false'
     : 'source=first&roundtrip=false'
 
-  const url = `https://api.mapbox.com/optimized-trips/v1/driving/${coordStr}?${params}&geometries=geojson&overview=false&access_token=${MAPBOX_TOKEN}`
-
+  const url = `https://router.project-osrm.org/trip/v1/driving/${coordStr}?${params}&geometries=geojson&overview=false`
   const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
   const data = await resp.json()
 
-  if (data.code !== 'Ok' || !data.trips?.length) {
-    console.warn('Mapbox Optimization response:', data.code, data.message)
-    return null
-  }
+  if (data.code !== 'Ok' || !data.trips?.length) return null
 
   const waypoints = data.waypoints || []
 
-  // Mapbox returns waypoints in INPUT order, each with a waypoint_index
-  // that indicates its position in the OPTIMIZED trip.
-  // We need to sort by waypoint_index to get trip order.
-  const stopWaypoints = endLat != null
-    ? waypoints.slice(1, -1) // skip start and end
-    : waypoints.slice(1)     // skip start only
+  // OSRM waypoints are returned in INPUT order.
+  // Each waypoint has waypoint_index = its position in the OPTIMIZED trip.
+  //
+  // Example: 5 input points [start, A, B, C, D]
+  //   waypoints[0].waypoint_index = 0 (start is trip position 0)
+  //   waypoints[1].waypoint_index = 3 (A is trip position 3)
+  //   waypoints[2].waypoint_index = 1 (B is trip position 1)
+  //   waypoints[3].waypoint_index = 2 (C is trip position 2)
+  //   waypoints[4].waypoint_index = 4 (D is trip position 4)
+  // Trip order: start → B → C → A → D
+  //
+  // To get stops in trip order:
+  // 1. Skip start (index 0) and end (last, if hasEnd)
+  // 2. Sort remaining by waypoint_index
+  // 3. Map back to original stop objects
 
-  // Create pairs of (original stop, trip position) and sort by trip position
-  const tripOrder = stopWaypoints
-    .map((wp, i) => ({ stop: stops[i], tripPos: wp.waypoint_index }))
-    .sort((a, b) => a.tripPos - b.tripPos)
-    .map(item => item.stop)
+  const stopWaypoints = waypoints
+    .map((wp, inputIdx) => ({ inputIdx, tripPos: wp.waypoint_index }))
+    .slice(1, endLat != null ? -1 : undefined) // skip start and optional end
+    .sort((a, b) => a.tripPos - b.tripPos)      // sort by trip position
+
+  const tripOrder = stopWaypoints.map(wp => {
+    const stopIdx = wp.inputIdx - 1 // subtract 1 because input[0] is start
+    return stops[stopIdx]
+  }).filter(Boolean)
 
   if (tripOrder.length !== stops.length) {
-    console.warn(`Mapbox returned ${tripOrder.length} stops, expected ${stops.length}`)
+    console.warn(`OSRM: got ${tripOrder.length} stops, expected ${stops.length}`)
     return null
   }
 
   return tripOrder
 }
 
-// Split stops into geographic clusters for batching
-function clusterStops(stops, maxPerCluster) {
-  // Simple geographic clustering: sort by angle from centroid, then split
-  const centLat = stops.reduce((s, p) => s + p.lat, 0) / stops.length
-  const centLng = stops.reduce((s, p) => s + p.lng, 0) / stops.length
-
-  // Sort by angle from centroid (geographic sweep)
-  const sorted = [...stops].sort((a, b) => {
-    const angleA = Math.atan2(a.lat - centLat, a.lng - centLng)
-    const angleB = Math.atan2(b.lat - centLat, b.lng - centLng)
-    return angleA - angleB
-  })
-
-  // Split into chunks
-  const clusters = []
-  for (let i = 0; i < sorted.length; i += maxPerCluster) {
-    clusters.push(sorted.slice(i, i + maxPerCluster))
-  }
-  return clusters
-}
-
-// Geocode stops from Supabase cache with ZIP fallback
 async function geocodeStops(stops) {
   const cacheKeys = stops.map(s =>
     `${(s.address || '').toLowerCase().trim()}|${(s.city || '').toLowerCase().trim()}|${(s.zip || '').trim()}`
@@ -243,7 +171,6 @@ async function geocodeStops(stops) {
   })
 }
 
-// Nearest-neighbor fallback
 function nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng) {
   const visited = new Set()
   const result = []
@@ -272,7 +199,6 @@ function nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng) {
   return result
 }
 
-// 2-opt: reverse segments to eliminate crossings
 function twoOpt(order, startLat, startLng, endLat, endLng) {
   if (order.length < 4) return order
   const route = [...order]
