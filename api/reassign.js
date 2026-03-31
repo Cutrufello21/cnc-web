@@ -1,8 +1,9 @@
 import { fetchRange, appendRows, deleteRow, getSheetTabs, parseBody, DAILY_SHEETS } from './_lib/sheets.js'
+import { supabase } from './_lib/supabase.js'
 
 // POST /api/reassign
 // Body: { day, fromDriver, toDriver, orderIds }
-// Moves stops from one driver's tab to another in the daily sheet
+// Moves stops between drivers in Google Sheets AND Supabase daily_stops
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -47,19 +48,18 @@ export default async function handler(req, res) {
     // Find matching rows to move (by Order ID)
     const orderIdSet = new Set(orderIds.map(String))
     const rowsToMove = []
-    const rowIndicesToDelete = [] // 0-indexed from sheet (1 = first data row after header)
+    const rowIndicesToDelete = []
 
     fromRows.forEach((row, i) => {
-      if (i === 0) return // skip header
+      if (i === 0) return
       const oid = row[orderIdIdx]?.trim()
       if (oid && orderIdSet.has(oid)) {
-        // Update driver # columns to reflect new driver
         const newRow = [...row]
         const toDriverNum = toDriver.split(' - ')[1] || ''
         if (assignedIdx >= 0) newRow[assignedIdx] = toDriverNum
         if (driverNumIdx >= 0) newRow[driverNumIdx] = toDriverNum
         rowsToMove.push(newRow)
-        rowIndicesToDelete.push(i) // sheet row index (0-based)
+        rowIndicesToDelete.push(i)
       }
     })
 
@@ -67,12 +67,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'No matching orders found to move' })
     }
 
-    // 1. Append rows to destination driver tab
+    // 1. Append rows to destination driver tab (Google Sheets)
     await appendRows(sheetId, `'${toDriver}'!A1`, rowsToMove)
 
-    // 2. Delete rows from source tab (delete from bottom to top to maintain indices)
+    // 2. Delete rows from source tab
     for (const rowIdx of rowIndicesToDelete.reverse()) {
       await deleteRow(sheetId, fromTab.sheetId, rowIdx)
+    }
+
+    // 3. Update Supabase daily_stops — reassign driver_name for these orders
+    const toDriverName = toDriver.split(' - ')[0].trim()
+    const toDriverNumber = toDriver.split(' - ')[1]?.trim() || ''
+    for (const oid of orderIds) {
+      await supabase.from('daily_stops')
+        .update({ driver_name: toDriverName, driver_number: toDriverNumber })
+        .eq('order_id', oid)
     }
 
     return res.status(200).json({
