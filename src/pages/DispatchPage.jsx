@@ -134,6 +134,7 @@ export default function DispatchPage() {
           Address: s.address, City: s.city, ZIP: s.zip,
           Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
           _coldChain: s.cold_chain, Notes: s.notes || '',
+          _status: s.status || 'dispatched', _stopId: s.id,
         })
       })
 

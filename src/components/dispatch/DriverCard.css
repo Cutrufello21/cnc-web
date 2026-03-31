@@ -334,6 +334,20 @@
   background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer;
 }
 .dcard__clear-order:hover { background: #dc2626; color: white; }
+.dcard__reopen {
+  padding: 2px 8px; font-size: 10px; font-weight: 600; color: #16a34a;
+  background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; cursor: pointer; white-space: nowrap;
+}
+.dcard__reopen:hover { background: #16a34a; color: white; }
+.dcard__reopen--failed { color: #d97706; background: #fffbeb; border-color: #fde68a; }
+.dcard__reopen--failed:hover { background: #d97706; color: white; }
+.dcard__cell-status { text-align: center; }
+.dcard__row--delivered { background: #f0fdf4; opacity: 0.7; }
+.dcard__row--delivered td { text-decoration: line-through; color: #6b7280; }
+.dcard__row--delivered .dcard__cell-status { text-decoration: none; opacity: 1; }
+.dcard__row--failed { background: #fffbeb; opacity: 0.7; }
+.dcard__row--failed td { color: #d97706; }
+.dcard__row--failed .dcard__cell-status { opacity: 1; }
 
 .dcard__move-result {
   padding: 8px 16px;

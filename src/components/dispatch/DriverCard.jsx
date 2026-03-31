@@ -251,6 +251,20 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     }
   }
 
+  async function handleReopen(stop) {
+    const oid = stop['Order ID']
+    if (!confirm(`Reopen order ${oid} as active (undo delivery)?`)) return
+    try {
+      await supabase.from('daily_stops')
+        .update({ status: 'dispatched', delivered_at: null, gps_lat: null, gps_lng: null })
+        .eq('order_id', oid)
+      setMoveResult(`Order ${oid} reopened`)
+      if (onRefresh) setTimeout(onRefresh, 500)
+    } catch (err) {
+      setMoveResult(`Error: ${err.message}`)
+    }
+  }
+
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
   const RW_DRIVERS = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
 
@@ -453,6 +467,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     )}
                   </th>
                 ))}
+                <th>Status</th>
               </tr>
               {/* Filter row */}
               <tr className="dcard__filter-row">
@@ -486,6 +501,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     </td>
                   )
                 })}
+                <td></td>
               </tr>
             </thead>
             <tbody>
@@ -495,7 +511,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                 return (
                   <tr
                     key={i}
-                    className={`${stop._hasColdChain ? 'dcard__row--cold' : ''} ${isSelected ? 'dcard__row--selected' : ''}`}
+                    className={`${stop._hasColdChain ? 'dcard__row--cold' : ''} ${isSelected ? 'dcard__row--selected' : ''} ${stop._status === 'delivered' ? 'dcard__row--delivered' : ''} ${stop._status === 'failed' ? 'dcard__row--failed' : ''}`}
                   >
                     <td className="dcard__cell-check">
                       <input
@@ -526,6 +542,17 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td className="dcard__cell-notes">{stop._flagsDisplay}</td>
                     <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
+                    <td className="dcard__cell-status">
+                      {stop._status === 'delivered' ? (
+                        <button className="dcard__reopen" onClick={() => handleReopen(stop)} title="Reopen as active">
+                          ✓ Reopen
+                        </button>
+                      ) : stop._status === 'failed' ? (
+                        <button className="dcard__reopen dcard__reopen--failed" onClick={() => handleReopen(stop)} title="Reopen as active">
+                          ✗ Reopen
+                        </button>
+                      ) : null}
+                    </td>
                   </tr>
                 )
               })}
