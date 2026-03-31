@@ -260,7 +260,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           table: 'daily_stops',
-          action: 'update',
+          operation: 'update',
           data: { status: 'dispatched', delivered_at: null, gps_lat: null, gps_lng: null },
           match: { order_id: oid },
         }),
