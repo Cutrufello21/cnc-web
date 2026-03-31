@@ -42,35 +42,11 @@ export default async function handler(req, res) {
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
 
-    // Tag cold chain and sig required
-    const coldCount = withCoords.filter(c => c.coldChain).length
-    const sigCount = withCoords.length >= 40
-      ? withCoords.filter(c => !c.coldChain && c.sigRequired).length
-      : 0
-
-    // 2. Optimize ALL stops together in one pass (not split by priority)
-    // This produces a proper geographic sweep
+    // 2. Optimize ALL stops together in one pass — pure shortest route
     let optimizedAll = await optimizeGroup(
       withCoords, origin[0], origin[1],
       hasEnd ? endLat : null, hasEnd ? endLng : null
     )
-
-    // 3. Post-process: bubble cold chain stops to front while keeping geographic order
-    // Instead of separate optimization, we extract cold chain stops from the optimized
-    // route and move them to the front, preserving their relative geographic order
-    if (coldCount > 0) {
-      const coldStops = optimizedAll.filter(s => s.coldChain)
-      const otherStops = optimizedAll.filter(s => !s.coldChain)
-      optimizedAll = [...coldStops, ...otherStops]
-    }
-
-    // Similarly for signature-required when 40+ stops
-    if (sigCount > 0) {
-      const cold = optimizedAll.filter(s => s.coldChain)
-      const sig = optimizedAll.filter(s => !s.coldChain && s.sigRequired)
-      const rest = optimizedAll.filter(s => !s.coldChain && !s.sigRequired)
-      optimizedAll = [...cold, ...sig, ...rest]
-    }
 
     // 4. Build final order
     const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
@@ -83,16 +59,8 @@ export default async function handler(req, res) {
       const s = optimizedAll[i]
       const legDist = haversine(curLat, curLng, s.lat, s.lng)
       totalDistance += legDist
-      let reason = ''
-      if (s.coldChain) {
-        reason = `Cold chain — delivered first`
-      } else if (s.sigRequired && sigCount > 0) {
-        reason = `Signature required — priority`
-      } else {
-        reason = `${Math.round(legDist * 10) / 10} mi from previous`
-      }
-      if (i === 0) reason += ` · ${Math.round(legDist * 10) / 10} mi from start`
-      if (s.geocodeMethod) reason += ` · ${s.geocodeMethod}`
+      let reason = `${Math.round(legDist * 10) / 10} mi from ${i === 0 ? 'start' : 'previous'}`
+      if (s.geocodeMethod === 'zip-center') reason += ' · ZIP estimate'
       reasons.push(reason)
       curLat = s.lat; curLng = s.lng
     }
@@ -104,10 +72,8 @@ export default async function handler(req, res) {
     return res.json({
       optimizedOrder,
       totalDistance: Math.round(totalDistance * 10) / 10,
-      coldChainFirst: coldCount,
-      sigFirst: sigCount,
       reasons,
-      summary: `${coldCount > 0 ? `${coldCount} cold chain first → ` : ''}${sigCount > 0 ? `${sigCount} signature next → ` : ''}${optimizedAll.length - coldCount - sigCount} stops by shortest driving route${hasEnd ? ' → end address' : ''}`,
+      summary: `${optimizedAll.length} stops optimized by shortest driving route${hasEnd ? ' → end address' : ''}`,
     })
   } catch (err) {
     console.error('optimize-route error:', err)
