@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
-    // 1. Geocode all stops (Supabase cache → ZIP fallback)
+    // 1. Geocode all stops (Supabase cache → Census batch → ZIP fallback)
     const coords = await geocodeStops(stops)
     const withCoords = coords.filter(c => c.lat !== null)
     const withoutCoords = coords.filter(c => c.lat === null)
@@ -42,71 +42,57 @@ export default async function handler(req, res) {
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
 
-    // 2. Split by priority
-    // Cold chain always first. Signature required only prioritized when 40+ stops.
-    const totalStops = withCoords.length
-    const coldStops = withCoords.filter(c => c.coldChain)
-    const sigStops = totalStops >= 40
-      ? withCoords.filter(c => !c.coldChain && c.sigRequired)
-      : []
-    const regularStops = withCoords.filter(c => {
-      if (c.coldChain) return false
-      if (totalStops >= 40 && c.sigRequired) return false
-      return true
-    })
+    // Tag cold chain and sig required
+    const coldCount = withCoords.filter(c => c.coldChain).length
+    const sigCount = withCoords.length >= 40
+      ? withCoords.filter(c => !c.coldChain && c.sigRequired).length
+      : 0
 
-    // 3. Optimize each group separately
-    let coldOrder = []
-    let sigOrder = []
-    let regularOrder = []
+    // 2. Optimize ALL stops together in one pass (not split by priority)
+    // This produces a proper geographic sweep
+    let optimizedAll = await optimizeGroup(
+      withCoords, origin[0], origin[1],
+      hasEnd ? endLat : null, hasEnd ? endLng : null
+    )
 
-    // Phase 1: Cold chain stops first
-    if (coldStops.length > 0) {
-      coldOrder = await optimizeGroup(coldStops, origin[0], origin[1], null, null)
+    // 3. Post-process: bubble cold chain stops to front while keeping geographic order
+    // Instead of separate optimization, we extract cold chain stops from the optimized
+    // route and move them to the front, preserving their relative geographic order
+    if (coldCount > 0) {
+      const coldStops = optimizedAll.filter(s => s.coldChain)
+      const otherStops = optimizedAll.filter(s => !s.coldChain)
+      optimizedAll = [...coldStops, ...otherStops]
     }
 
-    // Phase 2: Signature required (only when 40+ stops)
-    const sigStart = coldOrder.length > 0
-      ? [coldOrder[coldOrder.length - 1].lat, coldOrder[coldOrder.length - 1].lng]
-      : origin
-
-    if (sigStops.length > 0) {
-      sigOrder = await optimizeGroup(sigStops, sigStart[0], sigStart[1], null, null)
+    // Similarly for signature-required when 40+ stops
+    if (sigCount > 0) {
+      const cold = optimizedAll.filter(s => s.coldChain)
+      const sig = optimizedAll.filter(s => !s.coldChain && s.sigRequired)
+      const rest = optimizedAll.filter(s => !s.coldChain && !s.sigRequired)
+      optimizedAll = [...cold, ...sig, ...rest]
     }
 
-    // Phase 3: Regular stops → end destination
-    const regStart = sigOrder.length > 0
-      ? [sigOrder[sigOrder.length - 1].lat, sigOrder[sigOrder.length - 1].lng]
-      : sigStart
-
-    if (regularStops.length > 0) {
-      regularOrder = await optimizeGroup(
-        regularStops, regStart[0], regStart[1],
-        hasEnd ? endLat : null, hasEnd ? endLng : null
-      )
-    }
-
-    // 4. Combine: cold chain → sig required → regular → ungeocoded
-    const finalOrder = [...coldOrder, ...sigOrder, ...regularOrder]
-    const optimizedOrder = [...finalOrder.map(s => s.index), ...withoutCoords.map(c => c.index)]
+    // 4. Build final order
+    const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
     // Calculate total distance + per-stop reasoning
     let totalDistance = 0
     let curLat = origin[0], curLng = origin[1]
     const reasons = []
-    for (let i = 0; i < finalOrder.length; i++) {
-      const s = finalOrder[i]
+    for (let i = 0; i < optimizedAll.length; i++) {
+      const s = optimizedAll[i]
       const legDist = haversine(curLat, curLng, s.lat, s.lng)
       totalDistance += legDist
       let reason = ''
-      if (i < coldOrder.length) {
-        reason = `Cold chain priority (#${i + 1} of ${coldOrder.length})`
-      } else if (i < coldOrder.length + sigOrder.length) {
-        reason = `Signature required priority`
+      if (s.coldChain) {
+        reason = `Cold chain — delivered first`
+      } else if (s.sigRequired && sigCount > 0) {
+        reason = `Signature required — priority`
       } else {
-        reason = `Nearest stop (${Math.round(legDist * 10) / 10} mi from previous)`
+        reason = `${Math.round(legDist * 10) / 10} mi from previous`
       }
-      if (i === 0) reason += ` — ${Math.round(legDist * 10) / 10} mi from start`
+      if (i === 0) reason += ` · ${Math.round(legDist * 10) / 10} mi from start`
+      if (s.geocodeMethod) reason += ` · ${s.geocodeMethod}`
       reasons.push(reason)
       curLat = s.lat; curLng = s.lng
     }
@@ -118,11 +104,10 @@ export default async function handler(req, res) {
     return res.json({
       optimizedOrder,
       totalDistance: Math.round(totalDistance * 10) / 10,
-      coldChainFirst: coldStops.length,
-      sigFirst: sigStops.length,
+      coldChainFirst: coldCount,
+      sigFirst: sigCount,
       reasons,
-      method: coldOrder.length > 0 || regularOrder.length > 0 ? 'OSRM TSP with fallback' : 'none',
-      summary: `${coldStops.length > 0 ? `${coldStops.length} cold chain first → ` : ''}${sigStops.length > 0 ? `${sigStops.length} signature next → ` : ''}${regularStops.length} stops optimized by shortest driving distance${hasEnd ? ' → end address' : ''}`,
+      summary: `${coldCount > 0 ? `${coldCount} cold chain first → ` : ''}${sigCount > 0 ? `${sigCount} signature next → ` : ''}${optimizedAll.length - coldCount - sigCount} stops by shortest driving route${hasEnd ? ' → end address' : ''}`,
     })
   } catch (err) {
     console.error('optimize-route error:', err)
@@ -149,13 +134,16 @@ async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
 
 // OSRM Trip API — solves TSP with real road network distances
 async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
+  // OSRM has a limit of ~100 waypoints
+  if (stops.length > 90) return null
+
   // Build coordinate string: start + stops + end (if present)
   const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
   if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
 
   const coordStr = allPoints.map(p => `${p.lng},${p.lat}`).join(';')
 
-  // source=first: start from pharmacy
+  // source=first: start from origin
   // destination=last: end at driver's end point (if present)
   // roundtrip=false: one-way trip
   const params = endLat != null
@@ -164,26 +152,42 @@ async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
 
   const url = `https://router.project-osrm.org/trip/v1/driving/${coordStr}?${params}&geometries=geojson&overview=false`
 
-  const resp = await fetch(url, { signal: AbortSignal.timeout(10000) })
+  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
   const data = await resp.json()
 
   if (data.code !== 'Ok' || !data.trips?.length) return null
 
-  const trip = data.trips[0]
   const waypoints = data.waypoints || []
 
-  // OSRM returns waypoint_index for each input point
-  // Skip the first (pharmacy) and last (end destination) indices
-  // Map remaining indices back to our stops
+  // OSRM waypoints have:
+  // - waypoint_index: position in the ORIGINAL input (which point this corresponds to)
+  // - trips_index: which trip this belongs to
+  // The waypoints array is in the OPTIMIZED trip order.
+  //
+  // We need to map: for each position in the trip, which original stop is it?
+  // waypoints[0] = start (skip), waypoints[last] = end (skip if hasEnd)
+  // The rest are stops in optimized order.
+
+  // Build a mapping from trip position to original stop index
+  // waypoints are returned IN TRIP ORDER, and waypoint_index tells us
+  // which input coordinate each one corresponds to
   const stopWaypoints = waypoints.slice(1, endLat != null ? -1 : undefined)
 
-  // Sort stops by their position in the optimized trip
-  const orderedIndices = stopWaypoints
-    .map((wp, i) => ({ stopIdx: i, tripIdx: wp.waypoint_index }))
-    .sort((a, b) => a.tripIdx - b.tripIdx)
-    .map(w => w.stopIdx)
+  // Each waypoint's waypoint_index tells us which input point it is.
+  // Input point 0 = start, so stop index = waypoint_index - 1
+  // The array order IS the trip order.
+  const tripOrder = stopWaypoints.map(wp => {
+    const originalInputIdx = wp.waypoint_index
+    const stopIdx = originalInputIdx - 1 // subtract 1 for the start point
+    return stops[stopIdx]
+  }).filter(Boolean)
 
-  return orderedIndices.map(i => stops[i])
+  if (tripOrder.length !== stops.length) {
+    console.warn(`OSRM returned ${tripOrder.length} stops but expected ${stops.length}, falling back`)
+    return null
+  }
+
+  return tripOrder
 }
 
 // Geocode stops from Supabase cache with ZIP fallback
@@ -202,10 +206,16 @@ async function geocodeStops(stops) {
 
   return stops.map((s, i) => {
     const c = cacheMap.get(cacheKeys[i])
-    if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
+    if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'precise' }
+
+    // ZIP fallback — add small jitter so same-ZIP stops don't stack on exact same point
     const zip = String(s.zip || '').trim()
     const zc = ZIP_COORDS[zip] || ZIP_COORDS[zip.padStart(5, '0')]
-    if (zc) return { index: i, lat: zc[0], lng: zc[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
+    if (zc) {
+      // Jitter by ~0.001 degrees (~100m) so OSRM treats them as separate points
+      const jitter = () => (Math.random() - 0.5) * 0.002
+      return { index: i, lat: zc[0] + jitter(), lng: zc[1] + jitter(), coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'zip-center' }
+    }
     return { index: i, lat: null, lng: null, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
   })
 }
