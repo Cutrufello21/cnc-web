@@ -157,7 +157,8 @@ async function geocodeStops(stops) {
   const cacheMap = new Map()
   for (const row of (cached || [])) cacheMap.set(row.cache_key, [row.lat, row.lng])
 
-  return stops.map((s, i) => {
+  // First pass: use cache and ZIP fallback
+  const results = stops.map((s, i) => {
     const c = cacheMap.get(cacheKeys[i])
     if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'precise' }
 
@@ -167,7 +168,65 @@ async function geocodeStops(stops) {
       const jitter = () => (Math.random() - 0.5) * 0.002
       return { index: i, lat: zc[0] + jitter(), lng: zc[1] + jitter(), coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'zip-center' }
     }
-    return { index: i, lat: null, lng: null, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
+    return { index: i, lat: null, lng: null, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, _needsGeocode: true, _stop: s }
+  })
+
+  // Second pass: batch geocode any misses via Census Bureau API
+  const misses = results.filter(r => r._needsGeocode)
+  if (misses.length > 0) {
+    try {
+      const addresses = misses.map(m => {
+        const s = m._stop
+        return `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
+      })
+      // Census Bureau batch geocoding (up to 100 at a time)
+      for (let batch = 0; batch < addresses.length; batch += 100) {
+        const chunk = addresses.slice(batch, batch + 100)
+        const csvLines = chunk.map((addr, idx) => `${batch + idx},"${addr}"`).join('\n')
+        const formData = new FormData()
+        const blob = new Blob([`id,address\n${csvLines}`], { type: 'text/csv' })
+        formData.append('addressFile', blob, 'addresses.csv')
+        formData.append('benchmark', 'Public_AR_Current')
+        formData.append('returntype', 'locations')
+
+        const resp = await fetch('https://geocoding.geo.census.gov/geocoder/locations/addressbatch', {
+          method: 'POST',
+          body: formData,
+          signal: AbortSignal.timeout(20000),
+        })
+        const text = await resp.text()
+        const lines = text.trim().split('\n')
+        for (const line of lines) {
+          const parts = line.split('","')
+          if (parts.length < 6) continue
+          const id = parseInt(parts[0].replace(/"/g, ''))
+          const matchType = (parts[2] || '').replace(/"/g, '')
+          if (matchType === 'Match' || matchType === 'Non_Exact') {
+            const coordStr = (parts[5] || '').replace(/"/g, '')
+            const [lng, lat] = coordStr.split(',').map(Number)
+            if (lat && lng) {
+              const missIdx = id
+              if (misses[missIdx]) {
+                const r = results[misses[missIdx].index]
+                r.lat = lat; r.lng = lng; r.geocodeMethod = 'census'; r._needsGeocode = false
+                // Cache for next time
+                const s = misses[missIdx]._stop
+                const key = `${(s.address || '').toLowerCase().trim()}|${(s.city || '').toLowerCase().trim()}|${(s.zip || '').trim()}`
+                supabase.from('geocode_cache').upsert({ cache_key: key, lat, lng }, { onConflict: 'cache_key' }).then(() => {})
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Census geocoding failed:', err.message)
+    }
+  }
+
+  // Clean up internal fields
+  return results.map(r => {
+    const { _needsGeocode, _stop, ...clean } = r
+    return clean
   })
 }
 
