@@ -323,6 +323,17 @@
 .dcard__send:hover:not(:disabled) { background: var(--navy); color: white; }
 .dcard__send:disabled { opacity: 0.5; cursor: not-allowed; }
 .dcard__send--done { background: #16a34a; color: white; border-color: #16a34a; opacity: 1 !important; }
+.dcard__optimize {
+  padding: 4px 12px; font-size: 11px; font-weight: 600; color: #2563eb;
+  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+}
+.dcard__optimize:hover:not(:disabled) { background: #2563eb; color: white; }
+.dcard__optimize:disabled { opacity: 0.5; cursor: not-allowed; }
+.dcard__clear-order {
+  padding: 2px 6px; font-size: 11px; font-weight: 600; color: #dc2626;
+  background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer;
+}
+.dcard__clear-order:hover { background: #dc2626; color: white; }
 
 .dcard__move-result {
   padding: 8px 16px;

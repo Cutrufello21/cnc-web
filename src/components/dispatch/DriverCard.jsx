@@ -30,6 +30,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [reviewed, setReviewed] = useState(false)
+  const [optimizing, setOptimizing] = useState(false)
+  const [optimized, setOptimized] = useState(false)
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
@@ -193,6 +195,62 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     }
   }
 
+  async function handleOptimizeRoute(e) {
+    e.stopPropagation()
+    if (optimizing || enriched.length < 2) return
+    setOptimizing(true)
+    try {
+      const res = await fetch('/api/optimize-route', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stops: enriched.map(s => ({
+            address: s.Address || s.address || '',
+            city: s.City || s.city || '',
+            zip: s['Zip Code'] || s.ZIP || s.zip || '',
+            coldChain: !!s._hasColdChain,
+            sigRequired: !!s._hasSigRequired,
+          })),
+          pharmacy: pharmacy || 'SHSP',
+        }),
+      })
+      const data = await res.json()
+      if (data.optimizedOrder) {
+        // Update sort_order in daily_stops for this driver
+        const reordered = data.optimizedOrder.map(i => enriched[i]).filter(Boolean)
+        for (let i = 0; i < reordered.length; i++) {
+          const oid = reordered[i]['Order ID']
+          if (oid) {
+            await supabase.from('daily_stops').update({ sort_order: i }).eq('order_id', oid)
+          }
+        }
+        setOptimized(true)
+        setMoveResult(`Route optimized via ${data.method || 'OSRM'} — ${data.totalDistance || 0} mi`)
+        if (onRefresh) setTimeout(onRefresh, 500)
+      }
+    } catch (err) {
+      setMoveResult(`Optimize error: ${err.message}`)
+    } finally {
+      setOptimizing(false)
+    }
+  }
+
+  async function handleClearOrder(e) {
+    e.stopPropagation()
+    if (!confirm(`Reset stop order for ${name}? This will clear all sort positions.`)) return
+    try {
+      for (const s of enriched) {
+        const oid = s['Order ID']
+        if (oid) await supabase.from('daily_stops').update({ sort_order: null }).eq('order_id', oid)
+      }
+      setOptimized(false)
+      setMoveResult('Sort order cleared')
+      if (onRefresh) setTimeout(onRefresh, 500)
+    } catch (err) {
+      setMoveResult(`Error: ${err.message}`)
+    }
+  }
+
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
   const RW_DRIVERS = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
 
@@ -298,13 +356,32 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           </div>
         )}
         {stops > 0 && (
-          <button
-            className={`dcard__send ${sent ? 'dcard__send--done' : ''}`}
-            onClick={handleSendOne}
-            disabled={sending || sent}
-          >
-            {sent ? 'Sent' : sending ? '...' : 'Send'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              className="dcard__optimize"
+              onClick={handleOptimizeRoute}
+              disabled={optimizing || stops < 2}
+              title="Optimize stop order by shortest driving route"
+            >
+              {optimizing ? '...' : optimized ? '✓ Optimized' : '⚡ Optimize'}
+            </button>
+            {optimized && (
+              <button
+                className="dcard__clear-order"
+                onClick={handleClearOrder}
+                title="Clear stop order"
+              >
+                ✕
+              </button>
+            )}
+            <button
+              className={`dcard__send ${sent ? 'dcard__send--done' : ''}`}
+              onClick={handleSendOne}
+              disabled={sending || sent}
+            >
+              {sent ? 'Sent' : sending ? '...' : 'Send'}
+            </button>
+          </div>
         )}
       </div>
 
