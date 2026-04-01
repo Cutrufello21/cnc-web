@@ -139,6 +139,63 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, results })
     }
 
+    if (data.action === 'email_route' || data.action === 'email_all_routes') {
+      const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
+      const gmailPass = process.env.GMAIL_APP_PASSWORD
+      if (!gmailPass) return res.status(500).json({ error: 'GMAIL_APP_PASSWORD not configured' })
+
+      const dateStr = data.date
+      if (!dateStr) return res.status(400).json({ error: 'Missing date' })
+
+      const { data: allStops } = await supabase.from('daily_stops').select('*').eq('delivery_date', dateStr)
+      if (!allStops?.length) return res.status(400).json({ error: 'No stops found for this date' })
+
+      // Get driver emails
+      const { data: drivers } = await supabase.from('drivers').select('driver_name, email').eq('active', true)
+      const emailMap = {}
+      ;(drivers || []).forEach(d => { if (d.email) emailMap[d.driver_name] = d.email })
+
+      // Group stops by driver
+      const byDriver = {}
+      allStops.forEach(s => {
+        const n = s.driver_name || 'Unassigned'
+        if (!byDriver[n]) byDriver[n] = []
+        byDriver[n].push(s)
+      })
+
+      // Determine which drivers to email
+      const targets = data.action === 'email_route'
+        ? [data.driver_name]
+        : Object.keys(byDriver).filter(n => n !== 'Unassigned')
+
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      })
+
+      let sent = 0
+      for (const driverName of targets) {
+        const email = emailMap[driverName]
+        if (!email) continue
+        const dStops = (byDriver[driverName] || []).sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+        if (!dStops.length) continue
+
+        const rows = dStops.map((s, i) => `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.sort_order ?? i + 1}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.patient_name || ''}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.address || ''}, ${s.city || ''}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.pharmacy || ''}</td></tr>`).join('')
+
+        const html = `<h2>Your Route — ${dateStr}</h2><p>${dStops.length} stops</p><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr style="background:#0A2463;color:#fff"><th style="padding:6px 8px;text-align:left">#</th><th style="padding:6px 8px;text-align:left">Patient</th><th style="padding:6px 8px;text-align:left">Address</th><th style="padding:6px 8px;text-align:left">Rx</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:16px;color:#888;font-size:12px">Sent from CNC Dispatch</p>`
+
+        await transporter.sendMail({
+          from: `"CNC Delivery" <${gmailUser}>`,
+          to: email,
+          subject: `Your Route for ${dateStr} — ${dStops.length} stops`,
+          html,
+        })
+        sent++
+      }
+
+      return res.status(200).json({ success: true, sent })
+    }
+
     if (data.action === 'contact_form') {
       const { name, organization, email, phone, message } = data
       if (!name || !message || !email) return res.status(400).json({ error: 'Name, email, and message are required' })

@@ -314,22 +314,6 @@ export default function HQDashboard() {
               )
             })()}
           </div>
-          {/* Trend line overlay */}
-          {volumeChart.length > 2 && (() => {
-            const reversed = [...(volumeChart || [])].reverse()
-            const count = reversed.length
-            const chartWidth = 100 // percentage
-            const points = reversed.map((d, i) => {
-              const x = ((i + 0.5) / count) * chartWidth
-              const y = 100 - ((d.orders / maxVolume) * 100)
-              return `${x},${y}`
-            }).join(' ')
-            return (
-              <svg className="hq__trend-line" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <polyline points={points} fill="none" stroke="rgba(99,102,241,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )
-          })()}
           <div className="hq__chart-legend">
             <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--shsp" />SHSP</span>
             <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--aultman" />Aultman</span>
