@@ -76,7 +76,27 @@ export default async function handler(req, res) {
 }
 
 async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
-  // Try OSRM Trip API
+  // For small routes (≤11 stops), try Mapbox Optimization first, then OSRM
+  if (stops.length <= 11) {
+    try {
+      const result = await osrmTrip(stops, startLat, startLng, endLat, endLng)
+      if (result) return { stops: result, method: 'mapbox-optimized' }
+    } catch (err) {
+      console.warn('Optimize failed:', err.message)
+    }
+  }
+
+  // For larger routes, use cluster-then-optimize approach
+  if (stops.length > 11) {
+    try {
+      const result = await clusterOptimize(stops, startLat, startLng, endLat, endLng)
+      if (result) return { stops: result, method: 'cluster-optimized' }
+    } catch (err) {
+      console.warn('Cluster optimize failed:', err.message)
+    }
+  }
+
+  // Try OSRM for medium routes
   try {
     const result = await osrmTrip(stops, startLat, startLng, endLat, endLng)
     if (result) return { stops: result, method: 'osrm' }
@@ -90,10 +110,60 @@ async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
   return { stops: order, method: 'nearest-neighbor' }
 }
 
+// Cluster stops geographically, optimize within each cluster, then order clusters
+async function clusterOptimize(stops, startLat, startLng, endLat, endLng) {
+  const CLUSTER_SIZE = 10
+
+  // Use nearest-neighbor to get a rough order first
+  let rough = nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng)
+  rough = twoOpt(rough, startLat, startLng, endLat, endLng)
+
+  // Split into sequential clusters of CLUSTER_SIZE
+  const clusters = []
+  for (let i = 0; i < rough.length; i += CLUSTER_SIZE) {
+    clusters.push(rough.slice(i, i + CLUSTER_SIZE))
+  }
+
+  // Optimize each cluster individually
+  const optimizedClusters = await Promise.all(clusters.map(async (cluster, ci) => {
+    const clusterStart = ci === 0
+      ? [startLat, startLng]
+      : [clusters[ci - 1][clusters[ci - 1].length - 1].lat, clusters[ci - 1][clusters[ci - 1].length - 1].lng]
+    const isLast = ci === clusters.length - 1
+    const clusterEnd = isLast && endLat != null ? [endLat, endLng] : null
+
+    try {
+      const result = await osrmTrip(
+        cluster,
+        clusterStart[0], clusterStart[1],
+        clusterEnd ? clusterEnd[0] : null,
+        clusterEnd ? clusterEnd[1] : null
+      )
+      return result || cluster
+    } catch {
+      return cluster
+    }
+  }))
+
+  return optimizedClusters.flat()
+}
+
 async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
   if (stops.length > 90) return null
 
-  // Build points: start + all stops + optional end
+  const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN || process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN
+
+  // Try Mapbox Optimization API first (better results, 12 waypoint limit per request)
+  if (MAPBOX_TOKEN && stops.length <= 11) {
+    try {
+      const result = await mapboxOptimize(stops, startLat, startLng, endLat, endLng, MAPBOX_TOKEN)
+      if (result) return result
+    } catch (err) {
+      console.warn('Mapbox Optimize failed:', err.message)
+    }
+  }
+
+  // For larger routes or if Mapbox fails, use OSRM
   const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
   if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
 
@@ -110,29 +180,13 @@ async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
 
   const waypoints = data.waypoints || []
 
-  // OSRM waypoints are returned in INPUT order.
-  // Each waypoint has waypoint_index = its position in the OPTIMIZED trip.
-  //
-  // Example: 5 input points [start, A, B, C, D]
-  //   waypoints[0].waypoint_index = 0 (start is trip position 0)
-  //   waypoints[1].waypoint_index = 3 (A is trip position 3)
-  //   waypoints[2].waypoint_index = 1 (B is trip position 1)
-  //   waypoints[3].waypoint_index = 2 (C is trip position 2)
-  //   waypoints[4].waypoint_index = 4 (D is trip position 4)
-  // Trip order: start → B → C → A → D
-  //
-  // To get stops in trip order:
-  // 1. Skip start (index 0) and end (last, if hasEnd)
-  // 2. Sort remaining by waypoint_index
-  // 3. Map back to original stop objects
-
   const stopWaypoints = waypoints
     .map((wp, inputIdx) => ({ inputIdx, tripPos: wp.waypoint_index }))
-    .slice(1, endLat != null ? -1 : undefined) // skip start and optional end
-    .sort((a, b) => a.tripPos - b.tripPos)      // sort by trip position
+    .slice(1, endLat != null ? -1 : undefined)
+    .sort((a, b) => a.tripPos - b.tripPos)
 
   const tripOrder = stopWaypoints.map(wp => {
-    const stopIdx = wp.inputIdx - 1 // subtract 1 because input[0] is start
+    const stopIdx = wp.inputIdx - 1
     return stops[stopIdx]
   }).filter(Boolean)
 
@@ -141,6 +195,48 @@ async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
     return null
   }
 
+  return tripOrder
+}
+
+async function mapboxOptimize(stops, startLat, startLng, endLat, endLng, token) {
+  // Mapbox Optimization API handles up to 12 coordinates (including start/end)
+  const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
+  if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
+  if (allPoints.length > 12) return null
+
+  const coordStr = allPoints.map(p => `${p.lng},${p.lat}`).join(';')
+
+  // distributions: all stop indices are pickups (no dropoffs needed)
+  const stopIndices = stops.map((_, i) => i + 1) // +1 because index 0 is start
+  const distributions = stopIndices.map(i => `${i},${i}`).join(';')
+
+  const params = new URLSearchParams({
+    access_token: token,
+    geometries: 'geojson',
+    overview: 'false',
+    source: 'first',
+    roundtrip: 'false',
+  })
+  if (endLat != null) params.set('destination', 'last')
+
+  const url = `https://api.mapbox.com/optimized-trips/v1/mapbox/driving/${coordStr}?${params}`
+  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
+  const data = await resp.json()
+
+  if (data.code !== 'Ok' || !data.trips?.length) return null
+
+  const waypoints = data.waypoints || []
+  const stopWaypoints = waypoints
+    .map((wp, inputIdx) => ({ inputIdx, tripPos: wp.waypoint_index }))
+    .slice(1, endLat != null ? -1 : undefined)
+    .sort((a, b) => a.tripPos - b.tripPos)
+
+  const tripOrder = stopWaypoints.map(wp => {
+    const stopIdx = wp.inputIdx - 1
+    return stops[stopIdx]
+  }).filter(Boolean)
+
+  if (tripOrder.length !== stops.length) return null
   return tripOrder
 }
 
@@ -233,12 +329,19 @@ function nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng) {
   return result
 }
 
+function totalDist(route, startLat, startLng, endLat, endLng) {
+  let d = haversine(startLat, startLng, route[0].lat, route[0].lng)
+  for (let i = 1; i < route.length; i++) d += haversine(route[i-1].lat, route[i-1].lng, route[i].lat, route[i].lng)
+  if (endLat != null) d += haversine(route[route.length-1].lat, route[route.length-1].lng, endLat, endLng)
+  return d
+}
+
 function twoOpt(order, startLat, startLng, endLat, endLng) {
   if (order.length < 4) return order
   const route = [...order]
   let improved = true, iterations = 0
 
-  while (improved && iterations < 500) {
+  while (improved && iterations < 1000) {
     improved = false; iterations++
     for (let i = 0; i < route.length - 1; i++) {
       for (let j = i + 2; j < route.length; j++) {
@@ -259,5 +362,42 @@ function twoOpt(order, startLat, startLng, endLat, endLng) {
       }
     }
   }
+
+  // Or-opt: try moving each stop to a better position
+  let orImproved = true, orIter = 0
+  while (orImproved && orIter < 500) {
+    orImproved = false; orIter++
+    for (let i = 0; i < route.length; i++) {
+      const stop = route[i]
+      const before = i === 0 ? { lat: startLat, lng: startLng } : route[i - 1]
+      const after = i === route.length - 1
+        ? (endLat != null ? { lat: endLat, lng: endLng } : null)
+        : route[i + 1]
+
+      // Cost of removing stop from current position
+      const removeCost = haversine(before.lat, before.lng, stop.lat, stop.lng) +
+        (after ? haversine(stop.lat, stop.lng, after.lat, after.lng) : 0) -
+        (after ? haversine(before.lat, before.lng, after.lat, after.lng) : 0)
+
+      let bestJ = -1, bestSaving = 0
+      for (let j = 0; j < route.length; j++) {
+        if (j === i || j === i - 1) continue
+        const pJ = j === 0 ? { lat: startLat, lng: startLng } : route[j - 1]
+        const nJ = route[j]
+        const insertCost = haversine(pJ.lat, pJ.lng, stop.lat, stop.lng) +
+          haversine(stop.lat, stop.lng, nJ.lat, nJ.lng) -
+          haversine(pJ.lat, pJ.lng, nJ.lat, nJ.lng)
+        const saving = removeCost - insertCost
+        if (saving > bestSaving + 0.01) { bestSaving = saving; bestJ = j }
+      }
+      if (bestJ >= 0) {
+        route.splice(i, 1)
+        const insertAt = bestJ > i ? bestJ - 1 : bestJ
+        route.splice(insertAt, 0, stop)
+        orImproved = true
+      }
+    }
+  }
+
   return route
 }
