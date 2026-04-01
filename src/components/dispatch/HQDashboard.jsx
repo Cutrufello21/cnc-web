@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import './HQDashboard.css'
 
@@ -23,8 +23,38 @@ export default function HQDashboard() {
   const [tableSort, setTableSort] = useState({ col: null, dir: 'desc' })
   const [expandedRow, setExpandedRow] = useState(null)
   const [hoveredBar, setHoveredBar] = useState(null)
+  const liveInterval = useRef(null)
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    loadData()
+    // Live progress polling every 30s
+    liveInterval.current = setInterval(loadLiveProgress, 30000)
+    return () => clearInterval(liveInterval.current)
+  }, [])
+
+  // Live delivery progress
+  const [liveProgress, setLiveProgress] = useState(null)
+
+  async function loadLiveProgress() {
+    const today = new Date().toISOString().split('T')[0]
+    const { data: stops } = await supabase.from('daily_stops').select('status, driver_name, pharmacy').eq('delivery_date', today)
+    if (!stops || stops.length === 0) { setLiveProgress(null); return }
+    const total = stops.length
+    const delivered = stops.filter(s => s.status === 'delivered').length
+    const failed = stops.filter(s => s.status === 'failed').length
+    // Per-driver counts
+    const driverMap = {}
+    stops.forEach(s => {
+      if (!driverMap[s.driver_name]) driverMap[s.driver_name] = { total: 0, done: 0, shsp: 0, aultman: 0 }
+      driverMap[s.driver_name].total++
+      if (s.status === 'delivered' || s.status === 'failed') driverMap[s.driver_name].done++
+      if (s.pharmacy === 'SHSP') driverMap[s.driver_name].shsp++
+      else driverMap[s.driver_name].aultman++
+    })
+    const activeDrivers = Object.keys(driverMap).length
+    const avgPerDriver = activeDrivers ? Math.round(total / activeDrivers) : 0
+    setLiveProgress({ total, delivered, failed, driverMap, activeDrivers, avgPerDriver })
+  }
 
   async function loadData() {
     try {
@@ -70,15 +100,22 @@ export default function HQDashboard() {
       const shspTotal = last30.reduce((s, r) => s + (r.shsp_orders || 0), 0)
       const aultmanTotal = last30.reduce((s, r) => s + (r.aultman_orders || 0), 0)
 
-      // Week over week
+      // Same-day comparison (e.g., this Wed vs last Wed)
+      const todayDayName = lastLog?.delivery_day || ''
+      const sameDayLastWeek = logData.filter(r => r.delivery_day === todayDayName && r.date < mondayStr).pop()
       const thisWeek = logData.filter(r => r.date >= mondayStr)
+      const thisWeekOrders = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
+
+      // Same days comparison: compare only up to same # of days last week
       const lastMonday = new Date(monday)
       lastMonday.setDate(lastMonday.getDate() - 7)
       const lastMondayStr = lastMonday.toISOString().split('T')[0]
       const lastWeek = logData.filter(r => r.date >= lastMondayStr && r.date < mondayStr)
-      const thisWeekOrders = thisWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
+      const lastWeekSameDays = lastWeek.slice(0, thisWeek.length)
+      const lastWeekSameDaysOrders = lastWeekSameDays.reduce((s, r) => s + (r.orders_processed || 0), 0)
       const lastWeekOrders = lastWeek.reduce((s, r) => s + (r.orders_processed || 0), 0)
-      const wowChange = lastWeekOrders ? Math.round(((thisWeekOrders - lastWeekOrders) / lastWeekOrders) * 100) : 0
+      const wowChange = lastWeekSameDaysOrders ? Math.round(((thisWeekOrders - lastWeekSameDaysOrders) / lastWeekSameDaysOrders) * 100) : 0
+      const wowDays = thisWeek.length
 
       // Leaderboard
       const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
@@ -123,12 +160,15 @@ export default function HQDashboard() {
         kpis: {
           totalOrdersLast30: totalOrders, avgOrdersPerNight: avgOrders,
           coldChainLast30: totalColdChain, shspTotal, aultmanTotal,
-          thisWeekOrders, lastWeekOrders, wowChange,
+          thisWeekOrders, lastWeekOrders, wowChange, wowDays,
           activeDrivers: activeThisWeek, totalDrivers: (driversRes.data || []).length,
           allTimeOrders, totalDispatches: logData.length,
         },
         leaderboard, recentLogs, volumeChart, timeOffByDate,
       })
+
+      // Also load live progress
+      loadLiveProgress()
     } catch (err) {
       console.error('HQ error:', err)
     }
@@ -147,12 +187,25 @@ export default function HQDashboard() {
       {/* Live status */}
       <div className={`hq__status ${isToday ? 'hq__status--live' : isYesterday ? 'hq__status--recent' : 'hq__status--stale'}`}>
         <div className={`hq__status-dot ${isToday ? 'hq__status-dot--pulse' : ''}`} />
-        <span>
-          {isToday ? 'Today' : isYesterday ? 'Yesterday' : fmtDay(lastDispatchDate) + ' ' + fmtDate(lastDispatchDate)}
-          {' — '}<strong>{lastLog?.orders_processed || 0}</strong> orders dispatched
-          {lastLog?.cold_chain > 0 && <>, <strong>{lastLog.cold_chain}</strong> cold chain</>}
-          {lastLog?.top_driver && <> · Top: <strong>{lastLog.top_driver}</strong></>}
-        </span>
+        <div className="hq__status-content">
+          <span>
+            {isToday ? 'Today' : isYesterday ? 'Yesterday' : fmtDay(lastDispatchDate) + ' ' + fmtDate(lastDispatchDate)}
+            {' — '}<strong>{lastLog?.orders_processed || 0}</strong> orders dispatched
+            {lastLog?.cold_chain > 0 && <>, <strong>{lastLog.cold_chain}</strong> cold chain</>}
+            {lastLog?.top_driver && <> · Top: <strong>{lastLog.top_driver}</strong></>}
+          </span>
+          {liveProgress && liveProgress.total > 0 && (
+            <div className="hq__live-progress">
+              <div className="hq__live-bar-wrap">
+                <div className="hq__live-bar" style={{ width: `${(liveProgress.delivered / liveProgress.total) * 100}%` }} />
+              </div>
+              <span className="hq__live-text">
+                <strong>{liveProgress.delivered}</strong>/{liveProgress.total} delivered
+                {liveProgress.failed > 0 && <> · <span style={{ color: '#dc4a4a' }}>{liveProgress.failed} failed</span></>}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Today's snapshot (if available) */}
@@ -183,9 +236,10 @@ export default function HQDashboard() {
 
       {/* KPIs */}
       <div className="hq__kpis">
-        <KPICard label="This Week" value={kpis.thisWeekOrders.toLocaleString()} sub={`${kpis.wowChange >= 0 ? '+' : ''}${kpis.wowChange}% vs last week (${kpis.lastWeekOrders.toLocaleString()})`} trend={kpis.wowChange >= 0 ? 'up' : 'down'} />
+        <KPICard label="This Week" value={kpis.thisWeekOrders.toLocaleString()} sub={`${kpis.wowChange >= 0 ? '+' : ''}${kpis.wowChange}% vs same ${kpis.wowDays} day${kpis.wowDays !== 1 ? 's' : ''} last week`} trend={kpis.wowChange >= 0 ? 'up' : 'down'} />
         <KPICard label="Avg / Night" value={kpis.avgOrdersPerNight} sub="Last 30 dispatches" />
         <KPICard label="Active Drivers" value={`${kpis.activeDrivers}/${kpis.totalDrivers}`} sub="Running this week" />
+        {liveProgress && liveProgress.activeDrivers > 0 && <KPICard label="Avg / Driver" value={liveProgress.avgPerDriver} sub={`${liveProgress.activeDrivers} drivers today`} />}
         <KPICard label="Cold Chain (30d)" value={kpis.coldChainLast30} sub={`${Math.round((kpis.coldChainLast30 / (kpis.totalOrdersLast30 || 1)) * 100)}% of orders`} accent />
         <KPICard label="All Time" value={kpis.allTimeOrders?.toLocaleString()} sub={`${kpis.totalDispatches} dispatches`} />
         <KPICard label="Pharmacy Split" value={`${Math.round((kpis.shspTotal / (kpis.shspTotal + kpis.aultmanTotal || 1)) * 100)}%`} sub={`SHSP ${kpis.shspTotal.toLocaleString()} / Aultman ${kpis.aultmanTotal.toLocaleString()}`} />
@@ -260,6 +314,22 @@ export default function HQDashboard() {
               )
             })()}
           </div>
+          {/* Trend line overlay */}
+          {volumeChart.length > 2 && (() => {
+            const reversed = [...(volumeChart || [])].reverse()
+            const count = reversed.length
+            const chartWidth = 100 // percentage
+            const points = reversed.map((d, i) => {
+              const x = ((i + 0.5) / count) * chartWidth
+              const y = 100 - ((d.orders / maxVolume) * 100)
+              return `${x},${y}`
+            }).join(' ')
+            return (
+              <svg className="hq__trend-line" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polyline points={points} fill="none" stroke="rgba(99,102,241,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )
+          })()}
           <div className="hq__chart-legend">
             <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--shsp" />SHSP</span>
             <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--aultman" />Aultman</span>
@@ -270,16 +340,32 @@ export default function HQDashboard() {
         <div className="hq__card">
           <h3 className="hq__card-title">Driver Leaderboard</h3>
           <div className="hq__leaderboard">
-            {leaderboard?.slice(0, 10).map((d, i) => (
-              <div className="hq__leader" key={d.name}>
-                <span className="hq__leader-rank">{i + 1}</span>
-                <span className="hq__leader-name">{d.name}</span>
-                <div className="hq__leader-bar-wrap">
-                  <div className="hq__leader-bar" style={{ width: `${(d.weekTotal / maxLeaderboard) * 100}%` }} />
+            {leaderboard?.slice(0, 10).map((d, i) => {
+              const driverLive = liveProgress?.driverMap?.[d.name]
+              const statusClass = driverLive
+                ? (driverLive.done < driverLive.total ? 'hq__driver-dot--active' : 'hq__driver-dot--done')
+                : 'hq__driver-dot--off'
+              return (
+                <div className="hq__leader" key={d.name}>
+                  <span className="hq__leader-rank">{i + 1}</span>
+                  <div className="hq__leader-name-wrap">
+                    <div className={`hq__driver-dot ${statusClass}`} />
+                    <span className="hq__leader-name">{d.name}</span>
+                  </div>
+                  <div className="hq__leader-bar-wrap">
+                    {driverLive && driverLive.total > 0 ? (
+                      <>
+                        <div className="hq__leader-bar hq__leader-bar--shsp" style={{ width: `${(driverLive.shsp / maxLeaderboard) * 100}%` }} />
+                        <div className="hq__leader-bar hq__leader-bar--aultman" style={{ width: `${(driverLive.aultman / maxLeaderboard) * 100}%`, position: 'absolute', left: `${(driverLive.shsp / maxLeaderboard) * 100}%` }} />
+                      </>
+                    ) : (
+                      <div className="hq__leader-bar" style={{ width: `${(d.weekTotal / maxLeaderboard) * 100}%` }} />
+                    )}
+                  </div>
+                  <span className="hq__leader-count">{d.weekTotal}</span>
                 </div>
-                <span className="hq__leader-count">{d.weekTotal}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 

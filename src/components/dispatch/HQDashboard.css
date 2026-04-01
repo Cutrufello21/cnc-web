@@ -86,6 +86,42 @@
 .hq__today-value--accent { color: #60a5fa; }
 .hq__today-value--warn { color: #f87171; }
 
+/* Live progress bar */
+.hq__status-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hq__live-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hq__live-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: var(--gray-200);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hq__live-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #4ade80);
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+
+.hq__live-text {
+  font-size: 13px;
+  color: var(--gray-600);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* Time Off */
 .hq__timeoff {
   background: var(--white);
@@ -142,7 +178,7 @@
 /* KPI cards */
 .hq__kpis {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-bottom: 24px;
 }
@@ -319,6 +355,17 @@
   color: var(--gray-300);
 }
 
+/* Trend line overlay */
+.hq__trend-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
 .hq__chart-legend {
   display: flex;
   gap: 16px;
@@ -370,11 +417,39 @@
   flex-shrink: 0;
 }
 
+.hq__leader-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 86px;
+  flex-shrink: 0;
+}
+
+.hq__driver-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.hq__driver-dot--active {
+  background: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 106, 0.2);
+  animation: hqPulse 2s ease-in-out infinite;
+}
+
+.hq__driver-dot--done {
+  background: #f59e0b;
+}
+
+.hq__driver-dot--off {
+  background: var(--gray-300);
+}
+
 .hq__leader-name {
   font-size: 14px;
   font-weight: 500;
   color: var(--gray-800);
-  width: 72px;
   flex-shrink: 0;
 }
 
@@ -384,6 +459,7 @@
   background: var(--gray-100);
   border-radius: 4px;
   overflow: hidden;
+  position: relative;
 }
 
 .hq__leader-bar {
@@ -391,6 +467,20 @@
   background: linear-gradient(90deg, var(--navy), var(--cornflower));
   border-radius: 4px;
   transition: width 0.6s ease;
+}
+
+.hq__leader-bar--shsp {
+  background: var(--cornflower);
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 4px 0 0 4px;
+}
+
+.hq__leader-bar--aultman {
+  background: #4ADE80;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
 }
 
 .hq__leader-count {
