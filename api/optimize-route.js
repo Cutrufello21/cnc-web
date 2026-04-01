@@ -1,6 +1,6 @@
-// Route optimization engine — OSRM Trip API
-// Solves TSP using real driving distances on actual road network
-// Falls back to nearest-neighbor + 2-opt if OSRM fails
+// Route optimization engine v2
+// Uses OSRM Table API for real driving distance matrix + simulated annealing TSP solver
+// This matches Road Warrior / Circuit quality by using actual road network distances
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
@@ -37,8 +37,7 @@ export default async function handler(req, res) {
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
 
-    // Optimize all stops in one pass
-    const { stops: optimizedAll, method } = await optimizeGroup(
+    const { stops: optimizedAll, method, matrixUsed } = await optimizeWithMatrix(
       withCoords, origin[0], origin[1],
       hasEnd ? endLat : null, hasEnd ? endLng : null
     )
@@ -54,6 +53,7 @@ export default async function handler(req, res) {
       totalDistance += legDist
       let reason = `${Math.round(legDist * 10) / 10} mi from ${i === 0 ? 'start' : 'previous'}`
       if (s.geocodeMethod === 'zip-center') reason += ' · ZIP estimate'
+      if (s.coldChain) reason += ' · ❄️ Cold chain'
       reasons.push(reason)
       curLat = s.lat; curLng = s.lng
     }
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       totalDistance: Math.round(totalDistance * 10) / 10,
       reasons,
       method,
-      summary: `${optimizedAll.length} stops via ${method}${hasEnd ? ' → end address' : ''}`,
+      summary: `${optimizedAll.length} stops via ${method}${matrixUsed ? ' (real driving times)' : ''}${hasEnd ? ' → end address' : ''}`,
     })
   } catch (err) {
     console.error('optimize-route error:', err)
@@ -75,170 +75,263 @@ export default async function handler(req, res) {
   }
 }
 
-async function optimizeGroup(stops, startLat, startLng, endLat, endLng) {
-  // For small routes (≤11 stops), try Mapbox Optimization first, then OSRM
-  if (stops.length <= 11) {
-    try {
-      const result = await osrmTrip(stops, startLat, startLng, endLat, endLng)
-      if (result) return { stops: result, method: 'mapbox-optimized' }
-    } catch (err) {
-      console.warn('Optimize failed:', err.message)
-    }
-  }
+// ═══ MAIN OPTIMIZER ═══
+// Step 1: Get real driving time matrix from OSRM Table API
+// Step 2: Solve TSP using simulated annealing on that matrix
+// Step 3: Refine with 2-opt and or-opt using real times
 
-  // For larger routes, use cluster-then-optimize approach
-  if (stops.length > 11) {
-    try {
-      const result = await clusterOptimize(stops, startLat, startLng, endLat, endLng)
-      if (result) return { stops: result, method: 'cluster-optimized' }
-    } catch (err) {
-      console.warn('Cluster optimize failed:', err.message)
-    }
-  }
+async function optimizeWithMatrix(stops, startLat, startLng, endLat, endLng) {
+  // Build all points: [origin, ...stops, optional end]
+  const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
+  const hasEnd = endLat != null
+  if (hasEnd) allPoints.push({ lat: endLat, lng: endLng })
 
-  // Try OSRM for medium routes
+  // Try to get real driving time matrix
+  let matrix = null
+  let matrixUsed = false
+
   try {
-    const result = await osrmTrip(stops, startLat, startLng, endLat, endLng)
-    if (result) return { stops: result, method: 'osrm' }
+    matrix = await getOSRMMatrix(allPoints)
+    if (matrix) matrixUsed = true
   } catch (err) {
-    console.warn('OSRM failed:', err.message)
+    console.warn('OSRM Table failed:', err.message)
   }
 
-  // Fallback
-  let order = nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng)
-  order = twoOpt(order, startLat, startLng, endLat, endLng)
-  return { stops: order, method: 'nearest-neighbor' }
-}
-
-// Cluster stops geographically, optimize within each cluster, then order clusters
-async function clusterOptimize(stops, startLat, startLng, endLat, endLng) {
-  const CLUSTER_SIZE = 10
-
-  // Use nearest-neighbor to get a rough order first
-  let rough = nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng)
-  rough = twoOpt(rough, startLat, startLng, endLat, endLng)
-
-  // Split into sequential clusters of CLUSTER_SIZE
-  const clusters = []
-  for (let i = 0; i < rough.length; i += CLUSTER_SIZE) {
-    clusters.push(rough.slice(i, i + CLUSTER_SIZE))
+  // Fallback to haversine matrix if OSRM fails
+  if (!matrix) {
+    matrix = buildHaversineMatrix(allPoints)
   }
 
-  // Optimize each cluster individually
-  const optimizedClusters = await Promise.all(clusters.map(async (cluster, ci) => {
-    const clusterStart = ci === 0
-      ? [startLat, startLng]
-      : [clusters[ci - 1][clusters[ci - 1].length - 1].lat, clusters[ci - 1][clusters[ci - 1].length - 1].lng]
-    const isLast = ci === clusters.length - 1
-    const clusterEnd = isLast && endLat != null ? [endLat, endLng] : null
+  // Solve TSP with simulated annealing
+  const n = stops.length
+  const startIdx = 0 // origin is index 0 in matrix
+  const endIdx = hasEnd ? allPoints.length - 1 : null
 
-    try {
-      const result = await osrmTrip(
-        cluster,
-        clusterStart[0], clusterStart[1],
-        clusterEnd ? clusterEnd[0] : null,
-        clusterEnd ? clusterEnd[1] : null
-      )
-      return result || cluster
-    } catch {
-      return cluster
-    }
-  }))
+  // Generate initial solution with nearest-neighbor on the matrix
+  let route = matrixNearestNeighbor(matrix, n, startIdx, endIdx)
 
-  return optimizedClusters.flat()
+  // Improve with simulated annealing
+  route = simulatedAnnealing(matrix, route, startIdx, endIdx, n)
+
+  // Final refinement passes
+  route = matrixTwoOpt(matrix, route, startIdx, endIdx)
+  route = matrixOrOpt(matrix, route, startIdx, endIdx)
+
+  // Map back to stop objects
+  const optimized = route.map(i => stops[i - 1]) // -1 because matrix index 0 is origin
+
+  return { stops: optimized, method: 'matrix-sa', matrixUsed }
 }
 
-async function osrmTrip(stops, startLat, startLng, endLat, endLng) {
-  if (stops.length > 90) return null
+// ═══ OSRM TABLE API ═══
+// Returns NxN matrix of driving durations (seconds) between all points
 
-  const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN || process.env.RNMAPBOX_MAPS_DOWNLOAD_TOKEN
+async function getOSRMMatrix(points) {
+  if (points.length > 100) return null // OSRM limit
 
-  // Try Mapbox Optimization API first (better results, 12 waypoint limit per request)
-  if (MAPBOX_TOKEN && stops.length <= 11) {
-    try {
-      const result = await mapboxOptimize(stops, startLat, startLng, endLat, endLng, MAPBOX_TOKEN)
-      if (result) return result
-    } catch (err) {
-      console.warn('Mapbox Optimize failed:', err.message)
+  const coordStr = points.map(p => `${p.lng},${p.lat}`).join(';')
+  const url = `https://router.project-osrm.org/table/v1/driving/${coordStr}?annotations=duration`
+
+  const resp = await fetch(url, { signal: AbortSignal.timeout(20000) })
+  const data = await resp.json()
+
+  if (data.code !== 'Ok' || !data.durations) return null
+
+  // Validate matrix - check for null values
+  const durations = data.durations
+  for (let i = 0; i < durations.length; i++) {
+    for (let j = 0; j < durations[i].length; j++) {
+      if (durations[i][j] === null) durations[i][j] = Infinity
     }
   }
 
-  // For larger routes or if Mapbox fails, use OSRM
-  const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
-  if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
+  return durations
+}
 
-  const coordStr = allPoints.map(p => `${p.lng},${p.lat}`).join(';')
-  const params = endLat != null
-    ? 'source=first&destination=last&roundtrip=false'
-    : 'source=first&roundtrip=false'
+function buildHaversineMatrix(points) {
+  const n = points.length
+  const matrix = Array.from({ length: n }, () => new Array(n).fill(0))
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue
+      // Convert miles to approximate seconds (assume 30mph avg)
+      matrix[i][j] = haversine(points[i].lat, points[i].lng, points[j].lat, points[j].lng) / 30 * 3600
+    }
+  }
+  return matrix
+}
 
-  const url = `https://router.project-osrm.org/trip/v1/driving/${coordStr}?${params}&geometries=geojson&overview=false`
-  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
-  const data = await resp.json()
+// ═══ NEAREST NEIGHBOR (matrix-based) ═══
 
-  if (data.code !== 'Ok' || !data.trips?.length) return null
+function matrixNearestNeighbor(matrix, numStops, startIdx, endIdx) {
+  const visited = new Set()
+  const route = []
+  let current = startIdx
 
-  const waypoints = data.waypoints || []
+  for (let step = 0; step < numStops; step++) {
+    let bestCost = Infinity, bestNext = -1
 
-  const stopWaypoints = waypoints
-    .map((wp, inputIdx) => ({ inputIdx, tripPos: wp.waypoint_index }))
-    .slice(1, endLat != null ? -1 : undefined)
-    .sort((a, b) => a.tripPos - b.tripPos)
+    for (let j = 1; j <= numStops; j++) { // indices 1..numStops are stops
+      if (visited.has(j)) continue
+      if (endIdx != null && j === endIdx) continue // don't visit end as a stop
 
-  const tripOrder = stopWaypoints.map(wp => {
-    const stopIdx = wp.inputIdx - 1
-    return stops[stopIdx]
-  }).filter(Boolean)
+      let cost = matrix[current][j]
 
-  if (tripOrder.length !== stops.length) {
-    console.warn(`OSRM: got ${tripOrder.length} stops, expected ${stops.length}`)
-    return null
+      // If near the end of the route, factor in distance to endpoint
+      if (endIdx != null) {
+        const remaining = numStops - step
+        if (remaining <= 3) cost = cost * 0.5 + matrix[j][endIdx] * 0.5
+        else if (remaining <= 6) cost = cost * 0.8 + matrix[j][endIdx] * 0.2
+      }
+
+      if (cost < bestCost) { bestCost = cost; bestNext = j }
+    }
+
+    if (bestNext < 0) break
+    visited.add(bestNext)
+    route.push(bestNext)
+    current = bestNext
   }
 
-  return tripOrder
+  return route
 }
 
-async function mapboxOptimize(stops, startLat, startLng, endLat, endLng, token) {
-  // Mapbox Optimization API handles up to 12 coordinates (including start/end)
-  const allPoints = [{ lat: startLat, lng: startLng }, ...stops]
-  if (endLat != null) allPoints.push({ lat: endLat, lng: endLng })
-  if (allPoints.length > 12) return null
+// ═══ SIMULATED ANNEALING ═══
 
-  const coordStr = allPoints.map(p => `${p.lng},${p.lat}`).join(';')
-
-  // distributions: all stop indices are pickups (no dropoffs needed)
-  const stopIndices = stops.map((_, i) => i + 1) // +1 because index 0 is start
-  const distributions = stopIndices.map(i => `${i},${i}`).join(';')
-
-  const params = new URLSearchParams({
-    access_token: token,
-    geometries: 'geojson',
-    overview: 'false',
-    source: 'first',
-    roundtrip: 'false',
-  })
-  if (endLat != null) params.set('destination', 'last')
-
-  const url = `https://api.mapbox.com/optimized-trips/v1/mapbox/driving/${coordStr}?${params}`
-  const resp = await fetch(url, { signal: AbortSignal.timeout(15000) })
-  const data = await resp.json()
-
-  if (data.code !== 'Ok' || !data.trips?.length) return null
-
-  const waypoints = data.waypoints || []
-  const stopWaypoints = waypoints
-    .map((wp, inputIdx) => ({ inputIdx, tripPos: wp.waypoint_index }))
-    .slice(1, endLat != null ? -1 : undefined)
-    .sort((a, b) => a.tripPos - b.tripPos)
-
-  const tripOrder = stopWaypoints.map(wp => {
-    const stopIdx = wp.inputIdx - 1
-    return stops[stopIdx]
-  }).filter(Boolean)
-
-  if (tripOrder.length !== stops.length) return null
-  return tripOrder
+function routeCost(matrix, route, startIdx, endIdx) {
+  if (route.length === 0) return Infinity
+  let cost = matrix[startIdx][route[0]]
+  for (let i = 1; i < route.length; i++) cost += matrix[route[i - 1]][route[i]]
+  if (endIdx != null) cost += matrix[route[route.length - 1]][endIdx]
+  return cost
 }
+
+function simulatedAnnealing(matrix, initialRoute, startIdx, endIdx, numStops) {
+  const route = [...initialRoute]
+  let bestRoute = [...route]
+  let currentCost = routeCost(matrix, route, startIdx, endIdx)
+  let bestCost = currentCost
+
+  const n = route.length
+  if (n < 3) return route
+
+  // SA parameters — tuned for delivery routes
+  let temp = currentCost * 0.3
+  const coolingRate = 0.9995
+  const minTemp = 0.01
+  const maxIterations = Math.min(n * n * 500, 200000)
+
+  for (let iter = 0; iter < maxIterations && temp > minTemp; iter++) {
+    // Pick a random move: 2-opt swap, or-opt move, or swap two stops
+    const moveType = Math.random()
+    const newRoute = [...route]
+
+    if (moveType < 0.5) {
+      // 2-opt: reverse a segment
+      const i = Math.floor(Math.random() * n)
+      const j = Math.floor(Math.random() * n)
+      const lo = Math.min(i, j), hi = Math.max(i, j)
+      if (lo === hi) continue
+      newRoute.splice(lo, hi - lo + 1, ...newRoute.slice(lo, hi + 1).reverse())
+    } else if (moveType < 0.8) {
+      // Or-opt: move one stop to a new position
+      const i = Math.floor(Math.random() * n)
+      const stop = newRoute.splice(i, 1)[0]
+      const j = Math.floor(Math.random() * newRoute.length)
+      newRoute.splice(j, 0, stop)
+    } else {
+      // Swap: exchange two stops
+      const i = Math.floor(Math.random() * n)
+      let j = Math.floor(Math.random() * n)
+      if (i === j) continue
+      ;[newRoute[i], newRoute[j]] = [newRoute[j], newRoute[i]]
+    }
+
+    const newCost = routeCost(matrix, newRoute, startIdx, endIdx)
+    const delta = newCost - currentCost
+
+    // Accept if better, or with probability based on temperature
+    if (delta < 0 || Math.random() < Math.exp(-delta / temp)) {
+      route.splice(0, route.length, ...newRoute)
+      currentCost = newCost
+
+      if (currentCost < bestCost) {
+        bestCost = currentCost
+        bestRoute = [...route]
+      }
+    }
+
+    temp *= coolingRate
+  }
+
+  return bestRoute
+}
+
+// ═══ 2-OPT (matrix-based) ═══
+
+function matrixTwoOpt(matrix, route, startIdx, endIdx) {
+  if (route.length < 4) return route
+  const r = [...route]
+  let improved = true, iterations = 0
+
+  while (improved && iterations < 2000) {
+    improved = false; iterations++
+    for (let i = 0; i < r.length - 1; i++) {
+      for (let j = i + 2; j < r.length; j++) {
+        const prevI = i === 0 ? startIdx : r[i - 1]
+        const nextJ = j === r.length - 1 ? (endIdx ?? null) : r[j + 1]
+
+        const curr = matrix[prevI][r[i]] + (nextJ != null ? matrix[r[j]][nextJ] : 0)
+        const swap = matrix[prevI][r[j]] + (nextJ != null ? matrix[r[i]][nextJ] : 0)
+
+        if (swap < curr - 0.1) {
+          r.splice(i, j - i + 1, ...r.slice(i, j + 1).reverse())
+          improved = true
+        }
+      }
+    }
+  }
+  return r
+}
+
+// ═══ OR-OPT (matrix-based) ═══
+
+function matrixOrOpt(matrix, route, startIdx, endIdx) {
+  const r = [...route]
+  let improved = true, iterations = 0
+
+  while (improved && iterations < 1000) {
+    improved = false; iterations++
+    for (let i = 0; i < r.length; i++) {
+      const stop = r[i]
+      const before = i === 0 ? startIdx : r[i - 1]
+      const after = i === r.length - 1 ? (endIdx ?? null) : r[i + 1]
+
+      const removeSaving = matrix[before][stop] +
+        (after != null ? matrix[stop][after] : 0) -
+        (after != null ? matrix[before][after] : 0)
+
+      let bestJ = -1, bestSaving = 0
+      for (let j = 0; j < r.length; j++) {
+        if (j === i || j === i + 1) continue
+        const pJ = j === 0 ? startIdx : r[j - 1]
+        const nJ = r[j]
+        const insertCost = matrix[pJ][stop] + matrix[stop][nJ] - matrix[pJ][nJ]
+        const saving = removeSaving - insertCost
+        if (saving > bestSaving + 0.1) { bestSaving = saving; bestJ = j }
+      }
+      if (bestJ >= 0) {
+        r.splice(i, 1)
+        const insertAt = bestJ > i ? bestJ - 1 : bestJ
+        r.splice(insertAt, 0, stop)
+        improved = true
+      }
+    }
+  }
+  return r
+}
+
+// ═══ GEOCODING ═══
 
 async function geocodeStops(stops) {
   const cacheKeys = stops.map(s =>
@@ -253,7 +346,6 @@ async function geocodeStops(stops) {
   const cacheMap = new Map()
   for (const row of (cached || [])) cacheMap.set(row.cache_key, [row.lat, row.lng])
 
-  // First pass: use cache and ZIP fallback
   const results = stops.map((s, i) => {
     const c = cacheMap.get(cacheKeys[i])
     if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'precise' }
@@ -267,7 +359,6 @@ async function geocodeStops(stops) {
     return { index: i, lat: null, lng: null, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, _needsGeocode: true, _stop: s }
   })
 
-  // Second pass: geocode misses via Census Bureau single-address API (parallel)
   const misses = results.filter(r => r._needsGeocode)
   if (misses.length > 0) {
     const geocodeOne = async (m) => {
@@ -285,7 +376,6 @@ async function geocodeStops(stops) {
           const lng = match.coordinates.x
           const r = results[m.index]
           r.lat = lat; r.lng = lng; r.geocodeMethod = 'census'; r._needsGeocode = false
-          // Cache for next time
           const key = `${(s.address || '').toLowerCase().trim()}|${(s.city || '').toLowerCase().trim()}|${(s.zip || '').trim()}`
           supabase.from('geocode_cache').upsert({ cache_key: key, lat, lng }, { onConflict: 'cache_key' }).then(() => {})
         }
@@ -294,110 +384,8 @@ async function geocodeStops(stops) {
     await Promise.all(misses.map(geocodeOne))
   }
 
-  // Clean up internal fields
   return results.map(r => {
     const { _needsGeocode, _stop, ...clean } = r
     return clean
   })
-}
-
-function nearestNeighborWithEnd(stops, startLat, startLng, endLat, endLng) {
-  const visited = new Set()
-  const result = []
-  let curLat = startLat, curLng = startLng
-  const total = stops.length
-  const hasEnd = endLat != null
-
-  while (result.length < total) {
-    const remaining = total - result.length
-    const endWeight = hasEnd ? (remaining <= 3 ? 0.5 : remaining <= 6 ? 0.2 : 0) : 0
-
-    let bestScore = Infinity, bestStop = null
-    for (const s of stops) {
-      if (visited.has(s.index)) continue
-      const d = haversine(curLat, curLng, s.lat, s.lng)
-      const score = hasEnd && endWeight > 0
-        ? d * (1 - endWeight) + haversine(s.lat, s.lng, endLat, endLng) * endWeight
-        : d
-      if (score < bestScore) { bestScore = score; bestStop = s }
-    }
-    if (!bestStop) break
-    visited.add(bestStop.index)
-    result.push(bestStop)
-    curLat = bestStop.lat; curLng = bestStop.lng
-  }
-  return result
-}
-
-function totalDist(route, startLat, startLng, endLat, endLng) {
-  let d = haversine(startLat, startLng, route[0].lat, route[0].lng)
-  for (let i = 1; i < route.length; i++) d += haversine(route[i-1].lat, route[i-1].lng, route[i].lat, route[i].lng)
-  if (endLat != null) d += haversine(route[route.length-1].lat, route[route.length-1].lng, endLat, endLng)
-  return d
-}
-
-function twoOpt(order, startLat, startLng, endLat, endLng) {
-  if (order.length < 4) return order
-  const route = [...order]
-  let improved = true, iterations = 0
-
-  while (improved && iterations < 1000) {
-    improved = false; iterations++
-    for (let i = 0; i < route.length - 1; i++) {
-      for (let j = i + 2; j < route.length; j++) {
-        const prevI = i === 0 ? { lat: startLat, lng: startLng } : route[i - 1]
-        const nextJ = j === route.length - 1 && endLat != null
-          ? { lat: endLat, lng: endLng }
-          : j < route.length - 1 ? route[j + 1] : null
-
-        const curr = haversine(prevI.lat, prevI.lng, route[i].lat, route[i].lng) +
-          (nextJ ? haversine(route[j].lat, route[j].lng, nextJ.lat, nextJ.lng) : 0)
-        const swap = haversine(prevI.lat, prevI.lng, route[j].lat, route[j].lng) +
-          (nextJ ? haversine(route[i].lat, route[i].lng, nextJ.lat, nextJ.lng) : 0)
-
-        if (swap < curr - 0.01) {
-          route.splice(i, j - i + 1, ...route.slice(i, j + 1).reverse())
-          improved = true
-        }
-      }
-    }
-  }
-
-  // Or-opt: try moving each stop to a better position
-  let orImproved = true, orIter = 0
-  while (orImproved && orIter < 500) {
-    orImproved = false; orIter++
-    for (let i = 0; i < route.length; i++) {
-      const stop = route[i]
-      const before = i === 0 ? { lat: startLat, lng: startLng } : route[i - 1]
-      const after = i === route.length - 1
-        ? (endLat != null ? { lat: endLat, lng: endLng } : null)
-        : route[i + 1]
-
-      // Cost of removing stop from current position
-      const removeCost = haversine(before.lat, before.lng, stop.lat, stop.lng) +
-        (after ? haversine(stop.lat, stop.lng, after.lat, after.lng) : 0) -
-        (after ? haversine(before.lat, before.lng, after.lat, after.lng) : 0)
-
-      let bestJ = -1, bestSaving = 0
-      for (let j = 0; j < route.length; j++) {
-        if (j === i || j === i - 1) continue
-        const pJ = j === 0 ? { lat: startLat, lng: startLng } : route[j - 1]
-        const nJ = route[j]
-        const insertCost = haversine(pJ.lat, pJ.lng, stop.lat, stop.lng) +
-          haversine(stop.lat, stop.lng, nJ.lat, nJ.lng) -
-          haversine(pJ.lat, pJ.lng, nJ.lat, nJ.lng)
-        const saving = removeCost - insertCost
-        if (saving > bestSaving + 0.01) { bestSaving = saving; bestJ = j }
-      }
-      if (bestJ >= 0) {
-        route.splice(i, 1)
-        const insertAt = bestJ > i ? bestJ - 1 : bestJ
-        route.splice(insertAt, 0, stop)
-        orImproved = true
-      }
-    }
-  }
-
-  return route
 }
