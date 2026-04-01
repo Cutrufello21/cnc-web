@@ -144,6 +144,13 @@ export default function MobileDispatch() {
   // Sort state
   const [sortPharmacy, setSortPharmacy] = useState(null)
 
+  // Driver detail filters
+  const [filterCity, setFilterCity] = useState('')
+  const [filterZip, setFilterZip] = useState('')
+  const [filterPharmacy, setFilterPharmacy] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [filterSearch, setFilterSearch] = useState('')
+
   /* ── Data fetching ──────────────────────────────── */
 
   const fetchData = useCallback(async () => {
@@ -271,7 +278,10 @@ export default function MobileDispatch() {
 
   /* ── Navigate to driver detail ──────────────────── */
 
+  function resetFilters() { setFilterCity(''); setFilterZip(''); setFilterPharmacy(''); setFilterStatus(''); setFilterSearch('') }
+
   function goToDriver(name) {
+    resetFilters()
     setDetailDriver(name)
     setTab('Drivers')
   }
@@ -400,7 +410,7 @@ export default function MobileDispatch() {
                       name={name}
                       driverNumber={driverMap[name]?.driver_number}
                       stops={stops}
-                      onClick={() => setDetailDriver(name)}
+                      onClick={() => { resetFilters(); setDetailDriver(name) }}
                     />
                   ))}
                 </div>
@@ -412,7 +422,7 @@ export default function MobileDispatch() {
         {/* ═══ DRIVER DETAIL ═══ */}
         {tab === 'Drivers' && detailDriver && (() => {
           const ds = driverStops(detailDriver, stops)
-          const done = driverDone(detailDriver, stops)
+          const doneCount = driverDone(detailDriver, stops)
           const cold = driverCold(detailDriver, stops)
           const pkgs = driverPackages(detailDriver, stops)
           const status = checkInStatus(detailDriver, stops)
@@ -420,6 +430,28 @@ export default function MobileDispatch() {
           const dn = driverMap[detailDriver]?.driver_number
           const avatarColors = { none: 'bg-[#F0F2F7] text-[#9BA5B4]', go: 'bg-[#E8F1FF] text-[#4A9EFF]', done: 'bg-[#E6F5EE] text-[#27AE60]' }
           const statusLabels = { none: 'Not started', go: 'In progress', done: 'Complete' }
+
+          // Unique values for dropdowns
+          const cities = [...new Set(ds.map(s => s.city).filter(Boolean))].sort()
+          const zips = [...new Set(ds.map(s => s.zip).filter(Boolean))].sort()
+          const pharmacies = [...new Set(ds.map(s => s.pharmacy).filter(Boolean))].sort()
+          const statuses = [...new Set(ds.map(s => s.status || 'dispatched'))].sort()
+
+          // Apply filters
+          const filtered = ds.filter(s => {
+            if (filterCity && (s.city || '') !== filterCity) return false
+            if (filterZip && (s.zip || '') !== filterZip) return false
+            if (filterPharmacy && (s.pharmacy || '') !== filterPharmacy) return false
+            if (filterStatus && (s.status || 'dispatched') !== filterStatus) return false
+            if (filterSearch) {
+              const q = filterSearch.toLowerCase()
+              const haystack = `${s.patient_name || ''} ${s.address || ''} ${s.order_id || ''}`.toLowerCase()
+              if (!haystack.includes(q)) return false
+            }
+            return true
+          })
+
+          const hasFilters = filterCity || filterZip || filterPharmacy || filterStatus || filterSearch
 
           return (
             <div>
@@ -447,7 +479,7 @@ export default function MobileDispatch() {
                     { v: ds.length, l: 'Stops', c: 'text-[#0B1E3D]' },
                     { v: pkgs, l: 'Packages', c: 'text-[#0B1E3D]' },
                     { v: cold, l: 'Cold', c: 'text-[#4A9EFF]' },
-                    { v: done, l: 'Delivered', c: 'text-[#0B1E3D]' },
+                    { v: doneCount, l: 'Delivered', c: 'text-[#0B1E3D]' },
                   ].map(s => (
                     <div key={s.l}>
                       <div className={`text-base font-bold ${s.c}`}>{s.v}</div>
@@ -457,22 +489,70 @@ export default function MobileDispatch() {
                 </div>
               </div>
 
+              {/* Filter bar */}
+              <div className="border border-[#F0F2F7] rounded-2xl bg-white p-3 mb-3">
+                {/* Search */}
+                <input
+                  type="text"
+                  placeholder="Search name, address, order..."
+                  className="w-full border border-[#F0F2F7] rounded-xl px-3 py-2 text-xs text-[#0B1E3D] bg-[#F7F8FB] mb-2 outline-none focus:border-[#4A9EFF]"
+                  value={filterSearch}
+                  onChange={e => setFilterSearch(e.target.value)}
+                />
+                {/* Dropdowns row */}
+                <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                  <select className="border border-[#F0F2F7] rounded-lg px-2 py-1.5 text-[11px] font-medium text-[#0B1E3D] bg-white appearance-none" value={filterCity} onChange={e => setFilterCity(e.target.value)}>
+                    <option value="">All Cities</option>
+                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select className="border border-[#F0F2F7] rounded-lg px-2 py-1.5 text-[11px] font-medium text-[#0B1E3D] bg-white appearance-none" value={filterZip} onChange={e => setFilterZip(e.target.value)}>
+                    <option value="">All ZIPs</option>
+                    {zips.map(z => <option key={z} value={z}>{z}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <select className="border border-[#F0F2F7] rounded-lg px-2 py-1.5 text-[11px] font-medium text-[#0B1E3D] bg-white appearance-none" value={filterPharmacy} onChange={e => setFilterPharmacy(e.target.value)}>
+                    <option value="">All Pharmacies</option>
+                    {pharmacies.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <select className="border border-[#F0F2F7] rounded-lg px-2 py-1.5 text-[11px] font-medium text-[#0B1E3D] bg-white appearance-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                    <option value="">All Statuses</option>
+                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                {hasFilters && (
+                  <button className="text-[11px] text-[#4A9EFF] font-semibold mt-1.5" onClick={resetFilters}>
+                    Clear filters &times;
+                  </button>
+                )}
+              </div>
+
+              {/* Filtered count */}
+              {hasFilters && (
+                <div className="text-[11px] text-[#9BA5B4] font-medium mb-2">
+                  Showing {filtered.length} of {ds.length} stops
+                </div>
+              )}
+
               {/* Stop list */}
-              {ds.sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)).map(s => {
+              {filtered.sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)).map(s => {
                 const done = isDone(s)
-                const cold = isCold(s)
+                const coldStop = isCold(s)
                 return (
                   <div key={s.id} className="flex items-start gap-2.5 py-2.5 border-b border-[#F0F2F7]">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${done ? 'bg-[#E6F5EE] text-[#27AE60]' : cold ? 'bg-[#E8F1FF] text-[#4A9EFF]' : 'bg-[#F0F2F7] text-[#9BA5B4]'}`}>
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${done ? 'bg-[#E6F5EE] text-[#27AE60]' : coldStop ? 'bg-[#E8F1FF] text-[#4A9EFF]' : 'bg-[#F0F2F7] text-[#9BA5B4]'}`}>
                       {s.sort_order ?? '—'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-[#0B1E3D]">{s.patient_name}</div>
-                      <div className="text-xs text-[#9BA5B4] truncate">{s.address}</div>
+                      <div className="text-xs text-[#9BA5B4] truncate">{s.address}{s.city ? `, ${s.city}` : ''}{s.zip ? ` ${s.zip}` : ''}</div>
                     </div>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${done ? 'bg-[#E6F5EE] text-[#27AE60]' : 'bg-[#F0F2F7] text-[#9BA5B4]'}`}>
-                      {s.status || 'dispatched'}
-                    </span>
+                    <div className="flex flex-col items-end gap-0.5 shrink-0">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${done ? 'bg-[#E6F5EE] text-[#27AE60]' : 'bg-[#F0F2F7] text-[#9BA5B4]'}`}>
+                        {s.status || 'dispatched'}
+                      </span>
+                      {s.pharmacy && <span className="text-[9px] text-[#9BA5B4]">{s.pharmacy}</span>}
+                    </div>
                   </div>
                 )
               })}
