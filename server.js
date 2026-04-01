@@ -30,7 +30,7 @@ function wrapHandler(handlerModule) {
 
 // Dynamically load all API routes
 const apiFiles = [
-  'actions', 'ai-insights', 'analytics', 'dispatch', 'driver',
+  'actions', 'ai-insights', 'analytics', 'dispatch', 'driver', 'geocode',
   'hq', 'map-data', 'orders', 'payroll', 'reassign', 'routing', 'sheets-view'
 ]
 

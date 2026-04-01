@@ -60,7 +60,7 @@ export default async function handler(req, res) {
     for (const g of toGeocode) {
       const result = censusResults.get(g._key)
       if (result) {
-        results[g._idx] = { ...g, lat: result.lat, lng: result.lng, source: 'census' }
+        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: result.lat, lng: result.lng, source: 'census' }
         toInsert.push({
           cache_key: g._key,
           address: g.address,
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
         })
       } else {
         // No result — still null
-        results[g._idx] = { ...g, lat: null, lng: null, source: 'none' }
+        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: null, lng: null, source: 'none' }
       }
     }
 
@@ -82,7 +82,8 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ results: results.filter(Boolean) })
+  // Return full array preserving indices — nulls become {lat:null,lng:null} so client index mapping stays correct
+  return res.status(200).json({ results: results.map(r => r || { lat: null, lng: null, source: 'none' }) })
 }
 
 function buildCacheKey(address, city, zip) {
