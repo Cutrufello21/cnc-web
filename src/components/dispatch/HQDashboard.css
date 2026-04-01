@@ -261,6 +261,7 @@
   height: 200px;
   padding-bottom: 4px;
   position: relative;
+  overflow: hidden;
 }
 
 .hq__bar-col {
@@ -355,15 +356,16 @@
   color: var(--gray-300);
 }
 
-/* Trend line overlay */
+/* Trend line overlay — contained within chart */
 .hq__trend-line {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: calc(100% - 4px);
   pointer-events: none;
   z-index: 2;
+  overflow: visible;
 }
 
 .hq__chart-legend {
