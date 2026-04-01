@@ -133,12 +133,16 @@ async function googleOptimizeBatch(stops, origin, endPoint) {
     destination: {
       location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } }
     },
-    intermediates: stops.map(s => ({
-      location: { latLng: { latitude: s.lat, longitude: s.lng } }
-    })),
+    intermediates: stops.map(s => {
+      // Prefer address string so Google snaps to driveway/entrance
+      if (s.address && s.city) {
+        return { address: `${s.address}, ${s.city}, OH ${s.zip || ''}`.trim() }
+      }
+      return { location: { latLng: { latitude: s.lat, longitude: s.lng } } }
+    }),
     optimizeWaypointOrder: true,
     travelMode: 'DRIVE',
-    routingPreference: 'TRAFFIC_AWARE',
+    routingPreference: 'TRAFFIC_AWARE_OPTIMAL',
   }
 
   const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
@@ -230,19 +234,21 @@ async function geocodeStops(stops) {
   for (const row of (cached || [])) cacheMap.set(row.cache_key, [row.lat, row.lng])
 
   const results = stops.map((s, i) => {
+    const base = { index: i, address: s.address || '', city: s.city || '', zip: s.zip || '', coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
+
     // Use pre-supplied coordinates from the app first
-    if (s.lat && s.lng) return { index: i, lat: s.lat, lng: s.lng, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'app' }
+    if (s.lat && s.lng) return { ...base, lat: s.lat, lng: s.lng, geocodeMethod: 'app' }
 
     const c = cacheMap.get(cacheKeys[i])
-    if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'precise' }
+    if (c) return { ...base, lat: c[0], lng: c[1], geocodeMethod: 'precise' }
 
     const zip = String(s.zip || '').trim()
     const zc = ZIP_COORDS[zip] || ZIP_COORDS[zip.padStart(5, '0')]
     if (zc) {
       const jitter = () => (Math.random() - 0.5) * 0.002
-      return { index: i, lat: zc[0] + jitter(), lng: zc[1] + jitter(), coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'zip-center' }
+      return { ...base, lat: zc[0] + jitter(), lng: zc[1] + jitter(), geocodeMethod: 'zip-center' }
     }
-    return { index: i, lat: null, lng: null, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, _needsGeocode: true, _stop: s }
+    return { ...base, lat: null, lng: null, _needsGeocode: true, _stop: s }
   })
 
   const misses = results.filter(r => r._needsGeocode)
