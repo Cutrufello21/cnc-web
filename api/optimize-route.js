@@ -230,6 +230,9 @@ async function geocodeStops(stops) {
   for (const row of (cached || [])) cacheMap.set(row.cache_key, [row.lat, row.lng])
 
   const results = stops.map((s, i) => {
+    // Use pre-supplied coordinates from the app first
+    if (s.lat && s.lng) return { index: i, lat: s.lat, lng: s.lng, coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'app' }
+
     const c = cacheMap.get(cacheKeys[i])
     if (c) return { index: i, lat: c[0], lng: c[1], coldChain: !!s.coldChain, sigRequired: !!s.sigRequired, geocodeMethod: 'precise' }
 
