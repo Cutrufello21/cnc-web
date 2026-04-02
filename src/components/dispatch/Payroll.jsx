@@ -750,20 +750,15 @@ export default function Payroll() {
 
       {/* ── P&L Section ─────────────────────────────── */}
       <div className="pay__recon" style={{ marginTop: 32 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <h3 className="pay__recon-title">Profit & Loss</h3>
             <p className="pay__recon-sub">Revenue (OpenForce) vs Cost (Driver Pay)</p>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#0B1E3D', background: '#F0F2F7', borderRadius: 10, cursor: 'pointer' }}>
-              {uploading ? 'Uploading...' : 'Upload Settlement'}
-              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
-            </label>
-            <button onClick={() => setShowPL(!showPL)} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#fff', background: '#0B1E3D', borderRadius: 10, border: 'none', cursor: 'pointer' }}>
-              {showPL ? 'Hide' : 'Show'} P&L
-            </button>
-          </div>
+          <label style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#0B1E3D', background: '#F0F2F7', borderRadius: 10, cursor: 'pointer' }}>
+            {uploading ? 'Uploading...' : '↑ Upload Settlement'}
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
+          </label>
         </div>
 
         {uploadResult && (
@@ -775,65 +770,165 @@ export default function Payroll() {
           </div>
         )}
 
-        {showPL && (() => {
+        {settlements.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9BA5B4' }}>
+            <p style={{ fontSize: 14, marginBottom: 8 }}>No settlement data yet</p>
+            <p style={{ fontSize: 12 }}>Upload your OpenForce monthly Excel to start tracking profitability</p>
+          </div>
+        ) : (() => {
           // Group settlements by week
           const weekMap = {}
           settlements.forEach(s => {
             if (!weekMap[s.week_of]) weekMap[s.week_of] = {}
-            weekMap[s.week_of][s.driver_name] = s.revenue
+            weekMap[s.week_of][s.driver_name] = parseFloat(s.revenue)
           })
-          const weeks = Object.keys(weekMap).sort().reverse().slice(0, 8)
-
-          // Get driver costs from current payroll data
-          const driverCosts = {}
-          if (data?.drivers) {
-            data.drivers.forEach(d => {
-              driverCosts[d.name] = d.totalPay || 0
-            })
-          }
-
-          // All driver names from settlements
+          const weeks = Object.keys(weekMap).sort()
           const allDrivers = [...new Set(settlements.map(s => s.driver_name))].sort()
 
+          // Build payroll cost map from current data
+          const costMap = {}
+          if (data?.drivers) {
+            data.drivers.forEach(d => { costMap[d.name] = d.calculatedPay || 0 })
+          }
+
+          // Monthly aggregation
+          const monthMap = {}
+          settlements.forEach(s => {
+            const month = s.week_of.substring(0, 7) // "2026-01"
+            if (!monthMap[month]) monthMap[month] = 0
+            monthMap[month] += parseFloat(s.revenue)
+          })
+          const months = Object.keys(monthMap).sort()
+
+          // Summary KPIs
+          const totalRevenue = settlements.reduce((s, r) => s + parseFloat(r.revenue), 0)
+          const totalCost = data?.grandTotal || 0
+          const weeklyAvgRevenue = weeks.length ? totalRevenue / weeks.length : 0
+
+          // Per-driver profitability
+          const driverRevenue = {}
+          settlements.forEach(s => {
+            driverRevenue[s.driver_name] = (driverRevenue[s.driver_name] || 0) + parseFloat(s.revenue)
+          })
+          const driverProfit = allDrivers.map(name => ({
+            name,
+            revenue: driverRevenue[name] || 0,
+            cost: costMap[name] || 0,
+            profit: (driverRevenue[name] || 0) - (costMap[name] || 0),
+            margin: costMap[name] ? Math.round(((driverRevenue[name] || 0) - costMap[name]) / (driverRevenue[name] || 1) * 100) : null,
+          })).sort((a, b) => b.revenue - a.revenue)
+
+          // Weekly chart data
+          const maxWeeklyRev = Math.max(...weeks.map(w => allDrivers.reduce((s, n) => s + (weekMap[w]?.[n] || 0), 0)), 1)
+
           return (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="pay__table" style={{ fontSize: 13 }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left', position: 'sticky', left: 0, background: '#F7F8FB', zIndex: 2 }}>Driver</th>
-                    {weeks.map(w => <th key={w} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>)}
-                    <th style={{ textAlign: 'right' }}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDrivers.map(name => {
-                    const total = weeks.reduce((s, w) => s + (weekMap[w]?.[name] || 0), 0)
+            <>
+              {/* ── KPI Cards ──────────────────────────────── */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+                <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#9BA5B4', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>Total Revenue</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#0B1E3D' }}>${Math.round(totalRevenue).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 4 }}>{weeks.length} weeks · {allDrivers.length} drivers</div>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#9BA5B4', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>Weekly Average</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#4A9EFF' }}>${Math.round(weeklyAvgRevenue).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 4 }}>per settlement week</div>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#9BA5B4', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>This Week Cost</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#E74C3C' }}>${Math.round(totalCost).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 4 }}>driver payroll</div>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#9BA5B4', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>Avg Per Driver</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#0B1E3D' }}>${allDrivers.length ? Math.round(totalRevenue / allDrivers.length).toLocaleString() : '0'}</div>
+                  <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 4 }}>total revenue / driver</div>
+                </div>
+              </div>
+
+              {/* ── Weekly Revenue Chart ────────────────────── */}
+              <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 20, marginBottom: 24 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D', marginBottom: 16 }}>Weekly Revenue</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160 }}>
+                  {weeks.map(w => {
+                    const weekTotal = allDrivers.reduce((s, n) => s + (weekMap[w]?.[n] || 0), 0)
+                    const hPct = (weekTotal / maxWeeklyRev) * 100
                     return (
-                      <tr key={name}>
-                        <td style={{ fontWeight: 600, position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>{name}</td>
-                        {weeks.map(w => {
-                          const rev = weekMap[w]?.[name]
-                          return <td key={w} style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', color: rev ? '#0B1E3D' : '#E0E4ED' }}>{rev ? `$${rev.toLocaleString()}` : '—'}</td>
-                        })}
-                        <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}>${total.toLocaleString()}</td>
-                      </tr>
+                      <div key={w} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: '#0B1E3D', marginBottom: 4 }}>${(weekTotal / 1000).toFixed(1)}k</div>
+                        <div style={{ width: '70%', height: `${hPct}%`, background: 'linear-gradient(180deg, #4A9EFF, #0B1E3D)', borderRadius: '4px 4px 0 0', minHeight: 2, transition: 'height 0.3s' }} />
+                        <div style={{ fontSize: 9, color: '#9BA5B4', marginTop: 6 }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                      </div>
                     )
                   })}
-                </tbody>
-                <tfoot>
-                  <tr style={{ borderTop: '2px solid #F0F2F7' }}>
-                    <td style={{ fontWeight: 700, position: 'sticky', left: 0, background: '#F7F8FB', zIndex: 1 }}>Weekly Total</td>
-                    {weeks.map(w => {
-                      const weekTotal = allDrivers.reduce((s, n) => s + (weekMap[w]?.[n] || 0), 0)
-                      return <td key={w} style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: '#0B1E3D' }}>${weekTotal.toLocaleString()}</td>
-                    })}
-                    <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace', fontSize: 15, color: '#0B1E3D' }}>
-                      ${weeks.reduce((s, w) => s + allDrivers.reduce((s2, n) => s2 + (weekMap[w]?.[n] || 0), 0), 0).toLocaleString()}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                </div>
+              </div>
+
+              {/* ── Driver Profitability ────────────────────── */}
+              <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 20, marginBottom: 24 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D', marginBottom: 16 }}>Driver Revenue (All Time)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {driverProfit.map((d, i) => {
+                    const maxRev = driverProfit[0]?.revenue || 1
+                    const barPct = (d.revenue / maxRev) * 100
+                    return (
+                      <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 18, fontSize: 12, fontWeight: 700, color: '#9BA5B4', textAlign: 'right' }}>{i + 1}</div>
+                        <div style={{ width: 70, fontSize: 13, fontWeight: 600, color: '#0B1E3D', flexShrink: 0 }}>{d.name}</div>
+                        <div style={{ flex: 1, height: 18, background: '#F0F2F7', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${barPct}%`, background: '#4A9EFF', borderRadius: 4, transition: 'width 0.4s' }} />
+                        </div>
+                        <div style={{ width: 70, fontSize: 13, fontWeight: 700, color: '#0B1E3D', textAlign: 'right', fontFamily: 'ui-monospace, monospace' }}>${Math.round(d.revenue).toLocaleString()}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* ── Revenue Table ───────────────────────────── */}
+              <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid #F0F2F7', fontSize: 14, fontWeight: 700, color: '#0B1E3D' }}>Settlement Detail</div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="pay__table" style={{ fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', position: 'sticky', left: 0, background: '#F7F8FB', zIndex: 2 }}>Driver</th>
+                        {weeks.map(w => <th key={w} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>)}
+                        <th style={{ textAlign: 'right' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allDrivers.map(name => {
+                        const total = weeks.reduce((s, w) => s + (weekMap[w]?.[name] || 0), 0)
+                        return (
+                          <tr key={name}>
+                            <td style={{ fontWeight: 600, position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>{name}</td>
+                            {weeks.map(w => {
+                              const rev = weekMap[w]?.[name]
+                              return <td key={w} style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', fontVariantNumeric: 'tabular-nums', color: rev ? '#0B1E3D' : '#E0E4ED' }}>{rev ? `$${rev.toLocaleString()}` : '—'}</td>
+                            })}
+                            <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}>${Math.round(total).toLocaleString()}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: '2px solid #F0F2F7' }}>
+                        <td style={{ fontWeight: 700, position: 'sticky', left: 0, background: '#F7F8FB', zIndex: 1 }}>Weekly Total</td>
+                        {weeks.map(w => {
+                          const weekTotal = allDrivers.reduce((s, n) => s + (weekMap[w]?.[n] || 0), 0)
+                          return <td key={w} style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: '#0B1E3D' }}>${Math.round(weekTotal).toLocaleString()}</td>
+                        })}
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace', fontSize: 15, color: '#0B1E3D' }}>
+                          ${Math.round(totalRevenue).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </>
           )
         })()}
       </div>
