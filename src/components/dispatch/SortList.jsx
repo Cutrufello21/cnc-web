@@ -47,48 +47,77 @@ export default function SortList({ deliveryDate }) {
     const aultmanExists = existing.some(r => r.pharmacy === 'Aultman')
     const shspExists = existing.some(r => r.pharmacy === 'SHSP')
 
-    // Auto-populate Aultman
-    if (!aultmanExists && allStops.length > 0) {
-      const driverCities = {}
+    // Build current city maps from daily_stops for both pharmacies
+    function buildCityMap(pharmacy) {
+      const map = {}
       allStops.forEach(s => {
-        if (s.pharmacy !== 'Aultman') return
-        if (!driverCities[s.driver_name]) driverCities[s.driver_name] = new Set()
-        if (s.city) driverCities[s.driver_name].add(s.city.toUpperCase().trim())
+        if (s.pharmacy !== pharmacy) return
+        if (!map[s.driver_name]) map[s.driver_name] = new Set()
+        if (s.city) map[s.driver_name].add(s.city.toUpperCase().trim())
       })
-      const rows = []
-      let order = 0
-      for (const [name, cities] of Object.entries(driverCities).sort((a, b) => a[0].localeCompare(b[0]))) {
-        const cityList = [...cities].sort().join(', ')
-        rows.push({
-          delivery_date: dateStr, pharmacy: 'Aultman', driver_name: name,
-          display_text: `${name.toUpperCase()} — ${cityList}`, sort_order: order++,
-          checked: false, late_start: false,
-        })
-      }
-      if (rows.length > 0) {
-        await apiPost({ action: 'insert', rows })
-        const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', 'Aultman').order('sort_order', { ascending: true })
-        result.Aultman = fresh || []
-      }
+      return map
     }
 
-    // Auto-populate SHSP
-    if (!shspExists && allStops.length > 0) {
-      const shspDrivers = new Set()
-      allStops.forEach(s => { if (s.pharmacy === 'SHSP') shspDrivers.add(s.driver_name) })
-      const rows = []
-      let order = 0
-      for (const name of [...shspDrivers].sort()) {
-        rows.push({
-          delivery_date: dateStr, pharmacy: 'SHSP', driver_name: name,
-          display_text: `${name.toUpperCase()} — `, sort_order: order++,
-          checked: false, late_start: false,
-        })
-      }
-      if (rows.length > 0) {
-        await apiPost({ action: 'insert', rows })
-        const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', 'SHSP').order('sort_order', { ascending: true })
-        result.SHSP = fresh || []
+    for (const pharmacy of ['Aultman', 'SHSP']) {
+      const exists = pharmacy === 'Aultman' ? aultmanExists : shspExists
+      const cityMap = buildCityMap(pharmacy)
+
+      if (!exists && allStops.length > 0) {
+        // First time — insert all rows
+        const rows = []
+        let order = 0
+        for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
+          const cityList = [...cities].sort().join(', ')
+          rows.push({
+            delivery_date: dateStr, pharmacy, driver_name: name,
+            display_text: `${name.toUpperCase()} — ${cityList}`, sort_order: order++,
+            checked: false, late_start: false,
+          })
+        }
+        if (rows.length > 0) {
+          await apiPost({ action: 'insert', rows })
+          const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', pharmacy).order('sort_order', { ascending: true })
+          result[pharmacy] = fresh || []
+        }
+      } else if (exists && Object.keys(cityMap).length > 0) {
+        // Rows exist — sync cities on existing rows + add new drivers
+        const currentRows = result[pharmacy]
+        const existingDrivers = new Set(currentRows.map(r => r.driver_name))
+
+        // Update display_text for existing drivers with fresh cities
+        for (const row of currentRows) {
+          const cities = cityMap[row.driver_name]
+          if (!cities) continue
+          const cityList = [...cities].sort().join(', ')
+          const newText = `${row.driver_name.toUpperCase()} — ${cityList}`
+          if (row.display_text !== newText) {
+            await apiPost({ action: 'update', id: row.id, display_text: newText })
+            row.display_text = newText
+          }
+        }
+
+        // Add rows for new drivers not yet in the sort list
+        const maxOrder = currentRows.reduce((m, l) => Math.max(m, l.sort_order || 0), 0)
+        const newRows = []
+        let order = maxOrder + 1
+        for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
+          if (existingDrivers.has(name)) continue
+          const cityList = [...cities].sort().join(', ')
+          newRows.push({
+            delivery_date: dateStr, pharmacy, driver_name: name,
+            display_text: `${name.toUpperCase()} — ${cityList}`, sort_order: order++,
+            checked: false, late_start: false,
+          })
+        }
+        if (newRows.length > 0) {
+          await apiPost({ action: 'insert', rows: newRows })
+        }
+
+        // Reload fresh data for this pharmacy
+        if (newRows.length > 0 || currentRows.some((r, i) => r.display_text !== (existing.find(e => e.id === r.id) || {}).display_text)) {
+          const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', pharmacy).order('sort_order', { ascending: true })
+          result[pharmacy] = fresh || []
+        }
       }
     }
 

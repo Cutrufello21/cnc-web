@@ -7,7 +7,7 @@
 
 /* ── Sidebar ─────────────────────────────────────── */
 .shell__sidebar {
-  width: 220px;
+  width: 64px;
   background: #ffffff;
   border-right: 1px solid #F0F2F7;
   display: flex;
@@ -18,13 +18,26 @@
   bottom: 0;
   z-index: 50;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.2s ease;
+}
+.shell__sidebar:hover {
+  width: 220px;
 }
 
 .shell__sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 20px 12px 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  justify-content: center;
+  transition: padding 0.2s ease;
+}
+.shell__sidebar:hover .shell__sidebar-brand {
   padding: 20px 20px 24px;
+  justify-content: flex-start;
 }
 
 .shell__pill {
@@ -47,7 +60,12 @@
   font-weight: 700;
   color: #0B1E3D;
   letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
+.shell__sidebar:hover .shell__title { opacity: 1; }
 
 /* ── Navigation ──────────────────────────────────── */
 .shell__nav {
@@ -66,13 +84,19 @@
   letter-spacing: 1px;
   padding: 0 8px;
   margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
+.shell__sidebar:hover .shell__nav-section { opacity: 1; }
 
 .shell__nav-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px;
   font-size: 14px;
   font-weight: 500;
   color: #9BA5B4;
@@ -82,7 +106,13 @@
   text-align: left;
   position: relative;
 }
+.shell__sidebar:hover .shell__nav-btn {
+  justify-content: flex-start;
+  padding: 9px 12px;
+}
 .shell__nav-btn svg { flex-shrink: 0; }
+.shell__nav-btn span { white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.2s ease; }
+.shell__sidebar:hover .shell__nav-btn span { opacity: 1; }
 .shell__nav-btn:hover { color: #0B1E3D; background: #F7F8FB; }
 
 .shell__nav-btn--active {
@@ -100,24 +130,41 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  font-size: 10px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  font-size: 8px;
   font-weight: 700;
   color: white;
   background: #E74C3C;
   border-radius: 9px;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+.shell__sidebar:hover .shell__view-badge {
+  position: static;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
   margin-left: auto;
 }
 
 /* ── Sidebar Footer ──────────────────────────────── */
 .shell__sidebar-footer {
-  padding: 16px 16px 20px;
+  padding: 12px 8px 16px;
   border-top: 1px solid #F0F2F7;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  align-items: center;
+  overflow: hidden;
+  transition: padding 0.2s ease;
+}
+.shell__sidebar:hover .shell__sidebar-footer {
+  padding: 16px 16px 20px;
+  align-items: stretch;
 }
 
 .shell__sidebar-user {
@@ -130,7 +177,12 @@
   font-size: 13px;
   font-weight: 500;
   color: #9BA5B4;
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
+.shell__sidebar:hover .shell__name { opacity: 1; }
 
 .shell__signout {
   font-size: 12px;
@@ -149,11 +201,12 @@
 /* ── Main Content ────────────────────────────────── */
 .shell__main {
   flex: 1;
-  margin-left: 220px;
+  margin-left: 64px;
   padding: 28px 32px 40px;
   min-height: 100vh;
   max-width: 100%;
   overflow-x: hidden;
+  transition: margin-left 0.2s ease;
 }
 
 /* ── Legacy classes (keep for child components) ──── */
