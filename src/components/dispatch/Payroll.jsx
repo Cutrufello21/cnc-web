@@ -29,8 +29,8 @@ export default function Payroll() {
 
   async function loadSettlements() {
     const [settRes, payRes, drvRes] = await Promise.all([
-      supabase.from('settlements').select('*').order('week_of', { ascending: false }).limit(200),
-      supabase.from('payroll').select('driver_name, week_of, mon, tue, wed, thu, fri, will_calls').order('week_of', { ascending: false }).limit(200),
+      supabase.from('settlements').select('*').order('week_of', { ascending: false }).limit(1000),
+      supabase.from('payroll').select('driver_name, week_of, mon, tue, wed, thu, fri, will_calls').order('week_of', { ascending: false }).limit(1000),
       supabase.from('drivers').select('driver_name, rate_mth, rate_wf, office_fee, flat_salary'),
     ])
     setSettlements(settRes.data || [])
