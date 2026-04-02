@@ -152,7 +152,7 @@
   font-size: 12px;
   font-weight: 500;
   color: #4A9EFF;
-  padding: 7px 12px;
+  padding: 11px 14px;
   border: 1px solid rgba(100, 149, 237, 0.3);
   border-radius: 10px;
   background: transparent;
@@ -198,11 +198,11 @@
   position: sticky;
   top: 0;
   text-align: left;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
   background: #F7F8FB;
   border-bottom: 1px solid #F0F2F7;
@@ -222,7 +222,7 @@
 }
 
 .ord__table td {
-  padding: 8px 12px;
+  padding: 12px 14px;
   color: #0B1E3D;
   border-bottom: 1px solid #F0F2F7;
   white-space: nowrap;
@@ -237,7 +237,7 @@
 }
 
 .ord__cell-id {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: #9BA5B4;
 }
@@ -254,7 +254,7 @@
 }
 
 .ord__cell-zip {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: #4A9EFF;
 }
@@ -359,4 +359,28 @@
 
 [data-theme="dark"] .ord__quick-btn:hover {
   background: #0B1E3D;
+}
+
+/* ── Premium Table Polish ──────────────────────────── */
+.ord__table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: #E0E4ED transparent;
+}
+.ord__th {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.ord__table tbody tr {
+  transition: background 0.1s, box-shadow 0.1s;
+}
+.ord__table tbody tr:hover {
+  background: #F7F8FB;
+  box-shadow: inset 3px 0 0 #4A9EFF;
+}
+.ord__table tbody tr:nth-child(even) {
+  background: rgba(247, 248, 251, 0.5);
+}
+.ord__table tbody tr:nth-child(even):hover {
+  background: #F0F2F7;
+  box-shadow: inset 3px 0 0 #4A9EFF;
 }

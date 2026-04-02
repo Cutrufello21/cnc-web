@@ -107,7 +107,7 @@
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
 }
 
@@ -162,7 +162,7 @@
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
   background: #F7F8FB;
   border-bottom: 1px solid #F0F2F7;
@@ -180,7 +180,7 @@
 }
 
 .pay__table td {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-bottom: 1px solid #F0F2F7;
 }
 
@@ -213,14 +213,14 @@
 }
 
 .pay__cell-id {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-size: 12px;
   color: #9BA5B4;
 }
 
 .pay__cell-num {
   text-align: center;
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   color: #0B1E3D;
 }
 
@@ -269,7 +269,7 @@
 }
 
 .pay__edit-input {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-size: 13px;
   width: 52px;
   padding: 4px 6px;
@@ -387,7 +387,7 @@
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #0B1E3D;
   margin-top: 16px;
   margin-bottom: 8px;
@@ -457,3 +457,18 @@
 .pay__recon-approve-btn { padding: 4px 12px; font-size: 11px; font-weight: 600; color: #ffffff; background: #0B1E3D; border: none; border-radius: 10px; cursor: pointer; white-space: nowrap; }
 .pay__recon-approve-btn:hover { opacity: 0.85; }
 .pay__recon-approved-tag { font-size: 11px; font-weight: 600; color: #27AE60; }
+
+/* ── Premium Table Polish ──────────────────────────── */
+.pay__table tbody tr {
+  transition: background 0.1s, box-shadow 0.1s;
+}
+.pay__table tbody tr:hover {
+  box-shadow: inset 3px 0 0 #4A9EFF;
+}
+.pay__table tbody tr:nth-child(even) {
+  background: rgba(247, 248, 251, 0.4);
+}
+.pay__table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: #E0E4ED transparent;
+}

@@ -72,7 +72,7 @@
   font-size: 11px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: rgba(255,255,255,0.5);
 }
 
@@ -196,7 +196,7 @@
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
   margin-bottom: 8px;
 }
@@ -503,18 +503,18 @@
 
 .hq__table th {
   text-align: left;
-  padding: 8px 10px;
+  padding: 11px 14px;
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
   border-bottom: 1px solid #F0F2F7;
   white-space: nowrap;
 }
 
 .hq__table td {
-  padding: 8px 10px;
+  padding: 11px 14px;
   color: #0B1E3D;
   border-bottom: 1px solid #F0F2F7;
   white-space: nowrap;
@@ -529,12 +529,12 @@
 }
 
 .hq__cell-num {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
 .hq__cell-warn {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: #E74C3C;
 }
@@ -563,13 +563,13 @@
 .hq__zip {
   display: flex;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 12px 14px;
   background: #F7F8FB;
   border-radius: 10px;
 }
 
 .hq__zip-code {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: 14px;
   color: #4A9EFF;
@@ -633,7 +633,7 @@
 }
 
 .hq__inline-bar-wrap span {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 13px;
   flex-shrink: 0;
@@ -663,7 +663,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
 }
 
@@ -738,4 +738,36 @@
   .hq__today {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+/* ── Premium Table & Chart Polish ──────────────────── */
+.hq__table tbody tr {
+  transition: background 0.1s, box-shadow 0.1s;
+}
+.hq__table tbody tr:hover {
+  box-shadow: inset 3px 0 0 #4A9EFF;
+}
+.hq__table tbody tr:nth-child(even) {
+  background: rgba(247, 248, 251, 0.4);
+}
+.hq__bar-col {
+  transition: opacity 0.15s;
+}
+.hq__chart:hover .hq__bar-col {
+  opacity: 0.5;
+}
+.hq__chart:hover .hq__bar-col:hover {
+  opacity: 1;
+}
+.hq__bar-stack {
+  border-radius: 4px 4px 0 0;
+}
+.hq__leader {
+  transition: background 0.1s;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 0 -10px;
+}
+.hq__leader:hover {
+  background: #F7F8FB;
 }

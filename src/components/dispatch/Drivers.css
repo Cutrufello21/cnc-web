@@ -12,7 +12,7 @@
 .drv__add-field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
 .drv__add-field--wide { flex: 1; min-width: 200px; }
 .drv__add-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: #9BA5B4; }
-.drv__add-field input, .drv__add-field select { padding: 8px 12px; font-size: 13px; border: 1px solid #F0F2F7; border-radius: 10px; background: #ffffff; }
+.drv__add-field input, .drv__add-field select { padding: 12px 14px; font-size: 13px; border: 1px solid #F0F2F7; border-radius: 10px; background: #ffffff; }
 .drv__add-actions { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
 .drv__add-submit { padding: 10px 24px; font-size: 14px; font-weight: 600; color: white; background: #0B1E3D; border: none; border-radius: 10px; cursor: pointer; }
 .drv__add-submit:hover { background: #162d52; }
@@ -24,13 +24,13 @@
 .drv__table-wrap { overflow-x: auto; border: 1px solid #F0F2F7; border-radius: 16px; }
 .drv__table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .drv__table thead { background: #F7F8FB; }
-.drv__table th { padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9BA5B4; border-bottom: 2px solid #F0F2F7; white-space: nowrap; }
-.drv__table td { padding: 10px 12px; border-bottom: 1px solid #F0F2F7; }
+.drv__table th { padding: 12px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #9BA5B4; border-bottom: 2px solid #F0F2F7; white-space: nowrap; }
+.drv__table td { padding: 12px 14px; border-bottom: 1px solid #F0F2F7; }
 
 .drv__cell-name { font-weight: 600; color: #0B1E3D; }
-.drv__cell-id { font-family: ui-monospace, monospace; color: #9BA5B4; }
+.drv__cell-id { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; color: #9BA5B4; }
 .drv__cell-email { font-size: 12px; color: #9BA5B4; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-.drv__cell-num { font-family: ui-monospace, monospace; text-align: center; }
+.drv__cell-num { font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; text-align: center; }
 
 .drv__pharma { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
 .drv__pharma--shsp { background: #eef4ff; color: #3b82f6; }
@@ -93,14 +93,14 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #0B1E3D;
 }
 
 .drv__rules-field input,
 .drv__rules-field select,
 .drv__rules-field textarea {
-  padding: 8px 12px;
+  padding: 12px 14px;
   font-size: 13px;
   border: 1px solid #F0F2F7;
   border-radius: 10px;

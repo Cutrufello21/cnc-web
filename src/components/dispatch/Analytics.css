@@ -97,7 +97,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
   margin-bottom: 6px;
 }
@@ -475,7 +475,7 @@
 }
 
 .an__zip-code {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: 14px;
   color: #4A9EFF;
@@ -499,7 +499,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 12px 14px;
   background: #F7F8FB;
   border-radius: 10px;
 }
@@ -519,17 +519,17 @@
 
 .an__loc-table th {
   text-align: left;
-  padding: 8px 12px;
+  padding: 12px 14px;
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
   color: #9BA5B4;
   border-bottom: 1px solid #F0F2F7;
 }
 
 .an__loc-table td {
-  padding: 8px 12px;
+  padding: 12px 14px;
   color: #0B1E3D;
   border-bottom: 1px solid #F0F2F7;
 }
@@ -577,7 +577,7 @@
 }
 
 .an__leader-day {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
   font-size: 11px;
   width: 24px;
   text-align: center;
@@ -658,7 +658,7 @@
 
 /* Driver analytics */
 .an__driver-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.an__driver-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9BA5B4; background: #F7F8FB; border-bottom: 1px solid #F0F2F7; white-space: nowrap; }
+.an__driver-table th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9BA5B4; background: #F7F8FB; border-bottom: 1px solid #F0F2F7; white-space: nowrap; }
 .an__driver-table td { padding: 6px 10px; border-bottom: 1px solid #F0F2F7; white-space: nowrap; font-size: 13px; }
 .an__driver-table tbody tr:hover { background: #F7F8FB; }
 .an__card-sub { font-size: 12px; color: #9BA5B4; margin: -4px 0 12px; }
@@ -699,24 +699,24 @@
 
 /* Insights — ZIP Growth Tables */
 .an__insight-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.an__insight-table th { text-align: left; padding: 8px 10px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9BA5B4; background: #F7F8FB; border-bottom: 1px solid #F0F2F7; }
+.an__insight-table th { text-align: left; padding: 11px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9BA5B4; background: #F7F8FB; border-bottom: 1px solid #F0F2F7; }
 .an__insight-table td { padding: 6px 10px; border-bottom: 1px solid #F0F2F7; }
 .an__insight-table tbody tr:hover { background: #F7F8FB; }
 
 /* Rate Calculator */
 .an__rate-inputs { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; padding: 16px; background: #F7F8FB; border-radius: 10px; }
 .an__rate-field { display: flex; flex-direction: column; gap: 4px; }
-.an__rate-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9BA5B4; }
+.an__rate-field label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9BA5B4; }
 .an__rate-input-wrap { display: flex; align-items: center; gap: 4px; }
 .an__rate-input-wrap span { font-size: 14px; font-weight: 600; color: #9BA5B4; }
-.an__rate-input-wrap input { width: 90px; padding: 8px 10px; font-size: 16px; font-weight: 700; border: 2px solid #F0F2F7; border-radius: 10px; text-align: center; font-family: ui-monospace, monospace; transition: border-color 0.15s; }
+.an__rate-input-wrap input { width: 90px; padding: 11px 14px; font-size: 16px; font-weight: 700; border: 2px solid #F0F2F7; border-radius: 10px; text-align: center; font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; transition: border-color 0.15s; }
 .an__rate-input-wrap input:focus { border-color: #4A9EFF; outline: none; }
 .an__rate-current { font-size: 11px; color: #9BA5B4; }
 
 .an__rate-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 8px; }
 .an__rate-stat { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: #ffffff; border: 1px solid #F0F2F7; border-radius: 10px; }
-.an__rate-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #9BA5B4; }
-.an__rate-stat-value { font-size: 20px; font-weight: 700; color: #0B1E3D; font-family: ui-monospace, monospace; }
+.an__rate-stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9BA5B4; }
+.an__rate-stat-value { font-size: 20px; font-weight: 700; color: #0B1E3D; font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 768px) {
   .an__rate-summary { grid-template-columns: repeat(2, 1fr); }
