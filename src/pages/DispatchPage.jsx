@@ -455,7 +455,7 @@ export default function DispatchPage() {
       setRoutesSent(true)
       setMoveToast(`Routes sent to ${sent} drivers${rwCount > 0 ? `, Road Warrior pushed to ${rwCount}` : ''}`)
 
-      // Log final state for learning engine
+      // Log final state for learning engine + send push notifications
       const dateStr = data.deliveryDateObj
         ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
         : null
@@ -464,6 +464,12 @@ export default function DispatchPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'snapshot', deliveryDate: dateStr, deliveryDay: data.deliveryDay }),
+        }).catch(() => {})
+        // Push notification to all drivers with stops
+        fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'push_routes', date: dateStr }),
         }).catch(() => {})
       }
     } catch (err) {

@@ -196,6 +196,66 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, sent })
     }
 
+    if (data.action === 'push_notify') {
+      // Send push notification to specific drivers
+      const { driverNames, title, body } = data
+      if (!driverNames?.length || !title) return res.status(400).json({ error: 'Missing driverNames or title' })
+
+      const { data: drivers } = await supabase.from('drivers').select('driver_name, push_token').in('driver_name', driverNames)
+      const tokens = (drivers || []).filter(d => d.push_token).map(d => d.push_token)
+
+      if (!tokens.length) return res.status(200).json({ success: true, sent: 0, reason: 'No push tokens found' })
+
+      const messages = tokens.map(token => ({
+        to: token,
+        sound: 'default',
+        title: title,
+        body: body || '',
+        data: { type: 'route_update' },
+      }))
+
+      // Expo Push API — batch send
+      const pushRes = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(messages),
+      })
+      const pushData = await pushRes.json()
+
+      return res.status(200).json({ success: true, sent: tokens.length, pushData })
+    }
+
+    if (data.action === 'push_routes') {
+      // Send push to all active drivers with stops for a given date
+      const dateStr = data.date
+      if (!dateStr) return res.status(400).json({ error: 'Missing date' })
+
+      const { data: stops } = await supabase.from('daily_stops').select('driver_name').eq('delivery_date', dateStr)
+      const driverNames = [...new Set((stops || []).map(s => s.driver_name).filter(Boolean))]
+
+      const { data: drivers } = await supabase.from('drivers').select('driver_name, push_token').in('driver_name', driverNames)
+      const messages = (drivers || []).filter(d => d.push_token).map(d => {
+        const stopCount = (stops || []).filter(s => s.driver_name === d.driver_name).length
+        return {
+          to: d.push_token,
+          sound: 'default',
+          title: 'Route Ready',
+          body: `You have ${stopCount} stops assigned. Open the app to view your route.`,
+          data: { type: 'route_ready', date: dateStr },
+        }
+      })
+
+      if (!messages.length) return res.status(200).json({ success: true, sent: 0 })
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(messages),
+      })
+
+      return res.status(200).json({ success: true, sent: messages.length })
+    }
+
     if (data.action === 'contact_form') {
       const { name, organization, email, phone, message } = data
       if (!name || !message || !email) return res.status(400).json({ error: 'Name, email, and message are required' })
