@@ -22,6 +22,8 @@ export default function Payroll() {
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState(null)
   const [showPL, setShowPL] = useState(false)
+  const [hoveredWeek, setHoveredWeek] = useState(null) // for chart tooltip
+  const [expandedDriver, setExpandedDriver] = useState(null) // click to expand driver card
 
   const [allPayroll, setAllPayroll] = useState([])
 
@@ -902,25 +904,44 @@ export default function Payroll() {
               <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 20, marginBottom: 24 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D' }}>Weekly Revenue vs Cost</div>
-                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#9BA5B4' }}>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#9BA5B4', alignItems: 'center' }}>
                     <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#4A9EFF', marginRight: 4 }} />Revenue</span>
                     <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#E74C3C', opacity: 0.7, marginRight: 4 }} />Cost</span>
+                    <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: '#27AE60', marginRight: 4 }} />Profit</span>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 160 }}>
+                {/* Tooltip */}
+                {hoveredWeek && (() => {
+                  const wRev = allDrivers.reduce((s, n) => s + (weekMap[hoveredWeek]?.[n]?.revenue || 0), 0)
+                  const wCost = allDrivers.reduce((s, n) => s + (weekMap[hoveredWeek]?.[n]?.cost || 0), 0)
+                  const wProfit = wRev - wCost
+                  return (
+                    <div style={{ display: 'flex', gap: 16, padding: '8px 14px', background: '#F7F8FB', borderRadius: 10, marginBottom: 12, fontSize: 12, border: '1px solid #F0F2F7', transition: 'all 0.15s' }}>
+                      <span style={{ fontWeight: 700, color: '#0B1E3D' }}>{new Date(hoveredWeek + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <span>Revenue: <strong style={{ color: '#4A9EFF' }}>${Math.round(wRev).toLocaleString()}</strong></span>
+                      <span>Cost: <strong style={{ color: '#E74C3C' }}>${Math.round(wCost).toLocaleString()}</strong></span>
+                      <span>Profit: <strong style={{ color: wProfit >= 0 ? '#27AE60' : '#E74C3C' }}>{wProfit >= 0 ? '+' : ''}${Math.round(wProfit).toLocaleString()}</strong></span>
+                    </div>
+                  )
+                })()}
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 180 }}>
                   {weeks.map(w => {
                     const weekRev = allDrivers.reduce((s, n) => s + (weekMap[w]?.[n]?.revenue || 0), 0)
                     const weekCost = allDrivers.reduce((s, n) => s + (weekMap[w]?.[n]?.cost || 0), 0)
+                    const weekProfit = weekRev - weekCost
                     const revH = (weekRev / maxWeeklyVal) * 100
                     const costH = (weekCost / maxWeeklyVal) * 100
+                    const isHovered = hoveredWeek === w
                     return (
-                      <div key={w} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                      <div key={w} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', cursor: 'pointer', opacity: hoveredWeek && !isHovered ? 0.4 : 1, transition: 'opacity 0.15s' }}
+                        onMouseEnter={() => setHoveredWeek(w)} onMouseLeave={() => setHoveredWeek(null)}>
                         <div style={{ fontSize: 9, fontWeight: 600, color: '#0B1E3D', marginBottom: 3 }}>${(weekRev / 1000).toFixed(1)}k</div>
                         <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', width: '80%', height: `${Math.max(revH, costH)}%` }}>
-                          <div style={{ flex: 1, height: `${revH / Math.max(revH, costH) * 100}%`, background: '#4A9EFF', borderRadius: '3px 3px 0 0', minHeight: 2 }} />
-                          <div style={{ flex: 1, height: `${costH / Math.max(revH, costH) * 100}%`, background: '#E74C3C', borderRadius: '3px 3px 0 0', minHeight: weekCost > 0 ? 2 : 0, opacity: 0.7 }} />
+                          <div style={{ flex: 1, height: `${revH / Math.max(revH, costH) * 100}%`, background: '#4A9EFF', borderRadius: '4px 4px 0 0', minHeight: 2, transition: 'height 0.3s' }} />
+                          <div style={{ flex: 1, height: `${costH / Math.max(revH, costH) * 100}%`, background: '#E74C3C', borderRadius: '4px 4px 0 0', minHeight: weekCost > 0 ? 2 : 0, opacity: 0.7, transition: 'height 0.3s' }} />
                         </div>
-                        <div style={{ fontSize: 8, color: '#9BA5B4', marginTop: 5 }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                        <div style={{ fontSize: 10, fontWeight: 600, color: weekProfit >= 0 ? '#27AE60' : '#E74C3C', marginTop: 4 }}>+${(weekProfit / 1000).toFixed(1)}k</div>
+                        <div style={{ fontSize: 9, color: isHovered ? '#0B1E3D' : '#9BA5B4', fontWeight: isHovered ? 600 : 400, marginTop: 2, transition: 'all 0.15s' }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
                       </div>
                     )
                   })}
@@ -940,13 +961,21 @@ export default function Payroll() {
                       const margin = totalRev ? Math.round((profit / totalRev) * 100) : 0
                       const maxVal = Math.max(...driverWeeks.map(w => Math.max(weekMap[w]?.[name]?.revenue || 0, weekMap[w]?.[name]?.cost || 0)), 1)
 
+                      const isExpanded = expandedDriver === name
+
                       return (
-                        <div key={name} style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 16 }}>
+                        <div key={name} style={{ background: '#fff', border: isExpanded ? '1.5px solid #4A9EFF' : '1px solid #F0F2F7', borderRadius: 16, padding: 16, cursor: 'pointer', transition: 'all 0.15s' }}
+                          onClick={() => setExpandedDriver(isExpanded ? null : name)}>
                           {/* Header */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                            <div>
-                              <div style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>{name}</div>
-                              <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 2 }}>{driverWeeks.length} weeks</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 10, background: profit >= 0 ? '#E6F5EE' : '#FDE8E8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: profit >= 0 ? '#27AE60' : '#E74C3C' }}>
+                                {name.charAt(0)}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>{name}</div>
+                                <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 1 }}>{driverWeeks.length} weeks · ${Math.round(totalRev / driverWeeks.length)}/wk avg</div>
+                              </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <div style={{ fontSize: 16, fontWeight: 700, color: profit >= 0 ? '#27AE60' : '#E74C3C' }}>
@@ -957,7 +986,7 @@ export default function Payroll() {
                           </div>
 
                           {/* Weekly bars — side by side */}
-                          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80, marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: isExpanded ? 100 : 70, marginBottom: 8, transition: 'height 0.2s' }}>
                             {driverWeeks.map(w => {
                               const rev = weekMap[w]?.[name]?.revenue || 0
                               const cost = weekMap[w]?.[name]?.cost || 0
@@ -965,13 +994,13 @@ export default function Payroll() {
                               const costH = (cost / maxVal) * 100
                               return (
                                 <div key={w} style={{ flex: 1, display: 'flex', gap: 1, alignItems: 'flex-end', height: '100%' }}>
-                                  <div style={{ flex: 1, height: `${revH}%`, background: '#4A9EFF', borderRadius: '3px 3px 0 0', minHeight: 2 }} title={`Revenue: $${rev}`} />
-                                  <div style={{ flex: 1, height: `${costH}%`, background: '#E74C3C', borderRadius: '3px 3px 0 0', minHeight: cost > 0 ? 2 : 0, opacity: 0.7 }} title={`Cost: $${cost}`} />
+                                  <div style={{ flex: 1, height: `${revH}%`, background: '#4A9EFF', borderRadius: '4px 4px 0 0', minHeight: 2, transition: 'height 0.3s' }} />
+                                  <div style={{ flex: 1, height: `${costH}%`, background: '#E74C3C', borderRadius: '4px 4px 0 0', minHeight: cost > 0 ? 2 : 0, opacity: 0.7, transition: 'height 0.3s' }} />
                                 </div>
                               )
                             })}
                           </div>
-                          <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
+                          <div style={{ display: 'flex', gap: 3, marginBottom: 8 }}>
                             {driverWeeks.map(w => (
                               <div key={w} style={{ flex: 1, textAlign: 'center', fontSize: 8, color: '#9BA5B4' }}>
                                 {new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
@@ -984,6 +1013,37 @@ export default function Payroll() {
                             <div><span style={{ color: '#9BA5B4' }}>Revenue </span><span style={{ fontWeight: 700, color: '#4A9EFF' }}>${Math.round(totalRev).toLocaleString()}</span></div>
                             <div><span style={{ color: '#9BA5B4' }}>Cost </span><span style={{ fontWeight: 700, color: '#E74C3C' }}>${Math.round(totalCostD).toLocaleString()}</span></div>
                           </div>
+
+                          {/* Expanded detail table */}
+                          {isExpanded && (
+                            <div style={{ marginTop: 12, borderTop: '1px solid #F0F2F7', paddingTop: 12 }} onClick={e => e.stopPropagation()}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                <thead>
+                                  <tr>
+                                    <th style={{ textAlign: 'left', padding: '4px 6px', fontSize: 10, color: '#9BA5B4', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Week</th>
+                                    <th style={{ textAlign: 'right', padding: '4px 6px', fontSize: 10, color: '#4A9EFF', fontWeight: 600 }}>Revenue</th>
+                                    <th style={{ textAlign: 'right', padding: '4px 6px', fontSize: 10, color: '#E74C3C', fontWeight: 600 }}>Cost</th>
+                                    <th style={{ textAlign: 'right', padding: '4px 6px', fontSize: 10, color: '#27AE60', fontWeight: 600 }}>Profit</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {driverWeeks.map(w => {
+                                    const r = weekMap[w]?.[name]?.revenue || 0
+                                    const c = weekMap[w]?.[name]?.cost || 0
+                                    const p = r - c
+                                    return (
+                                      <tr key={w} style={{ borderTop: '1px solid #F0F2F7' }}>
+                                        <td style={{ padding: '6px', fontWeight: 500, color: '#0B1E3D' }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+                                        <td style={{ padding: '6px', textAlign: 'right', fontFamily: 'ui-monospace, monospace', color: r > 0 ? '#0B1E3D' : '#E0E4ED' }}>{r > 0 ? '$' + r.toLocaleString() : '—'}</td>
+                                        <td style={{ padding: '6px', textAlign: 'right', fontFamily: 'ui-monospace, monospace', color: c > 0 ? '#0B1E3D' : '#E0E4ED' }}>{c > 0 ? '$' + c.toLocaleString() : '—'}</td>
+                                        <td style={{ padding: '6px', textAlign: 'right', fontFamily: 'ui-monospace, monospace', fontWeight: 600, color: p >= 0 ? '#27AE60' : '#E74C3C' }}>{p >= 0 ? '+' : ''}${Math.round(p).toLocaleString()}</td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
