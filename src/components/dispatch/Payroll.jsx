@@ -17,6 +17,7 @@ export default function Payroll() {
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [showRevenue, setShowRevenue] = useState(false)
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, 1 = next, -1 = previous
+  const [paySubTab, setPaySubTab] = useState('payroll') // 'payroll' | 'revenue' | 'pl'
   const [settlements, setSettlements] = useState([])
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState(null)
@@ -462,7 +463,20 @@ export default function Payroll() {
         </div>
       </div>
 
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 2, background: '#F0F2F7', padding: 3, borderRadius: 12, marginBottom: 20, width: 'fit-content' }}>
+        {[['payroll', 'Payroll'], ['revenue', 'Revenue'], ['pl', 'P&L']].map(([key, label]) => (
+          <button key={key} onClick={() => setPaySubTab(key)} style={{
+            padding: '8px 20px', fontSize: 13, fontWeight: paySubTab === key ? 600 : 500,
+            color: paySubTab === key ? '#0B1E3D' : '#9BA5B4', background: paySubTab === key ? '#fff' : 'transparent',
+            borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+            boxShadow: paySubTab === key ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+          }}>{label}</button>
+        ))}
+      </div>
+
       {/* Payroll table */}
+      {paySubTab === 'payroll' && <>
       <div className="pay__table-wrap">
         <table className="pay__table">
           <thead>
@@ -688,32 +702,24 @@ export default function Payroll() {
         )
       })()}
 
-      {/* Revenue (collapsible) */}
-      <div style={{ marginTop: 24, background: 'var(--white)', border: '1px solid var(--gray-200)', borderRadius: 12, overflow: 'hidden' }}>
-        <button
-          onClick={() => setShowRevenue(v => !v)}
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '16px 24px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700, color: 'var(--gray-900)' }}
-        >
-          <span>Revenue</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: showRevenue ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        {showRevenue && (
-          <div style={{ padding: '0 24px 24px' }}>
-            <Revenue weekOf={(() => {
-              const now = new Date()
-              const dow = now.getDay()
-              const off = dow === 0 ? -6 : 1 - dow
-              const mon = new Date(now)
-              mon.setDate(mon.getDate() + off)
-              return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`
-            })()} driverPayroll={adjustedTotal} />
-          </div>
-        )}
-      </div>
+      </>}
 
-      {/* AI Insights */}
+      {/* Revenue sub-tab */}
+      {paySubTab === 'revenue' && (
+        <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 24 }}>
+          <Revenue weekOf={(() => {
+            const now = new Date()
+            const dow = now.getDay()
+            const off = dow === 0 ? -6 : 1 - dow
+            const mon = new Date(now)
+            mon.setDate(mon.getDate() + off)
+            return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,'0')}-${String(mon.getDate()).padStart(2,'0')}`
+          })()} driverPayroll={adjustedTotal} />
+        </div>
+      )}
+
+      {/* AI Insights — show on payroll tab */}
+      {paySubTab === 'payroll' && <>
       <div className="pay__insights">
         <div className="pay__insights-header">
           <h3 className="pay__insights-title">AI Insights</h3>
@@ -747,8 +753,10 @@ export default function Payroll() {
         )}
         <p className="pay__insights-note">AI insights are included in the payroll email when you Approve & Send</p>
       </div>
+      </>}
 
       {/* ── P&L Section ─────────────────────────────── */}
+      {paySubTab === 'pl' && <>
       <div className="pay__recon" style={{ marginTop: 32 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
@@ -932,6 +940,7 @@ export default function Payroll() {
           )
         })()}
       </div>
+      </>}
     </div>
   )
 }
