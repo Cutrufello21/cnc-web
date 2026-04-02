@@ -397,8 +397,32 @@ export default function Payroll() {
         throw new Error(`Email failed: ${errText}`)
       }
 
+      // 2. Sync payroll costs to settlements table for P&L tracking
+      try {
+        const weekOf = data.weekOf // "M/D/YYYY"
+        const [m, d, y] = weekOf.split('/')
+        const mondayStr = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`
+        // Find matching OpenForce week (Friday before this Monday, within 5 days)
+        const monday = new Date(mondayStr + 'T12:00:00')
+        const friday = new Date(monday); friday.setDate(friday.getDate() - 3)
+        const ofWeek = `${friday.getFullYear()}-${String(friday.getMonth()+1).padStart(2,'0')}-${String(friday.getDate()).padStart(2,'0')}`
+
+        for (const driver of data.drivers) {
+          const pay = getAdjustedPay(driver)
+          if (pay <= 0) continue
+          const { data: existing } = await supabase.from('settlements')
+            .select('id').eq('week_of', ofWeek).eq('driver_name', driver.name).single()
+          if (existing) {
+            await supabase.from('settlements').update({ cost: pay }).eq('id', existing.id)
+          } else {
+            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: driver.name, revenue: 0, cost: pay, source: 'payroll-auto' })
+          }
+        }
+      } catch (syncErr) { console.warn('Settlement sync:', syncErr.message) }
+
       setApproved(true)
       showToast('Payroll approved and sent to accountant')
+      loadSettlements() // refresh P&L data
     } catch (err) {
       showToast(`Error: ${err.message}`, true)
     } finally {
