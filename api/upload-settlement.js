@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     const buffer = Buffer.concat(chunks)
 
     // Parse Excel
-    const wb = XLSX.read(buffer, { type: 'buffer' })
+    const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true })
 
     // Find the sheet with commission data (usually first or "Commissions" sheet)
     let ws = null
@@ -68,19 +68,34 @@ export default async function handler(req, res) {
     }
 
     // Find settlement date columns
-    // Row pattern: empty | empty | empty | date1 | date2 | ...
+    // Excel dates can be: Date objects, strings "2026-01-02 00:00:00", numbers (serial), or "YYYY-MM-DD"
     let dateRow = null
     const dates = []
+
+    function parseExcelDate(val) {
+      if (val == null) return null
+      // Already a Date
+      if (val instanceof Date && !isNaN(val.getTime())) return val.toISOString().split('T')[0]
+      // Excel serial number (e.g. 46023)
+      if (typeof val === 'number' && val > 40000 && val < 60000) {
+        const d = new Date((val - 25569) * 86400000)
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]
+      }
+      // String date
+      const s = String(val).trim()
+      const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+      if (match) return `${match[1]}-${match[2]}-${match[3]}`
+      // MM/DD/YYYY
+      const match2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+      if (match2) return `${match2[3]}-${match2[1].padStart(2,'0')}-${match2[2].padStart(2,'0')}`
+      return null
+    }
+
     for (const row of ws) {
       const rowDates = []
       for (let i = 3; i < row.length; i++) {
-        const val = row[i]
-        if (val instanceof Date || (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val))) {
-          const d = val instanceof Date ? val : new Date(val)
-          if (!isNaN(d.getTime())) {
-            rowDates.push({ col: i, date: d.toISOString().split('T')[0] })
-          }
-        }
+        const parsed = parseExcelDate(row[i])
+        if (parsed) rowDates.push({ col: i, date: parsed })
       }
       if (rowDates.length >= 2) {
         dateRow = row
