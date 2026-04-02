@@ -100,6 +100,22 @@ export default function Payroll() {
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
       setUploadResult(result)
+      // Auto-log revenue to company ledger
+      if (result.totalRevenue > 0) {
+        try {
+          const { data: lastLedger } = await supabase.from('company_ledger').select('running_balance').order('created_at', { ascending: false }).limit(1).single()
+          const currentBal = lastLedger ? parseFloat(lastLedger.running_balance) : 0
+          const weekRange = result.weeks?.length > 0 ? `${result.weeks[0]} to ${result.weeks[result.weeks.length - 1]}` : ''
+          await supabase.from('company_ledger').insert({
+            date: new Date().toISOString().split('T')[0],
+            type: 'income',
+            description: `OpenForce settlement — ${weekRange}`,
+            amount: result.totalRevenue,
+            running_balance: Math.round((currentBal + result.totalRevenue) * 100) / 100,
+          })
+          loadLedger()
+        } catch (ledgerErr) { console.warn('Ledger sync:', ledgerErr.message) }
+      }
       loadSettlements()
     } catch (err) {
       setUploadResult({ error: err.message })
@@ -456,9 +472,24 @@ export default function Payroll() {
         }
       } catch (syncErr) { console.warn('Settlement sync:', syncErr.message) }
 
+      // Auto-log payroll expense to company ledger
+      try {
+        const { data: lastLedger } = await supabase.from('company_ledger').select('running_balance').order('created_at', { ascending: false }).limit(1).single()
+        const currentBal = lastLedger ? parseFloat(lastLedger.running_balance) : 0
+        const weLabel = data.weekEnding || 'current week'
+        await supabase.from('company_ledger').insert({
+          date: new Date().toISOString().split('T')[0],
+          type: 'expense',
+          description: `Driver payroll — WE ${weLabel}`,
+          amount: -adjustedTotal,
+          running_balance: Math.round((currentBal - adjustedTotal) * 100) / 100,
+        })
+      } catch (ledgerErr) { console.warn('Ledger sync:', ledgerErr.message) }
+
       setApproved(true)
       showToast('Payroll approved and sent to accountant')
-      loadSettlements() // refresh P&L data
+      loadSettlements()
+      loadLedger()
     } catch (err) {
       showToast(`Error: ${err.message}`, true)
     } finally {
