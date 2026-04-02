@@ -16,7 +16,6 @@ const PHARMACY_ORIGINS = {
 const DAY_MAP = { Monday: 'mon', Tuesday: 'tue', Wednesday: 'wed', Thursday: 'thu', Friday: 'fri' }
 const FLOATING_DRIVERS = new Set(['Brad', 'Kasey'])
 const MAX_STOPS = 55
-const COLD_CHAIN_PENALTY_SECONDS = 1800 // 30 min penalty if cold chain delivered late
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
@@ -84,26 +83,20 @@ export default async function handler(req, res) {
         label: `${s.order_id}|${s.patient_name}|${s.address}`,
         deliveries: [{
           arrivalLocation: { latitude: s.lat, longitude: s.lng },
-          duration: isCold ? '180s' : '120s', // 3 min cold, 2 min regular
+          duration: '120s', // 2 min service time for all stops
         }],
         loadDemands: {
           stops: { amount: '1' },
         },
       }
 
-      // Cold chain: add penalty cost to encourage early delivery
-      if (isCold) {
-        shipment.penaltyCost = COLD_CHAIN_PENALTY_SECONDS
-      }
-
-      // If stop already has a driver assigned via routing rules, prefer that driver
+      // Hard constraint: if stop has a driver assigned, lock it to that driver
+      // Optimizer will only reorder stops within each driver, not reassign
       const currentDriver = s.driver_name
       const vehicleIdx = availableDrivers.findIndex(d => d.driver_name === currentDriver)
       if (vehicleIdx >= 0 && !FLOATING_DRIVERS.has(currentDriver)) {
-        // Soft preference — not a hard constraint so optimizer can still rebalance
-        shipment.costsPerVehicle = availableDrivers.map((_, vi) =>
-          vi === vehicleIdx ? 0 : 50 // penalty for assigning to a different driver
-        )
+        // allowedVehicleIndices locks this stop to its assigned driver
+        shipment.allowedVehicleIndices = [vehicleIdx]
       }
 
       return shipment
