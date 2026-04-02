@@ -407,15 +407,17 @@ export default function Payroll() {
         const friday = new Date(monday); friday.setDate(friday.getDate() - 3)
         const ofWeek = `${friday.getFullYear()}-${String(friday.getMonth()+1).padStart(2,'0')}-${String(friday.getDate()).padStart(2,'0')}`
 
+        const nameMap = { 'Nicholas': 'Nick', 'Theressa': 'Theresa', 'Robert': 'Bobby', 'Dominic': 'Dom' }
         for (const driver of data.drivers) {
           const pay = getAdjustedPay(driver)
           if (pay <= 0) continue
+          const plName = nameMap[driver.name] || driver.name
           const { data: existing } = await supabase.from('settlements')
-            .select('id').eq('week_of', ofWeek).eq('driver_name', driver.name).single()
+            .select('id').eq('week_of', ofWeek).eq('driver_name', plName).single()
           if (existing) {
             await supabase.from('settlements').update({ cost: pay }).eq('id', existing.id)
           } else {
-            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: driver.name, revenue: 0, cost: pay, source: 'payroll-auto' })
+            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: plName, revenue: 0, cost: pay, source: 'payroll-auto' })
           }
         }
       } catch (syncErr) { console.warn('Settlement sync:', syncErr.message) }
