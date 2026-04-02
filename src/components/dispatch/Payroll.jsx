@@ -24,6 +24,38 @@ export default function Payroll() {
   const [showPL, setShowPL] = useState(false)
   const [hoveredWeek, setHoveredWeek] = useState(null) // for chart tooltip
   const [expandedDriver, setExpandedDriver] = useState(null) // click to expand driver card
+  const [ledger, setLedger] = useState([])
+  const [ledgerForm, setLedgerForm] = useState({ type: 'income', description: '', amount: '' })
+  const [addingLedger, setAddingLedger] = useState(false)
+
+  async function loadLedger() {
+    const { data } = await supabase.from('company_ledger').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(100)
+    setLedger(data || [])
+  }
+
+  useEffect(() => { loadLedger() }, [])
+
+  async function addLedgerEntry() {
+    if (!ledgerForm.amount || !ledgerForm.description) return
+    setAddingLedger(true)
+    const amount = parseFloat(ledgerForm.amount)
+    if (isNaN(amount) || amount <= 0) { setAddingLedger(false); return }
+
+    // Get current balance
+    const lastBalance = ledger.length > 0 ? parseFloat(ledger[0].running_balance) : 0
+    const newBalance = ledgerForm.type === 'income' ? lastBalance + amount : lastBalance - amount
+
+    await supabase.from('company_ledger').insert({
+      date: new Date().toISOString().split('T')[0],
+      type: ledgerForm.type,
+      description: ledgerForm.description,
+      amount: ledgerForm.type === 'expense' ? -amount : amount,
+      running_balance: Math.round(newBalance * 100) / 100,
+    })
+    setLedgerForm({ type: 'income', description: '', amount: '' })
+    setAddingLedger(false)
+    loadLedger()
+  }
 
   const [allPayroll, setAllPayroll] = useState([])
 
@@ -808,16 +840,70 @@ export default function Payroll() {
 
       {/* ── P&L Section ─────────────────────────────── */}
       {paySubTab === 'pl' && <>
-      <div className="pay__recon" style={{ marginTop: 32 }}>
+
+      {/* ── Company Balance ──────────────────────────── */}
+      <div style={{ background: '#0B1E3D', borderRadius: 16, padding: 20, marginBottom: 24, color: '#fff' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.8, textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Company Balance</div>
+            <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: -1 }}>
+              ${ledger.length > 0 ? parseFloat(ledger[0].running_balance).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}
+            </div>
+            {ledger.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>as of {new Date(ledger[0].date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <label style={{ padding: '8px 16px', fontSize: 12, fontWeight: 600, color: '#0B1E3D', background: '#F0F2F7', borderRadius: 10, cursor: 'pointer' }}>
+              {uploading ? 'Uploading...' : '↑ Upload Settlement'}
+              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
+            </label>
+          </div>
+        </div>
+
+        {/* Add transaction form */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 12 }}>
+          <select value={ledgerForm.type} onChange={e => setLedgerForm(f => ({ ...f, type: e.target.value }))}
+            style={{ padding: '8px 10px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, background: ledgerForm.type === 'income' ? '#27AE60' : '#E74C3C', color: '#fff', cursor: 'pointer' }}>
+            <option value="income">+ Income</option>
+            <option value="expense">- Expense</option>
+          </select>
+          <input type="text" placeholder="Description" value={ledgerForm.description} onChange={e => setLedgerForm(f => ({ ...f, description: e.target.value }))}
+            style={{ flex: 1, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 13, outline: 'none' }} />
+          <input type="number" placeholder="Amount" value={ledgerForm.amount} onChange={e => setLedgerForm(f => ({ ...f, amount: e.target.value }))}
+            style={{ width: 100, padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 13, outline: 'none', textAlign: 'right' }}
+            onKeyDown={e => e.key === 'Enter' && addLedgerEntry()} />
+          <button onClick={addLedgerEntry} disabled={addingLedger || !ledgerForm.amount || !ledgerForm.description}
+            style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: '#4A9EFF', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', opacity: (!ledgerForm.amount || !ledgerForm.description) ? 0.4 : 1 }}>
+            Add
+          </button>
+        </div>
+
+        {/* Recent transactions */}
+        {ledger.length > 1 && (
+          <div style={{ maxHeight: 160, overflowY: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8 }}>
+            {ledger.filter(l => l.type !== 'balance').slice(0, 10).map(l => (
+              <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+                <div>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', marginRight: 8 }}>{new Date(l.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.8)' }}>{l.description}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: parseFloat(l.amount) >= 0 ? '#4ade80' : '#f87171' }}>
+                    {parseFloat(l.amount) >= 0 ? '+' : ''}${parseFloat(l.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'ui-monospace, monospace' }}>${parseFloat(l.running_balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="pay__recon" style={{ marginTop: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
             <h3 className="pay__recon-title">Profit & Loss</h3>
             <p className="pay__recon-sub">Revenue (OpenForce) vs Cost (Driver Pay)</p>
           </div>
-          <label style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#0B1E3D', background: '#F0F2F7', borderRadius: 10, cursor: 'pointer' }}>
-            {uploading ? 'Uploading...' : '↑ Upload Settlement'}
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
-          </label>
         </div>
 
         {uploadResult && (
