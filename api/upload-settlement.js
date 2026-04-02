@@ -10,11 +10,11 @@ const NAME_MAP = {
   'CHISNELL, MICHAEL': 'Mike',
   'CUTRUFELLO, DOMINIC': 'Dom',
   'CUTRUFELLO, MARK': 'Mark',
-  'EAGER, NICHOLAS': 'Nick', // Nick Eager — was 'Nicholas' in old payroll
+  'EAGER, NICHOLAS': 'Nicholas',
   'EVANS, LAURA': 'Laura',
   'HARVEY, KASEY': 'Kasey',
   'MILLER, ROBERT': 'Bobby',
-  'POLLACK, NICK': 'Nick P',
+  'POLLACK, NICK': 'Nick',
   'REED, ALEXANDER': 'Alex',
   'ROBERTS JR, ROBERT': 'Rob',
   'SHONDEL, ADAM': 'Adam',

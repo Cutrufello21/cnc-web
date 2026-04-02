@@ -407,7 +407,7 @@ export default function Payroll() {
         const friday = new Date(monday); friday.setDate(friday.getDate() - 3)
         const ofWeek = `${friday.getFullYear()}-${String(friday.getMonth()+1).padStart(2,'0')}-${String(friday.getDate()).padStart(2,'0')}`
 
-        const nameMap = { 'Nicholas': 'Nick', 'Theressa': 'Theresa', 'Robert': 'Bobby', 'Dominic': 'Dom' }
+        const nameMap = { 'Theressa': 'Theresa', 'Robert': 'Bobby', 'Dominic': 'Dom' }
         for (const driver of data.drivers) {
           const pay = getAdjustedPay(driver)
           if (pay <= 0) continue
