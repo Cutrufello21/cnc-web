@@ -17,6 +17,38 @@ export default function Payroll() {
   const [loadingInsights, setLoadingInsights] = useState(false)
   const [showRevenue, setShowRevenue] = useState(false)
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, 1 = next, -1 = previous
+  const [settlements, setSettlements] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadResult, setUploadResult] = useState(null)
+  const [showPL, setShowPL] = useState(false)
+
+  async function loadSettlements() {
+    const { data: s } = await supabase.from('settlements').select('*').order('week_of', { ascending: false }).limit(100)
+    setSettlements(s || [])
+  }
+
+  useEffect(() => { loadSettlements() }, [])
+
+  async function handleUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    setUploadResult(null)
+    try {
+      const res = await fetch('/api/upload-settlement', {
+        method: 'POST',
+        body: await file.arrayBuffer(),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error)
+      setUploadResult(result)
+      loadSettlements()
+    } catch (err) {
+      setUploadResult({ error: err.message })
+    }
+    setUploading(false)
+    e.target.value = ''
+  }
 
   useEffect(() => { loadPayroll() }, [weekOffset])
 
@@ -714,6 +746,96 @@ export default function Payroll() {
           </div>
         )}
         <p className="pay__insights-note">AI insights are included in the payroll email when you Approve & Send</p>
+      </div>
+
+      {/* ── P&L Section ─────────────────────────────── */}
+      <div className="pay__recon" style={{ marginTop: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            <h3 className="pay__recon-title">Profit & Loss</h3>
+            <p className="pay__recon-sub">Revenue (OpenForce) vs Cost (Driver Pay)</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#0B1E3D', background: '#F0F2F7', borderRadius: 10, cursor: 'pointer' }}>
+              {uploading ? 'Uploading...' : 'Upload Settlement'}
+              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleUpload} style={{ display: 'none' }} disabled={uploading} />
+            </label>
+            <button onClick={() => setShowPL(!showPL)} style={{ padding: '8px 16px', fontSize: 13, fontWeight: 600, color: '#fff', background: '#0B1E3D', borderRadius: 10, border: 'none', cursor: 'pointer' }}>
+              {showPL ? 'Hide' : 'Show'} P&L
+            </button>
+          </div>
+        </div>
+
+        {uploadResult && (
+          <div style={{ padding: 12, borderRadius: 10, marginBottom: 16, fontSize: 13, background: uploadResult.error ? '#FDE8E8' : '#E6F5EE', color: uploadResult.error ? '#E74C3C' : '#27AE60', fontWeight: 500 }}>
+            {uploadResult.error
+              ? `Error: ${uploadResult.error}`
+              : `Uploaded ${uploadResult.recordCount} records across ${uploadResult.weeks?.length} weeks — $${uploadResult.totalRevenue?.toLocaleString()} total revenue`
+            }
+          </div>
+        )}
+
+        {showPL && (() => {
+          // Group settlements by week
+          const weekMap = {}
+          settlements.forEach(s => {
+            if (!weekMap[s.week_of]) weekMap[s.week_of] = {}
+            weekMap[s.week_of][s.driver_name] = s.revenue
+          })
+          const weeks = Object.keys(weekMap).sort().reverse().slice(0, 8)
+
+          // Get driver costs from current payroll data
+          const driverCosts = {}
+          if (data?.drivers) {
+            data.drivers.forEach(d => {
+              driverCosts[d.name] = d.totalPay || 0
+            })
+          }
+
+          // All driver names from settlements
+          const allDrivers = [...new Set(settlements.map(s => s.driver_name))].sort()
+
+          return (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="pay__table" style={{ fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', position: 'sticky', left: 0, background: '#F7F8FB', zIndex: 2 }}>Driver</th>
+                    {weeks.map(w => <th key={w} style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</th>)}
+                    <th style={{ textAlign: 'right' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDrivers.map(name => {
+                    const total = weeks.reduce((s, w) => s + (weekMap[w]?.[name] || 0), 0)
+                    return (
+                      <tr key={name}>
+                        <td style={{ fontWeight: 600, position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>{name}</td>
+                        {weeks.map(w => {
+                          const rev = weekMap[w]?.[name]
+                          return <td key={w} style={{ textAlign: 'right', fontFamily: 'ui-monospace, monospace', color: rev ? '#0B1E3D' : '#E0E4ED' }}>{rev ? `$${rev.toLocaleString()}` : '—'}</td>
+                        })}
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace' }}>${total.toLocaleString()}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid #F0F2F7' }}>
+                    <td style={{ fontWeight: 700, position: 'sticky', left: 0, background: '#F7F8FB', zIndex: 1 }}>Weekly Total</td>
+                    {weeks.map(w => {
+                      const weekTotal = allDrivers.reduce((s, n) => s + (weekMap[w]?.[n] || 0), 0)
+                      return <td key={w} style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: '#0B1E3D' }}>${weekTotal.toLocaleString()}</td>
+                    })}
+                    <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'ui-monospace, monospace', fontSize: 15, color: '#0B1E3D' }}>
+                      ${weeks.reduce((s, w) => s + allDrivers.reduce((s2, n) => s2 + (weekMap[w]?.[n] || 0), 0), 0).toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
