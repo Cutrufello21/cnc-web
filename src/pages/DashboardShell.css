@@ -1,12 +1,13 @@
+/* ── Dashboard Shell ──────────────────────────────── */
 .shell {
   min-height: 100vh;
-  background: var(--gray-50);
+  background: #F7F8FB;
 }
 
 .shell__header {
-  background: var(--white);
-  border-bottom: 1px solid var(--gray-200);
-  padding: 14px 0;
+  background: #ffffff;
+  border-bottom: 1px solid #F0F2F7;
+  padding: 10px 0;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -21,12 +22,12 @@
 .shell__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .shell__logo {
-  background: var(--navy);
-  color: var(--cornflower);
+  background: #0B1E3D;
+  color: #4A9EFF;
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 1px;
@@ -38,55 +39,58 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 110px;
-  height: 42px;
-  background: #0A2463;
-  border-radius: 21px;
+  padding: 8px 20px;
+  background: #0B1E3D;
+  border-radius: 10px;
   color: #fff;
   font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
-  font-weight: 600;
-  font-size: 16px;
-  letter-spacing: 3.5px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 3px;
   user-select: none;
 }
 
 .shell__title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--gray-900);
+  font-size: 17px;
+  font-weight: 700;
+  color: #0B1E3D;
+  letter-spacing: -0.3px;
 }
 
+/* ── Navigation Tabs ───────────────────────────────── */
 .shell__view-toggle {
   display: flex;
-  gap: 2px;
-  background: var(--gray-100);
+  gap: 1px;
+  background: #F0F2F7;
   padding: 3px;
-  border-radius: 8px;
+  border-radius: 12px;
   margin-left: 16px;
 }
 
 .shell__view-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 5px 14px;
+  gap: 6px;
+  padding: 7px 14px;
   font-size: 13px;
   font-weight: 500;
-  color: var(--gray-500);
-  border-radius: 6px;
+  color: #9BA5B4;
+  border-radius: 10px;
   transition: all 0.15s;
 }
 .shell__view-btn svg { flex-shrink: 0; }
+.shell__view-btn:hover { color: #0B1E3D; }
 
 .shell__view-btn--active {
-  background: var(--white);
-  color: var(--gray-900);
-  box-shadow: var(--shadow-sm);
+  background: #ffffff;
+  color: #0B1E3D;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
 .shell__view-btn--alert {
-  border: 1.5px solid rgba(239, 68, 68, 0.4);
-  color: #ef4444;
+  border: 1.5px solid rgba(231, 76, 60, 0.35);
+  color: #E74C3C;
   animation: navAlertPulse 2.5s ease-in-out infinite;
   position: relative;
 }
@@ -101,77 +105,81 @@
   font-size: 10px;
   font-weight: 700;
   color: white;
-  background: #ef4444;
+  background: #E74C3C;
   border-radius: 8px;
   margin-left: 4px;
 }
 
 @keyframes navAlertPulse {
-  0%, 100% { border-color: rgba(239, 68, 68, 0.4); }
-  50% { border-color: rgba(239, 68, 68, 0.8); }
+  0%, 100% { border-color: rgba(231, 76, 60, 0.35); }
+  50% { border-color: rgba(231, 76, 60, 0.7); }
 }
 
+/* ── User Section ──────────────────────────────────── */
 .shell__user {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .shell__name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--gray-600);
+  color: #9BA5B4;
 }
 
 .shell__signout {
   font-size: 13px;
   font-weight: 500;
-  color: var(--gray-400);
+  color: #9BA5B4;
   padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--gray-200);
-  transition: all 0.2s;
+  border-radius: 10px;
+  border: 1px solid #F0F2F7;
+  transition: all 0.15s;
 }
 
 .shell__signout:hover {
-  color: var(--gray-600);
-  border-color: var(--gray-300);
+  color: #0B1E3D;
+  border-color: #E0E4ED;
+  background: #F7F8FB;
 }
 
+/* ── Main Content ──────────────────────────────────── */
 .shell__main {
-  padding-top: 40px;
+  padding-top: 28px;
   padding-bottom: 40px;
 }
 
 .shell__placeholder {
   text-align: center;
   padding: 80px 24px;
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-lg);
+  background: #ffffff;
+  border: 1px solid #F0F2F7;
+  border-radius: 16px;
 }
 
 .shell__placeholder h1 {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: #0B1E3D;
   margin-bottom: 12px;
 }
 
 .shell__placeholder p {
-  font-size: 16px;
-  color: var(--gray-500);
+  font-size: 15px;
+  color: #9BA5B4;
   max-width: 480px;
   margin: 0 auto;
 }
 
+/* ── Responsive ────────────────────────────────────── */
 @media (max-width: 768px) {
   .shell__header-inner { flex-wrap: wrap; gap: 8px; }
   .shell__view-toggle { margin-left: 0; flex-wrap: wrap; order: 3; width: 100%; }
   .shell__view-btn { padding: 6px 10px; font-size: 12px; }
   .shell__user { gap: 8px; }
   .shell__name { display: none; }
-  .shell__main { padding-top: 20px; padding-bottom: 20px; }
+  .shell__main { padding-top: 16px; padding-bottom: 20px; }
 }
 
 @media (max-width: 480px) {

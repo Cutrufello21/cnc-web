@@ -1,34 +1,33 @@
+/* ── Driver Card ──────────────────────────────────── */
 .dcard {
-  background: var(--white);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  background: #ffffff;
+  border: 1px solid #F0F2F7;
+  border-radius: 16px;
+  transition: border-color 0.15s;
   overflow: hidden;
 }
 
 .dcard:hover {
-  border-color: rgba(100, 149, 237, 0.3);
-  box-shadow: var(--shadow-md);
+  border-color: #E0E4ED;
 }
 
 .dcard--inactive {
-  background: var(--gray-50);
+  background: #F7F8FB;
 }
-
 .dcard--inactive:hover {
-  border-color: var(--gray-200);
-  box-shadow: none;
+  border-color: #F0F2F7;
 }
 
 .dcard--expanded {
   grid-column: 1 / -1;
 }
 
+/* ── Header ──────────────────────────────────────── */
 .dcard__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 20px 20px 0;
+  padding: 16px 16px 0;
   cursor: pointer;
 }
 
@@ -42,7 +41,7 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #16a34a;
+  accent-color: #27AE60;
   flex-shrink: 0;
 }
 
@@ -52,24 +51,25 @@
 }
 
 .dcard--reviewed {
-  border-color: #16a34a40;
-  background: #f0fdf4;
+  border-color: rgba(39, 174, 96, 0.25);
+  background: #E6F5EE;
 }
 
 [data-theme="dark"] .dcard--reviewed {
   background: #0d1f0d;
-  border-color: #16a34a30;
+  border-color: rgba(39, 174, 96, 0.2);
 }
 
 .dcard__name {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--gray-900);
+  font-size: 15px;
+  font-weight: 700;
+  color: #0B1E3D;
+  letter-spacing: -0.2px;
 }
 
 .dcard__id {
-  font-size: 13px;
-  color: var(--gray-400);
+  font-size: 12px;
+  color: #9BA5B4;
   font-family: ui-monospace, monospace;
 }
 
@@ -80,26 +80,27 @@
 }
 
 .dcard__pharmacy {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: 980px;
   letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .dcard__chevron {
-  color: var(--gray-400);
+  color: #9BA5B4;
   transition: transform 0.2s;
 }
-
 .dcard__chevron--open {
   transform: rotate(180deg);
 }
 
+/* ── Stats ───────────────────────────────────────── */
 .dcard__stats {
   display: flex;
-  gap: 20px;
-  padding: 16px 20px;
+  gap: 16px;
+  padding: 14px 16px;
 }
 
 .dcard__stat {
@@ -108,48 +109,43 @@
 }
 
 .dcard__stat-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  color: var(--gray-900);
+  color: #0B1E3D;
   letter-spacing: -0.5px;
   line-height: 1;
 }
 
 .dcard__stat--cold .dcard__stat-value {
-  color: var(--cornflower);
+  color: #4A9EFF;
 }
 
 .dcard__stat--alert {
-  background: rgba(239, 68, 68, 0.12);
-  border-radius: 6px;
+  background: #FDE8E8;
+  border-radius: 8px;
   padding: 4px 8px;
-  animation: alertPulse 2s ease-in-out infinite;
 }
 .dcard__stat--alert .dcard__stat-value {
-  color: #ef4444 !important;
+  color: #E74C3C !important;
   font-weight: 700;
 }
 .dcard__stat--alert .dcard__stat-label {
-  color: #ef4444;
+  color: #E74C3C;
   font-weight: 600;
-}
-@keyframes alertPulse {
-  0%, 100% { background: rgba(239, 68, 68, 0.12); }
-  50% { background: rgba(239, 68, 68, 0.25); }
 }
 
 .dcard__stat-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--gray-400);
+  font-size: 10px;
+  font-weight: 600;
+  color: #9BA5B4;
   margin-top: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 }
 
-/* Expanded stop list */
+/* ── Stop Table ──────────────────────────────────── */
 .dcard__stops {
-  border-top: 1px solid var(--gray-100);
+  border-top: 1px solid #F0F2F7;
   overflow-x: auto;
 }
 
@@ -161,21 +157,21 @@
 
 .dcard__table th {
   text-align: left;
-  padding: 10px 12px;
+  padding: 8px 12px;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--gray-500);
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--gray-200);
+  letter-spacing: 0.8px;
+  color: #9BA5B4;
+  background: #F7F8FB;
+  border-bottom: 1px solid #F0F2F7;
   white-space: nowrap;
 }
 
 .dcard__table td {
-  padding: 8px 12px;
-  color: var(--gray-700);
-  border-bottom: 1px solid var(--gray-100);
+  padding: 7px 12px;
+  color: #0B1E3D;
+  border-bottom: 1px solid #F0F2F7;
 }
 
 .dcard__table tbody tr:last-child td {
@@ -183,16 +179,16 @@
 }
 
 .dcard__table tbody tr:hover {
-  background: var(--gray-50);
+  background: #F7F8FB;
 }
 
 .dcard__row--cold {
-  background: #f0f7ff;
+  background: #E8F1FF;
 }
 
 .dcard__cell-num {
-  font-weight: 600;
-  color: var(--gray-400);
+  font-weight: 700;
+  color: #9BA5B4;
   font-family: ui-monospace, monospace;
   font-size: 12px;
   width: 32px;
@@ -208,19 +204,19 @@
 .dcard__cell-zip {
   font-weight: 600;
   font-family: ui-monospace, monospace;
-  color: var(--cornflower);
+  color: #4A9EFF;
 }
 
 .dcard__cell-order {
   font-family: ui-monospace, monospace;
   font-size: 12px;
-  color: var(--gray-500);
+  color: #9BA5B4;
 }
 
 .dcard__cell-notes {
   font-size: 11px;
   font-weight: 600;
-  color: #f59e0b;
+  color: #B07D00;
   white-space: nowrap;
   width: 50px;
   max-width: 50px;
@@ -229,18 +225,18 @@
 .dcard__cell-pharma {
   font-size: 12px;
   font-weight: 500;
-  color: var(--gray-500);
+  color: #9BA5B4;
 }
 
 .dcard__email {
   margin-top: 0;
-  padding: 10px 20px;
-  border-top: 1px solid var(--gray-100);
-  font-size: 13px;
-  color: var(--gray-400);
+  padding: 10px 16px;
+  border-top: 1px solid #F0F2F7;
+  font-size: 12px;
+  color: #9BA5B4;
 }
 
-/* Checkboxes */
+/* ── Checkboxes ──────────────────────────────────── */
 .dcard__th-check,
 .dcard__cell-check {
   width: 32px;
@@ -252,27 +248,27 @@
   cursor: pointer;
   width: 15px;
   height: 15px;
-  accent-color: var(--cornflower);
+  accent-color: #4A9EFF;
 }
 
 .dcard__row--selected {
-  background: #eef4ff !important;
+  background: #E8F1FF !important;
 }
 
-/* Reassign toolbar */
+/* ── Reassign Toolbar ────────────────────────────── */
 .dcard__reassign {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  background: var(--blue-tint);
-  border-bottom: 1px solid rgba(100, 149, 237, 0.15);
+  padding: 10px 14px;
+  background: #E8F1FF;
+  border-bottom: 1px solid rgba(74, 158, 255, 0.15);
 }
 
 .dcard__reassign-count {
   font-size: 13px;
   font-weight: 600;
-  color: var(--cornflower);
+  color: #4A9EFF;
   white-space: nowrap;
 }
 
@@ -280,10 +276,10 @@
   font-family: var(--font-sans);
   font-size: 13px;
   padding: 6px 10px;
-  border: 1px solid var(--gray-200);
-  border-radius: 6px;
-  background: var(--white);
-  color: var(--gray-700);
+  border: 1px solid #F0F2F7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0B1E3D;
   flex: 1;
   min-width: 0;
 }
@@ -292,182 +288,149 @@
   font-size: 13px;
   font-weight: 600;
   padding: 6px 16px;
-  background: var(--navy);
-  color: var(--white);
-  border-radius: 6px;
+  background: #0B1E3D;
+  color: #ffffff;
+  border-radius: 8px;
   white-space: nowrap;
-  transition: background 0.2s;
+  transition: background 0.15s;
 }
+.dcard__reassign-btn:hover:not(:disabled) { background: #162d52; }
+.dcard__reassign-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.dcard__reassign-btn:hover:not(:disabled) {
-  background: var(--navy-light);
-}
-
-.dcard__reassign-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+/* ── Card Action Buttons ─────────────────────────── */
 .dcard__send {
-  padding: 4px 14px;
+  padding: 5px 14px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--navy);
+  color: #0B1E3D;
   background: transparent;
-  border: 1px solid var(--navy);
-  border-radius: 6px;
+  border: 1px solid #0B1E3D;
+  border-radius: 8px;
   cursor: pointer;
   margin-left: auto;
   transition: all 0.15s;
 }
-.dcard__send:hover:not(:disabled) { background: var(--navy); color: white; }
+.dcard__send:hover:not(:disabled) { background: #0B1E3D; color: white; }
 .dcard__send:disabled { opacity: 0.5; cursor: not-allowed; }
-.dcard__send--done { background: #16a34a; color: white; border-color: #16a34a; opacity: 1 !important; }
+.dcard__send--done { background: #27AE60; color: white; border-color: #27AE60; opacity: 1 !important; }
+
 .dcard__optimize {
-  padding: 4px 12px; font-size: 11px; font-weight: 600; color: #2563eb;
-  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+  padding: 5px 12px; font-size: 11px; font-weight: 600; color: #4A9EFF;
+  background: #E8F1FF; border: 1px solid #BDD8FF; border-radius: 8px; cursor: pointer; transition: all 0.15s;
 }
-.dcard__optimize:hover:not(:disabled) { background: #2563eb; color: white; }
+.dcard__optimize:hover:not(:disabled) { background: #4A9EFF; color: white; border-color: #4A9EFF; }
 .dcard__optimize:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .dcard__clear-order {
-  padding: 2px 6px; font-size: 11px; font-weight: 600; color: #dc2626;
-  background: #fef2f2; border: 1px solid #fecaca; border-radius: 4px; cursor: pointer;
+  padding: 2px 6px; font-size: 11px; font-weight: 600; color: #E74C3C;
+  background: #FDE8E8; border: 1px solid #F5C6C6; border-radius: 6px; cursor: pointer;
 }
-.dcard__clear-order:hover { background: #dc2626; color: white; }
+.dcard__clear-order:hover { background: #E74C3C; color: white; }
+
 .dcard__reopen {
-  padding: 2px 8px; font-size: 10px; font-weight: 600; color: #16a34a;
-  background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; cursor: pointer; white-space: nowrap;
+  padding: 2px 8px; font-size: 10px; font-weight: 600; color: #27AE60;
+  background: #E6F5EE; border: 1px solid #A7E8C5; border-radius: 6px; cursor: pointer; white-space: nowrap;
 }
-.dcard__reopen:hover { background: #16a34a; color: white; }
-.dcard__reopen--failed { color: #d97706; background: #fffbeb; border-color: #fde68a; }
-.dcard__reopen--failed:hover { background: #d97706; color: white; }
+.dcard__reopen:hover { background: #27AE60; color: white; }
+.dcard__reopen--failed { color: #B07D00; background: #FFF8EC; border-color: #FFE5A0; }
+.dcard__reopen--failed:hover { background: #B07D00; color: white; }
+
 .dcard__cell-status { text-align: center; }
-.dcard__row--delivered { background: #f0fdf4; opacity: 0.7; }
-.dcard__row--delivered td { text-decoration: line-through; color: #6b7280; }
+.dcard__row--delivered { background: #E6F5EE; opacity: 0.6; }
+.dcard__row--delivered td { text-decoration: line-through; color: #9BA5B4; }
 .dcard__row--delivered .dcard__cell-status { text-decoration: none; opacity: 1; }
-.dcard__row--failed { background: #fffbeb; opacity: 0.7; }
-.dcard__row--failed td { color: #d97706; }
+.dcard__row--failed { background: #FFF8EC; opacity: 0.6; }
+.dcard__row--failed td { color: #B07D00; }
 .dcard__row--failed .dcard__cell-status { opacity: 1; }
 
+/* ── Move Result ─────────────────────────────────── */
 .dcard__move-result {
-  padding: 8px 16px;
+  padding: 8px 14px;
   font-size: 13px;
   font-weight: 500;
-  color: #16a34a;
-  background: #dcfce7;
+  color: #27AE60;
+  background: #E6F5EE;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #bbf7d0;
+  border-bottom: 1px solid #A7E8C5;
 }
-
-.dcard__move-result--err {
-  color: #dc4a4a;
-  background: #fef2f2;
-  border-color: #fecaca;
-}
+.dcard__move-result--err { color: #E74C3C; background: #FDE8E8; border-color: #F5C6C6; }
 
 .dcard__undo-btn {
   padding: 4px 12px;
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: #0B1E3D;
   background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border: 1px solid #F0F2F7;
+  border-radius: 6px;
   cursor: pointer;
   margin-left: 12px;
   white-space: nowrap;
 }
-.dcard__undo-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
-}
+.dcard__undo-btn:hover { background: #F7F8FB; }
 
-/* Sortable headers */
+/* ── Sortable Headers ────────────────────────────── */
 .dcard__th-sort {
   cursor: pointer;
   user-select: none;
   transition: color 0.15s;
 }
+.dcard__th-sort:hover { color: #0B1E3D; }
+.dcard__sort-arrow { color: #4A9EFF; font-weight: 700; }
 
-.dcard__th-sort:hover {
-  color: var(--gray-900);
-}
-
-.dcard__sort-arrow {
-  color: var(--cornflower);
-  font-weight: 700;
-}
-
-/* Filter row */
+/* ── Filter Row ──────────────────────────────────── */
 .dcard__filter-row td {
   padding: 4px 6px !important;
-  background: var(--gray-50);
-  border-bottom: 2px solid var(--gray-200) !important;
+  background: #F7F8FB;
+  border-bottom: 1px solid #F0F2F7 !important;
 }
-
-.dcard__filter-cell {
-  padding: 4px 4px !important;
-}
+.dcard__filter-cell { padding: 4px 4px !important; }
 
 .dcard__filter-inp,
 .dcard__filter-sel {
   font-family: var(--font-sans);
   font-size: 11px;
-  padding: 3px 5px;
-  border: 1px solid var(--gray-200);
-  border-radius: 3px;
-  background: var(--white);
-  color: var(--gray-700);
+  padding: 4px 6px;
+  border: 1px solid #F0F2F7;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0B1E3D;
   width: 100%;
   min-width: 50px;
   outline: none;
 }
-
 .dcard__filter-inp:focus,
-.dcard__filter-sel:focus {
-  border-color: var(--cornflower);
-}
+.dcard__filter-sel:focus { border-color: #4A9EFF; }
 
-/* Filter status bar */
 .dcard__filter-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  background: var(--blue-tint);
-  border-bottom: 1px solid rgba(100, 149, 237, 0.15);
+  padding: 6px 14px;
+  background: #E8F1FF;
+  border-bottom: 1px solid rgba(74, 158, 255, 0.15);
   font-size: 12px;
-  color: var(--cornflower);
-}
-
-.dcard__filter-clear {
-  font-size: 12px;
+  color: #4A9EFF;
   font-weight: 500;
-  color: var(--cornflower);
-  text-decoration: underline;
 }
+.dcard__filter-clear { font-size: 12px; font-weight: 500; color: #4A9EFF; text-decoration: underline; }
+.dcard__no-match { text-align: center; padding: 24px !important; color: #9BA5B4; font-style: italic; }
 
-.dcard__no-match {
-  text-align: center;
-  padding: 24px !important;
-  color: var(--gray-400);
-  font-style: italic;
-}
-
+/* ── Package Badge ───────────────────────────────── */
 .dcard__pkg-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 6px;
-  background: #fee2e2;
-  color: #dc2626;
-  border-radius: 4px;
+  background: #FDE8E8;
+  color: #E74C3C;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
 }
 
 .dcard__multi-name {
-  color: var(--gray-400);
+  color: #9BA5B4;
   font-size: 12px;
 }
