@@ -23,9 +23,32 @@ export default function Payroll() {
   const [uploadResult, setUploadResult] = useState(null)
   const [showPL, setShowPL] = useState(false)
 
+  const [allPayroll, setAllPayroll] = useState([])
+
   async function loadSettlements() {
-    const { data: s } = await supabase.from('settlements').select('*').order('week_of', { ascending: false }).limit(100)
-    setSettlements(s || [])
+    const [settRes, payRes, drvRes] = await Promise.all([
+      supabase.from('settlements').select('*').order('week_of', { ascending: false }).limit(200),
+      supabase.from('payroll').select('driver_name, week_of, mon, tue, wed, thu, fri, will_calls').order('week_of', { ascending: false }).limit(200),
+      supabase.from('drivers').select('driver_name, rate_mth, rate_wf, office_fee, flat_salary'),
+    ])
+    setSettlements(settRes.data || [])
+
+    // Calculate pay for each payroll row
+    const drvMap = {}
+    ;(drvRes.data || []).forEach(d => { drvMap[d.driver_name] = d })
+    const payRows = (payRes.data || []).map(p => {
+      const d = drvMap[p.driver_name] || {}
+      const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0, thu = p.thu || 0, fri = p.fri || 0
+      const wc = p.will_calls || 0
+      const flat = d.flat_salary ? parseFloat(d.flat_salary) : null
+      const rm = parseFloat(d.rate_mth) || 0, rw = parseFloat(d.rate_wf) || 0
+      const of_ = parseFloat(d.office_fee) || 0
+      let pay = 0
+      if (flat) { pay = flat }
+      else if (rm || rw) { pay = (mon + tue + thu) * rm + (wed + fri) * rw + wc * 9; if (mon + tue + wed + thu + fri > 0) pay += of_ }
+      return { driver_name: p.driver_name, week_of: p.week_of, pay: Math.round(pay * 100) / 100 }
+    })
+    setAllPayroll(payRows)
   }
 
   useEffect(() => { loadSettlements() }, [])
@@ -873,26 +896,79 @@ export default function Payroll() {
                 </div>
               </div>
 
-              {/* ── Driver Profitability ────────────────────── */}
-              <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 20, marginBottom: 24 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#0B1E3D', marginBottom: 16 }}>Driver Revenue (All Time)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {driverProfit.map((d, i) => {
-                    const maxRev = driverProfit[0]?.revenue || 1
-                    const barPct = (d.revenue / maxRev) * 100
-                    return (
-                      <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 18, fontSize: 12, fontWeight: 700, color: '#9BA5B4', textAlign: 'right' }}>{i + 1}</div>
-                        <div style={{ width: 70, fontSize: 13, fontWeight: 600, color: '#0B1E3D', flexShrink: 0 }}>{d.name}</div>
-                        <div style={{ flex: 1, height: 18, background: '#F0F2F7', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${barPct}%`, background: '#4A9EFF', borderRadius: 4, transition: 'width 0.4s' }} />
+              {/* ── Driver Revenue vs Cost ──────────────────── */}
+              {(() => {
+                // Build payroll cost map by week+driver
+                const payMap = {}
+                allPayroll.forEach(p => {
+                  const key = `${p.week_of}|${p.driver_name}`
+                  payMap[key] = p.pay
+                })
+
+                // Match weeks that have BOTH settlement and payroll data
+                const matchedWeeks = weeks.filter(w => allPayroll.some(p => p.week_of === w))
+
+                return (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 24 }}>
+                    {allDrivers.map(name => {
+                      const driverWeeks = weeks.filter(w => weekMap[w]?.[name])
+                      if (driverWeeks.length === 0) return null
+                      const totalRev = driverWeeks.reduce((s, w) => s + (weekMap[w]?.[name] || 0), 0)
+                      const totalCostD = driverWeeks.reduce((s, w) => s + (payMap[`${w}|${name}`] || 0), 0)
+                      const profit = totalRev - totalCostD
+                      const margin = totalRev ? Math.round((profit / totalRev) * 100) : 0
+                      const maxVal = Math.max(...driverWeeks.map(w => Math.max(weekMap[w]?.[name] || 0, payMap[`${w}|${name}`] || 0)), 1)
+
+                      return (
+                        <div key={name} style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, padding: 16 }}>
+                          {/* Header */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <div>
+                              <div style={{ fontSize: 15, fontWeight: 700, color: '#0B1E3D' }}>{name}</div>
+                              <div style={{ fontSize: 11, color: '#9BA5B4', marginTop: 2 }}>{driverWeeks.length} weeks</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: 16, fontWeight: 700, color: profit >= 0 ? '#27AE60' : '#E74C3C' }}>
+                                {profit >= 0 ? '+' : ''}${Math.round(profit).toLocaleString()}
+                              </div>
+                              <div style={{ fontSize: 11, color: profit >= 0 ? '#27AE60' : '#E74C3C' }}>{margin}% margin</div>
+                            </div>
+                          </div>
+
+                          {/* Weekly bars — side by side */}
+                          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 80, marginBottom: 8 }}>
+                            {driverWeeks.map(w => {
+                              const rev = weekMap[w]?.[name] || 0
+                              const cost = payMap[`${w}|${name}`] || 0
+                              const revH = (rev / maxVal) * 100
+                              const costH = (cost / maxVal) * 100
+                              return (
+                                <div key={w} style={{ flex: 1, display: 'flex', gap: 1, alignItems: 'flex-end', height: '100%' }}>
+                                  <div style={{ flex: 1, height: `${revH}%`, background: '#4A9EFF', borderRadius: '3px 3px 0 0', minHeight: 2 }} title={`Revenue: $${rev}`} />
+                                  <div style={{ flex: 1, height: `${costH}%`, background: '#E74C3C', borderRadius: '3px 3px 0 0', minHeight: cost > 0 ? 2 : 0, opacity: 0.7 }} title={`Cost: $${cost}`} />
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
+                            {driverWeeks.map(w => (
+                              <div key={w} style={{ flex: 1, textAlign: 'center', fontSize: 8, color: '#9BA5B4' }}>
+                                {new Date(w + 'T12:00:00').toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Summary row */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #F0F2F7', paddingTop: 8, fontSize: 12 }}>
+                            <div><span style={{ color: '#9BA5B4' }}>Revenue </span><span style={{ fontWeight: 700, color: '#4A9EFF' }}>${Math.round(totalRev).toLocaleString()}</span></div>
+                            <div><span style={{ color: '#9BA5B4' }}>Cost </span><span style={{ fontWeight: 700, color: '#E74C3C' }}>${Math.round(totalCostD).toLocaleString()}</span></div>
+                          </div>
                         </div>
-                        <div style={{ width: 70, fontSize: 13, fontWeight: 700, color: '#0B1E3D', textAlign: 'right', fontFamily: 'ui-monospace, monospace' }}>${Math.round(d.revenue).toLocaleString()}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
 
               {/* ── Revenue Table ───────────────────────────── */}
               <div style={{ background: '#fff', border: '1px solid #F0F2F7', borderRadius: 16, overflow: 'hidden' }}>
