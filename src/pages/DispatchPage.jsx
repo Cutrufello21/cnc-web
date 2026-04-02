@@ -246,12 +246,13 @@ export default function DispatchPage() {
     fetchDispatchData(day)
   }
 
-  async function handleOptimize(mode = 'preview') {
+  async function handleOptimize(mode = 'preview', useFleet = false) {
     if (!data?.deliveryDateObj) return
     setOptimizing(true)
     try {
       const dateStr = `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
-      const res = await fetch('/api/auto-dispatch', {
+      const endpoint = useFleet ? '/api/fleet-optimize' : '/api/auto-dispatch'
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deliveryDate: dateStr, deliveryDay: data.deliveryDay, mode }),
@@ -737,12 +738,12 @@ export default function DispatchPage() {
                   className={`dispatch__optimize-btn ${routesSent ? 'dispatch__optimize-btn--sent' : ''}`}
                   onClick={() => {
                     if (routesSent && !confirm('Routes have already been sent for this day. Optimizing now will change assignments drivers already received. Continue?')) return
-                    handleOptimize('preview')
+                    handleOptimize('preview', true)
                   }}
                   disabled={optimizing}
-                  title={routesSent ? 'Routes already sent — changes will need to be resent' : 'Optimize route assignments'}
+                  title="Fleet optimization — assigns stops AND orders routes using Google AI"
                 >
-                  {optimizing ? 'Analyzing...' : routesSent ? '⚡ Optimize (Sent)' : '⚡ Optimize'}
+                  {optimizing ? 'Optimizing...' : routesSent ? '⚡ Optimize (Sent)' : '⚡ Optimize'}
                 </button>
               </div>
             </div>
@@ -816,7 +817,7 @@ export default function DispatchPage() {
                       </div>
                     </div>
                     <div className="dispatch__optimize-actions">
-                      <button className="dispatch__optimize-apply" onClick={() => handleOptimize('apply')} disabled={optimizing}>
+                      <button className="dispatch__optimize-apply" onClick={() => handleOptimize('apply', true)} disabled={optimizing}>
                         {optimizing ? 'Applying...' : `Apply ${optimizePreview.changes?.length} Changes`}
                       </button>
                       <button className="dispatch__optimize-cancel" onClick={() => setOptimizePreview(null)}>Cancel</button>
