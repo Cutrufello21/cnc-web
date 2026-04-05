@@ -47,7 +47,7 @@ export default function ServiceMap() {
   const mapRef = useRef(null)
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return
+    if (!containerRef.current || mapRef.current || !mapboxgl.accessToken) return
 
     const prefersDark = document.documentElement.getAttribute('data-theme') === 'dark'
 
