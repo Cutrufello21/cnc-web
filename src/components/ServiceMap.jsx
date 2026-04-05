@@ -1,7 +1,9 @@
-import React from 'react'
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Popup } from 'react-leaflet'
+import { useEffect, useRef } from 'react'
+import mapboxgl from 'mapbox-gl'
+import 'mapbox-gl/dist/mapbox-gl.css'
 import zipcodes from 'zipcodes'
-import 'leaflet/dist/leaflet.css'
+
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
 const ZIP_LIST = [
   '43903','43908','43986','43988','44023','44056','44067','44087',
@@ -34,51 +36,114 @@ const pins = ZIP_LIST
   })
   .filter(Boolean)
 
+// Pharmacy HQ locations
+const HQ = [
+  { lat: 41.0758, lng: -81.5193, label: 'SHSP — Akron', color: '#0A2463' },
+  { lat: 40.7914, lng: -81.3939, label: 'Aultman — Canton', color: '#16a34a' },
+]
+
 export default function ServiceMap() {
-  return (
-    <MapContainer
-      center={[41.05, -81.20]}
-      zoom={9}
-      scrollWheelZoom={false}
-      style={{ height: '420px', width: '100%' }}
-    >
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-      />
-      {pins.map((pin, i) => (
-        <React.Fragment key={i}>
-          <CircleMarker
-            center={[pin.lat, pin.lng]}
-            radius={20}
-            pathOptions={{
-              color: 'transparent',
-              weight: 0,
-              fillColor: '#0A2463',
-              fillOpacity: 0.04,
-            }}
-          />
-          <CircleMarker
-            center={[pin.lat, pin.lng]}
-            radius={5}
-            pathOptions={{
-              color: '#fff',
-              weight: 1.5,
-              fillColor: '#0A2463',
-              fillOpacity: 0.9,
-            }}
-          >
-            <Tooltip direction="top" offset={[0, -4]}>
-              {pin.city}, OH {pin.zip}
-            </Tooltip>
-            <Popup>
-              <strong style={{ color: '#0A2463' }}>{pin.city}</strong>
-              <br />
-              <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{pin.zip}</span>
-            </Popup>
-          </CircleMarker>
-        </React.Fragment>
-      ))}
-    </MapContainer>
-  )
+  const containerRef = useRef(null)
+  const mapRef = useRef(null)
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+
+    const prefersDark = document.documentElement.getAttribute('data-theme') === 'dark'
+
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      style: prefersDark
+        ? 'mapbox://styles/mapbox/dark-v11'
+        : 'mapbox://styles/mapbox/light-v11',
+      center: [-81.20, 41.00],
+      zoom: 8.5,
+      scrollZoom: false,
+      attributionControl: false,
+      pitchWithRotate: false,
+      dragRotate: false,
+    })
+
+    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right')
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-left')
+
+    map.on('load', () => {
+      // ZIP code coverage dots
+      map.addSource('zips', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: pins.map(p => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+            properties: { zip: p.zip, city: p.city },
+          })),
+        },
+      })
+
+      // Glow ring
+      map.addLayer({
+        id: 'zip-glow',
+        type: 'circle',
+        source: 'zips',
+        paint: {
+          'circle-radius': 18,
+          'circle-color': '#0A2463',
+          'circle-opacity': 0.04,
+        },
+      })
+
+      // Solid dot
+      map.addLayer({
+        id: 'zip-dots',
+        type: 'circle',
+        source: 'zips',
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#0A2463',
+          'circle-opacity': 0.85,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#fff',
+        },
+      })
+
+      // HQ markers
+      for (const hq of HQ) {
+        const el = document.createElement('div')
+        el.style.cssText = `
+          width: 14px; height: 14px; border-radius: 50%;
+          background: ${hq.color}; border: 2.5px solid #fff;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        `
+        new mapboxgl.Marker({ element: el })
+          .setLngLat([hq.lng, hq.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 12, closeButton: false }).setHTML(
+            `<strong style="color:#0A2463;font-size:13px">${hq.label}</strong>`
+          ))
+          .addTo(map)
+      }
+
+      // Tooltip on hover
+      const popup = new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+
+      map.on('mouseenter', 'zip-dots', (e) => {
+        map.getCanvas().style.cursor = 'pointer'
+        const f = e.features[0]
+        popup
+          .setLngLat(f.geometry.coordinates)
+          .setHTML(`<span style="font-size:13px"><strong>${f.properties.city}</strong>, OH ${f.properties.zip}</span>`)
+          .addTo(map)
+      })
+
+      map.on('mouseleave', 'zip-dots', () => {
+        map.getCanvas().style.cursor = ''
+        popup.remove()
+      })
+    })
+
+    mapRef.current = map
+    return () => { map.remove(); mapRef.current = null }
+  }, [])
+
+  return <div ref={containerRef} style={{ height: 420, width: '100%' }} />
 }
