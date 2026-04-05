@@ -320,6 +320,11 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         })
       }
 
+      // Push notification to this driver
+      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'push_notify', driverNames: [name], title: 'Route Ready', body: `You have ${stops} stops assigned. Open the app to view your route.` })
+      }).catch(() => {})
+
       setSent(true)
       setMoveResult(`Sent to ${name}${RW_DRIVERS.includes(name) ? ' + Road Warrior' : ''}`)
       setTimeout(() => { setSent(false); setMoveResult(null) }, 5000)

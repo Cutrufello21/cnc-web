@@ -533,6 +533,22 @@ export default function DispatchPage() {
         })
         sent++
       }
+      // Push notifications with specific change details to each affected driver
+      for (const c of changes) {
+        const driverStops = (data?.drivers || []).find(d => d['Driver Name'] === c.name)?.stopDetails || []
+        // Build city summary of current stops
+        const cityCounts = {}
+        driverStops.forEach(s => { const city = s.City || 'Unknown'; cityCounts[city] = (cityCounts[city] || 0) + 1 })
+        const cityList = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).map(([city, n]) => `${n} ${city}`).join(', ')
+        const parts = []
+        if (c.gained > 0) parts.push(`+${c.gained} added`)
+        if (c.lost > 0) parts.push(`${c.lost} removed`)
+        const body = `Route updated: ${parts.join(', ')}. Now ${c.newTotal} stops (${cityList}).`
+        fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'push_notify', driverNames: [c.name], title: 'Route Changed', body })
+        }).catch(() => {})
+      }
+
       // Update snapshot
       setSentSnapshot(takeSnapshot())
       setMoveToast(`Updated routes sent to ${sent} drivers`)
@@ -582,6 +598,23 @@ export default function DispatchPage() {
         })
         sent++
       }
+      // Push notifications for corrections — tell each driver what changed
+      const stopsByDriver = {}
+      for (const s of (stops || [])) {
+        if (s.dispatch_driver_number && s.assigned_driver_number && s.dispatch_driver_number !== s.assigned_driver_number) {
+          if (!stopsByDriver[s.driver_name]) stopsByDriver[s.driver_name] = { added: [], cities: {} }
+          stopsByDriver[s.driver_name].added.push(s)
+          const city = s.city || 'Unknown'
+          stopsByDriver[s.driver_name].cities[city] = (stopsByDriver[s.driver_name].cities[city] || 0) + 1
+        }
+      }
+      for (const [driverName, info] of Object.entries(stopsByDriver)) {
+        const cityList = Object.entries(info.cities).sort((a, b) => b[1] - a[1]).map(([city, n]) => `${n} ${city}`).join(', ')
+        fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'push_notify', driverNames: [driverName], title: 'Route Corrected', body: `${info.added.length} stops reassigned to you (${cityList}).` })
+        }).catch(() => {})
+      }
+
       setCorrectionsSent(true)
       setMoveToast(`Correction emails sent for ${sent} drivers`)
     } catch (err) {
