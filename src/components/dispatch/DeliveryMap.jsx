@@ -59,33 +59,34 @@ export default function DeliveryMap() {
     finally { setLoading(false) }
   }
 
-  // Geocode stops that don't have lat/lng using Google Maps API
+  // Geocode stops that don't have lat/lng via server-side /api/geocode (HIPAA-safe)
   useEffect(() => {
-    const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-    if (!MAPS_KEY) return
-
     const needGeocode = stops.filter(s => !s.lat && s.address)
     if (needGeocode.length === 0) return
 
     let cancelled = false
     async function geocodeBatch() {
       const batch = needGeocode.slice(0, 25)
-      for (const s of batch) {
-        if (cancelled) return
-        const addr = encodeURIComponent(`${s.address}, ${s.city}, OH ${s.zip}`)
-        try {
-          const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${addr}&key=${MAPS_KEY}`)
-          const data = await res.json()
-          if (data.results?.[0]) {
-            const { lat, lng } = data.results[0].geometry.location
-            s.lat = lat; s.lng = lng
-            // Cache in Supabase
+      try {
+        const res = await fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ addresses: batch.map(s => ({ address: s.address, city: s.city, zip: s.zip })) }),
+        })
+        const { results } = await res.json()
+        if (cancelled || !results) return
+
+        for (let i = 0; i < batch.length; i++) {
+          const { lat, lng } = results[i] || {}
+          if (lat && lng) {
+            batch[i].lat = lat
+            batch[i].lng = lng
             const table = timePeriod === 'today' ? 'daily_stops' : 'orders'
-            supabase.from(table).update({ lat, lng }).eq('order_id', s.order_id)
+            supabase.from(table).update({ lat, lng }).eq('order_id', batch[i].order_id)
           }
-        } catch {}
-      }
-      if (!cancelled) setStops([...stops])
+        }
+        if (!cancelled) setStops([...stops])
+      } catch {}
     }
     geocodeBatch()
     return () => { cancelled = true }
