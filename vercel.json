@@ -8,6 +8,18 @@
     {
       "path": "/api/backup",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/advance-day",
+      "schedule": "0 22 * * 1-4"
+    },
+    {
+      "path": "/api/advance-day",
+      "schedule": "0 4 * * 6"
+    },
+    {
+      "path": "/api/advance-day",
+      "schedule": "0 9 * * 6"
     }
   ]
 }
