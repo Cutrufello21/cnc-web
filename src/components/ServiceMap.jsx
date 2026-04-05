@@ -56,8 +56,8 @@ export default function ServiceMap() {
       style: prefersDark
         ? 'mapbox://styles/mapbox/dark-v11'
         : 'mapbox://styles/mapbox/light-v11',
-      center: [-81.20, 41.00],
-      zoom: 8.5,
+      center: [-81.30, 40.85],
+      zoom: 8,
       scrollZoom: false,
       attributionControl: false,
       pitchWithRotate: false,
