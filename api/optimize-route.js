@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
   try {
-    const { stops, pharmacy, startLat, startLng, endLat, endLng, pinnedFirstIdx, pinnedLastIdx } = req.body
+    const { stops, pharmacy, startLat, startLng, endLat, endLng, driverName, deliveryDay } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
     const coords = await geocodeStops(stops)
@@ -35,25 +35,61 @@ export default async function handler(req, res) {
       return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0 })
     }
 
+    // Fetch driver's historical ZIP ordering pattern
+    let learnedPattern = null
+    if (driverName) {
+      try {
+        const { data: patternStops } = await supabase
+          .from('daily_stops')
+          .select('zip, delivery_date, id, delivered_at')
+          .eq('driver_name', driverName)
+          .eq('status', 'delivered')
+          .gte('delivery_date', new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0])
+          .order('delivery_date', { ascending: false })
+          .order('id', { ascending: true })
+          .limit(2000)
+
+        if (patternStops?.length > 20) {
+          learnedPattern = buildZipOrder(patternStops)
+        }
+      } catch (e) { console.warn('Pattern fetch failed:', e.message) }
+    }
+
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
     const endPoint = hasEnd ? [endLat, endLng] : origin // default round-trip back to origin
 
+    // Pre-sort stops by learned ZIP pattern before sending to Google
+    // This gives Google a better starting arrangement to optimize from
+    let stopsToOptimize = withCoords
+    if (learnedPattern?.length > 0) {
+      const zipRank = {}
+      learnedPattern.forEach((zip, i) => { zipRank[zip] = i })
+      stopsToOptimize = [...withCoords].sort((a, b) => {
+        const ra = zipRank[a.zip] ?? 999
+        const rb = zipRank[b.zip] ?? 999
+        if (ra !== rb) return ra - rb
+        // Within same ZIP, sort by proximity to previous stop
+        return 0
+      })
+    }
+
     // Use Google Routes API for optimization
     let optimizedAll, method
 
     try {
-      optimizedAll = await googleOptimize(withCoords, origin, endPoint)
+      optimizedAll = await googleOptimize(stopsToOptimize, origin, endPoint)
       method = 'google-routes'
+      if (learnedPattern) method += '+learned'
     } catch (err) {
       console.warn('Google Routes failed:', err.message, '— falling back to OSRM')
       try {
-        optimizedAll = await osrmFallback(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
+        optimizedAll = await osrmFallback(stopsToOptimize, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
         method = 'osrm-fallback'
       } catch {
         // Last resort: nearest neighbor by haversine
-        optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
+        optimizedAll = nearestNeighbor(stopsToOptimize, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
         method = 'nearest-neighbor'
       }
     }
@@ -283,4 +319,71 @@ async function geocodeStops(stops) {
     const { _needsGeocode, _stop, ...clean } = r
     return clean
   })
+}
+
+// ═══ LEARNED PATTERN ENGINE ═══
+// Builds a preferred ZIP ordering from historical delivery data
+
+function buildZipOrder(stops) {
+  const days = {}
+  stops.forEach(s => {
+    if (!days[s.delivery_date]) days[s.delivery_date] = []
+    days[s.delivery_date].push(s)
+  })
+
+  // Sort each day by delivered_at or id
+  Object.values(days).forEach(dayStops => {
+    dayStops.sort((a, b) => {
+      if (a.delivered_at && b.delivered_at) return a.delivered_at.localeCompare(b.delivered_at)
+      return a.id - b.id
+    })
+  })
+
+  const transitions = {}
+  const zipFirst = {}
+  const zipFreq = {}
+
+  Object.values(days).forEach(dayStops => {
+    if (dayStops.length < 2) return
+    const zipSeq = []
+    let prev = null
+    for (const s of dayStops) {
+      zipFreq[s.zip] = (zipFreq[s.zip] || 0) + 1
+      if (s.zip !== prev) { zipSeq.push(s.zip); prev = s.zip }
+    }
+    if (zipSeq.length === 0) return
+    zipFirst[zipSeq[0]] = (zipFirst[zipSeq[0]] || 0) + 1
+    for (let i = 0; i < zipSeq.length - 1; i++) {
+      const pair = `${zipSeq[i]}→${zipSeq[i + 1]}`
+      transitions[pair] = (transitions[pair] || 0) + 1
+    }
+  })
+
+  const startZip = Object.entries(zipFirst).sort((a, b) => b[1] - a[1])[0]?.[0]
+  if (!startZip) return []
+
+  const allZips = new Set(Object.keys(zipFreq))
+  const order = [startZip]
+  const visited = new Set([startZip])
+
+  while (visited.size < allZips.size) {
+    const current = order[order.length - 1]
+    let bestNext = null, bestCount = 0
+    for (const [pair, count] of Object.entries(transitions)) {
+      const [from, to] = pair.split('→')
+      if (from === current && !visited.has(to) && count > bestCount) {
+        bestNext = to; bestCount = count
+      }
+    }
+    if (bestNext) {
+      order.push(bestNext); visited.add(bestNext)
+    } else {
+      const remaining = [...allZips].filter(z => !visited.has(z))
+        .sort((a, b) => (zipFreq[b] || 0) - (zipFreq[a] || 0))
+      if (remaining.length === 0) break
+      order.push(remaining[0]); visited.add(remaining[0])
+    }
+  }
+
+  return order
 }
