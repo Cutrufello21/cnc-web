@@ -127,6 +127,11 @@ export default function TimeOff() {
           }
         } catch {}
       }
+      // Push notification to driver
+      const dateStr = new Date(req.date_off + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      const title = status === 'approved' ? 'Time Off Approved' : 'Time Off Denied'
+      const body = `Your request for ${dateStr} has been ${status}.`
+      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'push_notify', driverNames: [req.driver_name], title, body }) }).catch(() => {})
     }
     loadData()
   }

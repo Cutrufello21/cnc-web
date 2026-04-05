@@ -3,6 +3,21 @@ import nodemailer from 'nodemailer'
 import { parseBody } from './_lib/sheets.js'
 import { supabase } from './_lib/supabase.js'
 
+// Push notification helper — sends push + saves to DB
+async function notifyDriver(driverName, title, body, type = 'general') {
+  try {
+    const { data: driver } = await supabase.from('drivers').select('push_token').eq('driver_name', driverName).single()
+    if (driver?.push_token) {
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: driver.push_token, sound: 'default', title, body, data: { type } }),
+      })
+    }
+    await supabase.from('driver_notifications').insert({ driver_name: driverName, title, body, type })
+  } catch (e) { console.warn('[notifyDriver]', e.message) }
+}
+
 // POST /api/actions
 // Body: { action: 'approve' } — approve routes
 // Body: { action: 'email', to, subject, html } — send email
@@ -79,6 +94,10 @@ export default async function handler(req, res) {
           }
         }
       }
+
+      // Notify both drivers
+      await notifyDriver(toDriverName, 'Stops Added', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName}.`, 'transfer_in')
+      if (fromDriverName) await notifyDriver(fromDriverName, 'Stops Transferred', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`, 'transfer_out')
 
       return res.status(200).json({ success: true, moved: orderIds.length })
     }
@@ -221,6 +240,10 @@ export default async function handler(req, res) {
         body: JSON.stringify(messages),
       })
       const pushData = await pushRes.json()
+
+      // Save to notification history
+      const notifRows = driverNames.map(name => ({ driver_name: name, title, body: body || '', type: data.type || 'general' }))
+      await supabase.from('driver_notifications').insert(notifRows).catch(() => {})
 
       return res.status(200).json({ success: true, sent: tokens.length, pushData })
     }
