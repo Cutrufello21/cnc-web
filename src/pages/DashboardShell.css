@@ -105,7 +105,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 10px 0;
+  padding: 10px;
   font-size: 14px;
   font-weight: 500;
   color: #9BA5B4;
@@ -113,11 +113,17 @@
   transition: all 0.15s ease;
   text-align: left;
   position: relative;
-  width: 100%;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 .shell__sidebar:hover .shell__nav-btn {
   justify-content: flex-start;
   padding: 9px 12px;
+  width: 100%;
+  height: auto;
+  margin: 0;
 }
 .shell__nav-btn svg { flex-shrink: 0; }
 .shell__nav-btn span { white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.2s ease; }
