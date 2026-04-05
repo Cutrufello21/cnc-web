@@ -9,6 +9,7 @@ import DriverPage from './pages/DriverPage'
 import HomePage from './pages/HomePage'
 import PrivacyPage from './pages/PrivacyPage'
 import SupportPage from './pages/SupportPage'
+import HipaaPage from './pages/HipaaPage'
 import MobileDispatch from './pages/MobileDispatch'
 import BrandMark from './components/BrandMark'
 
@@ -66,6 +67,7 @@ function App() {
           <Route path="/" element={<SiteGate><HomePage /></SiteGate>} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/support" element={<SupportPage />} />
+          <Route path="/hipaa" element={<HipaaPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/dispatch"
