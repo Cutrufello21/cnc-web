@@ -12,7 +12,6 @@
   border-right: 1px solid #F0F2F7;
   display: flex;
   flex-direction: column;
-  align-items: center;
   position: fixed;
   top: 0;
   left: 0;
@@ -23,9 +22,6 @@
   transition: width 0.2s ease;
 }
 .shell__sidebar:hover {
-  align-items: stretch;
-}
-.shell__sidebar:hover {
   width: 220px;
 }
 
@@ -33,7 +29,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 0 20px;
+  padding: 16px 12px 20px;
   white-space: nowrap;
   overflow: hidden;
   justify-content: center;
@@ -83,14 +79,10 @@
 /* ── Navigation ──────────────────────────────────── */
 .shell__nav {
   flex: 1;
-  padding: 0;
+  padding: 0 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 100%;
-}
-.shell__sidebar:hover .shell__nav {
-  padding: 0 12px;
 }
 
 .shell__nav-section {
@@ -113,9 +105,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  width: 40px;
-  height: 40px;
-  padding: 0;
+  padding: 10px 0;
   font-size: 14px;
   font-weight: 500;
   color: #9BA5B4;
@@ -123,15 +113,11 @@
   transition: all 0.15s ease;
   text-align: left;
   position: relative;
-  margin: 0 auto;
-  flex-shrink: 0;
+  width: 100%;
 }
 .shell__sidebar:hover .shell__nav-btn {
   justify-content: flex-start;
-  width: 100%;
-  height: auto;
   padding: 9px 12px;
-  margin: 0;
 }
 .shell__nav-btn svg { flex-shrink: 0; }
 .shell__nav-btn span { white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.2s ease; }
