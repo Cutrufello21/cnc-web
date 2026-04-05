@@ -79,7 +79,7 @@ export default function Payroll() {
       const of_ = parseFloat(d.office_fee) || 0
       let pay = 0
       if (flat) { pay = flat }
-      else if (rm || rw) { pay = (mon + tue + thu) * rm + (wed + fri) * rw + wc * 9; if (mon + tue + wed + thu + fri > 0) pay += of_ }
+      else if (rm || rw) { const wcr = parseFloat(d.will_call_rate) || 9; pay = (mon + tue + thu) * rm + (wed + fri) * rw + wc * wcr; if (mon + tue + wed + thu + fri > 0) pay += of_ }
       return { driver_name: p.driver_name, week_of: p.week_of, pay: Math.round(pay * 100) / 100 }
     })
     setAllPayroll(payRows)
@@ -261,16 +261,24 @@ export default function Payroll() {
       const driverMap = {}
       ;(driversRes.data || []).forEach(d => { driverMap[d.driver_name] = d })
 
-      const drivers = (payrollRes.data || []).map(p => {
-        const d = driverMap[p.driver_name] || {}
+      // Build payroll lookup from existing rows
+      const payrollByName = {}
+      ;(payrollRes.data || []).forEach(p => { payrollByName[p.driver_name] = p })
+
+      // Include ALL active drivers (not just those with payroll rows)
+      const activeDrivers = (driversRes.data || []).filter(d => d.active && d.driver_name !== 'Demo Driver')
+
+      const drivers = activeDrivers.map(d => {
+        const p = payrollByName[d.driver_name] || {}
         const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0
         const thu = p.thu || 0, fri = p.fri || 0
         const weekTotal = mon + tue + wed + thu + fri
-        const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[p.driver_name] || 0)
+        const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[d.driver_name] || 0)
         const officeFee = parseFloat(d.office_fee) || 0
         const flatSalary = d.flat_salary ? parseFloat(d.flat_salary) : null
         const rateMth = parseFloat(d.rate_mth) || 0
         const rateWf = parseFloat(d.rate_wf) || 0
+        const wcRate = parseFloat(d.will_call_rate) || 9
 
         let calculatedPay = 0
         if (flatSalary) {
@@ -278,22 +286,24 @@ export default function Payroll() {
         } else if (rateMth || rateWf) {
           const mthStops = mon + tue + thu
           const wfStops = wed + fri
-          calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * 9)
+          calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * wcRate)
           if (weekTotal > 0 || willCalls > 0) calculatedPay += officeFee
           else calculatedPay = 0
+        } else if (willCalls > 0) {
+          calculatedPay = willCalls * wcRate + officeFee
         }
 
         return {
-          name: p.driver_name, id: p.driver_number,
+          name: d.driver_name, id: d.driver_number,
           mon, tue, wed, thu, fri, weekTotal, willCalls, officeFee,
-          rate: (rateMth || rateWf) ? { mth: rateMth, wf: rateWf } : null,
+          rate: (rateMth || rateWf) ? { mth: rateMth, wf: rateWf } : null, wcRate,
           flatSalary,
           calculatedPay: Math.round(calculatedPay * 100) / 100,
           sheetPay: parseFloat(p.weekly_pay) || 0,
-          isBrad: p.driver_name === 'Brad',
+          isBrad: d.driver_name === 'Brad',
           isFlat: !!flatSalary,
-          rowIndex: p.id,
-          recon: reconMap[p.driver_name] || null,
+          rowIndex: p.id || null,
+          recon: reconMap[d.driver_name] || null,
         }
       })
 
@@ -526,7 +536,7 @@ export default function Payroll() {
     const wfStops = wed + fri
     const total = mon + tue + wed + thu + fri
 
-    let pay = (mthStops * rate.mth) + (wfStops * rate.wf) + (willCalls * 9)
+    let pay = (mthStops * rate.mth) + (wfStops * rate.wf) + (willCalls * (driver.wcRate || 9))
     if (total > 0 || willCalls > 0) {
       pay += driver.officeFee
     } else {
