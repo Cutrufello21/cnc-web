@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
   try {
-    const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
+    const { stops, pharmacy, startLat, startLng, endLat, endLng, pinnedFirstIdx, pinnedLastIdx } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
     const coords = await geocodeStops(stops)
@@ -58,7 +58,33 @@ export default async function handler(req, res) {
       }
     }
 
-    const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
+    // Prioritize cold chain stops — move them to the front half of the route
+    const coldChain = optimizedAll.filter(s => s.coldChain)
+    const regular = optimizedAll.filter(s => !s.coldChain)
+    // Insert cold chain stops at their nearest position in the first half
+    const maxColdPos = Math.min(Math.ceil(optimizedAll.length / 2), coldChain.length + 3)
+    const reordered = [...optimizedAll]
+    if (coldChain.length > 0 && coldChain.length < optimizedAll.length) {
+      // Only reorder if some cold chain stops ended up in the back half
+      const backCold = coldChain.filter(s => reordered.indexOf(s) >= maxColdPos)
+      for (const cc of backCold) {
+        const curIdx = reordered.indexOf(cc)
+        if (curIdx >= maxColdPos) {
+          // Find best position in first half (nearest to neighbors)
+          let bestPos = 0, bestDist = Infinity
+          for (let p = 0; p < maxColdPos; p++) {
+            const prev = p === 0 ? { lat: origin[0], lng: origin[1] } : reordered[p - 1]
+            const next = reordered[p]
+            const detour = haversine(prev.lat, prev.lng, cc.lat, cc.lng) + haversine(cc.lat, cc.lng, next.lat, next.lng)
+            if (detour < bestDist) { bestDist = detour; bestPos = p }
+          }
+          reordered.splice(curIdx, 1)
+          reordered.splice(bestPos, 0, cc)
+        }
+      }
+    }
+
+    const optimizedOrder = [...reordered.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
     let totalDistance = 0
     let curLat = origin[0], curLng = origin[1]
@@ -134,7 +160,10 @@ async function googleOptimizeBatch(stops, origin, endPoint) {
       location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } }
     },
     intermediates: stops.map(s => {
-      // Prefer address string so Google snaps to driveway/entrance
+      // Use precise coordinates when available (cache/app), address string only as fallback
+      if (s.lat && s.lng && s.geocodeMethod !== 'zip-center') {
+        return { location: { latLng: { latitude: s.lat, longitude: s.lng } } }
+      }
       if (s.address && s.city) {
         return { address: `${s.address}, ${s.city}, OH ${s.zip || ''}`.trim() }
       }
