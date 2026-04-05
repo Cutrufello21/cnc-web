@@ -253,6 +253,13 @@ export default async function handler(req, res) {
         body: JSON.stringify(messages),
       })
 
+      // Save notifications to DB so drivers can view history
+      const notifRows = driverNames.map(name => {
+        const stopCount = (stops || []).filter(s => s.driver_name === name).length
+        return { driver_name: name, title: 'Route Ready', body: `You have ${stopCount} stops assigned.`, type: 'route_ready' }
+      })
+      await supabase.from('driver_notifications').insert(notifRows).then(() => {})
+
       return res.status(200).json({ success: true, sent: messages.length })
     }
 
