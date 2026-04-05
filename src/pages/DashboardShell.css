@@ -128,8 +128,8 @@
   height: auto;
 }
 .shell__nav-btn svg { flex-shrink: 0; }
-.shell__nav-btn span { white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.2s ease; }
-.shell__sidebar:hover .shell__nav-btn span { opacity: 1; }
+.shell__nav-btn span { display: none; white-space: nowrap; overflow: hidden; }
+.shell__sidebar:hover .shell__nav-btn span { display: inline; }
 .shell__nav-btn:hover { color: #0B1E3D; background: #F7F8FB; }
 
 .shell__nav-btn--active {
