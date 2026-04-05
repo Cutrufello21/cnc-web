@@ -29,14 +29,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 12px 24px;
+  padding: 16px 0 20px;
   white-space: nowrap;
   overflow: hidden;
   justify-content: center;
   transition: padding 0.2s ease;
 }
 .shell__sidebar:hover .shell__sidebar-brand {
-  padding: 20px 20px 24px;
+  padding: 16px 16px 20px;
   justify-content: flex-start;
 }
 
@@ -44,15 +44,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 14px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   background: #0B1E3D;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #fff;
   font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
   font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 2px;
+  user-select: none;
+  flex-shrink: 0;
+}
+.shell__sidebar:hover .shell__pill {
+  width: auto;
+  padding: 6px 14px;
   font-size: 13px;
   letter-spacing: 2.5px;
-  user-select: none;
 }
 
 .shell__title {
@@ -70,10 +79,10 @@
 /* ── Navigation ──────────────────────────────────── */
 .shell__nav {
   flex: 1;
-  padding: 0 12px;
+  padding: 0 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .shell__nav-section {
@@ -96,19 +105,24 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 10px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   font-size: 14px;
   font-weight: 500;
   color: #9BA5B4;
   border-radius: 10px;
   transition: all 0.12s;
-  width: 100%;
   text-align: left;
   position: relative;
+  margin: 0 auto;
 }
 .shell__sidebar:hover .shell__nav-btn {
   justify-content: flex-start;
+  width: 100%;
+  height: auto;
   padding: 9px 12px;
+  margin: 0;
 }
 .shell__nav-btn svg { flex-shrink: 0; }
 .shell__nav-btn span { white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.2s ease; }
