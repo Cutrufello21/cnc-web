@@ -141,15 +141,19 @@ export default async function handler(req, res) {
         }))
       })
     } else {
-      // Fallback: paginate through daily_stops (old method, no date limit)
+      // Fallback: fetch last 6 months of daily_stops (limits data volume)
+      const sixMonthsAgo = new Date()
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+      const cutoff = sixMonthsAgo.toISOString().split('T')[0]
       let dsPage = 0
       while (true) {
         const { data: batch } = await supabase.from('daily_stops')
           .select('driver_name, delivery_date, zip, city')
-          .range(dsPage * 1000, (dsPage + 1) * 1000 - 1)
+          .gte('delivery_date', cutoff)
+          .range(dsPage * 5000, (dsPage + 1) * 5000 - 1)
         if (!batch || batch.length === 0) break
         driverStopsRaw = driverStopsRaw.concat(batch)
-        if (batch.length < 1000) break
+        if (batch.length < 5000) break
         dsPage++
       }
     }
