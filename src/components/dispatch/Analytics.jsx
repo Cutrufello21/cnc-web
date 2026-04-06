@@ -136,36 +136,65 @@ export default function Analytics() {
 
           {/* Month-over-Month Growth */}
           <div className="an__card an__card--full">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 className="an__card-title" style={{ margin: 0 }}>Month-over-Month</h3>
               <div style={{ display: 'flex', gap: 4 }}>
                 {[['date','Date'],['volume','Volume'],['growth','Growth'],['avg','Avg/Day']].map(([key, label]) => (
                   <button key={key} onClick={() => setMonthSort(key)}
-                    style={{ padding: '3px 10px', fontSize: 11, fontWeight: monthSort === key ? 700 : 500, border: '1px solid var(--gray-200)', borderRadius: 4, background: monthSort === key ? 'var(--navy)' : 'transparent', color: monthSort === key ? '#fff' : 'var(--gray-500)', cursor: 'pointer' }}>
+                    style={{ padding: '3px 10px', fontSize: 11, fontWeight: monthSort === key ? 700 : 500, border: '1px solid #F0F2F7', borderRadius: 4, background: monthSort === key ? '#0B1E3D' : 'transparent', color: monthSort === key ? '#fff' : '#9BA5B4', cursor: 'pointer' }}>
                     {label}
                   </button>
                 ))}
               </div>
             </div>
-            <div className="an__month-grid">
-              {[...(data.monthlyTrend || [])].sort((a, b) => {
+            {(() => {
+              const sorted = [...(data.monthlyTrend || [])].sort((a, b) => {
                 if (monthSort === 'volume') return b.orders - a.orders
                 if (monthSort === 'growth') return (b.growth || 0) - (a.growth || 0)
                 if (monthSort === 'avg') return b.avgPerDay - a.avgPerDay
                 return b.month.localeCompare(a.month)
-              }).map(m => (
-                <div className="an__month-card" key={m.month}>
-                  <span className="an__month-label">{(() => { const [y, mo] = m.month.split('-'); const names = ['January','February','March','April','May','June','July','August','September','October','November','December']; return `${y} - ${names[+mo - 1]}` })()}</span>
-                  <span className="an__month-orders">{m.orders.toLocaleString()}</span>
-                  <span className="an__month-avg">{m.avgPerDay}/day</span>
-                  {m.growth !== null && (
-                    <span className={`an__month-growth ${m.growth >= 0 ? 'an__month-growth--up' : 'an__month-growth--down'}`}>
-                      {m.growth >= 0 ? '+' : ''}{m.growth}%
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+              })
+              const maxOrders = Math.max(...sorted.map(m => m.orders || 0), 1)
+              return (
+                <table className="an__mom-table">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th style={{ textAlign: 'right' }}>Stops</th>
+                      <th style={{ textAlign: 'right' }}>Avg/Day</th>
+                      <th style={{ textAlign: 'right' }}>Growth</th>
+                      <th style={{ width: '35%' }}>Volume</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sorted.map(m => {
+                      const [y, mo] = m.month.split('-')
+                      const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+                      const pct = maxOrders ? (m.orders / maxOrders) * 100 : 0
+                      return (
+                        <tr key={m.month}>
+                          <td className="an__mom-month">{names[+mo - 1]} {y}</td>
+                          <td className="an__mom-num">{m.orders.toLocaleString()}</td>
+                          <td className="an__mom-num an__mom-avg">{m.avgPerDay}</td>
+                          <td className="an__mom-num">
+                            {m.growth !== null && (
+                              <span className={m.growth >= 0 ? 'an__mom-up' : 'an__mom-down'}>
+                                {m.growth >= 0 ? '+' : ''}{m.growth}%
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <div className="an__mom-bar-wrap">
+                              <div className="an__mom-bar" style={{ width: `${pct}%` }} />
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )
+            })()}
           </div>
 
           {/* Cold Chain % Over Time */}

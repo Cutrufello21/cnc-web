@@ -638,15 +638,18 @@
 .an__trend-bar-area .an__vol-bar { width: 100%; border-radius: 3px 3px 0 0; }
 .an__trend-line { position: absolute; left: 50%; width: 8px; height: 3px; background: #B07D00; border-radius: 2px; transform: translateX(-50%); z-index: 2; }
 
-/* Month-over-month grid */
-.an__month-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-.an__month-card { background: #F7F8FB; border: 1px solid #F0F2F7; border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 2px; }
-.an__month-label { font-size: 12px; font-weight: 600; color: #9BA5B4; }
-.an__month-orders { font-size: 20px; font-weight: 700; color: #0B1E3D; }
-.an__month-avg { font-size: 11px; color: #9BA5B4; }
-.an__month-growth { font-size: 13px; font-weight: 700; }
-.an__month-growth--up { color: #27AE60; }
-.an__month-growth--down { color: #dc2626; }
+/* Month-over-month table */
+.an__mom-table { width: 100%; border-collapse: collapse; }
+.an__mom-table th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: #9BA5B4; border-bottom: 2px solid #F0F2F7; }
+.an__mom-table td { padding: 10px 14px; border-bottom: 1px solid #F0F2F7; }
+.an__mom-table tbody tr:hover { background: #F7F8FB; }
+.an__mom-month { font-weight: 600; color: #0B1E3D; white-space: nowrap; font-size: 14px; }
+.an__mom-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #0B1E3D; font-size: 14px; }
+.an__mom-avg { color: #9BA5B4; font-weight: 500; }
+.an__mom-up { color: #22c55e; font-weight: 700; font-size: 13px; }
+.an__mom-down { color: #dc2626; font-weight: 700; font-size: 13px; }
+.an__mom-bar-wrap { height: 14px; background: #F0F2F7; border-radius: 7px; overflow: hidden; }
+.an__mom-bar { height: 100%; background: linear-gradient(90deg, #0B1E3D, #4A9EFF); border-radius: 7px; transition: width 0.4s ease; min-width: 2px; }
 
 /* Line chart */
 .an__line-chart { display: flex; align-items: flex-end; gap: 2px; min-width: max-content; height: 180px; padding-bottom: 36px; }
