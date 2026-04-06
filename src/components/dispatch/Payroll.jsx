@@ -289,13 +289,13 @@ export default function Payroll() {
 
       const drivers = activeDrivers.map(d => {
         const p = payrollByName[d.driver_name] || {}
-        const actual = actualStops[d.driver_name] || {}
-        // Use actual daily_stops counts, fall back to payroll table if no stops data
-        const mon = actual.mon || p.mon || 0
-        const tue = actual.tue || p.tue || 0
-        const wed = actual.wed || p.wed || 0
-        const thu = actual.thu || p.thu || 0
-        const fri = actual.fri || p.fri || 0
+        const actual = actualStops[d.driver_name]
+        // Use actual daily_stops counts when available, fall back to payroll table
+        const mon = actual !== undefined ? actual.mon : (p.mon || 0)
+        const tue = actual !== undefined ? actual.tue : (p.tue || 0)
+        const wed = actual !== undefined ? actual.wed : (p.wed || 0)
+        const thu = actual !== undefined ? actual.thu : (p.thu || 0)
+        const fri = actual !== undefined ? actual.fri : (p.fri || 0)
         const weekTotal = mon + tue + wed + thu + fri
         const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[d.driver_name] || 0)
         const officeFee = parseFloat(d.office_fee) || 0
