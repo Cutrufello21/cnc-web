@@ -27,11 +27,38 @@ async function handleGet(req, res) {
 
     if (payrollRes.error) throw payrollRes.error
 
-    const driverMap = {}
-    ;(driversRes.data || []).forEach(d => { driverMap[d.driver_name] = d })
+    const payrollMap = {}
+    ;(payrollRes.data || []).forEach(p => { payrollMap[p.driver_name] = p })
 
-    const drivers = (payrollRes.data || []).map(p => {
-      const d = driverMap[p.driver_name] || {}
+    // Include ALL active drivers who get paid in any way
+    const activeDrivers = (driversRes.data || []).filter(d => {
+      return d.driver_name !== 'Demo Driver'
+    })
+
+    // Auto-create payroll rows for drivers missing them (one at a time to avoid batch failures)
+    const missingDrivers = activeDrivers.filter(d => !payrollMap[d.driver_name])
+    for (const d of missingDrivers) {
+      try {
+        const { data: inserted, error: insertErr } = await supabase.from('payroll').insert({
+          driver_name: d.driver_name,
+          driver_number: d.driver_number || '',
+          week_of: weekOf,
+          mon: 0, tue: 0, wed: 0, thu: 0, fri: 0,
+          week_total: 0, will_calls: 0, weekly_pay: 0,
+        }).select()
+        if (insertErr) console.error(`[payroll] auto-create ${d.driver_name}:`, insertErr.message)
+        if (inserted?.[0]) payrollMap[d.driver_name] = inserted[0]
+      } catch (e) {
+        console.error(`[payroll] auto-create ${d.driver_name}:`, e.message)
+      }
+      // Even if insert fails, ensure driver appears with zeroes
+      if (!payrollMap[d.driver_name]) {
+        payrollMap[d.driver_name] = { driver_name: d.driver_name, driver_number: d.driver_number, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, will_calls: 0, weekly_pay: 0 }
+      }
+    }
+
+    const drivers = activeDrivers.map(d => {
+      const p = payrollMap[d.driver_name] || {}
       const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0
       const thu = p.thu || 0, fri = p.fri || 0
       const weekTotal = mon + tue + wed + thu + fri
@@ -41,34 +68,38 @@ async function handleGet(req, res) {
       const rateMth = parseFloat(d.rate_mth) || 0
       const rateWf = parseFloat(d.rate_wf) || 0
 
+      const wcRate = parseFloat(d.will_call_rate) || 9
       let calculatedPay = 0
       if (flatSalary) {
         calculatedPay = flatSalary
       } else if (rateMth || rateWf) {
         const mthStops = mon + tue + thu
         const wfStops = wed + fri
-        calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * 9)
+        calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * wcRate)
         if (weekTotal > 0 || willCalls > 0) {
           calculatedPay += officeFee
         } else {
           calculatedPay = 0
         }
+      } else if (willCalls > 0) {
+        // Will-call-only drivers (like Brad) — no base rate, paid per PM delivery
+        calculatedPay = willCalls * wcRate + officeFee
       }
 
       const sheetPay = parseFloat(p.weekly_pay) || 0
 
       return {
-        name: p.driver_name,
-        id: p.driver_number,
+        name: d.driver_name,
+        id: d.driver_number,
         mon, tue, wed, thu, fri,
         weekTotal, willCalls, officeFee,
         rate: (rateMth || rateWf) ? { mth: rateMth, wf: rateWf } : null,
         flatSalary,
         calculatedPay: Math.round(calculatedPay * 100) / 100,
         sheetPay,
-        isBrad: p.driver_name === 'Brad',
+        isBrad: d.driver_name === 'Brad',
         isFlat: !!flatSalary,
-        rowIndex: p.id,
+        rowIndex: p.id || null,
       }
     })
 

@@ -122,8 +122,47 @@
   flex-shrink: 0;
 }
 
-/* Time Off */
-.hq__timeoff {
+/* Time Off Banner */
+.hq__timeoff-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #FFF8EC;
+  border: 1px solid #F5E6C0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #0B1E3D;
+}
+
+.hq__timeoff-icon { font-size: 16px; flex-shrink: 0; }
+.hq__timeoff-text { line-height: 1.5; }
+.hq__timeoff-range { color: #B07D00; font-weight: 500; }
+.hq__timeoff-range--full { color: #E74C3C; font-weight: 600; }
+
+[data-theme="dark"] .hq__timeoff-banner { background: #1f1a0d; border-color: #3d3520; }
+
+/* More stats button */
+.hq__more-btn {
+  display: block;
+  margin: -8px auto 20px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #9BA5B4;
+  background: none;
+  border: 1px solid #F0F2F7;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hq__more-btn:hover { color: #4A9EFF; border-color: #4A9EFF; }
+
+.hq__kpis--secondary { margin-top: -8px; }
+
+/* Driver status grid */
+.hq__driver-status {
   background: #ffffff;
   border: 1px solid #F0F2F7;
   border-radius: 16px;
@@ -131,54 +170,49 @@
   margin-bottom: 24px;
 }
 
-.hq__timeoff-list {
-  display: flex;
-  flex-direction: column;
+.hq__driver-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 8px;
 }
 
-.hq__timeoff-day {
+.hq__driver-chip {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid #F0F2F7;
-}
-
-.hq__timeoff-day:last-child { border-bottom: none; }
-
-.hq__timeoff-date {
+  gap: 8px;
+  padding: 10px 12px;
+  background: #F7F8FB;
+  border-radius: 10px;
   font-size: 13px;
-  font-weight: 600;
-  color: #0B1E3D;
-  width: 80px;
-  flex-shrink: 0;
+  transition: all 0.15s;
 }
 
-.hq__timeoff-drivers {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
+.hq__driver-chip--done { background: #E6F5EE; }
+.hq__driver-chip--idle { background: #FFF8EC; }
 
-.hq__timeoff-badge {
-  padding: 3px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  background: #FDE8E8;
-  color: #E74C3C;
-  border-radius: 980px;
-}
+.hq__chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.hq__chip-dot--active { background: #27AE60; animation: hqPulse 2s ease-in-out infinite; }
+.hq__chip-dot--done { background: #9BA5B4; }
+.hq__chip-dot--idle { background: #B07D00; }
 
-.hq__timeoff-badge--pending {
-  background: #FFF8EC;
-  color: #B07D00;
-}
+.hq__chip-name { font-weight: 600; color: #0B1E3D; flex-shrink: 0; }
+.hq__chip-count { font-size: 11px; color: #9BA5B4; font-weight: 600; flex-shrink: 0; }
+
+.hq__chip-bar { flex: 1; height: 4px; background: #E0E4ED; border-radius: 2px; overflow: hidden; min-width: 30px; }
+.hq__chip-fill { height: 100%; background: #27AE60; border-radius: 2px; transition: width 0.6s ease; }
+
+.hq__driver-chip--done .hq__chip-fill { background: #9BA5B4; }
+
+[data-theme="dark"] .hq__driver-status { background: var(--card-bg); border-color: var(--border); }
+[data-theme="dark"] .hq__driver-chip { background: #161B22; }
+[data-theme="dark"] .hq__driver-chip--done { background: #0d1f0d; }
+[data-theme="dark"] .hq__driver-chip--idle { background: #1f1a0d; }
+[data-theme="dark"] .hq__chip-name { color: var(--text-primary); }
 
 /* KPI cards */
 .hq__kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 24px;
 }
@@ -202,8 +236,8 @@
 }
 
 .hq__kpi-value {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: #0B1E3D;
   letter-spacing: -0.5px;
   line-height: 1;
@@ -256,9 +290,9 @@
 /* Volume chart */
 .hq__chart {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: flex-end;
-  height: 200px;
+  height: 220px;
   padding-bottom: 4px;
   position: relative;
   overflow: hidden;
@@ -282,7 +316,7 @@
 
 .hq__bar-stack {
   width: 100%;
-  max-width: 36px;
+  max-width: 44px;
   border-radius: 10px 4px 0 0;
   overflow: hidden;
   display: flex;
@@ -718,7 +752,7 @@
 /* Responsive */
 @media (max-width: 1024px) {
   .hq__kpis {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   .hq__grid {
     grid-template-columns: 1fr;
