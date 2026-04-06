@@ -49,6 +49,11 @@
 .drv__btn--cancel { color: #6b7280; }
 .drv__btn--cancel:hover { background: #f3f4f6; }
 
+.drv__pod-toggle { padding: 3px 10px; font-size: 11px; font-weight: 700; border-radius: 20px; border: 1.5px solid #E0E4ED; background: #F7F8FB; color: #9BA5B4; cursor: pointer; transition: all 0.15s; }
+.drv__pod-toggle:hover { border-color: #9BA5B4; }
+.drv__pod-toggle--on { background: #0B1E3D; color: #fff; border-color: #0B1E3D; }
+.drv__pod-toggle--on:hover { background: #1a2d4d; }
+
 .drv__input { width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #E0E4ED; border-radius: 10px; background: #ffffff; }
 .drv__input--sm { width: 72px; text-align: center; }
 .drv__select { padding: 4px 6px; font-size: 12px; border: 1px solid #E0E4ED; border-radius: 10px; background: #ffffff; }

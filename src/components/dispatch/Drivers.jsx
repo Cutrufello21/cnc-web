@@ -235,6 +235,7 @@ export default function Drivers() {
               <th>Office Fee</th>
               <th>Flat Salary</th>
               <th>Active</th>
+              <th>POD</th>
               <th></th>
             </tr>
           </thead>
@@ -292,6 +293,18 @@ export default function Drivers() {
                     <td className="drv__cell-num">{d.office_fee ? `$${d.office_fee}` : '—'}</td>
                     <td className="drv__cell-num">{d.flat_salary ? `$${parseFloat(d.flat_salary).toLocaleString()}` : '—'}</td>
                     <td>{d.active ? '✓' : '—'}</td>
+                    <td>
+                      <button
+                        className={`drv__pod-toggle ${d.pod_enabled ? 'drv__pod-toggle--on' : ''}`}
+                        onClick={async () => {
+                          await dbUpdate('drivers', { pod_enabled: !d.pod_enabled }, { id: d.id })
+                          loadDrivers()
+                        }}
+                        title={d.pod_enabled ? 'POD enabled — click to disable' : 'POD disabled — click to enable'}
+                      >
+                        {d.pod_enabled ? 'ON' : 'OFF'}
+                      </button>
+                    </td>
                     <td className="drv__actions">
                       <button className="drv__btn drv__btn--rules" onClick={() => setRulesOpen(isRulesOpen ? null : d.id)} title="Dispatch rules">
                         ⚙
@@ -301,7 +314,7 @@ export default function Drivers() {
                   </tr>
                   {isRulesOpen && (
                     <tr key={`${d.id}-rules`} className="drv__rules-row">
-                      <td colSpan={10}>
+                      <td colSpan={11}>
                         <DriverRules driver={d} onSave={async (updates) => {
                           setRulesSaving(true)
                           try {
