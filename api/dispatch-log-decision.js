@@ -232,6 +232,46 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, logged: rows.length })
     }
 
+    if (data.action === 'auto_log') {
+      // Auto-generate dispatch_logs entry from daily_stops data
+      const { data: stops } = await supabase.from('daily_stops')
+        .select('driver_name, pharmacy, cold_chain')
+        .eq('delivery_date', data.deliveryDate)
+        .not('status', 'eq', 'DELETED')
+
+      if (!stops || stops.length === 0) {
+        return res.status(200).json({ success: true, message: 'No stops found for date' })
+      }
+
+      const totalOrders = stops.length
+      const coldChain = stops.filter(s => s.cold_chain === true).length
+      const shspOrders = stops.filter(s => s.pharmacy === 'SHSP').length
+      const aultmanOrders = totalOrders - shspOrders
+      const unassigned = stops.filter(s => !s.driver_name || s.driver_name === '').length
+
+      // Find top driver by stop count
+      const driverCounts = {}
+      stops.forEach(s => {
+        if (s.driver_name) driverCounts[s.driver_name] = (driverCounts[s.driver_name] || 0) + 1
+      })
+      const topDriver = Object.entries(driverCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
+
+      await supabase.from('dispatch_logs').upsert({
+        date: data.deliveryDate,
+        delivery_day: data.deliveryDay,
+        status: 'routes_sent',
+        orders_processed: totalOrders,
+        cold_chain: coldChain,
+        unassigned_count: unassigned,
+        corrections: 0,
+        shsp_orders: shspOrders,
+        aultman_orders: aultmanOrders,
+        top_driver: topDriver,
+      }, { onConflict: 'date' })
+
+      return res.status(200).json({ success: true, totalOrders, topDriver })
+    }
+
     if (data.action === 'log_sort_list') {
       await supabase.from('dispatch_decisions').insert({
         delivery_date: data.deliveryDate,

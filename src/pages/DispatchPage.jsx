@@ -466,6 +466,12 @@ export default function DispatchPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'snapshot', deliveryDate: dateStr, deliveryDay: data.deliveryDay }),
         }).catch(() => {})
+        // Auto-generate dispatch_logs entry
+        fetch('/api/dispatch-log-decision', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'auto_log', deliveryDate: dateStr, deliveryDay: data.deliveryDay }),
+        }).catch(() => {})
         // Push notification to all drivers with stops
         fetch('/api/actions', {
           method: 'POST',

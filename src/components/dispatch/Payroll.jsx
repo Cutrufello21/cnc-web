@@ -333,6 +333,23 @@ export default function Payroll() {
 
       const grandTotal = drivers.reduce((sum, d) => sum + d.calculatedPay, 0)
 
+      // Auto-sync actual stop counts back to payroll table (fire-and-forget)
+      const upsertRows = drivers
+        .filter(d => actualStops[d.name])
+        .map(d => ({
+          week_of: weekOf,
+          driver_name: d.name,
+          mon: d.mon,
+          tue: d.tue,
+          wed: d.wed,
+          thu: d.thu,
+          fri: d.fri,
+          week_total: d.weekTotal,
+        }))
+      if (upsertRows.length > 0) {
+        supabase.from('payroll').upsert(upsertRows, { onConflict: 'week_of,driver_name' }).then(() => {})
+      }
+
       setData({
         drivers,
         grandTotal: Math.round(grandTotal * 100) / 100,
