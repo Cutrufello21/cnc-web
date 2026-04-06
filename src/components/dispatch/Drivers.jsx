@@ -235,7 +235,7 @@ export default function Drivers() {
               <th>Office Fee</th>
               <th>Flat Salary</th>
               <th>Active</th>
-              <th>POD</th>
+              <th>PRO</th>
               <th></th>
             </tr>
           </thead>
