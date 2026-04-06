@@ -242,11 +242,30 @@ export default function Payroll() {
       monday.setDate(now.getDate() + mondayOffset + (weekOffset * 7))
       const weekOf = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`
 
-      const [payrollRes, driversRes, reconRes] = await Promise.all([
+      // Calculate week date range (Mon-Fri)
+      const friday = new Date(monday)
+      friday.setDate(monday.getDate() + 4)
+      const fridayStr = `${friday.getFullYear()}-${String(friday.getMonth() + 1).padStart(2, '0')}-${String(friday.getDate()).padStart(2, '0')}`
+
+      const [payrollRes, driversRes, reconRes, stopsRes] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
         supabase.from('drivers').select('*'),
         supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf).then(r => r).catch(() => ({ data: [] })),
+        supabase.from('daily_stops').select('driver_name, delivery_date, delivery_day')
+          .gte('delivery_date', weekOf).lte('delivery_date', fridayStr)
+          .not('status', 'eq', 'DELETED'),
       ])
+
+      // Count actual stops per driver per day from daily_stops
+      const actualStops = {}
+      ;(stopsRes.data || []).forEach(s => {
+        if (!s.driver_name || !s.delivery_day) return
+        if (!actualStops[s.driver_name]) actualStops[s.driver_name] = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0 }
+        const dayKey = s.delivery_day?.slice(0, 3).toLowerCase()
+        if (dayKey && actualStops[s.driver_name][dayKey] !== undefined) {
+          actualStops[s.driver_name][dayKey]++
+        }
+      })
 
       const reconMap = {}
       const afternoonTotals = {}
@@ -270,8 +289,13 @@ export default function Payroll() {
 
       const drivers = activeDrivers.map(d => {
         const p = payrollByName[d.driver_name] || {}
-        const mon = p.mon || 0, tue = p.tue || 0, wed = p.wed || 0
-        const thu = p.thu || 0, fri = p.fri || 0
+        const actual = actualStops[d.driver_name] || {}
+        // Use actual daily_stops counts, fall back to payroll table if no stops data
+        const mon = actual.mon || p.mon || 0
+        const tue = actual.tue || p.tue || 0
+        const wed = actual.wed || p.wed || 0
+        const thu = actual.thu || p.thu || 0
+        const fri = actual.fri || p.fri || 0
         const weekTotal = mon + tue + wed + thu + fri
         const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[d.driver_name] || 0)
         const officeFee = parseFloat(d.office_fee) || 0
