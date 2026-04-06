@@ -43,15 +43,6 @@ export default function SortList({ deliveryDate }) {
     const result = { SHSP: [], Aultman: [] }
     existing.forEach(r => { if (result[r.pharmacy]) result[r.pharmacy].push(r) })
 
-    // SHSP — strip cities from display_text, show driver name only
-    result.SHSP = result.SHSP.map(r => {
-      const nameOnly = r.display_text.split(' — ')[0].trim()
-      if (r.display_text !== nameOnly) {
-        apiPost({ action: 'update', id: r.id, display_text: nameOnly })
-      }
-      return { ...r, display_text: nameOnly }
-    })
-
     const allStops = stopsRes.data || []
     const aultmanExists = existing.some(r => r.pharmacy === 'Aultman')
     const shspExists = existing.some(r => r.pharmacy === 'SHSP')
@@ -67,15 +58,12 @@ export default function SortList({ deliveryDate }) {
       return map
     }
 
-    // SHSP — fully manual, no auto-sync
-    // Just load existing rows, don't auto-create or update display_text
-
-    // Aultman — automated city sync from daily_stops
-    for (const pharmacy of ['Aultman']) {
-      const exists = aultmanExists
+    for (const pharmacy of ['Aultman', 'SHSP']) {
+      const exists = pharmacy === 'Aultman' ? aultmanExists : shspExists
       const cityMap = buildCityMap(pharmacy)
 
       if (!exists && allStops.length > 0) {
+        // First time — insert all rows
         const rows = []
         let order = 0
         for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -92,9 +80,11 @@ export default function SortList({ deliveryDate }) {
           result[pharmacy] = fresh || []
         }
       } else if (exists && Object.keys(cityMap).length > 0) {
+        // Rows exist — sync cities on existing rows + add new drivers
         const currentRows = result[pharmacy]
         const existingDrivers = new Set(currentRows.map(r => r.driver_name))
 
+        // Update display_text for existing drivers with fresh cities
         for (const row of currentRows) {
           const cities = cityMap[row.driver_name]
           if (!cities) continue
@@ -106,6 +96,7 @@ export default function SortList({ deliveryDate }) {
           }
         }
 
+        // Add rows for new drivers not yet in the sort list
         const maxOrder = currentRows.reduce((m, l) => Math.max(m, l.sort_order || 0), 0)
         const newRows = []
         let order = maxOrder + 1
@@ -122,6 +113,7 @@ export default function SortList({ deliveryDate }) {
           await apiPost({ action: 'insert', rows: newRows })
         }
 
+        // Reload fresh data for this pharmacy
         if (newRows.length > 0 || currentRows.some((r, i) => r.display_text !== (existing.find(e => e.id === r.id) || {}).display_text)) {
           const { data: fresh } = await supabase.from('sort_list').select('*').eq('delivery_date', dateStr).eq('pharmacy', pharmacy).order('sort_order', { ascending: true })
           result[pharmacy] = fresh || []
@@ -272,7 +264,7 @@ export default function SortList({ deliveryDate }) {
             {adding === pharmacy ? (
               <div className="sl__add-form">
                 <input className="sl__add-input" value={newLine} onChange={e => setNewLine(e.target.value)}
-                  placeholder={pharmacy === 'SHSP' ? 'Driver name' : 'BOBBY — West'} autoFocus
+                  placeholder="BOBBY — West" autoFocus
                   onKeyDown={e => { if (e.key === 'Enter') handleAdd(pharmacy); if (e.key === 'Escape') { setAdding(null); setNewLine('') } }} />
                 <button className="sl__add-save" onClick={() => handleAdd(pharmacy)} disabled={saving || !newLine.trim()}>Add</button>
                 <button className="sl__add-cancel" onClick={() => { setAdding(null); setNewLine('') }}>Cancel</button>

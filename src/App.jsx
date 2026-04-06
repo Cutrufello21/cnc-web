@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
-import { PharmacyAuthProvider } from './context/PharmacyAuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
-import PharmacyProtectedRoute from './components/PharmacyProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoginPage from './pages/LoginPage'
 import DispatchPage from './pages/DispatchPage'
@@ -13,10 +11,6 @@ import PrivacyPage from './pages/PrivacyPage'
 import SupportPage from './pages/SupportPage'
 import HipaaPage from './pages/HipaaPage'
 import MobileDispatch from './pages/MobileDispatch'
-import PharmacyLoginPage from './pages/portal/PharmacyLoginPage'
-import PharmacyDashboard from './pages/portal/PharmacyDashboard'
-import PharmacyDeliveries from './pages/portal/PharmacyDeliveries'
-import PharmacyPOD from './pages/portal/PharmacyPOD'
 import BrandMark from './components/BrandMark'
 
 function SiteGate({ children }) {
@@ -97,44 +91,6 @@ function App() {
               <ProtectedRoute role="driver">
                 <DriverPage />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/portal"
-            element={
-              <PharmacyAuthProvider>
-                <PharmacyLoginPage />
-              </PharmacyAuthProvider>
-            }
-          />
-          <Route
-            path="/portal/dashboard"
-            element={
-              <PharmacyAuthProvider>
-                <PharmacyProtectedRoute>
-                  <PharmacyDashboard />
-                </PharmacyProtectedRoute>
-              </PharmacyAuthProvider>
-            }
-          />
-          <Route
-            path="/portal/deliveries"
-            element={
-              <PharmacyAuthProvider>
-                <PharmacyProtectedRoute>
-                  <PharmacyDeliveries />
-                </PharmacyProtectedRoute>
-              </PharmacyAuthProvider>
-            }
-          />
-          <Route
-            path="/portal/pod/:orderId"
-            element={
-              <PharmacyAuthProvider>
-                <PharmacyProtectedRoute>
-                  <PharmacyPOD />
-                </PharmacyProtectedRoute>
-              </PharmacyAuthProvider>
             }
           />
         </Routes>
