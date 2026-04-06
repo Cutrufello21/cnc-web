@@ -98,7 +98,7 @@ export default function HQDashboard() {
   async function loadData() {
     try {
       const [logsRes, weeklyRes, driversRes, timeOffRes] = await Promise.all([
-        supabase.from('dispatch_logs').select('*').order('date', { ascending: true }),
+        supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(60),
         supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
         supabase.from('drivers').select('*').eq('active', true),
         supabase.from('time_off_requests').select('driver_name, date_off, end_date, status')
@@ -106,7 +106,7 @@ export default function HQDashboard() {
           .gte('date_off', new Date().toISOString().split('T')[0]),
       ])
 
-      const logData = (logsRes.data || []).filter(r => WEEKDAYS.has(r.delivery_day))
+      const logData = (logsRes.data || []).reverse().filter(r => WEEKDAYS.has(r.delivery_day))
       const today = new Date().toISOString().split('T')[0]
 
       const now = new Date()
