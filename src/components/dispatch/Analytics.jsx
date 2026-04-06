@@ -139,7 +139,7 @@ export default function Analytics() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 className="an__card-title" style={{ margin: 0 }}>Month-over-Month</h3>
               <div style={{ display: 'flex', gap: 4 }}>
-                {[['date','Date'],['volume','Volume'],['growth','Growth'],['avg','Avg/Day']].map(([key, label]) => (
+                {[['date','Date'],['volume','Volume'],['growth','MoM'],['yoy','YoY'],['avg','Avg/Day']].map(([key, label]) => (
                   <button key={key} onClick={() => setMonthSort(key)}
                     style={{ padding: '3px 10px', fontSize: 11, fontWeight: monthSort === key ? 700 : 500, border: '1px solid #F0F2F7', borderRadius: 4, background: monthSort === key ? '#0B1E3D' : 'transparent', color: monthSort === key ? '#fff' : '#9BA5B4', cursor: 'pointer' }}>
                     {label}
@@ -151,6 +151,7 @@ export default function Analytics() {
               const sorted = [...(data.monthlyTrend || [])].sort((a, b) => {
                 if (monthSort === 'volume') return b.orders - a.orders
                 if (monthSort === 'growth') return (b.growth || 0) - (a.growth || 0)
+                if (monthSort === 'yoy') return (b.yoy || -999) - (a.yoy || -999)
                 if (monthSort === 'avg') return b.avgPerDay - a.avgPerDay
                 return b.month.localeCompare(a.month)
               })
@@ -162,7 +163,8 @@ export default function Analytics() {
                       <th>Month</th>
                       <th style={{ textAlign: 'right' }}>Stops</th>
                       <th style={{ textAlign: 'right' }}>Avg/Day</th>
-                      <th style={{ textAlign: 'right' }}>Growth</th>
+                      <th style={{ textAlign: 'right' }}>MoM</th>
+                      <th style={{ textAlign: 'right' }}>YoY</th>
                       <th style={{ width: '35%' }}>Volume</th>
                     </tr>
                   </thead>
@@ -181,6 +183,16 @@ export default function Analytics() {
                               <span className={m.growth >= 0 ? 'an__mom-up' : 'an__mom-down'}>
                                 {m.growth >= 0 ? '+' : ''}{m.growth}%
                               </span>
+                            )}
+                          </td>
+                          <td className="an__mom-num">
+                            {m.yoy !== null && m.yoy !== undefined && (
+                              <span className={m.yoy >= 0 ? 'an__mom-up' : 'an__mom-down'}>
+                                {m.yoy >= 0 ? '+' : ''}{m.yoy}%
+                              </span>
+                            )}
+                            {(m.yoy === null || m.yoy === undefined) && (
+                              <span className="an__mom-avg">—</span>
                             )}
                           </td>
                           <td>

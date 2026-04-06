@@ -250,12 +250,18 @@ export default async function handler(req, res) {
         const cur = byMonth[m]
         const prev = i > 0 ? byMonth[months[i - 1]] : null
         const growth = prev && prev.orders > 0 ? Math.round(((cur.orders - prev.orders) / prev.orders) * 100) : null
+        // Year-over-year: same month last year
+        const [y, mo] = m.split('-')
+        const yoyKey = `${+y - 1}-${mo}`
+        const yoyPrev = byMonth[yoyKey]
+        const yoy = yoyPrev && yoyPrev.orders > 0 ? Math.round(((cur.orders - yoyPrev.orders) / yoyPrev.orders) * 100) : null
         const total = cur.orders || 1
         return {
           month: m,
           orders: cur.orders,
           avgPerDay: cur.days ? Math.round(cur.orders / cur.days) : 0,
           growth,
+          yoy,
           ccPct: Math.round((cur.cc / total) * 100),
           shspPct: Math.round((cur.shsp / total) * 100),
           aultmanPct: Math.round((cur.aultman / total) * 100),
