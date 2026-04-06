@@ -230,54 +230,10 @@ export default async function handler(req, res) {
       }
     })
 
-    // Month-over-month: prefer monthly_stop_summary, fallback to computing from logs
+    // Month-over-month: always use dispatch_logs (complete history)
     let monthlyTrend = []
-    const { data: monthlySummary, error: monthlyError } = await supabase
-      .from('monthly_stop_summary')
-      .select('*')
-      .order('month', { ascending: true })
-
-    if (!monthlyError && monthlySummary && monthlySummary.length > 0) {
-      // Aggregate per-driver/pharmacy rows into one row per month
-      const byMonth = {}
-      monthlySummary.forEach(r => {
-        const m = r.month?.slice(0, 7) // '2024-10-01' → '2024-10'
-        if (!m) return
-        if (!byMonth[m]) byMonth[m] = { orders: 0, cc: 0, shsp: 0, aultman: 0, days: 0 }
-        byMonth[m].orders += r.total_stops || 0
-        byMonth[m].cc += r.cold_chain || 0
-        // Pharmacy field determines SHSP vs Aultman
-        const ph = (r.pharmacy || '').toLowerCase()
-        if (ph.includes('shsp') || ph.includes('sterling')) {
-          byMonth[m].shsp += r.total_stops || 0
-        } else {
-          byMonth[m].aultman += r.total_stops || 0
-        }
-        // Max working_days across drivers for that month
-        byMonth[m].days = Math.max(byMonth[m].days, r.working_days || 0)
-      })
-      const months = Object.keys(byMonth).sort()
-      monthlyTrend = months.map((m, i) => {
-        const cur = byMonth[m]
-        const prev = i > 0 ? byMonth[months[i - 1]] : null
-        const growth = prev && prev.orders > 0 ? Math.round(((cur.orders - prev.orders) / prev.orders) * 100) : null
-        const total = cur.orders || 1
-        return {
-          month: m,
-          orders: cur.orders,
-          avgPerDay: cur.days ? Math.round(cur.orders / cur.days) : 0,
-          growth,
-          ccPct: Math.round((cur.cc / total) * 100),
-          shspPct: Math.round((cur.shsp / total) * 100),
-          aultmanPct: Math.round((cur.aultman / total) * 100),
-          shsp: cur.shsp,
-          aultman: cur.aultman,
-          cc: cur.cc,
-          days: cur.days,
-        }
-      })
-    } else {
-      // Fallback: compute from dispatch_logs
+    const monthlyError = null // keep variable for seasonality section below
+    {
       const byMonth = {}
       allForTrends.forEach(r => {
         const m = r.date?.slice(0, 7)
