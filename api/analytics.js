@@ -120,23 +120,38 @@ export default async function handler(req, res) {
       .sort((a, b) => b[1] - a[1]).slice(0, 5)
       .map(([name, count]) => ({ name, timesTop: count }))
 
-    // Driver analytics from daily_stops (smaller table, has driver_name + zip)
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-    const sixMonthStr = sixMonthsAgo.toISOString().split('T')[0]
-
-    // Paginate through daily_stops for last 6 months
+    // Driver analytics — prefer daily_performance_summary, fallback to daily_stops
     let driverStopsRaw = []
-    let dsPage = 0
-    while (true) {
-      const { data: batch } = await supabase.from('daily_stops')
-        .select('driver_name, delivery_date, zip, city')
-        .gte('delivery_date', sixMonthStr)
-        .range(dsPage * 1000, (dsPage + 1) * 1000 - 1)
-      if (!batch || batch.length === 0) break
-      driverStopsRaw = driverStopsRaw.concat(batch)
-      if (batch.length < 1000) break
-      dsPage++
+
+    // Try daily_performance_summary first (pre-aggregated, all history)
+    const { data: perfSummary, error: perfError } = await supabase
+      .from('daily_performance_summary')
+      .select('driver_name, delivery_date, stop_count, zip, city')
+
+    if (!perfError && perfSummary && perfSummary.length > 0) {
+      // Expand summary rows into the same shape the old code expects
+      driverStopsRaw = perfSummary.flatMap(r => {
+        // If summary has stop_count, expand to individual "stop" entries for counting
+        const count = r.stop_count || 1
+        return Array.from({ length: count }, () => ({
+          driver_name: r.driver_name,
+          delivery_date: r.delivery_date,
+          zip: r.zip,
+          city: r.city,
+        }))
+      })
+    } else {
+      // Fallback: paginate through daily_stops (old method, no date limit)
+      let dsPage = 0
+      while (true) {
+        const { data: batch } = await supabase.from('daily_stops')
+          .select('driver_name, delivery_date, zip, city')
+          .range(dsPage * 1000, (dsPage + 1) * 1000 - 1)
+        if (!batch || batch.length === 0) break
+        driverStopsRaw = driverStopsRaw.concat(batch)
+        if (batch.length < 1000) break
+        dsPage++
+      }
     }
 
     const driverByMonth = {}
@@ -159,7 +174,8 @@ export default async function handler(req, res) {
       }
     })
 
-    const months6 = [...new Set(driverStopsRaw.map(r => r.delivery_date?.slice(0, 7)).filter(Boolean))].sort().slice(-6)
+    const allDriverMonths = [...new Set(driverStopsRaw.map(r => r.delivery_date?.slice(0, 7)).filter(Boolean))].sort()
+    const months6 = allDriverMonths.slice(-6)
     const driverMonthlyData = Object.entries(driverByMonth)
       .filter(([name]) => name !== 'Paul')
       .map(([name, monthMap]) => ({
@@ -214,38 +230,70 @@ export default async function handler(req, res) {
       }
     })
 
-    // Month-over-month: group by YYYY-MM, compute totals and growth
-    const byMonth = {}
-    allForTrends.forEach(r => {
-      const m = r.date?.slice(0, 7)
-      if (!m) return
-      if (!byMonth[m]) byMonth[m] = { orders: 0, cc: 0, shsp: 0, aultman: 0, days: 0 }
-      byMonth[m].orders += r.orders_processed || 0
-      byMonth[m].cc += r.cold_chain || 0
-      byMonth[m].shsp += r.shsp_orders || 0
-      byMonth[m].aultman += r.aultman_orders || 0
-      byMonth[m].days++
-    })
-    const months = Object.keys(byMonth).sort()
-    const monthlyTrend = months.map((m, i) => {
-      const cur = byMonth[m]
-      const prev = i > 0 ? byMonth[months[i - 1]] : null
-      const growth = prev && prev.orders > 0 ? Math.round(((cur.orders - prev.orders) / prev.orders) * 100) : null
-      const total = cur.orders || 1
-      return {
-        month: m,
-        orders: cur.orders,
-        avgPerDay: cur.days ? Math.round(cur.orders / cur.days) : 0,
-        growth,
-        ccPct: Math.round((cur.cc / total) * 100),
-        shspPct: Math.round((cur.shsp / total) * 100),
-        aultmanPct: Math.round((cur.aultman / total) * 100),
-        shsp: cur.shsp,
-        aultman: cur.aultman,
-        cc: cur.cc,
-        days: cur.days,
-      }
-    })
+    // Month-over-month: prefer monthly_stop_summary, fallback to computing from logs
+    let monthlyTrend = []
+    const { data: monthlySummary, error: monthlyError } = await supabase
+      .from('monthly_stop_summary')
+      .select('*')
+      .order('month', { ascending: true })
+
+    if (!monthlyError && monthlySummary && monthlySummary.length > 0) {
+      // Use pre-aggregated monthly summary (all history, no date limit)
+      monthlyTrend = monthlySummary.map((m, i) => {
+        const prev = i > 0 ? monthlySummary[i - 1] : null
+        const orders = m.total_orders || m.orders || 0
+        const cc = m.cold_chain || m.total_cold_chain || 0
+        const shsp = m.shsp_orders || m.total_shsp || 0
+        const aultman = m.aultman_orders || m.total_aultman || 0
+        const days = m.delivery_days || m.days || 0
+        const prevOrders = prev ? (prev.total_orders || prev.orders || 0) : 0
+        const growth = prev && prevOrders > 0 ? Math.round(((orders - prevOrders) / prevOrders) * 100) : null
+        const total = orders || 1
+        return {
+          month: m.month,
+          orders,
+          avgPerDay: days ? Math.round(orders / days) : 0,
+          growth,
+          ccPct: Math.round((cc / total) * 100),
+          shspPct: Math.round((shsp / total) * 100),
+          aultmanPct: Math.round((aultman / total) * 100),
+          shsp, aultman, cc, days,
+        }
+      })
+    } else {
+      // Fallback: compute from dispatch_logs
+      const byMonth = {}
+      allForTrends.forEach(r => {
+        const m = r.date?.slice(0, 7)
+        if (!m) return
+        if (!byMonth[m]) byMonth[m] = { orders: 0, cc: 0, shsp: 0, aultman: 0, days: 0 }
+        byMonth[m].orders += r.orders_processed || 0
+        byMonth[m].cc += r.cold_chain || 0
+        byMonth[m].shsp += r.shsp_orders || 0
+        byMonth[m].aultman += r.aultman_orders || 0
+        byMonth[m].days++
+      })
+      const months = Object.keys(byMonth).sort()
+      monthlyTrend = months.map((m, i) => {
+        const cur = byMonth[m]
+        const prev = i > 0 ? byMonth[months[i - 1]] : null
+        const growth = prev && prev.orders > 0 ? Math.round(((cur.orders - prev.orders) / prev.orders) * 100) : null
+        const total = cur.orders || 1
+        return {
+          month: m,
+          orders: cur.orders,
+          avgPerDay: cur.days ? Math.round(cur.orders / cur.days) : 0,
+          growth,
+          ccPct: Math.round((cur.cc / total) * 100),
+          shspPct: Math.round((cur.shsp / total) * 100),
+          aultmanPct: Math.round((cur.aultman / total) * 100),
+          shsp: cur.shsp,
+          aultman: cur.aultman,
+          cc: cur.cc,
+          days: cur.days,
+        }
+      })
+    }
 
     // Group by payroll week (Mon-Fri, labeled by Week Ending Saturday)
     const weekBuckets = {}
@@ -281,15 +329,28 @@ export default async function handler(req, res) {
     // === DEEP CUTS ===
 
     // 1. Seasonality — average volume by month of year (Jan-Dec) across all years
+    //    Use monthly_stop_summary if available, otherwise fall back to dispatch_logs
     const monthOfYearAvg = {}
-    allForTrends.forEach(r => {
-      const mo = parseInt(r.date?.slice(5, 7))
-      if (!mo) return
-      if (!monthOfYearAvg[mo]) monthOfYearAvg[mo] = { total: 0, days: 0, years: new Set() }
-      monthOfYearAvg[mo].total += r.orders_processed || 0
-      monthOfYearAvg[mo].days++
-      monthOfYearAvg[mo].years.add(r.date?.slice(0, 4))
-    })
+    if (monthlyTrend.length > 0 && !monthlyError) {
+      // Use monthly summary data (all history)
+      monthlyTrend.forEach(m => {
+        const mo = parseInt(m.month?.slice(5, 7))
+        if (!mo) return
+        if (!monthOfYearAvg[mo]) monthOfYearAvg[mo] = { total: 0, days: 0, years: new Set() }
+        monthOfYearAvg[mo].total += m.orders || 0
+        monthOfYearAvg[mo].days += m.days || 0
+        monthOfYearAvg[mo].years.add(m.month?.slice(0, 4))
+      })
+    } else {
+      allForTrends.forEach(r => {
+        const mo = parseInt(r.date?.slice(5, 7))
+        if (!mo) return
+        if (!monthOfYearAvg[mo]) monthOfYearAvg[mo] = { total: 0, days: 0, years: new Set() }
+        monthOfYearAvg[mo].total += r.orders_processed || 0
+        monthOfYearAvg[mo].days++
+        monthOfYearAvg[mo].years.add(r.date?.slice(0, 4))
+      })
+    }
     const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     const seasonality = Array.from({ length: 12 }, (_, i) => {
       const mo = i + 1
