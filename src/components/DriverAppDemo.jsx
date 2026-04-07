@@ -1,15 +1,8 @@
 import { useState, useEffect } from 'react'
 import './DriverAppDemo.css'
 
-const STEP_DURATION = 3000 // ms per step
-const STEPS = [
-  'stopList',
-  'arriving',
-  'photoCapture',
-  'signature',
-  'note',
-  'complete',
-]
+const STEP_DURATION = 3500
+const STEPS = ['stopList', 'delivered', 'nextStop', 'photo1', 'photo2', 'note', 'complete']
 
 export default function DriverAppDemo() {
   const [step, setStep] = useState(0)
@@ -27,175 +20,198 @@ export default function DriverAppDemo() {
 
   return (
     <div className="demo-phone" onMouseEnter={() => setActive(false)} onMouseLeave={() => setActive(true)}>
-      {/* Status bar */}
-      <div className="demo-status-bar">
-        <span className="demo-time">10:47</span>
-        <div className="demo-notch" />
-        <div className="demo-signals">
-          <svg width="14" height="10" viewBox="0 0 14 10"><rect x="0" y="6" width="2" height="4" rx="0.5" fill="rgba(0,0,0,0.3)"/><rect x="3" y="4" width="2" height="6" rx="0.5" fill="rgba(0,0,0,0.3)"/><rect x="6" y="2" width="2" height="8" rx="0.5" fill="rgba(0,0,0,0.5)"/><rect x="9" y="0" width="2" height="10" rx="0.5" fill="rgba(0,0,0,0.5)"/></svg>
-          <div className="demo-battery"><div className="demo-battery-fill" /></div>
-        </div>
-      </div>
-
-      {/* Screen content */}
       <div className="demo-screen">
+
         {/* Step 1: Stop List */}
         <div className={`demo-step ${currentStep === 'stopList' ? 'demo-step--active' : ''}`}>
           <div className="demo-driver-bar">
             <div className="demo-driver-avatar">D</div>
             <div><div style={{fontWeight:700,fontSize:13,color:'#1a1a2e'}}>Dom</div><div style={{fontSize:9,color:'#94a3b8'}}>#55500 · Both</div></div>
-            <div style={{marginLeft:'auto',display:'flex',gap:6}}>
-              <div className="demo-stat-pill"><strong>21</strong><span>Stops</span></div>
-              <div className="demo-stat-pill"><strong style={{color:'#2563eb'}}>44</strong><span>Cold</span></div>
+            <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+              <div className="demo-stat-pill"><strong>50</strong><span>Daily Stops</span></div>
+              <div className="demo-stat-pill"><strong style={{color:'#2563eb'}}>44</strong><span>Cold Chain</span></div>
+              <div className="demo-stat-pill" style={{padding:'4px 6px'}}><strong style={{fontSize:12}}>📊</strong><span>Weekly</span></div>
             </div>
           </div>
           <div className="demo-progress-bar">
             <div className="demo-progress-fill" style={{width:'58%'}} />
             <span className="demo-progress-left">29/50 delivered</span>
-            <span className="demo-progress-right">Done by 11:15</span>
+            <span className="demo-progress-right">Done by 11:15 AM</span>
+          </div>
+          <div style={{padding:'0 12px',display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+            <span className="demo-route-badge">Route optimized</span>
+            <span style={{fontSize:9,color:'#3b82f6'}}>Re-optimize</span>
+          </div>
+          <div className="demo-route-summary">21 stops → Home<br/><span style={{fontSize:9,color:'#94a3b8'}}>18.9 mi driving distance</span></div>
+          <div style={{padding:'0 12px',display:'flex',justifyContent:'space-between',alignItems:'center',margin:'6px 0'}}>
+            <span style={{fontSize:10,fontWeight:600,color:'#64748b',textTransform:'uppercase',letterSpacing:0.5}}>Stops</span>
+            <span style={{fontSize:9,color:'#94a3b8'}}>21 remaining</span>
           </div>
           <div className="demo-next-card">
-            <div className="demo-next-badge">NEXT STOP</div>
-            <div style={{display:'flex',gap:4,fontSize:9,color:'#94a3b8',marginBottom:6}}>
-              <span>9 min · 4.3 mi</span>
+            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+              <span className="demo-next-badge">NEXT STOP</span>
+              <span style={{fontSize:8,color:'#94a3b8'}}>9 min · 4.3 mi</span>
               <span className="demo-eta-pill">ETA 11:13 AM</span>
             </div>
-            <div style={{fontWeight:700,fontSize:13,color:'#1a1a2e'}}>17 Socrates Place Apt 17</div>
-            <div style={{fontSize:10,color:'#64748b'}}>Akron, OH 44301</div>
-            <div style={{fontSize:10,color:'#64748b'}}>Gindraw, Tisha Antionetta</div>
-            <div className="demo-cold-tag">❄️ Cold</div>
-            <div style={{display:'flex',gap:6,marginTop:10}}>
+            <div style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+              <div className="demo-stop-num">1</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,fontSize:12,color:'#1a1a2e'}}>17 Socrates Place Apt 17</div>
+                <div style={{fontSize:9,color:'#64748b'}}>Akron, OH 44301</div>
+                <div style={{fontSize:9,color:'#64748b'}}>Gindraw, Tisha Antionetta</div>
+                <div style={{fontSize:8,color:'#94a3b8'}}>Order #13194802</div>
+                <div className="demo-cold-tag">❄️ Cold</div>
+              </div>
+              <span className="demo-cc-badge">COLD CHAIN</span>
+            </div>
+            <div style={{fontSize:9,color:'#94a3b8',padding:'6px 0',borderTop:'1px solid #f1f5f9',marginTop:8,display:'flex',alignItems:'center',gap:4}}>
+              <span>⊕</span> Add delivery note for this address
+            </div>
+            <div style={{display:'flex',gap:6,marginTop:6}}>
               <button className="demo-btn demo-btn--deliver">✓ Delivered</button>
               <button className="demo-btn demo-btn--navigate">↗ Navigate</button>
             </div>
           </div>
         </div>
 
-        {/* Step 2: Arriving / Geofence */}
-        <div className={`demo-step ${currentStep === 'arriving' ? 'demo-step--active' : ''}`}>
-          <div className="demo-pod-header">
-            <div className="demo-pod-steps">
-              <div className="demo-pod-step demo-pod-step--active">Geofence</div>
-              <div className="demo-pod-step">Photo</div>
-              <div className="demo-pod-step">Signature</div>
-              <div className="demo-pod-step">Note</div>
-            </div>
-          </div>
-          <div className="demo-geo-area">
-            <div className="demo-geo-ring demo-geo-ring--pulse" />
-            <div className="demo-geo-pin">📍</div>
-          </div>
-          <div className="demo-geo-card">
-            <div className="demo-geo-check">✓</div>
-            <div>
-              <div style={{fontWeight:600,fontSize:12,color:'#1a1a2e'}}>Geofence verified · 42 ft</div>
-              <div style={{fontSize:10,color:'#94a3b8',fontFamily:'monospace'}}>41.0891° N, 81.5123° W</div>
+        {/* Step 2: Stop Delivered overlay */}
+        <div className={`demo-step ${currentStep === 'delivered' ? 'demo-step--active' : ''}`}>
+          <div className="demo-delivered-bg">
+            <div className="demo-delivered-check">✓</div>
+            <div className="demo-delivered-title">Stop delivered!</div>
+            <div className="demo-delivered-sub">Stop 45 of 50 complete</div>
+            <div style={{display:'flex',gap:6,width:'80%',marginTop:16}}>
+              <button className="demo-btn demo-btn--deliver" style={{flex:2}}>✓ Next Stop</button>
+              <button className="demo-btn demo-btn--navigate" style={{flex:1,fontSize:10}}>Details</button>
             </div>
           </div>
         </div>
 
-        {/* Step 3: Photo Capture */}
-        <div className={`demo-step ${currentStep === 'photoCapture' ? 'demo-step--active' : ''}`}>
-          <div className="demo-pod-header">
-            <div className="demo-pod-steps">
-              <div className="demo-pod-step demo-pod-step--done">Geofence</div>
-              <div className="demo-pod-step demo-pod-step--active">Photo</div>
-              <div className="demo-pod-step">Signature</div>
-              <div className="demo-pod-step">Note</div>
-            </div>
+        {/* Step 3: Next Stop sheet */}
+        <div className={`demo-step ${currentStep === 'nextStop' ? 'demo-step--active' : ''}`}>
+          <div className="demo-delivered-bg" style={{justifyContent:'flex-start',paddingTop:40}}>
+            <div className="demo-delivered-check" style={{width:48,height:48,fontSize:22}}>✓</div>
+            <div className="demo-delivered-title" style={{fontSize:16}}>Stop delivered!</div>
+            <div className="demo-delivered-sub">Stop 45 of 50 complete</div>
           </div>
-          <div className="demo-camera">
-            <div className="demo-viewfinder">
-              <div className="demo-viewfinder-corners" />
-              <div className="demo-viewfinder-text">Align package in frame</div>
+          <div className="demo-sheet">
+            <div className="demo-sheet-handle" />
+            <div style={{fontSize:9,fontWeight:600,color:'#94a3b8',textTransform:'uppercase',letterSpacing:0.5,marginBottom:4}}>Next Stop</div>
+            <div style={{fontWeight:700,fontSize:14,color:'#1a1a2e'}}>Meckler, Daniel</div>
+            <div style={{fontSize:11,color:'#64748b'}}>756 East Waterloo Road, Akron</div>
+            <div style={{fontSize:9,color:'#94a3b8'}}>Order #13194355</div>
+            <div style={{display:'flex',gap:6,margin:'10px 0'}}>
+              <span className="demo-info-pill">⏱ 9 min</span>
+              <span className="demo-info-pill">↗ 4.2 mi</span>
+              <span className="demo-info-pill">Stop 7 of 50</span>
             </div>
-            <div style={{display:'flex',gap:8,padding:'12px 16px'}}>
-              <button className="demo-capture-btn">📦 Package</button>
-              <button className="demo-capture-btn demo-capture-btn--done">🏠 Door ✓</button>
+            <div style={{display:'flex',gap:6}}>
+              <button style={{flex:0,padding:'8px 16px',borderRadius:8,background:'#f8f9fb',border:'1px solid #e2e8f0',fontSize:11,fontWeight:600,color:'#64748b',cursor:'default',fontFamily:'inherit'}}>Skip</button>
+              <button style={{flex:1,padding:'8px 16px',borderRadius:8,background:'#0A2463',border:'none',fontSize:11,fontWeight:600,color:'white',cursor:'default',fontFamily:'inherit'}}>↗ Navigate to Stop</button>
             </div>
-            <div style={{textAlign:'center',fontSize:9,color:'#94a3b8',paddingBottom:8}}>Both photos required</div>
           </div>
         </div>
 
-        {/* Step 4: Signature */}
-        <div className={`demo-step ${currentStep === 'signature' ? 'demo-step--active' : ''}`}>
-          <div className="demo-pod-header">
-            <div className="demo-pod-steps">
-              <div className="demo-pod-step demo-pod-step--done">Geofence</div>
-              <div className="demo-pod-step demo-pod-step--done">Photo</div>
-              <div className="demo-pod-step demo-pod-step--active">Signature</div>
-              <div className="demo-pod-step">Note</div>
+        {/* Step 4: Photo 1 */}
+        <div className={`demo-step ${currentStep === 'photo1' ? 'demo-step--active' : ''}`}>
+          <div className="demo-camera-screen">
+            <div className="demo-camera-header">
+              <span style={{fontSize:16}}>✕</span>
+              <span style={{fontWeight:600,fontSize:13}}>Take delivery photos</span>
+              <span style={{fontSize:14}}>⚡</span>
+            </div>
+            <div style={{padding:'0 16px',marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.9)'}}>Photo 1 of 2 — Where you left the package</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>Medlock, Lizabeth · 1410 Brown Street</div>
+              <div style={{display:'flex',gap:4,marginTop:6}}>
+                <div className="demo-photo-dot" />
+                <div className="demo-photo-dot demo-photo-dot--inactive" />
+              </div>
+            </div>
+            <div style={{flex:1}} />
+            <div className="demo-shutter">
+              <div className="demo-shutter-btn" />
             </div>
           </div>
-          <div className="demo-sig-area">
-            <div className="demo-sig-label">SIGNATURE</div>
-            <div className="demo-sig-pad">
-              <svg className="demo-sig-line" viewBox="0 0 220 60" fill="none">
-                <path d="M10 40 Q30 10 50 35 Q70 55 90 30 Q110 10 130 40 Q150 55 170 25 Q185 15 200 35" stroke="#334155" strokeWidth="2" fill="none" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',padding:'8px 0'}}>
-              <span style={{fontSize:10,color:'#94a3b8'}}>Sign above</span>
-              <button style={{fontSize:10,color:'#3b82f6',background:'none',border:'none',cursor:'pointer'}}>Clear</button>
-            </div>
-          </div>
-          <button className="demo-btn demo-btn--deliver" style={{margin:'0 16px',width:'calc(100% - 32px)'}}>Confirm Signature</button>
         </div>
 
-        {/* Step 5: Delivery Note */}
+        {/* Step 5: Photo 2 */}
+        <div className={`demo-step ${currentStep === 'photo2' ? 'demo-step--active' : ''}`}>
+          <div className="demo-camera-screen">
+            <div className="demo-camera-header">
+              <span style={{fontSize:16}}>✕</span>
+              <span style={{fontWeight:600,fontSize:13}}>Take delivery photos</span>
+              <span style={{fontSize:14}}>⚡</span>
+            </div>
+            <div style={{padding:'0 16px',marginBottom:8}}>
+              <div style={{fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.9)'}}>Photo 2 of 2 — The house or front door</div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>Medlock, Lizabeth · 1410 Brown Street</div>
+              <div style={{display:'flex',gap:4,marginTop:6}}>
+                <div className="demo-photo-dot demo-photo-dot--done" />
+                <div className="demo-photo-dot" />
+              </div>
+            </div>
+            <div style={{flex:1}} />
+            <div className="demo-shutter">
+              <div className="demo-shutter-btn" />
+            </div>
+          </div>
+        </div>
+
+        {/* Step 6: Delivery Note */}
         <div className={`demo-step ${currentStep === 'note' ? 'demo-step--active' : ''}`}>
-          <div className="demo-pod-header">
-            <div className="demo-pod-steps">
-              <div className="demo-pod-step demo-pod-step--done">Geofence</div>
-              <div className="demo-pod-step demo-pod-step--done">Photo</div>
-              <div className="demo-pod-step demo-pod-step--done">Signature</div>
-              <div className="demo-pod-step demo-pod-step--active">Note</div>
+          <div className="demo-note-screen">
+            <div style={{padding:'16px 16px 0'}}>
+              <div style={{fontSize:20,fontWeight:700,color:'#1a1a2e',marginBottom:4}}>Where did you leave it?</div>
+              <div style={{fontSize:12,color:'#94a3b8',marginBottom:16}}>This message goes to the patient</div>
+              <div className="demo-note-pills">
+                <span className="demo-note-pill demo-note-pill--selected">Front door</span>
+                <span className="demo-note-pill">Back door</span>
+                <span className="demo-note-pill">Mailbox</span>
+                <span className="demo-note-pill">With neighbor</span>
+                <span className="demo-note-pill">Left with patient</span>
+                <span className="demo-note-pill">Other</span>
+              </div>
+              <div className="demo-note-field">
+                Front door<span className="demo-cursor" />
+                <span className="demo-char-count">10/200</span>
+              </div>
+            </div>
+            <div style={{marginTop:'auto',padding:16}}>
+              <button className="demo-complete-btn">Complete Delivery</button>
             </div>
           </div>
-          <div style={{padding:'16px'}}>
-            <div className="demo-note-pills">
-              <span className="demo-note-pill demo-note-pill--active">Front door</span>
-              <span className="demo-note-pill">Back door</span>
-              <span className="demo-note-pill">Mailbox</span>
-              <span className="demo-note-pill">With neighbor</span>
-            </div>
-            <div className="demo-note-field">
-              Left at front door per patient request<span className="demo-cursor" />
-            </div>
-          </div>
-          <button className="demo-btn demo-btn--deliver" style={{margin:'12px 16px 0',width:'calc(100% - 32px)'}}>Complete Delivery</button>
         </div>
 
-        {/* Step 6: Delivery Complete */}
+        {/* Step 7: Delivery Complete */}
         <div className={`demo-step ${currentStep === 'complete' ? 'demo-step--active' : ''}`}>
-          <div className="demo-complete">
-            <div className="demo-checkmark">✓</div>
-            <div className="demo-complete-title">Delivered</div>
-            <div className="demo-complete-summary">
-              <div className="demo-summary-row"><span>Patient</span><span>Gindraw, Tisha A.</span></div>
-              <div className="demo-summary-row"><span>Address</span><span>17 Socrates Pl, Akron</span></div>
-              <div className="demo-summary-row"><span>GPS</span><span style={{fontFamily:'monospace',fontSize:9}}>41.0891°N, 81.5123°W</span></div>
-              <div className="demo-summary-row"><span>Geofence</span><span style={{color:'#10b981',fontWeight:600}}>✓ Verified · 42 ft</span></div>
-              <div className="demo-summary-row"><span>Photos</span><span style={{color:'#10b981',fontWeight:600}}>2 captured</span></div>
-              <div className="demo-summary-row"><span>Signature</span><span style={{color:'#10b981',fontWeight:600}}>Obtained</span></div>
-              <div className="demo-summary-row"><span>Cold Chain</span><span style={{color:'#2563eb',fontWeight:600}}>❄️ Verified</span></div>
-              <div className="demo-summary-row"><span>Time</span><span>10:47 AM</span></div>
+          <div className="demo-complete-screen">
+            <div className="demo-complete-check">✓</div>
+            <div style={{fontSize:18,fontWeight:700,color:'#1a1a2e',marginBottom:4}}>Delivery Complete</div>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:16}}>All proof captured · 10:47 AM</div>
+            <div className="demo-pod-summary">
+              <div className="demo-pod-row"><span>Patient</span><span>Gindraw, Tisha A.</span></div>
+              <div className="demo-pod-row"><span>Address</span><span>17 Socrates Pl, Akron</span></div>
+              <div className="demo-pod-row"><span>GPS</span><span style={{fontFamily:'monospace',fontSize:9}}>41.0891°N</span></div>
+              <div className="demo-pod-row"><span>Geofence</span><span style={{color:'#10b981',fontWeight:600}}>✓ Verified</span></div>
+              <div className="demo-pod-row"><span>Photos</span><span style={{color:'#10b981',fontWeight:600}}>2 of 2</span></div>
+              <div className="demo-pod-row"><span>Signature</span><span style={{color:'#10b981',fontWeight:600}}>Captured</span></div>
+              <div className="demo-pod-row"><span>Cold Chain</span><span style={{color:'#2563eb',fontWeight:600}}>❄️ Verified</span></div>
+              <div className="demo-pod-row"><span>Note</span><span>Front door</span></div>
             </div>
-            <button className="demo-btn demo-btn--deliver" style={{width:'100%',marginTop:10}}>Next Stop →</button>
+            <button className="demo-btn demo-btn--deliver" style={{width:'100%',marginTop:12}}>Next Stop →</button>
           </div>
         </div>
       </div>
 
-      {/* Step indicator dots */}
+      {/* Step indicator */}
       <div className="demo-dots">
         {STEPS.map((s, i) => (
           <div key={s} className={`demo-dot ${i === step ? 'demo-dot--active' : ''}`} onClick={() => setStep(i)} />
         ))}
       </div>
-
-      {/* Step labels */}
       <div className="demo-step-labels">
-        {['Route', 'Geofence', 'Photo', 'Signature', 'Note', 'Complete'].map((label, i) => (
+        {['Route', 'Delivered', 'Next', 'Photo 1', 'Photo 2', 'Note', 'POD'].map((label, i) => (
           <span key={i} className={i === step ? 'demo-step-label--active' : ''}>{label}</span>
         ))}
       </div>
