@@ -506,13 +506,26 @@ export default function DispatchV2Routes() {
     }
   }
 
+  const [siciPreview, setSiciPreview] = useState(null)
+
+  function handleSICIPreview() {
+    const siciStops = allStops.filter(s =>
+      CALL_IN_ZIPS.has(s.zip) && (s.pharmacy || '').toUpperCase() !== 'SHSP'
+    )
+    if (siciStops.length === 0) {
+      showToast('No SICI orders found')
+      return
+    }
+    setSiciPreview(siciStops)
+  }
+
   async function handleSICI() {
+    const siciStops = siciPreview || allStops.filter(s =>
+      CALL_IN_ZIPS.has(s.zip) && (s.pharmacy || '').toUpperCase() !== 'SHSP'
+    )
     setSiciSending(true)
+    setSiciPreview(null)
     try {
-      // a) Filter allStops for ZIPs in CALL_IN_ZIPS where pharmacy !== 'SHSP'
-      const siciStops = allStops.filter(s =>
-        CALL_IN_ZIPS.has(s.zip) && (s.pharmacy || '').toUpperCase() !== 'SHSP'
-      )
       if (siciStops.length === 0) {
         showToast('No SICI stops found')
         setSiciSending(false)
@@ -836,7 +849,7 @@ export default function DispatchV2Routes() {
           {optimizing.size > 0 ? 'Optimizing...' : 'Optimize'}
         </button>
         <button
-          onClick={handleSICI}
+          onClick={handleSICIPreview}
           disabled={siciSending || siciSent}
           style={{
             padding: '6px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
@@ -1136,6 +1149,44 @@ export default function DispatchV2Routes() {
         </div>
       )}
 
+
+      {/* SICI Preview Modal */}
+      {siciPreview && (
+        <div className="dv2-modal-overlay" onClick={() => setSiciPreview(null)}>
+          <div className="dv2-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Call-In Orders Preview</h3>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: '4px 0 0' }}>{siciPreview.length} orders · {formatDateDisplay(selectedDate)}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="dv2-btn dv2-btn-ghost dv2-btn-sm" onClick={() => setSiciPreview(null)}>Cancel</button>
+                <button className="dv2-btn dv2-btn-emerald dv2-btn-sm" onClick={handleSICI} disabled={siciSending}>
+                  {siciSending ? 'Sending...' : 'Confirm & Send'}
+                </button>
+              </div>
+            </div>
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              <table className="dv2-table" style={{ fontSize: 12 }}>
+                <thead>
+                  <tr><th>Order #</th><th>Patient</th><th>Address</th><th>City</th><th>ZIP</th></tr>
+                </thead>
+                <tbody>
+                  {siciPreview.map((s, i) => (
+                    <tr key={i}>
+                      <td style={{ fontFamily: 'monospace', color: 'rgba(255,255,255,0.5)' }}>{s.order_id || s.order_number || '-'}</td>
+                      <td style={{ fontWeight: 500, color: '#fff' }}>{s.patient_name || '-'}</td>
+                      <td>{s.address || '-'}</td>
+                      <td>{s.city || '-'}</td>
+                      <td style={{ fontFamily: 'monospace' }}>{s.zip || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Send Modal */}
       {showSendModal && (
