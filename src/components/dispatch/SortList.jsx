@@ -70,7 +70,7 @@ export default function SortList({ deliveryDate }) {
           const cityList = [...cities].sort().join(', ')
           rows.push({
             delivery_date: dateStr, pharmacy, driver_name: name,
-            display_text: `${name.toUpperCase()} — ${cityList}`, sort_order: order++,
+            display_text: `${name.toUpperCase()}`, sort_order: order++,
             checked: false, late_start: false,
           })
         }
@@ -89,7 +89,7 @@ export default function SortList({ deliveryDate }) {
           const cities = cityMap[row.driver_name]
           if (!cities) continue
           const cityList = [...cities].sort().join(', ')
-          const newText = `${row.driver_name.toUpperCase()} — ${cityList}`
+          const newText = `${row.driver_name.toUpperCase()}`
           if (row.display_text !== newText) {
             await apiPost({ action: 'update', id: row.id, display_text: newText })
             row.display_text = newText
@@ -105,7 +105,7 @@ export default function SortList({ deliveryDate }) {
           const cityList = [...cities].sort().join(', ')
           newRows.push({
             delivery_date: dateStr, pharmacy, driver_name: name,
-            display_text: `${name.toUpperCase()} — ${cityList}`, sort_order: order++,
+            display_text: `${name.toUpperCase()}`, sort_order: order++,
             checked: false, late_start: false,
           })
         }
