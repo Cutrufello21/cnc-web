@@ -2,8 +2,54 @@ import { motion } from 'framer-motion'
 import { useInView } from '../hooks/useInView'
 import './Technology.css'
 
+const features = [
+  {
+    id: 'pharmacy',
+    label: 'Pharmacy Portal',
+    title: 'Your clients see everything. In real time.',
+    desc: "Every delivery tracked. Every POD record on demand. Status updates, compliance reporting, and full audit trail — accessible from any browser. Your pharmacy clients never have to call to ask where a delivery is.",
+    points: [
+      'Live delivery status for every order',
+      'On-demand proof of delivery records',
+      'Cold chain verification and compliance',
+      'Full audit trail for regulatory needs',
+    ],
+    image: '/images/pharmacy-portal.png',
+    imageAlt: 'CNC Delivery Pharmacy Portal showing delivery tracking dashboard',
+  },
+  {
+    id: 'dispatch',
+    label: 'Dispatch Portal',
+    title: 'Every route. Every driver. One screen.',
+    desc: "272 stops across 11 drivers — dispatched before midnight, delivered by 6 PM. Route optimization, cold chain tracking, automated payroll, and real-time driver management. Built by the dispatchers who use it every day.",
+    points: [
+      'Route optimization with 156 routing rules',
+      'Real-time driver tracking and stop distribution',
+      'Cold chain package limits enforced per driver',
+      'Automated payroll calculated on delivery',
+    ],
+    image: '/images/dispatch-portal.png',
+    imageAlt: 'CNC Delivery Dispatch Portal showing driver assignments and route optimization',
+  },
+  {
+    id: 'driver',
+    label: 'Driver App',
+    title: 'Proof of every stop. Before the driver leaves.',
+    desc: "GPS-verified location, timestamped photos, digital signatures, geofence confirmation. A four-step proof-of-delivery flow captured at every door. The driver app that turns every delivery into a medical record.",
+    points: [
+      'Optimized route with turn-by-turn navigation',
+      '4-step POD: geofence, photo, signature, note',
+      'Cold chain flagging and priority delivery',
+      'Real-time ETA and progress tracking',
+    ],
+    image: '/images/driver-app.png',
+    imageAlt: 'CNC Delivery Driver App showing stop list and delivery flow',
+    isPhone: true,
+  },
+]
+
 export default function Technology() {
-  const [ref, inView] = useInView(0.1)
+  const [ref, inView] = useInView(0.05)
 
   return (
     <section className="tech" id="technology" ref={ref}>
@@ -17,146 +63,72 @@ export default function Technology() {
           <p className="tech__eyebrow">Our Technology</p>
           <h2 className="tech__title">Transparency built into every delivery.</h2>
           <p className="tech__sub">
-            Three connected platforms. One complete system. Your pharmacy sees every delivery in real time — because you built trust by proving it.
+            Three connected platforms. One complete system. We built the software that proves every stop — so your pharmacy clients never have to wonder.
           </p>
         </motion.div>
 
-        <div className="tech__grid">
-          {/* Pharmacy Portal */}
-          <motion.div
-            className="tech-card"
-            initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0 }}
-          >
-            <div className="tech-card__preview">
-              <div className="tech-card__preview-header">
-                <div className="tech-card__avatar">LP</div>
-                <span>LYN Pharmacy</span>
-              </div>
-              <div className="tech-card__stats-row">
-                <div className="tech-card__stat"><span className="tech-card__stat-num" style={{ color: 'var(--navy)' }}>387</span><span className="tech-card__stat-lbl">Total</span></div>
-                <div className="tech-card__stat"><span className="tech-card__stat-num" style={{ color: '#10b981' }}>312</span><span className="tech-card__stat-lbl">Delivered</span></div>
-                <div className="tech-card__stat"><span className="tech-card__stat-num" style={{ color: '#f59e0b' }}>68</span><span className="tech-card__stat-lbl">Pending</span></div>
-                <div className="tech-card__stat"><span className="tech-card__stat-num" style={{ color: '#ef4444' }}>7</span><span className="tech-card__stat-lbl">Failed</span></div>
-              </div>
-              <div className="tech-card__table">
-                <div className="tech-card__table-head"><span>Patient</span><span>Status</span><span>POD</span></div>
-                <div className="tech-card__table-row"><span>M. Johnson</span><span className="tech-badge tech-badge--delivered">Delivered</span><span className="tech-pod-link">POD</span></div>
-                <div className="tech-card__table-row"><span>S. Williams</span><span className="tech-badge tech-badge--delivered">Delivered</span><span className="tech-pod-link">POD</span></div>
-                <div className="tech-card__table-row"><span>R. Davis</span><span className="tech-badge tech-badge--pending">Pending</span><span></span></div>
-              </div>
-            </div>
-            <div className="tech-card__body">
-              <div className="tech-card__label">Pharmacy Portal</div>
-              <h3 className="tech-card__title">Your clients see everything.</h3>
-              <p className="tech-card__desc">Real-time delivery tracking, on-demand POD records, and compliance reporting. Your pharmacy clients never have to call to ask where a delivery is.</p>
-            </div>
-          </motion.div>
-
-          {/* Dispatch Portal */}
-          <motion.div
-            className="tech-card"
-            initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.15 }}
-          >
-            <div className="tech-card__preview">
-              <div className="tech-card__preview-header">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--cornflower)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                <span>Dispatch Portal</span>
-              </div>
-              <div className="tech-card__dispatch-banner">Routes optimized · 47 min saved</div>
-              <div className="tech-card__drivers">
-                {[
-                  { name: 'Marcus R.', pct: 79 },
-                  { name: 'Angela F.', pct: 73 },
-                  { name: 'Derek S.', pct: 82 },
-                  { name: 'Rachel K.', pct: 69 },
-                ].map((d, i) => (
-                  <div className="tech-card__driver" key={i}>
-                    <span className="tech-card__driver-name">{d.name}</span>
-                    <div className="tech-card__driver-bar">
-                      <div className="tech-card__driver-fill" style={{ width: `${d.pct}%` }} />
-                    </div>
-                    <span className="tech-card__driver-pct">{d.pct}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="tech-card__body">
-              <div className="tech-card__label">Dispatch Portal</div>
-              <h3 className="tech-card__title">Every route. Every driver. One screen.</h3>
-              <p className="tech-card__desc">Route optimization, automated payroll, real-time driver tracking, and analytics. The entire operation managed from one dashboard — built by dispatchers.</p>
-            </div>
-          </motion.div>
-
-          {/* Driver App */}
-          <motion.div
-            className="tech-card"
-            initial={{ opacity: 0, y: 30 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <div className="tech-card__preview tech-card__preview--phone">
-              <div className="tech-card__phone-frame">
-                <div className="tech-card__phone-status">
-                  <span>9:41</span>
-                  <span className="tech-card__phone-battery" />
-                </div>
-                <div className="tech-card__phone-driver">
-                  <span style={{ fontWeight: 600, color: 'var(--gray-900)' }}>Marcus R.</span>
-                  <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 600 }}>23/31</span>
-                </div>
-                <div className="tech-card__phone-progress">
-                  <div className="tech-card__phone-progress-fill" />
-                </div>
-                <div className="tech-card__phone-next">
-                  <div className="tech-card__phone-next-label">NEXT STOP</div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gray-900)' }}>1423 Oak St, Fairlawn</div>
-                  <div style={{ fontSize: '10px', color: 'var(--gray-500)', marginTop: '2px' }}>M. Johnson · 2 PKG</div>
-                </div>
-                <div className="tech-card__phone-upcoming">
-                  <div className="tech-card__phone-stop">24 · 892 Elm Ave</div>
-                  <div className="tech-card__phone-stop tech-card__phone-stop--cold">25 · 2205 Maple Dr</div>
-                </div>
-              </div>
-            </div>
-            <div className="tech-card__body">
-              <div className="tech-card__label">Driver App</div>
-              <h3 className="tech-card__title">Proof of every stop.</h3>
-              <p className="tech-card__desc">GPS-verified location, timestamped photos, digital signatures, and geofence confirmation. Four-step proof captured at every door — before the driver leaves.</p>
-            </div>
-          </motion.div>
-        </div>
+        {features.map((f, i) => (
+          <Feature key={f.id} feature={f} index={i} inView={inView} />
+        ))}
 
         {/* POD proof strip */}
         <motion.div
           className="tech__proof"
           initial={{ opacity: 0, y: 20 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.5 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
         >
           <div className="tech__proof-items">
-            <div className="tech__proof-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <span>GPS Verified</span>
-            </div>
-            <div className="tech__proof-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              <span>Photo Captured</span>
-            </div>
-            <div className="tech__proof-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-              <span>Signature Obtained</span>
-            </div>
-            <div className="tech__proof-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-              <span>Geofence Confirmed</span>
-            </div>
+            {[
+              { icon: 'M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', label: 'GPS Verified' },
+              { icon: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', label: 'Photo Captured' },
+              { icon: 'M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z', label: 'Signature Obtained' },
+              { icon: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', label: 'Geofence Confirmed' },
+            ].map((p, i) => (
+              <div className="tech__proof-item" key={i}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  {p.icon.split(' M').map((d, j) => (
+                    <path key={j} d={j === 0 ? d : 'M' + d} />
+                  ))}
+                </svg>
+                <span>{p.label}</span>
+              </div>
+            ))}
           </div>
         </motion.div>
       </div>
     </section>
+  )
+}
+
+function Feature({ feature: f, index: i, inView }) {
+  const reversed = i % 2 === 1
+
+  return (
+    <motion.div
+      className={`tech-feature ${reversed ? 'tech-feature--reversed' : ''}`}
+      initial={{ opacity: 0, y: 40 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, delay: 0.15 * i }}
+    >
+      <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''}`}>
+        <img src={f.image} alt={f.imageAlt} loading="lazy" />
+      </div>
+      <div className="tech-feature__content">
+        <p className="tech-feature__label">{f.label}</p>
+        <h3 className="tech-feature__title">{f.title}</h3>
+        <p className="tech-feature__desc">{f.desc}</p>
+        <div className="tech-feature__points">
+          {f.points.map((pt, j) => (
+            <div className="tech-feature__point" key={j}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{pt}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
   )
 }
