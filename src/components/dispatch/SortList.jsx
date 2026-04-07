@@ -85,15 +85,18 @@ export default function SortList({ deliveryDate }) {
         const currentRows = result[pharmacy]
         const existingDrivers = new Set(currentRows.map(r => r.driver_name))
 
-        // Update display_text for existing drivers with fresh cities
-        for (const row of currentRows) {
-          const cities = cityMap[row.driver_name]
-          if (!cities) continue
-          const cityList = [...cities].sort().join(', ')
-          const newText = pharmacy === 'Aultman' ? `${row.driver_name.toUpperCase()} — ${cityList}` : row.driver_name.toUpperCase()
-          if (row.display_text !== newText) {
-            await apiPost({ action: 'update', id: row.id, display_text: newText })
-            row.display_text = newText
+        // Update display_text for existing drivers — only Aultman auto-syncs cities
+        // SHSP display_text is manually editable and never overwritten
+        if (pharmacy === 'Aultman') {
+          for (const row of currentRows) {
+            const cities = cityMap[row.driver_name]
+            if (!cities) continue
+            const cityList = [...cities].sort().join(', ')
+            const newText = `${row.driver_name.toUpperCase()} — ${cityList}`
+            if (row.display_text !== newText) {
+              await apiPost({ action: 'update', id: row.id, display_text: newText })
+              row.display_text = newText
+            }
           }
         }
 
