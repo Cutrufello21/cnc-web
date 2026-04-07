@@ -129,7 +129,7 @@ export default function DispatchV2Routes() {
   }, [])
 
   const loadDrivers = useCallback(async () => {
-    const { data } = await supabase.from('drivers').select('*')
+    const { data } = await supabase.from('drivers').select('*').eq('active', true)
     setAllDrivers(data || [])
   }, [])
 
@@ -762,7 +762,10 @@ export default function DispatchV2Routes() {
     allStops.filter(s => s.driver_name).map(s => s.driver_name)
   ), [allStops])
   const noStopsDrivers = useMemo(() =>
-    allDrivers.filter(d => !driversWithStops.has(d.name)),
+    allDrivers.filter(d => {
+      const name = d.driver_name || d.name
+      return name && !driversWithStops.has(name)
+    }),
     [allDrivers, driversWithStops]
   )
 
@@ -951,28 +954,32 @@ export default function DispatchV2Routes() {
                 No Stops Today ({noStopsDrivers.length})
               </h3>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {noStopsDrivers.map(driver => (
+                {noStopsDrivers.map(driver => {
+                  const dName = driver.driver_name || driver.name
+                  const pharmacy = driver.pharmacy || driver.origin_pharmacy || ''
+                  return (
                   <div
-                    key={driver.id || driver.name}
+                    key={driver.id || dName}
                     style={{
                       background: '#2A2A2E', borderRadius: 8, padding: '8px 14px',
                       display: 'flex', alignItems: 'center', gap: 8,
                       border: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>{driver.name}</span>
-                    {driver.pharmacy && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.5)' }}>{dName}</span>
+                    {pharmacy && (
                       <span style={{
                         fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4,
-                        background: driver.pharmacy === 'Aultman' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
-                        color: driver.pharmacy === 'Aultman' ? '#f87171' : '#60a5fa',
+                        background: pharmacy.toLowerCase().includes('aultman') ? 'rgba(239,68,68,0.15)' : pharmacy.toLowerCase() === 'both' ? 'rgba(168,85,247,0.15)' : 'rgba(59,130,246,0.15)',
+                        color: pharmacy.toLowerCase().includes('aultman') ? '#f87171' : pharmacy.toLowerCase() === 'both' ? '#c084fc' : '#60a5fa',
                       }}>
-                        {driver.pharmacy}
+                        {pharmacy}
                       </span>
                     )}
                     <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase' }}>0 stops</span>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
