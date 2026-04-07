@@ -17,6 +17,10 @@ import PortalDashboard from './pages/portal/PortalDashboard'
 import PortalDeliveries from './pages/portal/PortalDeliveries'
 import PortalPODRecords from './pages/portal/PortalPODRecords'
 import PortalReports from './pages/portal/PortalReports'
+import DispatchV2Login from './pages/dispatch-v2/DispatchV2Login'
+import DispatchV2Routes from './pages/dispatch-v2/DispatchV2Routes'
+import DispatchV2Drivers from './pages/dispatch-v2/DispatchV2Drivers'
+import DispatchV2Settings from './pages/dispatch-v2/DispatchV2Settings'
 
 function SiteGate({ children }) {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('site-pass') === '1')
@@ -103,6 +107,10 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/dispatch-v2" element={<DispatchV2Login />} />
+          <Route path="/dispatch-v2/routes" element={<DispatchV2Routes />} />
+          <Route path="/dispatch-v2/drivers" element={<DispatchV2Drivers />} />
+          <Route path="/dispatch-v2/settings" element={<DispatchV2Settings />} />
         </Routes>
       </AuthProvider>
     </ErrorBoundary>
