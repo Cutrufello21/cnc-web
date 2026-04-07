@@ -234,7 +234,8 @@ export default function SortList({ deliveryDate }) {
                     <div className="sl__edit">
                       <input className="sl__edit-input" value={editVal}
                         onChange={e => setEditVal(e.target.value)} autoFocus
-                        onKeyDown={e => { if (e.key === 'Enter') handleSave(line.id); if (e.key === 'Escape') setEditKey(null) }} />
+                        onKeyDown={e => { if (e.key === 'Enter') handleSave(line.id); if (e.key === 'Escape') setEditKey(null) }}
+                        onBlur={() => { if (editVal !== line.display_text) handleSave(line.id); else setEditKey(null) }} />
                       <button className="sl__edit-save" onClick={() => handleSave(line.id)} disabled={saving}>&#10003;</button>
                       <button className="sl__edit-cancel" onClick={() => setEditKey(null)}>&#10005;</button>
                     </div>
