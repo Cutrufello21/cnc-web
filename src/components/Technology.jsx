@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import { useInView } from '../hooks/useInView'
+import DriverAppDemo from './DriverAppDemo'
 import './Technology.css'
 
 const features = [
@@ -112,7 +113,7 @@ function Feature({ feature: f, index: i, inView }) {
       transition={{ duration: 0.6, delay: 0.15 * i }}
     >
       <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''}`}>
-        <img src={f.image} alt={f.imageAlt} loading="lazy" />
+        {f.isPhone ? <DriverAppDemo /> : <img src={f.image} alt={f.imageAlt} loading="lazy" />}
       </div>
       <div className="tech-feature__content">
         <p className="tech-feature__label">{f.label}</p>
