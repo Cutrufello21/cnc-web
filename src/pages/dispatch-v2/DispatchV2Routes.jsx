@@ -283,9 +283,9 @@ export default function DispatchV2Routes() {
           Loading stops...
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 20, paddingBottom: 70 }}>
-          {/* Left Panel — Driver Cards */}
-          <div style={{ width: 320, minWidth: 280, flexShrink: 0 }}>
+        <div style={{ paddingBottom: 70 }}>
+          {/* Driver Cards — horizontal grid */}
+          <div style={{ marginBottom: 20 }}>
             <h3 style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
               Drivers ({activeDrivers})
             </h3>
@@ -294,12 +294,13 @@ export default function DispatchV2Routes() {
                 No stops for this date
               </div>
             )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
             {driverNames.map(driverName => {
               const driverStops = grouped[driverName]
               const stats = getDriverStats(driverStops)
               const isExpanded = expandedDrivers.has(driverName)
               const uniqueAddresses = [...new Set(driverStops.map(s => s.address))]
-              const displayAddresses = isExpanded ? uniqueAddresses : uniqueAddresses.slice(0, 3)
+              const displayAddresses = isExpanded ? uniqueAddresses : uniqueAddresses.slice(0, 2)
               const isOptimizing = optimizing.has(driverName)
 
               return (
@@ -309,9 +310,16 @@ export default function DispatchV2Routes() {
                   style={{ cursor: 'pointer' }}
                   onClick={() => setDriverFilter(driverFilter === driverName ? '' : driverName)}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>{driverName}</span>
-                    <span className={`dv2-badge ${stats.status === 'Optimized' ? 'dv2-badge-emerald' : 'dv2-badge-amber'}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontWeight: 700, fontSize: 13 }}>{driverName}</span>
+                      {driverStops[0]?.pharmacy && (
+                        <span style={{ fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4, background: driverStops[0].pharmacy === 'Aultman' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)', color: driverStops[0].pharmacy === 'Aultman' ? '#f87171' : '#60a5fa' }}>
+                          {driverStops[0].pharmacy}
+                        </span>
+                      )}
+                    </div>
+                    <span className={`dv2-badge ${stats.status === 'Optimized' ? 'dv2-badge-emerald' : 'dv2-badge-amber'}`} style={{ fontSize: 9 }}>
                       {stats.status}
                     </span>
                   </div>
@@ -355,10 +363,11 @@ export default function DispatchV2Routes() {
                 </div>
               )
             })}
+            </div>
           </div>
 
-          {/* Right Panel — Stop Table */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Stop Table — full width below driver cards */}
+          <div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
               <h3 style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, margin: 0, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 Stops ({filteredStops.length})
