@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import PortalShell from '../../components/portal/PortalShell'
-import { PODModal, getStatusClass, getStatusLabel, formatTime } from './PortalDashboard'
+import { PODModal, hasPodEvidence, getStatusClass, getStatusLabel, formatTime } from './PortalDashboard'
 
 function daysAgo(n) {
   const d = new Date()
@@ -140,9 +140,9 @@ export default function PortalDeliveries() {
               {filtered.map(stop => (
                 <tr
                   key={stop.id}
-                  style={{ cursor: stop.status === 'delivered' ? 'pointer' : 'default' }}
+                  style={{ cursor: hasPodEvidence(stop) ? 'pointer' : 'default' }}
                   onClick={() => {
-                    if (stop.status === 'delivered' && (stop.photo_url || stop.signature_url || stop.photo_urls)) {
+                    if (hasPodEvidence(stop)) {
                       setPodStop(stop)
                     }
                   }}
@@ -160,11 +160,11 @@ export default function PortalDeliveries() {
                   </td>
                   <td>{formatTime(stop.delivered_at)}</td>
                   <td>
-                    {(stop.photo_url || stop.signature_url || stop.photo_urls) ? (
+                    {hasPodEvidence(stop) ? (
                       <button className="portal-pod-btn" onClick={e => { e.stopPropagation(); setPodStop(stop) }}>
-                        View POD
+                        POD
                       </button>
-                    ) : '-'}
+                    ) : <span style={{ color: 'rgba(255,255,255,0.25)' }}>-</span>}
                   </td>
                 </tr>
               ))}

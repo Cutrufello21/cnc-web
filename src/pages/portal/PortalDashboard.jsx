@@ -100,31 +100,63 @@ function PODModal({ stop, onClose }) {
   )
 }
 
-export { PODModal, getPhotoUrls, getStatusClass, getStatusLabel, formatTime }
+export { PODModal, getPhotoUrls, hasPodEvidence, getStatusClass, getStatusLabel, formatTime }
+
+function hasPodEvidence(stop) {
+  if (stop.photo_url) return true
+  if (stop.signature_url) return true
+  if (stop.photo_urls) {
+    try {
+      const parsed = typeof stop.photo_urls === 'string' ? JSON.parse(stop.photo_urls) : stop.photo_urls
+      if (Array.isArray(parsed) && parsed.length > 0) return true
+    } catch {}
+  }
+  return false
+}
+
+function TrendIndicator({ current, previous }) {
+  if (previous === null || previous === undefined) return null
+  if (previous === 0 && current === 0) return <span style={{ color: '#6B7280', fontSize: '0.7rem', marginTop: 2 }}>— same</span>
+  if (previous === 0) return <span style={{ color: '#10B981', fontSize: '0.7rem', marginTop: 2 }}>▲ new</span>
+  const change = Math.round(((current - previous) / previous) * 100)
+  if (change === 0) return <span style={{ color: '#6B7280', fontSize: '0.7rem', marginTop: 2 }}>— 0%</span>
+  if (change > 0) return <span style={{ color: '#10B981', fontSize: '0.7rem', marginTop: 2 }}>▲ {change}%</span>
+  return <span style={{ color: '#EF4444', fontSize: '0.7rem', marginTop: 2 }}>▼ {Math.abs(change)}%</span>
+}
 
 export default function PortalDashboard() {
   const { profile } = useAuth()
   const [stops, setStops] = useState([])
+  const [lastWeekStops, setLastWeekStops] = useState(null)
   const [loading, setLoading] = useState(true)
   const [podStop, setPodStop] = useState(null)
 
   const pharmacyName = profile?.pharmacy_name || profile?.pharmacy || 'SHSP'
   const today = new Date().toLocaleDateString('en-CA')
+  const lastWeekDate = new Date(Date.now() - 7 * 86400000).toLocaleDateString('en-CA')
 
   useEffect(() => {
     async function load() {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('daily_stops')
-        .select('*')
-        .eq('pharmacy', pharmacyName)
-        .eq('delivery_date', today)
+      const [todayRes, lastWeekRes] = await Promise.all([
+        supabase
+          .from('daily_stops')
+          .select('*')
+          .eq('pharmacy', pharmacyName)
+          .eq('delivery_date', today),
+        supabase
+          .from('daily_stops')
+          .select('*')
+          .eq('pharmacy', pharmacyName)
+          .eq('delivery_date', lastWeekDate),
+      ])
 
-      if (!error && data) setStops(data)
+      if (!todayRes.error && todayRes.data) setStops(todayRes.data)
+      if (!lastWeekRes.error && lastWeekRes.data) setLastWeekStops(lastWeekRes.data)
       setLoading(false)
     }
     load()
-  }, [pharmacyName, today])
+  }, [pharmacyName, today, lastWeekDate])
 
   const total = stops.length
   const delivered = stops.filter(s => s.status === 'delivered').length
@@ -132,24 +164,33 @@ export default function PortalDashboard() {
   const pending = total - delivered - failed
   const pct = total > 0 ? Math.round((delivered / total) * 100) : 0
 
+  const lwTotal = lastWeekStops ? lastWeekStops.length : null
+  const lwDelivered = lastWeekStops ? lastWeekStops.filter(s => s.status === 'delivered').length : null
+  const lwFailed = lastWeekStops ? lastWeekStops.filter(s => s.status === 'failed' || s.status === 'attempted').length : null
+  const lwPending = lastWeekStops !== null ? lwTotal - lwDelivered - lwFailed : null
+
   return (
     <PortalShell title="Dashboard">
       <div className="portal-stats">
         <div className="portal-stat-card">
           <div className="portal-stat-label">Total</div>
           <div className="portal-stat-value">{total}</div>
+          <TrendIndicator current={total} previous={lwTotal} />
         </div>
         <div className="portal-stat-card">
           <div className="portal-stat-label">Delivered</div>
           <div className="portal-stat-value" style={{ color: '#10B981' }}>{delivered}</div>
+          <TrendIndicator current={delivered} previous={lwDelivered} />
         </div>
         <div className="portal-stat-card">
           <div className="portal-stat-label">Pending</div>
           <div className="portal-stat-value" style={{ color: '#F59E0B' }}>{pending}</div>
+          <TrendIndicator current={pending} previous={lwPending} />
         </div>
         <div className="portal-stat-card">
           <div className="portal-stat-label">Failed</div>
           <div className="portal-stat-value" style={{ color: '#EF4444' }}>{failed}</div>
+          <TrendIndicator current={failed} previous={lwFailed} />
         </div>
       </div>
 
@@ -158,7 +199,7 @@ export default function PortalDashboard() {
       </div>
 
       <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginBottom: 16 }}>
-        {pct}% completed — {today}
+        {pct}% Complete &middot; {delivered} of {total} delivered today
       </div>
 
       {loading ? (
@@ -195,11 +236,11 @@ export default function PortalDashboard() {
                   </td>
                   <td>{formatTime(stop.delivered_at)}</td>
                   <td>
-                    {(stop.photo_url || stop.signature_url || stop.photo_urls) ? (
+                    {hasPodEvidence(stop) ? (
                       <button className="portal-pod-btn" onClick={() => setPodStop(stop)}>
-                        View POD
+                        POD
                       </button>
-                    ) : '-'}
+                    ) : <span style={{ color: 'rgba(255,255,255,0.25)' }}>-</span>}
                   </td>
                 </tr>
               ))}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import PortalShell from '../../components/portal/PortalShell'
-import { PODModal, getPhotoUrls, formatTime } from './PortalDashboard'
+import { PODModal, getPhotoUrls, hasPodEvidence, formatTime } from './PortalDashboard'
 
 export default function PortalPODRecords() {
   const { profile } = useAuth()
@@ -24,7 +24,7 @@ export default function PortalPODRecords() {
         .eq('status', 'delivered')
 
       if (!error && data) {
-        const withPod = data.filter(s => s.photo_url || s.signature_url || s.photo_urls)
+        const withPod = data.filter(s => hasPodEvidence(s))
         setStops(withPod)
       }
       setLoading(false)
