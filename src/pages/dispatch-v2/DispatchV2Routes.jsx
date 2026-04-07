@@ -4,6 +4,16 @@ import DispatchV2Shell from '../../components/dispatch-v2/DispatchV2Shell'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
+const CALL_IN_ZIPS = new Set([
+  '43450','43903','43908','43945','43986','43988',
+  '44134','44136','44141','44147','44203','44216','44217','44230','44270','44273','44276','44281','44314',
+  '44423','44427','44460',
+  '44606','44607','44608','44612','44613','44620','44624','44625','44626','44627','44629','44632','44634',
+  '44645','44651','44659','44662','44672','44675','44678','44681','44683','44691','44695','44697',
+])
+
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+
 function getDefaultDate() {
   const offset = parseInt(localStorage.getItem('dv2-date-offset') || '1', 10)
   const d = new Date()
@@ -61,6 +71,12 @@ export default function DispatchV2Routes() {
   const [toast, setToast] = useState('')
   const [moveTarget, setMoveTarget] = useState('')
   const [showMoveDropdown, setShowMoveDropdown] = useState(false)
+  const [allDrivers, setAllDrivers] = useState([])
+  const [siciSent, setSiciSent] = useState(false)
+  const [siciSending, setSiciSending] = useState(false)
+  const [correctionsSent, setCorrectionsSent] = useState(false)
+  const [correctionsSending, setCorrectionsSending] = useState(false)
+  const [sendingDriver, setSendingDriver] = useState('')
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate])
   const grouped = useMemo(() => groupByDriver(allStops), [allStops])
@@ -78,8 +94,20 @@ export default function DispatchV2Routes() {
     setLoading(false)
   }, [])
 
+  const loadDrivers = useCallback(async () => {
+    const { data } = await supabase.from('drivers').select('*')
+    setAllDrivers(data || [])
+  }, [])
+
+  useEffect(() => {
+    loadDrivers()
+  }, [loadDrivers])
+
   useEffect(() => {
     loadStops(selectedDate)
+    // Reset sent states when date changes
+    setSiciSent(false)
+    setCorrectionsSent(false)
   }, [selectedDate, loadStops])
 
   function showToast(msg) {
@@ -193,6 +221,119 @@ export default function DispatchV2Routes() {
     }
   }
 
+  async function handleSendDriverRoute(driverName) {
+    setSendingDriver(driverName)
+    try {
+      await fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'email_route', driver_name: driverName, date: selectedDate }),
+      })
+      showToast(`Route sent for ${driverName}`)
+    } catch (err) {
+      console.error('Send driver route failed:', err)
+      showToast(`Failed to send route for ${driverName}`)
+    } finally {
+      setSendingDriver('')
+    }
+  }
+
+  async function handleSICI() {
+    setSiciSending(true)
+    try {
+      const siciStops = allStops.filter(s => CALL_IN_ZIPS.has(s.zip) && s.pharmacy !== 'SHSP')
+      if (siciStops.length === 0) {
+        showToast('No SICI stops found')
+        setSiciSending(false)
+        return
+      }
+      // Group by order_number
+      const orderMap = {}
+      for (const s of siciStops) {
+        const key = s.order_number || s.id
+        if (!orderMap[key]) orderMap[key] = s
+      }
+      const orderList = Object.values(orderMap)
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'sici',
+          date: selectedDate,
+          orders: orderList.map(s => ({
+            order_number: s.order_number,
+            patient_name: s.patient_name,
+            address: s.address,
+            city: s.city,
+            zip: s.zip,
+            pharmacy: s.pharmacy,
+            driver_name: s.driver_name,
+          })),
+        }),
+        mode: 'no-cors',
+      })
+      setSiciSent(true)
+      showToast(`SICI sent: ${orderList.length} orders`)
+    } catch (err) {
+      console.error('SICI send failed:', err)
+      showToast('SICI send failed')
+    } finally {
+      setSiciSending(false)
+    }
+  }
+
+  async function handleSendCorrections() {
+    setCorrectionsSending(true)
+    try {
+      const corrections = allStops.filter(s =>
+        s.dispatch_driver_number && s.assigned_driver_number &&
+        s.dispatch_driver_number !== s.assigned_driver_number
+      )
+      if (corrections.length === 0) {
+        showToast('No corrections needed')
+        setCorrectionsSending(false)
+        return
+      }
+      // Group by assigned_driver_number
+      const groups = {}
+      for (const s of corrections) {
+        const key = s.assigned_driver_number
+        if (!groups[key]) groups[key] = []
+        groups[key].push(s)
+      }
+      for (const [assignedDriver, stops] of Object.entries(groups)) {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'correction',
+            date: selectedDate,
+            assigned_driver_number: assignedDriver,
+            to: 'wfldispatch@biotouchglobal.com',
+            stops: stops.map(s => ({
+              order_number: s.order_number,
+              patient_name: s.patient_name,
+              address: s.address,
+              city: s.city,
+              zip: s.zip,
+              dispatch_driver_number: s.dispatch_driver_number,
+              assigned_driver_number: s.assigned_driver_number,
+              driver_name: s.driver_name,
+            })),
+          }),
+          mode: 'no-cors',
+        })
+      }
+      setCorrectionsSent(true)
+      showToast(`Corrections sent: ${corrections.length} stops`)
+    } catch (err) {
+      console.error('Corrections send failed:', err)
+      showToast('Corrections send failed')
+    } finally {
+      setCorrectionsSending(false)
+    }
+  }
+
   async function handleMoveSelected() {
     if (!moveTarget || selectedStops.size === 0) return
     for (const orderId of selectedStops) {
@@ -254,10 +395,22 @@ export default function DispatchV2Routes() {
   const totalPackages = allStops.length
   const totalStops = new Set(allStops.map(s => s.address)).size
   const activeDrivers = driverNames.filter(n => n !== 'Unassigned').length
+  const coldChainCount = allStops.filter(s => s.cold_chain).length
+  const unassignedCount = allStops.filter(s => !s.driver_name || s.driver_name.trim() === '').length
+  const totalDriverCount = allDrivers.length
+
+  // Drivers with no stops today
+  const driversWithStops = useMemo(() => new Set(
+    allStops.filter(s => s.driver_name).map(s => s.driver_name)
+  ), [allStops])
+  const noStopsDrivers = useMemo(() =>
+    allDrivers.filter(d => !driversWithStops.has(d.name)),
+    [allDrivers, driversWithStops]
+  )
 
   return (
     <DispatchV2Shell title="Routes">
-      {/* Date Navigation */}
+      {/* Date Navigation + Action Buttons */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <button className="dv2-btn dv2-btn-ghost dv2-btn-sm" onClick={() => shiftDate(-1)}>&larr;</button>
         <span style={{ fontSize: 15, fontWeight: 600, minWidth: 180, textAlign: 'center' }}>
@@ -276,6 +429,39 @@ export default function DispatchV2Routes() {
             </button>
           ))}
         </div>
+
+        {/* Right-aligned action buttons */}
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={handleSICI}
+          disabled={siciSending || siciSent}
+          style={{
+            padding: '6px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
+            background: 'transparent',
+            border: siciSent ? '1px solid #34d399' : '1px solid #f59e0b',
+            color: siciSent ? '#34d399' : '#f59e0b',
+          }}
+        >
+          {siciSending ? 'Sending...' : siciSent ? 'SICI Sent' : 'SICI'}
+        </button>
+        <button
+          onClick={handleSendCorrections}
+          disabled={correctionsSending || correctionsSent}
+          style={{
+            padding: '6px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
+            background: 'transparent',
+            border: correctionsSent ? '1px solid #34d399' : '1px solid rgba(255,255,255,0.2)',
+            color: correctionsSent ? '#34d399' : 'rgba(255,255,255,0.7)',
+          }}
+        >
+          {correctionsSending ? 'Sending...' : correctionsSent ? 'Corrections Sent' : 'Send Corrections'}
+        </button>
+        <button
+          className="dv2-btn dv2-btn-emerald dv2-btn-sm"
+          onClick={() => setShowSendModal(true)}
+        >
+          Send Routes
+        </button>
       </div>
 
       {loading ? (
@@ -284,6 +470,30 @@ export default function DispatchV2Routes() {
         </div>
       ) : (
         <div style={{ paddingBottom: 70 }}>
+          {/* Summary Stat Cards */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20,
+          }}>
+            <div className="dv2-card" style={{ textAlign: 'center', padding: '16px 12px' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>{allStops.length}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Total Stops</div>
+            </div>
+            <div className="dv2-card" style={{ textAlign: 'center', padding: '16px 12px' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#60a5fa' }}>{coldChainCount}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Cold Chain</div>
+            </div>
+            <div className="dv2-card" style={{ textAlign: 'center', padding: '16px 12px' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: '#fff' }}>
+                {activeDrivers}<span style={{ fontSize: 14, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}> / {totalDriverCount}</span>
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Active Drivers</div>
+            </div>
+            <div className="dv2-card" style={{ textAlign: 'center', padding: '16px 12px' }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: unassignedCount > 0 ? '#f87171' : '#fff' }}>{unassignedCount}</div>
+              <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Unassigned</div>
+            </div>
+          </div>
+
           {/* Driver Cards — horizontal grid */}
           <div style={{ marginBottom: 20 }}>
             <h3 style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -302,6 +512,7 @@ export default function DispatchV2Routes() {
               const uniqueAddresses = [...new Set(driverStops.map(s => s.address))]
               const displayAddresses = isExpanded ? uniqueAddresses : uniqueAddresses.slice(0, 2)
               const isOptimizing = optimizing.has(driverName)
+              const isSendingThis = sendingDriver === driverName
 
               return (
                 <div
@@ -351,20 +562,67 @@ export default function DispatchV2Routes() {
                     )}
                   </div>
 
-                  {/* Optimize button */}
-                  <button
-                    className="dv2-btn dv2-btn-navy dv2-btn-sm"
-                    style={{ marginTop: 10, width: '100%' }}
-                    onClick={e => { e.stopPropagation(); handleOptimize(driverName) }}
-                    disabled={isOptimizing}
-                  >
-                    {isOptimizing ? 'Optimizing...' : 'Optimize'}
-                  </button>
+                  {/* Optimize + Send buttons */}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+                    <button
+                      className="dv2-btn dv2-btn-navy dv2-btn-sm"
+                      style={{ flex: 1 }}
+                      onClick={e => { e.stopPropagation(); handleOptimize(driverName) }}
+                      disabled={isOptimizing}
+                    >
+                      {isOptimizing ? 'Optimizing...' : 'Optimize'}
+                    </button>
+                    <button
+                      className="dv2-btn dv2-btn-sm"
+                      style={{
+                        padding: '4px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6,
+                        background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                        color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+                      }}
+                      onClick={e => { e.stopPropagation(); handleSendDriverRoute(driverName) }}
+                      disabled={isSendingThis}
+                    >
+                      {isSendingThis ? '...' : 'Send'}
+                    </button>
+                  </div>
                 </div>
               )
             })}
             </div>
           </div>
+
+          {/* No Stops Today Section */}
+          {noStopsDrivers.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <h3 style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontWeight: 500, margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                No Stops Today ({noStopsDrivers.length})
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {noStopsDrivers.map(driver => (
+                  <div
+                    key={driver.id || driver.name}
+                    style={{
+                      background: '#2A2A2E', borderRadius: 8, padding: '8px 14px',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>{driver.name}</span>
+                    {driver.pharmacy && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 4,
+                        background: driver.pharmacy === 'Aultman' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
+                        color: driver.pharmacy === 'Aultman' ? '#f87171' : '#60a5fa',
+                      }}>
+                        {driver.pharmacy}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase' }}>0 stops</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Stop Table — full width below driver cards */}
           <div>
