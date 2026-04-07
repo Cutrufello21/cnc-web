@@ -233,9 +233,31 @@ export default function DispatchV2Routes() {
   }
 
   async function handleOptimizeAll() {
-    for (const driverName of driverNames) {
-      if (driverName === 'Unassigned') continue
-      await handleOptimize(driverName)
+    const dayName = parseDateSafe(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })
+    setOptimizing(new Set(['__all__']))
+    try {
+      const res = await fetch('/api/fleet-optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryDate: selectedDate,
+          deliveryDay: dayName,
+          mode: 'apply',
+        }),
+      })
+      const result = await res.json()
+      if (result.error) {
+        showToast(`Optimization failed: ${result.error}`)
+      } else {
+        await loadStops(selectedDate)
+        const moved = result.moved || result.changes || 0
+        showToast(`Fleet optimized — ${typeof moved === 'number' ? moved + ' changes' : 'routes updated'}`)
+      }
+    } catch (err) {
+      console.error('Fleet optimize failed:', err)
+      showToast('Fleet optimization failed')
+    } finally {
+      setOptimizing(new Set())
     }
   }
 
