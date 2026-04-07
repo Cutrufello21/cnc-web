@@ -508,10 +508,6 @@ export default function DispatchV2Routes() {
             {driverNames.map(driverName => {
               const driverStops = grouped[driverName]
               const stats = getDriverStats(driverStops)
-              const isExpanded = expandedDrivers.has(driverName)
-              const uniqueAddresses = [...new Set(driverStops.map(s => s.address))]
-              const displayAddresses = isExpanded ? uniqueAddresses : uniqueAddresses.slice(0, 2)
-              const isOptimizing = optimizing.has(driverName)
               const isSendingThis = sendingDriver === driverName
 
               return (
@@ -534,44 +530,16 @@ export default function DispatchV2Routes() {
                       {stats.status}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>
-                    <span>{stats.stopCount} stops</span>
-                    <span>{stats.packageCount} pkgs</span>
+                  <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>
+                    <span><strong style={{ color: '#fff', fontSize: 16 }}>{stats.stopCount}</strong> stops</span>
+                    <span><strong style={{ color: '#fff', fontSize: 16 }}>{stats.packageCount}</strong> pkgs</span>
                     {stats.coldCount > 0 && (
-                      <span style={{ color: '#60a5fa' }}>{stats.coldCount} cold</span>
+                      <span><strong style={{ color: '#60a5fa', fontSize: 16 }}>{stats.coldCount}</strong> cold</span>
                     )}
                   </div>
 
-                  {/* Address preview */}
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }}>
-                    {displayAddresses.map((addr, i) => (
-                      <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {i + 1}. {addr}
-                      </div>
-                    ))}
-                    {uniqueAddresses.length > 3 && (
-                      <button
-                        onClick={e => { e.stopPropagation(); toggleExpanded(driverName) }}
-                        style={{
-                          background: 'none', border: 'none', color: '#6b8cff',
-                          fontSize: 11, cursor: 'pointer', padding: '4px 0 0',
-                        }}
-                      >
-                        {isExpanded ? 'Show less' : `Show all ${uniqueAddresses.length}`}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Optimize + Send buttons */}
-                  <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-                    <button
-                      className="dv2-btn dv2-btn-navy dv2-btn-sm"
-                      style={{ flex: 1 }}
-                      onClick={e => { e.stopPropagation(); handleOptimize(driverName) }}
-                      disabled={isOptimizing}
-                    >
-                      {isOptimizing ? 'Optimizing...' : 'Optimize'}
-                    </button>
+                  {/* Send button */}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
                     <button
                       className="dv2-btn dv2-btn-sm"
                       style={{

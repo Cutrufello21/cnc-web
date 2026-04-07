@@ -21,6 +21,8 @@ import DispatchV2Login from './pages/dispatch-v2/DispatchV2Login'
 import DispatchV2Routes from './pages/dispatch-v2/DispatchV2Routes'
 import DispatchV2Drivers from './pages/dispatch-v2/DispatchV2Drivers'
 import DispatchV2Settings from './pages/dispatch-v2/DispatchV2Settings'
+import DispatchV2SortList from './pages/dispatch-v2/DispatchV2SortList'
+import DispatchV2RoutingRules from './pages/dispatch-v2/DispatchV2RoutingRules'
 
 function SiteGate({ children }) {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('site-pass') === '1')
@@ -111,6 +113,8 @@ function App() {
           <Route path="/dispatch-v2/routes" element={<DispatchV2Routes />} />
           <Route path="/dispatch-v2/drivers" element={<DispatchV2Drivers />} />
           <Route path="/dispatch-v2/settings" element={<DispatchV2Settings />} />
+          <Route path="/dispatch-v2/sort-list" element={<DispatchV2SortList />} />
+          <Route path="/dispatch-v2/routing-rules" element={<DispatchV2RoutingRules />} />
         </Routes>
       </AuthProvider>
     </ErrorBoundary>
