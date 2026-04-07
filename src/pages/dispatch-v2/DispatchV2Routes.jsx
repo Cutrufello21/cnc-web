@@ -829,6 +829,13 @@ export default function DispatchV2Routes() {
           </button>
         )}
         <button
+          className="dv2-btn dv2-btn-navy dv2-btn-sm"
+          onClick={handleOptimizeAll}
+          disabled={optimizing.size > 0}
+        >
+          {optimizing.size > 0 ? 'Optimizing...' : 'Optimize'}
+        </button>
+        <button
           onClick={handleSICI}
           disabled={siciSending || siciSent}
           style={{
@@ -1129,22 +1136,6 @@ export default function DispatchV2Routes() {
         </div>
       )}
 
-      {/* Bottom Bar */}
-      <div className="dv2-bottombar">
-        <div className="dv2-bottombar-stats">
-          <span>Stops:<strong>{totalStops}</strong></span>
-          <span>Packages:<strong>{totalPackages}</strong></span>
-          <span>Drivers:<strong>{activeDrivers}</strong></span>
-        </div>
-        <div className="dv2-bottombar-actions">
-          <button className="dv2-btn dv2-btn-navy" onClick={handleOptimizeAll}>
-            Optimize All
-          </button>
-          <button className="dv2-btn dv2-btn-emerald" onClick={() => setShowSendModal(true)}>
-            Send All Routes
-          </button>
-        </div>
-      </div>
 
       {/* Send Modal */}
       {showSendModal && (
