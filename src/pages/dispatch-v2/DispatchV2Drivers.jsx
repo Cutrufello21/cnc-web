@@ -17,7 +17,7 @@ export default function DispatchV2Drivers() {
 
     const [driversRes, stopsRes] = await Promise.all([
       supabase.from('drivers').select('*').order('driver_name'),
-      supabase.from('daily_stops').select('driver_name, status').eq('delivery_date', today),
+      supabase.from('daily_stops').select('driver_name, status, cold_chain').eq('delivery_date', today),
     ])
 
     setDrivers(driversRes.data || [])
@@ -27,9 +27,10 @@ export default function DispatchV2Drivers() {
     for (const s of (stopsRes.data || [])) {
       if (!s.driver_name) continue
       if (!grouped[s.driver_name]) {
-        grouped[s.driver_name] = { total: 0, delivered: 0, pending: 0 }
+        grouped[s.driver_name] = { total: 0, delivered: 0, pending: 0, cold: 0 }
       }
       grouped[s.driver_name].total++
+      if (s.cold_chain) grouped[s.driver_name].cold++
       if (s.status === 'delivered') {
         grouped[s.driver_name].delivered++
       } else {
@@ -65,7 +66,7 @@ export default function DispatchV2Drivers() {
                 return (
                   <tr key={d.id}>
                     <td style={{ fontWeight: 600, color: '#fff' }}>{d.driver_name}</td>
-                    <td>{stats.total}</td>
+                    <td>{stats.total}{stats.cold > 0 && <span style={{ color: '#60a5fa', fontSize: 12, marginLeft: 4 }}>({stats.cold})</span>}</td>
                     <td>{stats.delivered}</td>
                     <td>{stats.pending}</td>
                     <td>{d.phone || '-'}</td>
