@@ -43,11 +43,14 @@ export default function ProtectedRoute({ children, role }) {
     return saved ? JSON.parse(saved) : null
   })()
 
-  if (!activeProfile) return <Navigate to="/login" replace />
+  if (!activeProfile) {
+    return <Navigate to={role === 'pharmacy' ? '/portal' : '/login'} replace />
+  }
 
   if (role && activeProfile.role !== role) {
     if (activeProfile.role === 'dispatcher') return <Navigate to="/dispatch" replace />
     if (activeProfile.role === 'driver') return <Navigate to="/driver" replace />
+    if (activeProfile.role === 'pharmacy') return <Navigate to="/portal/dashboard" replace />
     return <Navigate to="/login" replace />
   }
 

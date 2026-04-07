@@ -23,13 +23,14 @@ export function AuthProvider({ children }) {
   const [loading] = useState(false)
 
   async function signOut() {
+    const isPharm = profile?.role === 'pharmacy'
     try { await supabase.auth.signOut() } catch {}
     localStorage.removeItem('cnc-user')
     localStorage.removeItem('cnc-profile')
     localStorage.removeItem('cnc-token')
     setUser(null)
     setProfile(null)
-    window.location.href = '/login'
+    window.location.href = isPharm ? '/portal' : '/login'
   }
 
   const value = {
@@ -41,6 +42,7 @@ export function AuthProvider({ children }) {
     signOut,
     isDispatcher: profile?.role === 'dispatcher',
     isDriver: profile?.role === 'driver',
+    isPharmacy: profile?.role === 'pharmacy',
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

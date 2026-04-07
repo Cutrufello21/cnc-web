@@ -12,6 +12,11 @@ import SupportPage from './pages/SupportPage'
 import HipaaPage from './pages/HipaaPage'
 import MobileDispatch from './pages/MobileDispatch'
 import BrandMark from './components/BrandMark'
+import PortalLogin from './pages/portal/PortalLogin'
+import PortalDashboard from './pages/portal/PortalDashboard'
+import PortalDeliveries from './pages/portal/PortalDeliveries'
+import PortalPODRecords from './pages/portal/PortalPODRecords'
+import PortalReports from './pages/portal/PortalReports'
 
 function SiteGate({ children }) {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('site-pass') === '1')
@@ -69,6 +74,11 @@ function App() {
           <Route path="/support" element={<SupportPage />} />
           <Route path="/hipaa" element={<HipaaPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/portal" element={<PortalLogin />} />
+          <Route path="/portal/dashboard" element={<ProtectedRoute role="pharmacy"><PortalDashboard /></ProtectedRoute>} />
+          <Route path="/portal/deliveries" element={<ProtectedRoute role="pharmacy"><PortalDeliveries /></ProtectedRoute>} />
+          <Route path="/portal/pod-records" element={<ProtectedRoute role="pharmacy"><PortalPODRecords /></ProtectedRoute>} />
+          <Route path="/portal/reports" element={<ProtectedRoute role="pharmacy"><PortalReports /></ProtectedRoute>} />
           <Route
             path="/dispatch"
             element={
