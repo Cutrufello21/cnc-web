@@ -81,6 +81,11 @@ export default function DispatchV2Routes() {
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate])
   const grouped = useMemo(() => groupByDriver(allStops), [allStops])
   const driverNames = useMemo(() => Object.keys(grouped).sort(), [grouped])
+  const allDriverNames = useMemo(() => {
+    const fromStops = Object.keys(grouped)
+    const fromTable = allDrivers.map(d => d.driver_name || d.name).filter(Boolean)
+    return [...new Set([...fromStops, ...fromTable])].sort()
+  }, [grouped, allDrivers])
 
   const loadStops = useCallback(async (date) => {
     setLoading(true)
@@ -606,7 +611,7 @@ export default function DispatchV2Routes() {
                 style={{ minWidth: 140 }}
               >
                 <option value="">All Drivers</option>
-                {driverNames.map(n => <option key={n} value={n}>{n}</option>)}
+                {allDriverNames.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
               <input
                 className="dv2-input"
@@ -636,7 +641,7 @@ export default function DispatchV2Routes() {
                         style={{ width: '100%', marginBottom: 8 }}
                       >
                         <option value="">Select driver...</option>
-                        {driverNames.map(n => <option key={n} value={n}>{n}</option>)}
+                        {allDriverNames.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
                       <button
                         className="dv2-btn dv2-btn-navy dv2-btn-sm"
