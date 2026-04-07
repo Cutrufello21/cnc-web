@@ -28,31 +28,41 @@ export default function PortalLogin() {
         return
       }
 
-      const { data: profile, error: profileError } = await supabase
+      // Try profiles table first
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authData.user.id)
         .single()
 
-      if (profileError || !profile) {
-        setError('Account not found. Contact support.')
-        setLoading(false)
-        return
-      }
+      // Build pharmacy profile from either profiles table or user metadata
+      const meta = authData.user.user_metadata || {}
+      const pharmacyName = profile?.pharmacy_name || meta.pharmacy_name || meta.pharmacy || null
 
-      if (profile.role !== 'pharmacy') {
+      if (profile?.role === 'pharmacy' || pharmacyName) {
+        // Valid pharmacy user — build the profile object
+        const portalProfile = {
+          id: authData.user.id,
+          role: 'pharmacy',
+          pharmacy_name: pharmacyName,
+          display_name: profile?.display_name || meta.display_name || pharmacyName || 'Pharmacy',
+          ...(profile || {}),
+          role: 'pharmacy',
+          pharmacy_name: pharmacyName,
+        }
+
+        localStorage.setItem('cnc-user', JSON.stringify(authData.user))
+        localStorage.setItem('cnc-profile', JSON.stringify(portalProfile))
+        localStorage.setItem('cnc-token', authData.session.access_token)
+        setUser(authData.user)
+        setProfile(portalProfile)
+        navigate('/portal/dashboard')
+      } else {
         setError('Access denied. This portal is for pharmacy clients only.')
         await supabase.auth.signOut()
         setLoading(false)
         return
       }
-
-      localStorage.setItem('cnc-user', JSON.stringify(authData.user))
-      localStorage.setItem('cnc-profile', JSON.stringify(profile))
-      localStorage.setItem('cnc-token', authData.session.access_token)
-      setUser(authData.user)
-      setProfile(profile)
-      navigate('/portal/dashboard')
     } catch {
       setError('Something went wrong. Please try again.')
     }
