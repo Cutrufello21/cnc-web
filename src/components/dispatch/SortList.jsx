@@ -68,9 +68,10 @@ export default function SortList({ deliveryDate }) {
         let order = 0
         for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
           const cityList = [...cities].sort().join(', ')
+          const displayText = pharmacy === 'Aultman' ? `${name.toUpperCase()} — ${cityList}` : name.toUpperCase()
           rows.push({
             delivery_date: dateStr, pharmacy, driver_name: name,
-            display_text: `${name.toUpperCase()}`, sort_order: order++,
+            display_text: displayText, sort_order: order++,
             checked: false, late_start: false,
           })
         }
@@ -89,7 +90,7 @@ export default function SortList({ deliveryDate }) {
           const cities = cityMap[row.driver_name]
           if (!cities) continue
           const cityList = [...cities].sort().join(', ')
-          const newText = `${row.driver_name.toUpperCase()}`
+          const newText = pharmacy === 'Aultman' ? `${row.driver_name.toUpperCase()} — ${cityList}` : row.driver_name.toUpperCase()
           if (row.display_text !== newText) {
             await apiPost({ action: 'update', id: row.id, display_text: newText })
             row.display_text = newText
@@ -103,9 +104,10 @@ export default function SortList({ deliveryDate }) {
         for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
           if (existingDrivers.has(name)) continue
           const cityList = [...cities].sort().join(', ')
+          const displayText = pharmacy === 'Aultman' ? `${name.toUpperCase()} — ${cityList}` : name.toUpperCase()
           newRows.push({
             delivery_date: dateStr, pharmacy, driver_name: name,
-            display_text: `${name.toUpperCase()}`, sort_order: order++,
+            display_text: displayText, sort_order: order++,
             checked: false, late_start: false,
           })
         }
