@@ -37,7 +37,16 @@ export default function PortalLogin() {
 
       // Build pharmacy profile from either profiles table or user metadata
       const meta = authData.user.user_metadata || {}
-      const pharmacyName = profile?.pharmacy_name || meta.pharmacy_name || meta.pharmacy || null
+      const appMeta = authData.user.app_metadata || {}
+      const pharmacyName = profile?.pharmacy_name || profile?.pharmacy
+        || meta.pharmacy_name || meta.pharmacy || meta.pharmacyName
+        || appMeta.pharmacy_name || appMeta.pharmacy || null
+
+      // Debug: log what we found (remove after testing)
+      console.log('Profile:', profile)
+      console.log('User metadata:', meta)
+      console.log('App metadata:', appMeta)
+      console.log('Resolved pharmacy:', pharmacyName)
 
       if (profile?.role === 'pharmacy' || pharmacyName) {
         // Valid pharmacy user — build the profile object
