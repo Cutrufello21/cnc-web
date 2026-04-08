@@ -194,43 +194,43 @@ export default function DriverAppDemo() {
               <div className="demo-cam-sub-meta">Sample, Patient A &middot; 123 Sample Street</div>
             </div>
             <div className="demo-scan-wrap">
-              <div className="demo-scan-frame" />
+              <div className="demo-scan-frame">
+                <img src="/images/demo-bag.jpg" alt="" className="demo-scan-img" />
+                <div className="demo-scan-corners">
+                  <span /><span /><span /><span />
+                </div>
+              </div>
             </div>
             <div className="demo-scan-skip">No barcode on package &mdash; Skip</div>
           </div>
         </div>
 
-        {/* Step 3: Photo 1 (camera) */}
+        {/* Step 3: Photo 1 — preview of where the package was left */}
         <div className={`demo-step ${currentStep === 'photo1' ? 'demo-step--active' : ''}`}>
-          <div className="demo-camera-screen">
-            <div className="demo-camera-header">
-              <span className="demo-x">&times;</span>
-              <span className="demo-cam-title">Take delivery photos</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-                <line x1="2" y1="2" x2="22" y2="22" />
-              </svg>
+          <div className="demo-preview-screen">
+            <div className="demo-preview-header">
+              <div className="demo-preview-title">Photo 1 of 2 &mdash; Where you left the package</div>
+              <div className="demo-preview-meta">Sample, Patient A &middot; 123 Sample Street</div>
             </div>
-            <div className="demo-cam-sub">
-              <div className="demo-cam-sub-title">Photo 1 of 2 &mdash; Where you left the package</div>
-              <div className="demo-cam-sub-meta">Sample, Patient A &middot; 123 Sample Street</div>
-              <div className="demo-photo-dots">
-                <span className="demo-photo-dot" />
-                <span className="demo-photo-dot" />
-              </div>
+            <div className="demo-preview-area">
+              <img src="/images/demo-porch.jpg" alt="" className="demo-preview-img" />
             </div>
-            <div style={{flex:1}} />
-            <div className="demo-shutter-wrap">
-              <div className="demo-shutter-solid" />
+            <div className="demo-preview-actions">
+              <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
+              <button className="demo-preview-btn demo-preview-btn--use">Use Photo</button>
             </div>
           </div>
         </div>
 
-        {/* Step 4: Photo preview (Retake / Use Photo) */}
+        {/* Step 4: Photo 2 — preview of the house */}
         <div className={`demo-step ${currentStep === 'photo2' ? 'demo-step--active' : ''}`}>
           <div className="demo-preview-screen">
+            <div className="demo-preview-header">
+              <div className="demo-preview-title">Photo 2 of 2 &mdash; The house or front door</div>
+              <div className="demo-preview-meta">Sample, Patient A &middot; 123 Sample Street</div>
+            </div>
             <div className="demo-preview-area">
-              <span className="demo-preview-text">Photo preview</span>
+              <img src="/images/demo-house.jpg" alt="" className="demo-preview-img" />
             </div>
             <div className="demo-preview-actions">
               <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
