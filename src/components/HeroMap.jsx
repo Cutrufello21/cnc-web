@@ -81,11 +81,11 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#6495ed',
-          'circle-radius': 4,
+          'circle-color': '#5eead4',
+          'circle-radius': 6,
           'circle-opacity': 0,
-          'circle-stroke-color': '#6495ed',
-          'circle-stroke-width': 1,
+          'circle-stroke-color': '#5eead4',
+          'circle-stroke-width': 1.5,
           'circle-stroke-opacity': 0,
         },
       })
@@ -96,9 +96,12 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#6495ed',
-          'circle-radius': 2.2,
-          'circle-opacity': 0.9,
+          'circle-color': '#5eead4',
+          'circle-radius': 3.2,
+          'circle-opacity': 1,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 0.6,
+          'circle-stroke-opacity': 0.6,
         },
       })
 
@@ -112,9 +115,10 @@ export default function HeroMap() {
           source: sid,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#2dd4bf',
-            'line-width': 1.6,
+            'line-color': '#5eead4',
+            'line-width': 2.2,
             'line-opacity': 0,
+            'line-blur': 0.5,
             'line-trim-offset': [0, 1],
           },
         })
@@ -144,19 +148,19 @@ export default function HeroMap() {
 
         map.setPaintProperty('hero-pulse-halo', 'circle-radius', [
           'interpolate', ['linear'], modExpr,
-          0,    3,
-          0.5, 14,
-          1,   22,
+          0,    4,
+          0.5, 18,
+          1,   28,
         ])
         map.setPaintProperty('hero-pulse-halo', 'circle-opacity', [
           'interpolate', ['linear'], modExpr,
           0,   0.0,
-          0.1, 0.35,
+          0.1, 0.5,
           1,   0.0,
         ])
         map.setPaintProperty('hero-pulse-halo', 'circle-stroke-opacity', [
           'interpolate', ['linear'], modExpr,
-          0,   0.7,
+          0,   0.9,
           1,   0.0,
         ])
 
@@ -167,13 +171,13 @@ export default function HeroMap() {
           let trimEnd, opacity
           if (phase < 0.5) {
             trimEnd = 1 - phase / 0.5
-            opacity = 0.75
+            opacity = 0.95
           } else if (phase < 0.7) {
             trimEnd = 0
-            opacity = 0.75
+            opacity = 0.95
           } else if (phase < 0.9) {
             trimEnd = 0
-            opacity = 0.75 * (1 - (phase - 0.7) / 0.2)
+            opacity = 0.95 * (1 - (phase - 0.7) / 0.2)
           } else {
             trimEnd = 1
             opacity = 0
