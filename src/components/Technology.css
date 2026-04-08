@@ -67,7 +67,8 @@
   display: block;
 }
 
-.tech-feature__image--phone {
+.tech-feature__image--phone,
+.tech-feature__image--portal {
   background: transparent;
   border: none;
   box-shadow: none;

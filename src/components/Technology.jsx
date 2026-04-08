@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useInView } from '../hooks/useInView'
 import DriverAppDemo from './DriverAppDemo'
+import PharmacyPortalDemo from './PharmacyPortalDemo'
 import './Technology.css'
 
 const features = [
@@ -17,6 +18,7 @@ const features = [
     ],
     image: '/images/pharmacy-portal.png',
     imageAlt: 'CNC Delivery Pharmacy Portal showing delivery tracking dashboard',
+    isPortal: true,
   },
   {
     id: 'dispatch',
@@ -112,8 +114,8 @@ function Feature({ feature: f, index: i, inView }) {
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, delay: 0.15 * i }}
     >
-      <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''}`}>
-        {f.isPhone ? <DriverAppDemo /> : <img src={f.image} alt={f.imageAlt} loading="lazy" />}
+      <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''} ${f.isPortal ? 'tech-feature__image--portal' : ''}`}>
+        {f.isPhone ? <DriverAppDemo /> : f.isPortal ? <PharmacyPortalDemo /> : <img src={f.image} alt={f.imageAlt} loading="lazy" />}
       </div>
       <div className="tech-feature__content">
         <p className="tech-feature__label">{f.label}</p>
