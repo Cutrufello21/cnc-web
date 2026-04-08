@@ -63,17 +63,9 @@ body {
   --radius-xl: 28px;
 }
 
-/* ── Mercury-inspired warm palette — homepage only ────────────────
-   Scoped to <main> so internal tools (dispatch, payroll, portal,
-   etc.) keep their original neutral palette. Hero has its own
-   explicit colors and is unaffected by these var overrides.
-   -------------------------------------------------------------- */
-main {
-  --white: #F5F3EE;     /* warm cream replaces pure white */
-  --gray-50: #EFEDE8;   /* warmer alternate section bg */
-  --gray-100: #EFEDE8;  /* warmer alternate section bg */
-  --gray-900: #1A1A2E;  /* purple-tinted dark for body text */
-}
+/* Homepage palette — clean neutral. Previous warm/cream scoped
+   override was removed; homepage now inherits the same crisp
+   white + gray-50 as the rest of the app. */
 
 /* Dark mode overrides */
 [data-theme="dark"] {
