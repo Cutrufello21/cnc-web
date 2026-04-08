@@ -18,15 +18,11 @@ const DELIVERIES = [
 
 const TOTAL = DELIVERIES.length
 const TICK = 700
-const POD_OPEN_AT = 6
-const POD_DURATION = 4500
 const RESET_DELAY = 2400
 
 export default function PharmacyPortalDemo() {
   const [delivered, setDelivered] = useState(0)
   const [justDelivered, setJustDelivered] = useState(-1)
-  const [podRow, setPodRow] = useState(null)
-  const [paused, setPaused] = useState(false)
   const [inView, setInView] = useState(false)
   const containerRef = useRef(null)
   const timerRef = useRef(null)
@@ -34,13 +30,7 @@ export default function PharmacyPortalDemo() {
   useEffect(() => {
     if (!containerRef.current) return
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        setInView(entry.isIntersecting)
-        if (!entry.isIntersecting) {
-          setPodRow(null)
-          setPaused(false)
-        }
-      },
+      ([entry]) => setInView(entry.isIntersecting),
       { threshold: 0.2 }
     )
     observer.observe(containerRef.current)
@@ -48,7 +38,7 @@ export default function PharmacyPortalDemo() {
   }, [])
 
   useEffect(() => {
-    if (paused || !inView) return
+    if (!inView) return
     const tick = () => {
       setDelivered(prev => {
         if (prev >= TOTAL) {
@@ -56,28 +46,17 @@ export default function PharmacyPortalDemo() {
           setTimeout(() => {
             setDelivered(0)
             setJustDelivered(-1)
-            setPodRow(null)
             timerRef.current = setInterval(tick, TICK)
           }, RESET_DELAY)
           return prev
         }
-        const next = prev + 1
         setJustDelivered(prev)
-        if (next === POD_OPEN_AT) {
-          clearInterval(timerRef.current)
-          setPaused(true)
-          setPodRow(0)
-          setTimeout(() => {
-            setPodRow(null)
-            setPaused(false)
-          }, POD_DURATION)
-        }
-        return next
+        return prev + 1
       })
     }
     timerRef.current = setInterval(tick, TICK)
     return () => clearInterval(timerRef.current)
-  }, [paused, inView])
+  }, [inView])
 
   const pending = TOTAL - delivered
   const failed = 0
@@ -178,57 +157,6 @@ export default function PharmacyPortalDemo() {
           </main>
         </div>
 
-        {/* POD Modal */}
-        {podRow !== null && (
-          <div className="pharm-modal-overlay">
-            <div className="pharm-modal">
-              <div className="pharm-modal-header">
-                <div>
-                  <div className="pharm-modal-eyebrow">PROOF OF DELIVERY</div>
-                  <div className="pharm-modal-title">{DELIVERIES[podRow].name}</div>
-                  <div className="pharm-modal-sub">{DELIVERIES[podRow].address}, {DELIVERIES[podRow].city}, OH</div>
-                </div>
-                <span className="pharm-modal-close">&times;</span>
-              </div>
-              <div className="pharm-modal-body">
-                <div className="pharm-modal-photos">
-                  <div className="pharm-modal-photo" style={{ backgroundImage: 'url(/images/demo-porch.jpg)' }}>
-                    <span className="pharm-modal-photo-label">Where left</span>
-                  </div>
-                  <div className="pharm-modal-photo" style={{ backgroundImage: 'url(/images/demo-house.jpg)' }}>
-                    <span className="pharm-modal-photo-label">Front of house</span>
-                  </div>
-                </div>
-                <div className="pharm-modal-meta">
-                  <div className="pharm-modal-row">
-                    <span className="pharm-modal-label">Delivered by</span>
-                    <span className="pharm-modal-value">{DELIVERIES[podRow].driver}</span>
-                  </div>
-                  <div className="pharm-modal-row">
-                    <span className="pharm-modal-label">Timestamp</span>
-                    <span className="pharm-modal-value">Wed Apr 8 &middot; {DELIVERIES[podRow].time}</span>
-                  </div>
-                  <div className="pharm-modal-row">
-                    <span className="pharm-modal-label">GPS</span>
-                    <span className="pharm-modal-value pharm-modal-mono">40.8001&deg; N, 81.3784&deg; W</span>
-                  </div>
-                  <div className="pharm-modal-row">
-                    <span className="pharm-modal-label">Geofence</span>
-                    <span className="pharm-modal-value pharm-modal-ok">&#10003; Verified within 50 ft</span>
-                  </div>
-                  <div className="pharm-modal-row">
-                    <span className="pharm-modal-label">Cold chain</span>
-                    <span className="pharm-modal-value pharm-modal-cold">&#10003; Maintained 36–46&deg;F</span>
-                  </div>
-                  <div className="pharm-modal-row">
-                    <span className="pharm-modal-label">Note</span>
-                    <span className="pharm-modal-value">Left at front door</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
