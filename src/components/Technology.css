@@ -102,14 +102,15 @@
 }
 
 .tech-feature--fullwidth .tech-feature__image {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-  overflow: hidden;
-  padding: 0;
-  width: 100%;
-  max-width: 100%;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
 }
 
 .tech-feature__image--phone img {

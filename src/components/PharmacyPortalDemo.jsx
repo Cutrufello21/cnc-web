@@ -17,13 +17,22 @@ const ROWS = [
   { name: 'Patel, Priya',        address: '1789 Sycamore Street',  city: 'Springfield', zip: '44101', driver: 'Dom',  time: '10:56 AM' },
   { name: 'Rodriguez, Sofia',    address: '345 Ash Grove',         city: 'Greenville',  zip: '44102', driver: 'Mike', time: '11:09 AM' },
   { name: 'Thompson, William',   address: '1567 Poplar Hill',      city: 'Madison',     zip: '44104', driver: 'Sara', time: '11:23 AM' },
+  { name: 'Wright, Jennifer',    address: '4521 Aspen Lane',       city: 'Franklin',    zip: '44105', driver: 'Adam', time: '11:36 AM' },
+  { name: 'Carter, Anthony',     address: '987 Redwood Drive',     city: 'Salem',       zip: '44106', driver: 'Adam', time: '11:48 AM' },
+  { name: 'Mitchell, Rebecca',   address: '2134 Dogwood Court',    city: 'Bristol',     zip: '44107', driver: 'Tara', time: '12:01 PM' },
+  { name: 'Roberts, Daniel',     address: '765 Juniper Way',       city: 'Clinton',     zip: '44108', driver: 'Tara', time: '12:14 PM' },
+  { name: 'Edwards, Lisa M',     address: '3210 Sequoia Boulevard',city: 'Hamilton',    zip: '44109', driver: 'Josh', time: '12:27 PM' },
+  { name: 'Phillips, Mark T',    address: '654 Mulberry Avenue',   city: 'Dover',       zip: '44110', driver: 'Josh', time: '12:40 PM' },
+  { name: 'Turner, Amanda J',    address: '1876 Hawthorn Street',  city: 'Springfield', zip: '44101', driver: 'Dom',  time: '12:53 PM' },
+  { name: 'Parker, Steven',      address: '432 Linden Place',      city: 'Greenville',  zip: '44102', driver: 'Mike', time: '1:06 PM' },
+  { name: 'Collins, Megan E',    address: '2987 Buckeye Drive',    city: 'Riverside',   zip: '44103', driver: 'Sara', time: '1:19 PM' },
 ]
 
 const TOTAL = ROWS.length
-const TICK = 900
-const POD_OPEN_AT = 6      // open POD modal after this many delivered
+const TICK = 700
+const POD_OPEN_AT = 8      // open POD modal after this many delivered
 const POD_DURATION = 4500  // how long modal stays open
-const RESET_DELAY = 2400
+const RESET_DELAY = 2800
 
 export default function PharmacyPortalDemo() {
   const [delivered, setDelivered] = useState(0)
