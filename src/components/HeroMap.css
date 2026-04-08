@@ -13,11 +13,10 @@
   overflow: hidden;
 }
 
-/* Push the raw mapbox canvas toward a warmer, moodier palette
-   without touching brand colors. Adds contrast + slight purple
-   hue shift so dark-v11's neutral grays feel cinematic. */
+/* navigation-night-v1 already has warm road tones — just a small
+   contrast/brightness bump for atmospheric depth, no hue shift. */
 .hero-map .mapboxgl-canvas {
-  filter: contrast(1.12) brightness(0.92) saturate(0.85) hue-rotate(-8deg);
+  filter: contrast(1.08) brightness(0.94);
 }
 
 .hero-map .mapboxgl-canvas-container,
@@ -32,28 +31,36 @@
   display: none !important;
 }
 
-/* --- Delivery stop markers (DOM-based mapbox Marker elements) --- */
+/* --- Delivery stop markers — warm white, subtle pulse --- */
 .hero-marker {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #F5F0E8; /* warm off-white instead of pure cold white */
+  background: #F5F0E8;
   box-shadow:
-    0 0 0 1px rgba(245, 240, 232, 0.3),
-    0 0 6px rgba(147, 197, 253, 0.3),
-    0 0 16px rgba(147, 197, 253, 0.12);
+    0 0 0 1px rgba(245, 240, 232, 0.22),
+    0 0 8px rgba(245, 240, 232, 0.18);
   pointer-events: none;
+  animation: hero-marker-pulse 3s ease-in-out infinite;
   transition:
     background-color 300ms ease,
     box-shadow 300ms ease,
     transform 300ms ease;
 }
 
+@keyframes hero-marker-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 0.95; }
+}
+
+/* Every 4s one pin flashes periwinkle — the one accent thread. */
 .hero-marker--flash {
   background: #60A5FA;
   box-shadow:
-    0 0 0 2px rgba(96, 165, 250, 0.6),
-    0 0 18px rgba(96, 165, 250, 0.9),
-    0 0 36px rgba(96, 165, 250, 0.5);
-  transform: scale(1.6);
+    0 0 0 2px rgba(96, 165, 250, 0.55),
+    0 0 16px rgba(96, 165, 250, 0.85),
+    0 0 34px rgba(96, 165, 250, 0.45);
+  transform: scale(1.5);
+  animation: none;
+  opacity: 1;
 }

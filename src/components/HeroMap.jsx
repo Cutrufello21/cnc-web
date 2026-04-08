@@ -104,7 +104,7 @@ export default function HeroMap() {
       try {
         map = new mapboxgl.Map({
           container: el,
-          style: 'mapbox://styles/mapbox/dark-v11',
+          style: 'mapbox://styles/mapbox/navigation-night-v1',
           center: CENTER,
           zoom: 9,
           interactive: false,
@@ -150,9 +150,12 @@ export default function HeroMap() {
         }
 
         // === 60 real Mapbox markers — styling lives in HeroMap.css ===
+        // Random animation-delay per marker so the subtle pulse is
+        // staggered and no two dots pulse in phase.
         STOP_COORDS.forEach((coord) => {
           const dot = document.createElement('div')
           dot.className = 'hero-marker'
+          dot.style.animationDelay = `${(Math.random() * -3).toFixed(2)}s`
           const marker = new mapboxgl.Marker({ element: dot, anchor: 'center' })
             .setLngLat(coord)
             .addTo(map)
@@ -180,10 +183,10 @@ export default function HeroMap() {
               source: sid,
               layout: { 'line-cap': 'round', 'line-join': 'round' },
               paint: {
-                'line-color': '#93C5FD',
-                'line-width': 1.8,
+                'line-color': '#F5F0E8',
+                'line-width': 1.4,
                 'line-opacity': 0,
-                'line-blur': 0.6,
+                'line-blur': 0.5,
                 'line-trim-offset': [0, 1],
               },
             })
@@ -206,7 +209,7 @@ export default function HeroMap() {
             try { map.setCenter([CENTER[0] + dx, CENTER[1] + dy]) } catch {}
           }
 
-          const MAX_OPACITY = 0.35
+          const MAX_OPACITY = 0.2
           ROUTE_FEATURES.forEach((_, i) => {
             const id = `hero-route-${i}`
             if (!map.getLayer(id)) return
