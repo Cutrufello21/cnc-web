@@ -14,8 +14,10 @@ const _tokenParts = [
 mapboxgl.accessToken =
   import.meta.env.VITE_MAPBOX_TOKEN || _tokenParts.join('')
 
-const CENTER = [-81.5185, 41.0534] // Akron, OH — true center
-const HUB = CENTER
+// Map center sits west of Akron so Akron itself reads on the
+// right side of the hero (off-center, not dead middle).
+const CENTER = [-81.78, 41.0534]
+const HUB = [-81.5185, 41.0534] // True Akron — keep route lines anchored here
 
 // Full NE Ohio service area — every ZIP CNC actually delivers to.
 // Pulled from the live ServiceMap list, plus a few eastern Portage/
