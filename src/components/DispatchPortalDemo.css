@@ -61,11 +61,17 @@
   width: 100%;
   background: #07101F;
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 56px minmax(0, 1fr);
   overflow: hidden;
   font-size: 11px;
   color: #cbd5e1;
   min-height: 460px;
+  min-width: 0;
+}
+
+.dispatch-sidebar,
+.dispatch-main {
+  min-width: 0;
 }
 
 /* Sidebar */
@@ -87,10 +93,11 @@
 
 .dispatch-brand-cnc {
   font-family: Georgia, serif;
-  font-size: 14px;
+  font-size: 13px;
   color: white;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .dispatch-brand-delivery {
