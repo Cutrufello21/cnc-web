@@ -8,6 +8,21 @@
   background: #ffffff;
 }
 
+/* Mercury-style depth fade at the bottom — last 100px of the hero
+   transitions from transparent (map shows through) to warm off-white
+   so the next section blends in. */
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #FAFAF8 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
 /* Soft white wash over the map so the map reads as a subtle
    background and the text stays crisp. */
 .hero__overlay {
@@ -31,12 +46,16 @@
   z-index: 2;
   text-align: left;
   padding: 140px 24px 100px 80px;
-  width: 55%;
-  max-width: 55%;
+  width: 60%;
+  max-width: 720px;
   margin: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+}
+
+.hero__headline br {
+  display: block;
 }
 
 .hero__eyebrow {
@@ -49,25 +68,25 @@
 }
 
 .hero__headline {
-  font-size: clamp(42px, 7vw, 78px);
-  font-weight: 700;
-  line-height: 1.05;
-  letter-spacing: -2px;
-  color: #0A2463;
+  font-size: clamp(40px, 4.8vw, 64px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -1.5px;
+  color: #111111;
   margin-bottom: 28px;
+  white-space: normal;
 }
 
+/* 'Every day.' accent — substituted from teal to brand periwinkle */
 .hero__accent {
-  background: linear-gradient(135deg, #0A2463 0%, #60A5FA 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #60A5FA;
 }
 
 .hero__sub {
-  font-size: 19px;
+  font-size: 18px;
   line-height: 1.6;
-  color: #6B7A99;
+  color: #111111;
+  opacity: 0.75;
   max-width: 560px;
   margin: 0 0 44px 0;
 }

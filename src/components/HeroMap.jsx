@@ -127,18 +127,18 @@ export default function HeroMap() {
           },
         })
 
-        // Solid center dot — navy with a thin periwinkle ring
+        // Solid center dot — navy at 60% with a crisp white ring
         map.addLayer({
           id: 'hero-pulse-core',
           type: 'circle',
           source: 'hero-pulses',
           paint: {
             'circle-color': '#0A2463',
-            'circle-radius': 3.5,
-            'circle-opacity': 1,
-            'circle-stroke-color': '#60A5FA',
+            'circle-radius': 4,
+            'circle-opacity': 0.6,
+            'circle-stroke-color': '#ffffff',
             'circle-stroke-width': 1,
-            'circle-stroke-opacity': 0.75,
+            'circle-stroke-opacity': 1,
           },
         })
 

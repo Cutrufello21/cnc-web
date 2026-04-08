@@ -68,9 +68,9 @@ export default function Navbar() {
           <a href="#about" className={active === 'about' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>About</a>
           <a href="#team" className={active === 'team' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Team</a>
           <ThemeToggle />
-          <a href="#contact" className="navbar__cta" onClick={() => setMenuOpen(false)}>
-            Let's Talk
-          </a>
+          <Link to="/login" className="navbar__cta" onClick={() => setMenuOpen(false)}>
+            Sign In
+          </Link>
         </div>
 
         <button
