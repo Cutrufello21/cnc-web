@@ -20,7 +20,8 @@ export default function Hero() {
         </motion.h1>
         <motion.p className="hero__sub"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.25 }}>
-          Dispatched the night before. In patients' hands by 6 PM — every single day.
+          Dispatched the night before.<br />
+          In patients' hands by 6 PM &mdash; every single day.
         </motion.p>
         <motion.div className="hero__actions"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }}>
