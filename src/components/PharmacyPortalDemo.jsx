@@ -30,10 +30,29 @@ export default function PharmacyPortalDemo() {
   const [justDelivered, setJustDelivered] = useState(-1)
   const [podRow, setPodRow] = useState(null)
   const [paused, setPaused] = useState(false)
+  const [inView, setInView] = useState(false)
+  const containerRef = useRef(null)
   const timerRef = useRef(null)
 
+  // Only run animation when the demo is visible on screen
   useEffect(() => {
-    if (paused) return
+    if (!containerRef.current) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setInView(entry.isIntersecting)
+        if (!entry.isIntersecting) {
+          setPodRow(null)
+          setPaused(false)
+        }
+      },
+      { threshold: 0.2 }
+    )
+    observer.observe(containerRef.current)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (paused || !inView) return
     const tick = () => {
       setDelivered(prev => {
         if (prev >= TOTAL) {
@@ -63,14 +82,14 @@ export default function PharmacyPortalDemo() {
     }
     timerRef.current = setInterval(tick, TICK)
     return () => clearInterval(timerRef.current)
-  }, [paused])
+  }, [paused, inView])
 
   const pending = TOTAL - delivered
   const failed = 0
   const pct = Math.round((delivered / TOTAL) * 100)
 
   return (
-    <div className="portal-demo">
+    <div className="portal-demo" ref={containerRef}>
       <div className="portal-browser">
         <div className="portal-chrome">
           <div className="portal-chrome-dots">
@@ -180,59 +199,59 @@ export default function PharmacyPortalDemo() {
             </div>
           </div>
         </main>
+      </div>
 
-        {/* POD Modal */}
-        {podRow !== null && (
-          <div className="portal-modal-overlay">
-            <div className="portal-modal">
-              <div className="portal-modal-header">
-                <div>
-                  <div className="portal-modal-eyebrow">PROOF OF DELIVERY</div>
-                  <div className="portal-modal-title">{ROWS[podRow].name}</div>
-                  <div className="portal-modal-sub">{ROWS[podRow].address}, {ROWS[podRow].city}, OH {ROWS[podRow].zip}</div>
-                </div>
-                <span className="portal-modal-close">&times;</span>
+      {/* POD Modal — sibling of .portal-frame inside .portal-browser */}
+      {podRow !== null && (
+        <div className="portal-modal-overlay">
+          <div className="portal-modal">
+            <div className="portal-modal-header">
+              <div>
+                <div className="portal-modal-eyebrow">PROOF OF DELIVERY</div>
+                <div className="portal-modal-title">{ROWS[podRow].name}</div>
+                <div className="portal-modal-sub">{ROWS[podRow].address}, {ROWS[podRow].city}, OH {ROWS[podRow].zip}</div>
               </div>
-              <div className="portal-modal-body">
-                <div className="portal-modal-photos">
-                  <div className="portal-modal-photo" style={{ backgroundImage: 'url(/images/demo-porch.jpg)' }}>
-                    <span className="portal-modal-photo-label">Where left</span>
-                  </div>
-                  <div className="portal-modal-photo" style={{ backgroundImage: 'url(/images/demo-house.jpg)' }}>
-                    <span className="portal-modal-photo-label">Front of house</span>
-                  </div>
+              <span className="portal-modal-close">&times;</span>
+            </div>
+            <div className="portal-modal-body">
+              <div className="portal-modal-photos">
+                <div className="portal-modal-photo" style={{ backgroundImage: 'url(/images/demo-porch.jpg)' }}>
+                  <span className="portal-modal-photo-label">Where left</span>
                 </div>
-                <div className="portal-modal-meta">
-                  <div className="portal-modal-row">
-                    <span className="portal-modal-label">Delivered by</span>
-                    <span className="portal-modal-value">{ROWS[podRow].driver}</span>
-                  </div>
-                  <div className="portal-modal-row">
-                    <span className="portal-modal-label">Timestamp</span>
-                    <span className="portal-modal-value">Wed Apr 8 &middot; {ROWS[podRow].time}</span>
-                  </div>
-                  <div className="portal-modal-row">
-                    <span className="portal-modal-label">GPS</span>
-                    <span className="portal-modal-value portal-modal-mono">40.8001&deg; N, 81.3784&deg; W</span>
-                  </div>
-                  <div className="portal-modal-row">
-                    <span className="portal-modal-label">Geofence</span>
-                    <span className="portal-modal-value portal-modal-ok">&#10003; Verified within 50 ft</span>
-                  </div>
-                  <div className="portal-modal-row">
-                    <span className="portal-modal-label">Cold chain</span>
-                    <span className="portal-modal-value portal-modal-cold">&#10003; Maintained 36–46&deg;F</span>
-                  </div>
-                  <div className="portal-modal-row">
-                    <span className="portal-modal-label">Note</span>
-                    <span className="portal-modal-value">Left at front door</span>
-                  </div>
+                <div className="portal-modal-photo" style={{ backgroundImage: 'url(/images/demo-house.jpg)' }}>
+                  <span className="portal-modal-photo-label">Front of house</span>
+                </div>
+              </div>
+              <div className="portal-modal-meta">
+                <div className="portal-modal-row">
+                  <span className="portal-modal-label">Delivered by</span>
+                  <span className="portal-modal-value">{ROWS[podRow].driver}</span>
+                </div>
+                <div className="portal-modal-row">
+                  <span className="portal-modal-label">Timestamp</span>
+                  <span className="portal-modal-value">Wed Apr 8 &middot; {ROWS[podRow].time}</span>
+                </div>
+                <div className="portal-modal-row">
+                  <span className="portal-modal-label">GPS</span>
+                  <span className="portal-modal-value portal-modal-mono">40.8001&deg; N, 81.3784&deg; W</span>
+                </div>
+                <div className="portal-modal-row">
+                  <span className="portal-modal-label">Geofence</span>
+                  <span className="portal-modal-value portal-modal-ok">&#10003; Verified within 50 ft</span>
+                </div>
+                <div className="portal-modal-row">
+                  <span className="portal-modal-label">Cold chain</span>
+                  <span className="portal-modal-value portal-modal-cold">&#10003; Maintained 36–46&deg;F</span>
+                </div>
+                <div className="portal-modal-row">
+                  <span className="portal-modal-label">Note</span>
+                  <span className="portal-modal-value">Left at front door</span>
                 </div>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
       </div>
     </div>
   )
