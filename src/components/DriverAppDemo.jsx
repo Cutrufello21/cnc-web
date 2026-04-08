@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import './DriverAppDemo.css'
 
 const STEP_DURATION = 3500
-const STEPS = ['stopList', 'barcode', 'photo1', 'photo2', 'note', 'delivered', 'nextStop']
+const STEPS = ['stopList', 'barcode', 'photo1', 'photo2', 'note', 'nextStop']
 
 export default function DriverAppDemo() {
   const [step, setStep] = useState(0)
@@ -32,7 +32,7 @@ export default function DriverAppDemo() {
       } else if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault()
         setActive(prev => !prev)
-      } else if (e.key >= '1' && e.key <= '7') {
+      } else if (e.key >= '1' && e.key <= '6') {
         e.preventDefault()
         setActive(false)
         setStep(parseInt(e.key, 10) - 1)
@@ -276,18 +276,7 @@ export default function DriverAppDemo() {
           </div>
         </div>
 
-        {/* Step 6: Stop Delivered overlay */}
-        <div className={`demo-step ${currentStep === 'delivered' ? 'demo-step--active' : ''}`}>
-          <div className="demo-delivered-bg">
-            <div className="demo-delivered-check">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-            <div className="demo-delivered-title">Stop delivered!</div>
-            <div className="demo-delivered-sub">Stop 1 of 15 complete</div>
-          </div>
-        </div>
-
-        {/* Step 7: Complete to next stop (overlay + bottom sheet) */}
+        {/* Step 6: Complete to next stop (overlay + bottom sheet) */}
         <div className={`demo-step ${currentStep === 'nextStop' ? 'demo-step--active' : ''}`}>
           <div className="demo-delivered-bg">
             <div className="demo-delivered-check">
