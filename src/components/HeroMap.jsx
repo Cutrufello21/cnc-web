@@ -122,10 +122,10 @@ const PULSE_POINTS = (() => {
   // Targeting ~1,875 total dots — roughly one full week of CNC
   // deliveries (5 days × 375/day average) to make the volume story
   // legible at a glance.
-  const BASE_STOPS = 5
-  const DENSE_STOPS = 10
-  const URBAN_STOPS = 30
-  const SUPER_DENSE_STOPS = 60
+  const BASE_STOPS = 3
+  const DENSE_STOPS = 8
+  const URBAN_STOPS = 22
+  const SUPER_DENSE_STOPS = 45
   // Jitter scales with density so dense ZIPs spread out into a
   // natural-looking field instead of piling into a centroid blob.
   const BASE_JITTER = 0.012
