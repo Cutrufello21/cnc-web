@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 import BrandMark from './BrandMark'
@@ -8,17 +8,29 @@ const sections = ['services', 'coverage', 'about', 'team']
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
+  const [pastHero, setPastHero] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
   const [active, setActive] = useState('')
+  const heroRef = useRef(null)
 
   useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 10)
-      const height = document.documentElement.scrollHeight - window.innerHeight
-      setScrollProgress(height > 0 ? (window.scrollY / height) * 100 : 0)
+    heroRef.current = document.querySelector('.hero')
 
-      // Determine active section
+    const onScroll = () => {
+      const y = window.scrollY
+      setScrolled(y > 80)
+
+      // Past hero = hero bottom sits above the nav
+      if (heroRef.current) {
+        const rect = heroRef.current.getBoundingClientRect()
+        setPastHero(rect.bottom <= 80)
+      }
+
+      const height = document.documentElement.scrollHeight - window.innerHeight
+      setScrollProgress(height > 0 ? (y / height) * 100 : 0)
+
+      // Active section highlight
       let current = ''
       for (const id of sections) {
         const el = document.getElementById(id)
@@ -29,16 +41,25 @@ export default function Navbar() {
       }
       setActive(current)
     }
+    onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
   }, [])
 
+  const mode = pastHero ? 'light' : scrolled ? 'frosted' : 'transparent'
+  // BrandMark: "light" means white text, "dark" means navy text (confusing naming in BrandMark)
+  const brandVariant = mode === 'light' ? 'dark' : 'light'
+
   return (
-    <nav className={`navbar ${scrolled ? 'navbar--scrolled' : ''}`}>
+    <nav className={`navbar navbar--${mode}`}>
       <div className="navbar__progress" style={{ width: `${scrollProgress}%` }} />
       <div className="navbar__inner container">
         <Link to="/" className="navbar__logo">
-          <BrandMark variant="dark" />
+          <BrandMark variant={brandVariant} size="sm" />
         </Link>
 
         <div className={`navbar__links ${menuOpen ? 'navbar__links--open' : ''}`}>
@@ -47,9 +68,9 @@ export default function Navbar() {
           <a href="#about" className={active === 'about' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>About</a>
           <a href="#team" className={active === 'team' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Team</a>
           <ThemeToggle />
-          <Link to="/login" className="navbar__cta" onClick={() => setMenuOpen(false)}>
-            Sign In
-          </Link>
+          <a href="#contact" className="navbar__cta" onClick={() => setMenuOpen(false)}>
+            Let's Talk
+          </a>
         </div>
 
         <button
