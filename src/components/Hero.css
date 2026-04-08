@@ -72,9 +72,9 @@
   white-space: normal;
 }
 
-/* 'Every day.' — CNC navy accent for color emphasis. */
+/* 'Every day.' — periwinkle to echo the map dots. */
 .hero__accent {
-  color: #0A2463;
+  color: #60A5FA;
 }
 
 .hero__sub {
