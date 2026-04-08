@@ -6,9 +6,9 @@
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  background: #070b15;
+  background: #ffffff;
   overflow: hidden;
-  opacity: 0.4;
+  opacity: 0.9;
 }
 
 .hero-map .mapboxgl-canvas-container,

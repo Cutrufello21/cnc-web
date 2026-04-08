@@ -5,17 +5,23 @@
   align-items: center;
   justify-content: flex-start;
   overflow: hidden;
-  background: #050b15;
+  background: #ffffff;
 }
 
-/* Dark overlay above the map, below the content */
+/* Soft white wash over the map so the map reads as a subtle
+   background and the text stays crisp. */
 .hero__overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(5, 11, 21, 0.55);
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.78) 0%,
+      rgba(255, 255, 255, 0.55) 40%,
+      rgba(255, 255, 255, 0.35) 70%,
+      rgba(255, 255, 255, 0.25) 100%);
   z-index: 1;
   pointer-events: none;
 }
@@ -47,13 +53,12 @@
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -2px;
-  color: #ffffff;
+  color: #0A2463;
   margin-bottom: 28px;
-  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
 }
 
 .hero__accent {
-  background: linear-gradient(135deg, #ffffff 0%, #60A5FA 100%);
+  background: linear-gradient(135deg, #0A2463 0%, #60A5FA 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -62,10 +67,9 @@
 .hero__sub {
   font-size: 19px;
   line-height: 1.6;
-  color: rgba(226, 232, 240, 0.85);
+  color: #6B7A99;
   max-width: 560px;
   margin: 0 0 44px 0;
-  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
 }
 
 .hero__actions {
@@ -81,31 +85,34 @@
   padding: 12px 28px;
   border-radius: 8px;
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 500;
   border: 1px solid transparent;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, transform 200ms ease;
 }
 
 .hero__btn--primary {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: #0A2463;
+  border-color: #0A2463;
   color: #ffffff;
 }
 
 .hero__btn--primary:hover {
-  background: rgba(255, 255, 255, 0.18);
+  background: #123080;
+  border-color: #123080;
+  transform: translateY(-1px);
 }
 
 .hero__btn--secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(10, 36, 99, 0.2);
+  color: #0A2463;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .hero__btn--secondary:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(10, 36, 99, 0.35);
 }
 
 @media (max-width: 900px) {
@@ -133,5 +140,5 @@
 }
 
 [data-theme="dark"] .hero {
-  background: #020510;
+  background: #0d1117;
 }

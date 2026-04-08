@@ -65,21 +65,15 @@
   transition: color 200ms ease, opacity 200ms ease;
 }
 
-/* Over the dark hero map: white links. Past the hero (light
-   content sections): navy links. */
+/* Hero map is white now — navy links in every scroll state */
 .navbar--transparent .navbar__links a,
-.navbar--frosted .navbar__links a {
-  color: rgba(255, 255, 255, 0.85);
-}
-.navbar--transparent .navbar__links a:hover,
-.navbar--frosted .navbar__links a:hover {
-  color: #ffffff;
-}
-
+.navbar--frosted .navbar__links a,
 .navbar--light .navbar__links a {
   color: #0A2463;
   opacity: 0.75;
 }
+.navbar--transparent .navbar__links a:hover,
+.navbar--frosted .navbar__links a:hover,
 .navbar--light .navbar__links a:hover {
   opacity: 1;
 }
@@ -103,22 +97,14 @@
 }
 
 .navbar--transparent .navbar__cta,
-.navbar--frosted .navbar__cta {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-}
-.navbar--transparent .navbar__cta:hover,
-.navbar--frosted .navbar__cta:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
+.navbar--frosted .navbar__cta,
 .navbar--light .navbar__cta {
   background: #0A2463;
   border-color: #0A2463;
   color: #ffffff;
 }
+.navbar--transparent .navbar__cta:hover,
+.navbar--frosted .navbar__cta:hover,
 .navbar--light .navbar__cta:hover {
   background: #123080;
   border-color: #123080;
@@ -143,9 +129,7 @@
 }
 
 .navbar--transparent .navbar__hamburger-line,
-.navbar--frosted .navbar__hamburger-line {
-  background: #ffffff;
-}
+.navbar--frosted .navbar__hamburger-line,
 .navbar--light .navbar__hamburger-line {
   background: #0A2463;
 }
