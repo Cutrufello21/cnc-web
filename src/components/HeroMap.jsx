@@ -48,6 +48,17 @@ const PULSE_ZIPS = [
   '44735','44750','44767','44799',
 ]
 
+// Urban hubs — Akron core, Barberton, Medina, New Franklin. High
+// real volume but not as concentrated as the Tuscarawas core, so
+// they get a middle tier between DENSE and SUPER_DENSE.
+const URBAN_DENSE_ZIPS = new Set([
+  '44203', // Barberton
+  '44256', // Medina
+  '44319', // New Franklin / south Akron
+  '44301','44302','44303','44304','44305','44306','44307',
+  '44310','44311','44312','44313','44320', // Akron core
+])
+
 // Tuscarawas/Carroll core — New Philly, Dover, Sugarcreek, Carrollton
 // and immediate neighbors. CNC runs heavy volume here, so these get
 // the most synthetic stops to reflect real density.
@@ -113,19 +124,28 @@ const PULSE_POINTS = (() => {
   // legible at a glance.
   const BASE_STOPS = 5
   const DENSE_STOPS = 10
+  const URBAN_STOPS = 30
   const SUPER_DENSE_STOPS = 60
-  // Jitter scales with density so super-dense ZIPs spread out into
-  // a natural-looking field instead of piling into a centroid blob.
+  // Jitter scales with density so dense ZIPs spread out into a
+  // natural-looking field instead of piling into a centroid blob.
   const BASE_JITTER = 0.012
   const DENSE_JITTER = 0.022
+  const URBAN_JITTER = 0.030
   const SUPER_JITTER = 0.045
   PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
     if (!info) return
     const isSuper = SUPER_DENSE_ZIPS.has(z)
+    const isUrban = URBAN_DENSE_ZIPS.has(z)
     const isDense = DENSE_ZIPS.has(z)
-    const n = isSuper ? SUPER_DENSE_STOPS : isDense ? DENSE_STOPS : BASE_STOPS
-    const jit = isSuper ? SUPER_JITTER : isDense ? DENSE_JITTER : BASE_JITTER
+    const n = isSuper ? SUPER_DENSE_STOPS
+            : isUrban ? URBAN_STOPS
+            : isDense ? DENSE_STOPS
+            : BASE_STOPS
+    const jit = isSuper ? SUPER_JITTER
+              : isUrban ? URBAN_JITTER
+              : isDense ? DENSE_JITTER
+              : BASE_JITTER
     for (let i = 0; i < n; i++) {
       features.push({
         type: 'Feature',
