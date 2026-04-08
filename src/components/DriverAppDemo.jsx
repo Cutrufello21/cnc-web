@@ -214,7 +214,7 @@ export default function DriverAppDemo() {
             </div>
             <div
               className="demo-preview-area"
-              style={{ backgroundImage: 'url(/images/demo-porch.jpg)', backgroundSize: '160%', backgroundPosition: 'center 55%' }}
+              style={{ backgroundImage: 'url(/images/demo-porch.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
             />
             <div className="demo-preview-actions">
               <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
@@ -232,7 +232,7 @@ export default function DriverAppDemo() {
             </div>
             <div
               className="demo-preview-area"
-              style={{ backgroundImage: 'url(/images/demo-house.jpg)', backgroundSize: 'cover', backgroundPosition: 'center 40%' }}
+              style={{ backgroundImage: 'url(/images/demo-house.jpg)', backgroundSize: 'cover', backgroundPosition: 'center' }}
             />
             <div className="demo-preview-actions">
               <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
