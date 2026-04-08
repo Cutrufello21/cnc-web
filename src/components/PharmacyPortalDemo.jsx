@@ -16,10 +16,8 @@ const DELIVERIES = [
   { name: "O'Brien, Michael",   address: '2468 Magnolia Drive', city: 'Dover',       driver: 'Josh', time: '10:42 AM' },
 ]
 
-const TOTAL = 379
-const VISIBLE_ROWS = DELIVERIES.length
-const ROW_STEP = TOTAL / VISIBLE_ROWS // flip a visible row every ~32 counts
-const TICK = 80
+const TOTAL = DELIVERIES.length
+const TICK = 1500
 const RESET_DELAY = 3500
 
 export default function PharmacyPortalDemo() {
@@ -52,18 +50,14 @@ export default function PharmacyPortalDemo() {
           }, RESET_DELAY)
           return prev
         }
-        const next = prev + 1
-        const prevRows = Math.floor(prev / ROW_STEP)
-        const nextRows = Math.floor(next / ROW_STEP)
-        if (nextRows > prevRows) setJustDelivered(prevRows)
-        return next
+        setJustDelivered(prev)
+        return prev + 1
       })
     }
     timerRef.current = setInterval(tick, TICK)
     return () => clearInterval(timerRef.current)
   }, [inView])
 
-  const rowsDelivered = Math.floor(delivered / ROW_STEP)
   const pending = TOTAL - delivered
   const failed = 0
   const allDelivered = delivered >= TOTAL
@@ -142,7 +136,7 @@ export default function PharmacyPortalDemo() {
               </div>
               <div className="pharm-tbody">
                 {DELIVERIES.map((d, i) => {
-                  const isDelivered = i < rowsDelivered
+                  const isDelivered = i < delivered
                   const isJust = i === justDelivered
                   return (
                     <div key={i} className={`pharm-row ${isDelivered ? 'pharm-row--delivered' : ''} ${isJust ? 'pharm-row--flash' : ''}`}>
