@@ -500,12 +500,11 @@
 .demo-scan-frame {
   width: 220px;
   height: 220px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.25);
   border-radius: 14px;
   background: #000;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 24px rgba(16,185,129,0.25);
 }
 
 .demo-scan-img {
@@ -519,31 +518,6 @@
   object-position: center 32%;
 }
 
-.demo-scan-line {
-  position: absolute;
-  left: 6%;
-  right: 6%;
-  height: 2px;
-  background: #ef4444;
-  box-shadow: 0 0 12px 2px rgba(239,68,68,0.9), 0 0 24px 4px rgba(239,68,68,0.5);
-  border-radius: 2px;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.demo-step--active .demo-scan-line {
-  animation: scanSweep 2.2s ease-in-out infinite;
-}
-
-@keyframes scanSweep {
-  0%   { top: 12%; opacity: 0.3; }
-  10%  { opacity: 1; }
-  50%  { top: 88%; opacity: 1; }
-  60%  { opacity: 1; }
-  90%  { opacity: 0.3; }
-  100% { top: 12%; opacity: 0.3; }
-}
-
 .demo-scan-corners {
   position: absolute;
   inset: 0;
@@ -555,23 +529,13 @@
   position: absolute;
   width: 26px;
   height: 26px;
-  border: 3px solid #10b981;
-  box-shadow: 0 0 8px rgba(16,185,129,0.6);
+  border: 3px solid rgba(255,255,255,0.45);
 }
 
 .demo-scan-corners span:nth-child(1) { top: 6px; left: 6px; border-right: none; border-bottom: none; border-top-left-radius: 8px; }
 .demo-scan-corners span:nth-child(2) { top: 6px; right: 6px; border-left: none; border-bottom: none; border-top-right-radius: 8px; }
 .demo-scan-corners span:nth-child(3) { bottom: 6px; left: 6px; border-right: none; border-top: none; border-bottom-left-radius: 8px; }
 .demo-scan-corners span:nth-child(4) { bottom: 6px; right: 6px; border-left: none; border-top: none; border-bottom-right-radius: 8px; }
-
-.demo-step--active .demo-scan-corners span {
-  animation: cornerPulse 2.2s ease-in-out infinite;
-}
-
-@keyframes cornerPulse {
-  0%, 100% { border-color: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.6); }
-  50%      { border-color: #34d399; box-shadow: 0 0 16px rgba(52,211,153,0.9); }
-}
 
 .demo-scan-skip {
   text-align: center;
