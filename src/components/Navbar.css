@@ -17,35 +17,15 @@
     color 300ms ease;
 }
 
-/* --- On hero: fully transparent body, but a subtle dark gradient
-       behind it via ::before so nav items stay readable over the map --- */
-.navbar--transparent {
-  background: transparent;
-}
-
-.navbar--transparent::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 100%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-/* --- Scrolled past hero top, still over the dark hero map --- */
-.navbar--frosted {
-  background: rgba(10, 36, 99, 0.85);
-  backdrop-filter: saturate(160%) blur(12px);
-  -webkit-backdrop-filter: saturate(160%) blur(12px);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-
-/* --- Past the hero: light frosted over white content --- */
+/* Nav is fully transparent in every state — no backgrounds, no
+   blur, no borders. The map and content show through. */
+.navbar--transparent,
+.navbar--frosted,
 .navbar--light {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  border-bottom-color: rgba(10, 36, 99, 0.08);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom-color: transparent;
 }
 
 .navbar__progress {
