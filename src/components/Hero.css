@@ -89,33 +89,34 @@
 .hero__btn {
   display: inline-flex;
   align-items: center;
-  padding: 14px 28px;
-  border-radius: 980px;
+  padding: 12px 28px;
+  border-radius: 8px;
   font-size: 16px;
-  font-weight: 500;
-  transition: all 0.25s ease;
+  font-weight: 400;
+  border: 1px solid transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
 }
 
 .hero__btn--primary {
-  background: #0a2463;
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
-  box-shadow: 0 10px 30px rgba(10, 36, 99, 0.5);
 }
 
 .hero__btn--primary:hover {
-  background: #123080;
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .hero__btn--secondary {
-  background: rgba(255, 255, 255, 0.92);
-  color: #0a2463;
-  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .hero__btn--secondary:hover {
-  background: #ffffff;
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 @media (max-width: 900px) {
