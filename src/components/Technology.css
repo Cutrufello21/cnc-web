@@ -106,9 +106,10 @@
   border: none;
   box-shadow: none;
   border-radius: 0;
-  overflow: visible;
+  overflow: hidden;
   padding: 0;
   width: 100%;
+  max-width: 100%;
 }
 
 .tech-feature__image--phone img {
