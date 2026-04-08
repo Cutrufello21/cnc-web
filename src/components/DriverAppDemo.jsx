@@ -115,10 +115,10 @@ export default function DriverAppDemo() {
             <div className="demo-stop-body">
               <div className="demo-stop-num">1</div>
               <div className="demo-stop-info">
-                <div className="demo-stop-addr">4138 Swanson Boulevard</div>
-                <div className="demo-stop-city">Wooster, OH 44691</div>
-                <div className="demo-stop-name">Pollard, Scott</div>
-                <div className="demo-stop-order">Order #13195746</div>
+                <div className="demo-stop-addr">123 Sample Street</div>
+                <div className="demo-stop-city">Demo City, OH 44000</div>
+                <div className="demo-stop-name">Sample, Patient A</div>
+                <div className="demo-stop-order">Order #DEMO001</div>
               </div>
               <span className="demo-ofd-badge">OUT FOR DELIVERY</span>
             </div>
@@ -143,9 +143,9 @@ export default function DriverAppDemo() {
             <div className="demo-stop-drag">&#8801;</div>
             <div className="demo-stop-num demo-stop-num--muted">2</div>
             <div className="demo-stop-info">
-              <div className="demo-stop-addr">4400 Melrose Dr Lot 255</div>
-              <div className="demo-stop-city">Wooster, OH 44691</div>
-              <div className="demo-stop-name">Hunsberger, Janice P</div>
+              <div className="demo-stop-addr">456 Example Avenue</div>
+              <div className="demo-stop-city">Demo City, OH 44000</div>
+              <div className="demo-stop-name">Sample, Patient B</div>
             </div>
             <span className="demo-ofd-badge">OUT FOR DELIVERY</span>
           </div>
@@ -153,8 +153,8 @@ export default function DriverAppDemo() {
           <div className="demo-stop-peek">
             <div className="demo-stop-num" style={{background:'#3b82f6'}}>3</div>
             <div className="demo-stop-info">
-              <div className="demo-stop-addr" style={{fontSize:10}}>3574 Melrose Drive Unit B6</div>
-              <div className="demo-stop-city">Wooster, OH 44691</div>
+              <div className="demo-stop-addr" style={{fontSize:10}}>789 Test Boulevard Unit C</div>
+              <div className="demo-stop-city">Demo City, OH 44000</div>
             </div>
           </div>
           <div className="demo-bottom-nav">
@@ -191,7 +191,7 @@ export default function DriverAppDemo() {
             </div>
             <div className="demo-cam-sub">
               <div className="demo-cam-sub-title">Point camera at the package barcode</div>
-              <div className="demo-cam-sub-meta">Pollard, Scott &middot; 4138 Swanson Boulevard</div>
+              <div className="demo-cam-sub-meta">Sample, Patient A &middot; 123 Sample Street</div>
             </div>
             <div className="demo-scan-wrap">
               <div className="demo-scan-frame" />
@@ -213,7 +213,7 @@ export default function DriverAppDemo() {
             </div>
             <div className="demo-cam-sub">
               <div className="demo-cam-sub-title">Photo 1 of 2 &mdash; Where you left the package</div>
-              <div className="demo-cam-sub-meta">Pollard, Scott &middot; 4138 Swanson Boulevard</div>
+              <div className="demo-cam-sub-meta">Sample, Patient A &middot; 123 Sample Street</div>
               <div className="demo-photo-dots">
                 <span className="demo-photo-dot" />
                 <span className="demo-photo-dot" />
@@ -245,8 +245,8 @@ export default function DriverAppDemo() {
             <div className="demo-note-header">
               <div>
                 <div className="demo-note-title">Delivery Note</div>
-                <div className="demo-note-name">Pollard, Scott</div>
-                <div className="demo-note-addr">4138 Swanson Boulevard</div>
+                <div className="demo-note-name">Sample, Patient A</div>
+                <div className="demo-note-addr">123 Sample Street</div>
               </div>
               <span className="demo-note-close">&times;</span>
             </div>
@@ -298,9 +298,9 @@ export default function DriverAppDemo() {
             <div className="demo-sheet-accent" />
             <div className="demo-sheet-handle" />
             <div className="demo-sheet-label">NEXT STOP</div>
-            <div className="demo-sheet-name">Hunsberger, Janice P</div>
-            <div className="demo-sheet-addr">4400 Melrose Dr Lot 255, Wooster</div>
-            <div className="demo-sheet-order">Order #13202653</div>
+            <div className="demo-sheet-name">Sample, Patient B</div>
+            <div className="demo-sheet-addr">456 Example Avenue, Demo City</div>
+            <div className="demo-sheet-order">Order #DEMO002</div>
             <div className="demo-sheet-pills">
               <span className="demo-info-pill">
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0A2463" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
