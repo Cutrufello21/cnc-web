@@ -1,0 +1,38 @@
+/* Container lives inside .hero as an absolute background. Inline
+   styles on the element itself are a belt-and-suspenders guarantee
+   that the map has real dimensions before mapbox measures it. */
+.hero-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+  background: #0a0a0a;
+}
+
+.hero-map .mapboxgl-ctrl,
+.hero-map .mapboxgl-ctrl-attrib,
+.hero-map .mapboxgl-ctrl-logo {
+  display: none !important;
+}
+
+/* --- Delivery stop markers (DOM-based mapbox Marker elements) --- */
+.hero-marker {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0.9;
+  pointer-events: none;
+  transition:
+    background-color 250ms ease,
+    box-shadow 250ms ease,
+    transform 250ms ease;
+}
+
+.hero-marker--flash {
+  background: #60A5FA;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.75);
+  transform: scale(1.3);
+}
