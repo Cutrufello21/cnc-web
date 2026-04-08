@@ -268,13 +268,15 @@ export default function HeroMap() {
         if (disposed) return
         const elapsed = (now - start) / 1000
 
-        // Ken Burns drift — 30s full cycle, moving NE then back
+        // Ken Burns drift — 40s full cycle. Lissajous-style: dx and dy
+        // run on different phases so the camera traces a slow figure
+        // that sweeps from southern fringe (Tuscarawas/Carroll) up to
+        // northern edge (Cleveland metro) and back. Slower cycle keeps
+        // the larger amplitude from feeling jittery.
         if (!isMobile) {
-          const t = (elapsed / 30) * Math.PI * 2
-          // sin for west-east, (1-cos)/2 for south-north (always >=0),
-          // so the path sweeps from center out to the NE and back
-          const dx = Math.sin(t) * 0.08
-          const dy = ((1 - Math.cos(t)) / 2) * 0.06
+          const t = (elapsed / 40) * Math.PI * 2
+          const dx = Math.sin(t) * 0.10
+          const dy = Math.sin(t * 0.5) * 0.16
           try { map.setCenter([CENTER[0] + dx, CENTER[1] + dy]) } catch {}
         }
 
