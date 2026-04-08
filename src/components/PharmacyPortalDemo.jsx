@@ -17,8 +17,8 @@ const DELIVERIES = [
 ]
 
 const TOTAL = DELIVERIES.length
-const TICK = 700
-const RESET_DELAY = 2400
+const TICK = 1500
+const RESET_DELAY = 3500
 
 export default function PharmacyPortalDemo() {
   const [delivered, setDelivered] = useState(0)
