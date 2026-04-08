@@ -23,10 +23,22 @@
   pointer-events: none;
 }
 
-/* No overlay — map shows fully across the hero. White text with
-   text-shadow provides separation (Mercury-style). */
+/* Left-side white fade: solid white under the copy on the left,
+   smoothly transitioning to fully transparent so the map shows
+   through cleanly on the right. */
 .hero__overlay {
-  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(255, 255, 255, 1) 30%,
+      rgba(255, 255, 255, 0) 60%);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .hero__content {
