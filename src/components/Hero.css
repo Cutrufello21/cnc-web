@@ -22,10 +22,9 @@
   pointer-events: none;
 }
 
-/* Left-side white fade: solid white under the entire copy column,
-   smoothly transitioning to fully transparent so the map shows
-   through cleanly on the right. Wider solid zone so dots don't
-   sit behind the headline. */
+/* Subtle left-side wash — JUST enough white to keep the copy
+   readable. The map is the dominant visual; this is a veil, not
+   a panel. */
 .hero__overlay {
   position: absolute;
   top: 0;
@@ -34,9 +33,10 @@
   height: 100%;
   background:
     linear-gradient(90deg,
-      rgba(255, 255, 255, 1) 0%,
-      rgba(255, 255, 255, 1) 45%,
-      rgba(255, 255, 255, 0) 72%);
+      rgba(255, 255, 255, 0.78) 0%,
+      rgba(255, 255, 255, 0.65) 30%,
+      rgba(255, 255, 255, 0.3) 55%,
+      rgba(255, 255, 255, 0) 75%);
   z-index: 1;
   pointer-events: none;
 }
