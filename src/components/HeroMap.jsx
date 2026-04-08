@@ -81,10 +81,10 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#5eead4',
+          'circle-color': '#60A5FA',
           'circle-radius': 6,
           'circle-opacity': 0,
-          'circle-stroke-color': '#5eead4',
+          'circle-stroke-color': '#60A5FA',
           'circle-stroke-width': 1.5,
           'circle-stroke-opacity': 0,
         },
@@ -96,7 +96,7 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#5eead4',
+          'circle-color': '#60A5FA',
           'circle-radius': 3.2,
           'circle-opacity': 1,
         },
@@ -112,7 +112,7 @@ export default function HeroMap() {
           source: sid,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#5eead4',
+            'line-color': '#60A5FA',
             'line-width': 2.2,
             'line-opacity': 0,
             'line-blur': 0.5,
