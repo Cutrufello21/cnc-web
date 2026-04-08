@@ -18,12 +18,16 @@ const DELIVERIES = [
 
 const TOTAL = 334
 const VISIBLE_ROWS = DELIVERIES.length
-const ROW_STEP = TOTAL / VISIBLE_ROWS
-const TICK = 60
+// Precompute the delivered-count when each visible row flips. Last row
+// lands exactly on TOTAL so the counter ends at 334.
+const ROW_THRESHOLDS = Array.from({ length: VISIBLE_ROWS }, (_, i) =>
+  Math.round(((i + 1) * TOTAL) / VISIBLE_ROWS)
+)
+const TICK = 1500
 const RESET_DELAY = 3500
 
 export default function PharmacyPortalDemo() {
-  const [delivered, setDelivered] = useState(0)
+  const [rowsDelivered, setRowsDelivered] = useState(0)
   const [justDelivered, setJustDelivered] = useState(-1)
   const [inView, setInView] = useState(false)
   const containerRef = useRef(null)
@@ -42,28 +46,25 @@ export default function PharmacyPortalDemo() {
   useEffect(() => {
     if (!inView) return
     const tick = () => {
-      setDelivered(prev => {
-        if (prev >= TOTAL) {
+      setRowsDelivered(prev => {
+        if (prev >= VISIBLE_ROWS) {
           clearInterval(timerRef.current)
           setTimeout(() => {
-            setDelivered(0)
+            setRowsDelivered(0)
             setJustDelivered(-1)
             timerRef.current = setInterval(tick, TICK)
           }, RESET_DELAY)
           return prev
         }
-        const next = prev + 1
-        const prevRows = Math.floor(prev / ROW_STEP)
-        const nextRows = Math.floor(next / ROW_STEP)
-        if (nextRows > prevRows) setJustDelivered(prevRows)
-        return next
+        setJustDelivered(prev)
+        return prev + 1
       })
     }
     timerRef.current = setInterval(tick, TICK)
     return () => clearInterval(timerRef.current)
   }, [inView])
 
-  const rowsDelivered = Math.floor(delivered / ROW_STEP)
+  const delivered = rowsDelivered === 0 ? 0 : ROW_THRESHOLDS[rowsDelivered - 1]
   const pending = TOTAL - delivered
   const failed = 0
   const allDelivered = delivered >= TOTAL
