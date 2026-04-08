@@ -108,9 +108,12 @@ function gauss(rand) {
 const _rand = mulberry32(42)
 const PULSE_POINTS = (() => {
   const features = []
-  const BASE_STOPS = 3
-  const DENSE_STOPS = 5
-  const SUPER_DENSE_STOPS = 30
+  // Targeting ~1,875 total dots — roughly one full week of CNC
+  // deliveries (5 days × 375/day average) to make the volume story
+  // legible at a glance.
+  const BASE_STOPS = 5
+  const DENSE_STOPS = 10
+  const SUPER_DENSE_STOPS = 60
   const JITTER = 0.01
   PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
@@ -287,14 +290,14 @@ export default function HeroMap() {
           try {
             map.setPaintProperty('hero-pulse-halo', 'circle-radius', [
               'interpolate', ['linear'], modExpr,
-              0,   2.5,
-              0.5, 9,
-              1,   14,
+              0,   2,
+              0.5, 6,
+              1,   10,
             ])
             map.setPaintProperty('hero-pulse-halo', 'circle-opacity', [
               'interpolate', ['linear'], modExpr,
               0,   0,
-              0.1, 0.22,
+              0.1, 0.14,
               1,   0,
             ])
             map.setPaintProperty('hero-pulse-halo', 'circle-stroke-opacity', [
