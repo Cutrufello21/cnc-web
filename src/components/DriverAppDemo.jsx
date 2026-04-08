@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './DriverAppDemo.css'
 
 const STEP_DURATION = 3500
-const STEPS = ['stopList', 'delivered', 'nextStop', 'photo1', 'photo2', 'note', 'complete']
+const STEPS = ['stopList', 'barcode', 'photo1', 'photo2', 'note', 'delivered', 'nextStop']
 
 export default function DriverAppDemo() {
   const [step, setStep] = useState(0)
   const [active, setActive] = useState(true)
+  const [focused, setFocused] = useState(false)
+  const phoneRef = useRef(null)
 
   useEffect(() => {
     if (!active) return
@@ -16,190 +18,307 @@ export default function DriverAppDemo() {
     return () => clearInterval(timer)
   }, [active])
 
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (!focused) return
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        setActive(false)
+        setStep(prev => (prev + 1) % STEPS.length)
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        setActive(false)
+        setStep(prev => (prev - 1 + STEPS.length) % STEPS.length)
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault()
+        setActive(prev => !prev)
+      } else if (e.key >= '1' && e.key <= '7') {
+        e.preventDefault()
+        setActive(false)
+        setStep(parseInt(e.key, 10) - 1)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [focused])
+
   const currentStep = STEPS[step]
 
   return (
-    <div className="demo-phone" onMouseEnter={() => setActive(false)} onMouseLeave={() => setActive(true)}>
+    <div
+      ref={phoneRef}
+      className="demo-phone"
+      tabIndex={0}
+      role="region"
+      aria-label="Driver app interactive demo — use arrow keys to navigate, space to pause"
+      onMouseEnter={() => { setActive(false); setFocused(true) }}
+      onMouseLeave={() => { setActive(true); setFocused(false) }}
+      onFocus={() => { setActive(false); setFocused(true) }}
+      onBlur={() => setFocused(false)}
+    >
       <div className="demo-screen">
 
         {/* Step 1: Stop List */}
         <div className={`demo-step ${currentStep === 'stopList' ? 'demo-step--active' : ''}`}>
+          <div className="demo-status-bar">
+            <span>12:07</span>
+            <span className="demo-dynamic-island" />
+            <span className="demo-status-right">&#9679;&#9679;&#9679; &#128246; &#128267;</span>
+          </div>
           <div className="demo-driver-bar">
             <div className="demo-driver-avatar">D</div>
-            <div><div style={{fontWeight:700,fontSize:13,color:'#1a1a2e'}}>Dom</div><div style={{fontSize:9,color:'#94a3b8'}}>#55500 · Both</div></div>
-            <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-              <div className="demo-stat-pill"><strong>50</strong><span>Daily Stops</span></div>
-              <div className="demo-stat-pill"><strong style={{color:'#2563eb'}}>44</strong><span>Cold Chain</span></div>
-              <div className="demo-stat-pill" style={{padding:'4px 6px'}}><strong style={{fontSize:12}}>📊</strong><span>Weekly</span></div>
+            <div className="demo-driver-meta">
+              <div className="demo-driver-name">Dom</div>
+              <div className="demo-driver-sub">#55500 <span className="demo-driver-tag">Aultman</span></div>
+            </div>
+            <div className="demo-bell">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+          </div>
+          <div className="demo-stat-grid">
+            <div className="demo-stat-card">
+              <div className="demo-stat-num">15</div>
+              <div className="demo-stat-lbl">Daily Stops</div>
+            </div>
+            <div className="demo-stat-card">
+              <div className="demo-stat-num" style={{color:'#2563eb'}}>5</div>
+              <div className="demo-stat-lbl">Cold Chain</div>
+            </div>
+            <div className="demo-stat-card">
+              <svg width="20" height="16" viewBox="0 0 24 20" fill="none" stroke="#2563eb" strokeWidth="2" style={{margin:'2px auto 4px',display:'block'}}>
+                <line x1="4" y1="16" x2="4" y2="10"/><line x1="10" y1="16" x2="10" y2="4"/><line x1="16" y1="16" x2="16" y2="8"/><line x1="22" y1="16" x2="22" y2="2"/>
+              </svg>
+              <div className="demo-stat-lbl">Weekly</div>
             </div>
           </div>
           <div className="demo-progress-bar">
-            <div className="demo-progress-fill" style={{width:'58%'}} />
-            <span className="demo-progress-left">29/50 delivered</span>
-            <span className="demo-progress-right">Done by 11:15 AM</span>
+            <div className="demo-progress-row">
+              <span>0/15 delivered</span>
+              <span>Done by 3:51 AM</span>
+            </div>
+            <div className="demo-progress-track"><div className="demo-progress-fill" style={{width:'0%'}} /></div>
           </div>
-          <div style={{padding:'0 12px',display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+          <div className="demo-route-row">
             <span className="demo-route-badge">Route optimized</span>
-            <span style={{fontSize:9,color:'#3b82f6'}}>Re-optimize</span>
+            <span className="demo-reoptimize">Re-optimize</span>
           </div>
-          <div className="demo-route-summary">21 stops → Home<br/><span style={{fontSize:9,color:'#94a3b8'}}>18.9 mi driving distance</span></div>
-          <div style={{padding:'0 12px',display:'flex',justifyContent:'space-between',alignItems:'center',margin:'6px 0'}}>
-            <span style={{fontSize:10,fontWeight:600,color:'#64748b',textTransform:'uppercase',letterSpacing:0.5}}>Stops</span>
-            <span style={{fontSize:9,color:'#94a3b8'}}>21 remaining</span>
+          <div className="demo-stops-header">
+            <span>STOPS</span>
+            <span className="demo-remaining">15 remaining <span className="demo-list-icon">&#9776;</span></span>
           </div>
           <div className="demo-next-card">
-            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}>
+            <div className="demo-next-row">
               <span className="demo-next-badge">NEXT STOP</span>
-              <span style={{fontSize:8,color:'#94a3b8'}}>9 min · 4.3 mi</span>
-              <span className="demo-eta-pill">ETA 11:13 AM</span>
+              <span className="demo-next-meta">41 min &middot; 33.3 mi</span>
+              <span className="demo-eta-pill">ETA 12:48 AM</span>
             </div>
-            <div style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+            <div className="demo-stop-body">
               <div className="demo-stop-num">1</div>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:12,color:'#1a1a2e'}}>17 Socrates Place Apt 17</div>
-                <div style={{fontSize:9,color:'#64748b'}}>Akron, OH 44301</div>
-                <div style={{fontSize:9,color:'#64748b'}}>Gindraw, Tisha Antionetta</div>
-                <div style={{fontSize:8,color:'#94a3b8'}}>Order #13194802</div>
-                <div className="demo-cold-tag">❄️ Cold</div>
+              <div className="demo-stop-info">
+                <div className="demo-stop-addr">4138 Swanson Boulevard</div>
+                <div className="demo-stop-city">Wooster, OH 44691</div>
+                <div className="demo-stop-name">Pollard, Scott</div>
+                <div className="demo-stop-order">Order #13195746</div>
               </div>
-              <span className="demo-cc-badge">COLD CHAIN</span>
+              <span className="demo-ofd-badge">OUT FOR DELIVERY</span>
             </div>
-            <div style={{fontSize:9,color:'#94a3b8',padding:'6px 0',borderTop:'1px solid #f1f5f9',marginTop:8,display:'flex',alignItems:'center',gap:4}}>
-              <span>⊕</span> Add delivery note for this address
+            <div className="demo-note-row">
+              <span className="demo-note-icon">+</span>
+              <span>Add delivery note for this address</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" style={{marginLeft:'auto'}}><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
             </div>
-            <div style={{display:'flex',gap:6,marginTop:6}}>
-              <button className="demo-btn demo-btn--deliver">✓ Delivered</button>
-              <button className="demo-btn demo-btn--navigate">↗ Navigate</button>
+            <div className="demo-action-row">
+              <button className="demo-btn-deliver">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                Deliver
+              </button>
+              <button className="demo-btn-nav">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#0A2463"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                Navigate
+              </button>
+            </div>
+          </div>
+          <div className="demo-travel-label">&#124; 5 min &middot; 2.2 mi &middot; ETA 12:55 AM</div>
+          <div className="demo-stop-preview">
+            <div className="demo-stop-drag">&#8801;</div>
+            <div className="demo-stop-num demo-stop-num--muted">2</div>
+            <div className="demo-stop-info">
+              <div className="demo-stop-addr">4400 Melrose Dr Lot 255</div>
+              <div className="demo-stop-city">Wooster, OH 44691</div>
+              <div className="demo-stop-name">Hunsberger, Janice P</div>
+            </div>
+            <span className="demo-ofd-badge">OUT FOR DELIVERY</span>
+          </div>
+          <div className="demo-travel-label">&#124; 2 min &middot; 0.7 mi &middot; ETA 12:59 AM</div>
+          <div className="demo-stop-peek">
+            <div className="demo-stop-num" style={{background:'#3b82f6'}}>3</div>
+            <div className="demo-stop-info">
+              <div className="demo-stop-addr" style={{fontSize:10}}>3574 Melrose Drive Unit B6</div>
+              <div className="demo-stop-city">Wooster, OH 44691</div>
+            </div>
+          </div>
+          <div className="demo-bottom-nav">
+            <div className="demo-nav-item demo-nav-item--active">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0A2463" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span>Home</span>
+            </div>
+            <div className="demo-nav-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+              <span>Map</span>
+            </div>
+            <div className="demo-nav-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+              <span>Team</span>
+            </div>
+            <div className="demo-nav-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="8" y2="18"/></svg>
+              <span>Sort</span>
+            </div>
+            <div className="demo-nav-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              <span>More</span>
             </div>
           </div>
         </div>
 
-        {/* Step 2: Stop Delivered overlay */}
-        <div className={`demo-step ${currentStep === 'delivered' ? 'demo-step--active' : ''}`}>
-          <div className="demo-delivered-bg">
-            <div className="demo-delivered-check">✓</div>
-            <div className="demo-delivered-title">Stop delivered!</div>
-            <div className="demo-delivered-sub">Stop 45 of 50 complete</div>
-            <div style={{display:'flex',gap:6,width:'80%',marginTop:16}}>
-              <button className="demo-btn demo-btn--deliver" style={{flex:2}}>✓ Next Stop</button>
-              <button className="demo-btn demo-btn--navigate" style={{flex:1,fontSize:10}}>Details</button>
+        {/* Step 2: Scan Barcode */}
+        <div className={`demo-step ${currentStep === 'barcode' ? 'demo-step--active' : ''}`}>
+          <div className="demo-camera-screen">
+            <div className="demo-camera-header">
+              <span className="demo-x">&times;</span>
+              <span className="demo-cam-title">Scan Package Barcode</span>
+              <span style={{width:16}} />
             </div>
+            <div className="demo-cam-sub">
+              <div className="demo-cam-sub-title">Point camera at the package barcode</div>
+              <div className="demo-cam-sub-meta">Pollard, Scott &middot; 4138 Swanson Boulevard</div>
+            </div>
+            <div className="demo-scan-wrap">
+              <div className="demo-scan-frame" />
+            </div>
+            <div className="demo-scan-skip">No barcode on package &mdash; Skip</div>
           </div>
         </div>
 
-        {/* Step 3: Next Stop sheet */}
-        <div className={`demo-step ${currentStep === 'nextStop' ? 'demo-step--active' : ''}`}>
-          <div className="demo-delivered-bg" style={{justifyContent:'flex-start',paddingTop:40}}>
-            <div className="demo-delivered-check" style={{width:48,height:48,fontSize:22}}>✓</div>
-            <div className="demo-delivered-title" style={{fontSize:16}}>Stop delivered!</div>
-            <div className="demo-delivered-sub">Stop 45 of 50 complete</div>
-          </div>
-          <div className="demo-sheet">
-            <div className="demo-sheet-handle" />
-            <div style={{fontSize:9,fontWeight:600,color:'#94a3b8',textTransform:'uppercase',letterSpacing:0.5,marginBottom:4}}>Next Stop</div>
-            <div style={{fontWeight:700,fontSize:14,color:'#1a1a2e'}}>Meckler, Daniel</div>
-            <div style={{fontSize:11,color:'#64748b'}}>756 East Waterloo Road, Akron</div>
-            <div style={{fontSize:9,color:'#94a3b8'}}>Order #13194355</div>
-            <div style={{display:'flex',gap:6,margin:'10px 0'}}>
-              <span className="demo-info-pill">⏱ 9 min</span>
-              <span className="demo-info-pill">↗ 4.2 mi</span>
-              <span className="demo-info-pill">Stop 7 of 50</span>
-            </div>
-            <div style={{display:'flex',gap:6}}>
-              <button style={{flex:0,padding:'8px 16px',borderRadius:8,background:'#f8f9fb',border:'1px solid #e2e8f0',fontSize:11,fontWeight:600,color:'#64748b',cursor:'default',fontFamily:'inherit'}}>Skip</button>
-              <button style={{flex:1,padding:'8px 16px',borderRadius:8,background:'#0A2463',border:'none',fontSize:11,fontWeight:600,color:'white',cursor:'default',fontFamily:'inherit'}}>↗ Navigate to Stop</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Step 4: Photo 1 */}
+        {/* Step 3: Photo 1 (camera) */}
         <div className={`demo-step ${currentStep === 'photo1' ? 'demo-step--active' : ''}`}>
           <div className="demo-camera-screen">
             <div className="demo-camera-header">
-              <span style={{fontSize:16}}>✕</span>
-              <span style={{fontWeight:600,fontSize:13}}>Take delivery photos</span>
-              <span style={{fontSize:14}}>⚡</span>
+              <span className="demo-x">&times;</span>
+              <span className="demo-cam-title">Take delivery photos</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                <line x1="2" y1="2" x2="22" y2="22" />
+              </svg>
             </div>
-            <div style={{padding:'0 16px',marginBottom:8}}>
-              <div style={{fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.9)'}}>Photo 1 of 2 — Where you left the package</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>Medlock, Lizabeth · 1410 Brown Street</div>
-              <div style={{display:'flex',gap:4,marginTop:6}}>
-                <div className="demo-photo-dot" />
-                <div className="demo-photo-dot demo-photo-dot--inactive" />
+            <div className="demo-cam-sub">
+              <div className="demo-cam-sub-title">Photo 1 of 2 &mdash; Where you left the package</div>
+              <div className="demo-cam-sub-meta">Pollard, Scott &middot; 4138 Swanson Boulevard</div>
+              <div className="demo-photo-dots">
+                <span className="demo-photo-dot" />
+                <span className="demo-photo-dot" />
               </div>
             </div>
             <div style={{flex:1}} />
-            <div className="demo-shutter">
-              <div className="demo-shutter-btn" />
+            <div className="demo-shutter-wrap">
+              <div className="demo-shutter-solid" />
             </div>
           </div>
         </div>
 
-        {/* Step 5: Photo 2 */}
+        {/* Step 4: Photo preview (Retake / Use Photo) */}
         <div className={`demo-step ${currentStep === 'photo2' ? 'demo-step--active' : ''}`}>
-          <div className="demo-camera-screen">
-            <div className="demo-camera-header">
-              <span style={{fontSize:16}}>✕</span>
-              <span style={{fontWeight:600,fontSize:13}}>Take delivery photos</span>
-              <span style={{fontSize:14}}>⚡</span>
+          <div className="demo-preview-screen">
+            <div className="demo-preview-area">
+              <span className="demo-preview-text">Photo preview</span>
             </div>
-            <div style={{padding:'0 16px',marginBottom:8}}>
-              <div style={{fontSize:12,fontWeight:500,color:'rgba(255,255,255,0.9)'}}>Photo 2 of 2 — The house or front door</div>
-              <div style={{fontSize:10,color:'rgba(255,255,255,0.5)'}}>Medlock, Lizabeth · 1410 Brown Street</div>
-              <div style={{display:'flex',gap:4,marginTop:6}}>
-                <div className="demo-photo-dot demo-photo-dot--done" />
-                <div className="demo-photo-dot" />
-              </div>
-            </div>
-            <div style={{flex:1}} />
-            <div className="demo-shutter">
-              <div className="demo-shutter-btn" />
+            <div className="demo-preview-actions">
+              <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
+              <button className="demo-preview-btn demo-preview-btn--use">Use Photo</button>
             </div>
           </div>
         </div>
 
-        {/* Step 6: Delivery Note */}
+        {/* Step 5: Delivery Note (empty / initial) */}
         <div className={`demo-step ${currentStep === 'note' ? 'demo-step--active' : ''}`}>
           <div className="demo-note-screen">
-            <div style={{padding:'16px 16px 0'}}>
-              <div style={{fontSize:20,fontWeight:700,color:'#1a1a2e',marginBottom:4}}>Where did you leave it?</div>
-              <div style={{fontSize:12,color:'#94a3b8',marginBottom:16}}>This message goes to the patient</div>
-              <div className="demo-note-pills">
-                <span className="demo-note-pill demo-note-pill--selected">Front door</span>
-                <span className="demo-note-pill">Back door</span>
-                <span className="demo-note-pill">Mailbox</span>
-                <span className="demo-note-pill">With neighbor</span>
-                <span className="demo-note-pill">Left with patient</span>
-                <span className="demo-note-pill">Other</span>
+            <div className="demo-note-header">
+              <div>
+                <div className="demo-note-title">Delivery Note</div>
+                <div className="demo-note-name">Pollard, Scott</div>
+                <div className="demo-note-addr">4138 Swanson Boulevard</div>
               </div>
-              <div className="demo-note-field">
-                Front door<span className="demo-cursor" />
-                <span className="demo-char-count">10/200</span>
-              </div>
+              <span className="demo-note-close">&times;</span>
             </div>
-            <div style={{marginTop:'auto',padding:16}}>
-              <button className="demo-complete-btn">Complete Delivery</button>
+            <div className="demo-note-section-label">WHERE WAS IT LEFT?</div>
+            <div className="demo-note-pills">
+              <span className="demo-note-pill">Front door</span>
+              <span className="demo-note-pill">Back door</span>
+              <span className="demo-note-pill">Handed to patient</span>
+              <span className="demo-note-pill">Left with neighbor</span>
+              <span className="demo-note-pill">Mailbox</span>
+              <span className="demo-note-pill">Other</span>
+            </div>
+            <div className="demo-note-section-label">ADD DETAILS (OPTIONAL)</div>
+            <div className="demo-note-field">
+              <span className="demo-note-placeholder">Gate code, special instructions...</span>
+              <span className="demo-char-count">0/200</span>
+            </div>
+            <div className="demo-note-spacer" />
+            <div className="demo-note-footer">
+              <button className="demo-note-complete demo-note-complete--disabled">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                Complete Delivery
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Step 7: Delivery Complete */}
-        <div className={`demo-step ${currentStep === 'complete' ? 'demo-step--active' : ''}`}>
-          <div className="demo-complete-screen">
-            <div className="demo-complete-check">✓</div>
-            <div style={{fontSize:18,fontWeight:700,color:'#1a1a2e',marginBottom:4}}>Delivery Complete</div>
-            <div style={{fontSize:11,color:'#94a3b8',marginBottom:16}}>All proof captured · 10:47 AM</div>
-            <div className="demo-pod-summary">
-              <div className="demo-pod-row"><span>Patient</span><span>Gindraw, Tisha A.</span></div>
-              <div className="demo-pod-row"><span>Address</span><span>17 Socrates Pl, Akron</span></div>
-              <div className="demo-pod-row"><span>GPS</span><span style={{fontFamily:'monospace',fontSize:9}}>41.0891°N</span></div>
-              <div className="demo-pod-row"><span>Geofence</span><span style={{color:'#10b981',fontWeight:600}}>✓ Verified</span></div>
-              <div className="demo-pod-row"><span>Photos</span><span style={{color:'#10b981',fontWeight:600}}>2 of 2</span></div>
-              <div className="demo-pod-row"><span>Signature</span><span style={{color:'#10b981',fontWeight:600}}>Captured</span></div>
-              <div className="demo-pod-row"><span>Cold Chain</span><span style={{color:'#2563eb',fontWeight:600}}>❄️ Verified</span></div>
-              <div className="demo-pod-row"><span>Note</span><span>Front door</span></div>
+        {/* Step 6: Stop Delivered overlay */}
+        <div className={`demo-step ${currentStep === 'delivered' ? 'demo-step--active' : ''}`}>
+          <div className="demo-delivered-bg">
+            <div className="demo-delivered-check">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
-            <button className="demo-btn demo-btn--deliver" style={{width:'100%',marginTop:12}}>Next Stop →</button>
+            <div className="demo-delivered-title">Stop delivered!</div>
+            <div className="demo-delivered-sub">Stop 1 of 15 complete</div>
+          </div>
+        </div>
+
+        {/* Step 7: Complete to next stop (overlay + bottom sheet) */}
+        <div className={`demo-step ${currentStep === 'nextStop' ? 'demo-step--active' : ''}`}>
+          <div className="demo-delivered-bg">
+            <div className="demo-delivered-check">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+            <div className="demo-delivered-title">Stop delivered!</div>
+            <div className="demo-delivered-sub">Stop 1 of 15 complete</div>
+          </div>
+          <div className="demo-sheet">
+            <div className="demo-sheet-accent" />
+            <div className="demo-sheet-handle" />
+            <div className="demo-sheet-label">NEXT STOP</div>
+            <div className="demo-sheet-name">Hunsberger, Janice P</div>
+            <div className="demo-sheet-addr">4400 Melrose Dr Lot 255, Wooster</div>
+            <div className="demo-sheet-order">Order #13202653</div>
+            <div className="demo-sheet-pills">
+              <span className="demo-info-pill">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0A2463" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                40 min
+              </span>
+              <span className="demo-info-pill">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="#0A2463"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                35.6 mi
+              </span>
+              <span className="demo-info-pill">Stop 2 of 15</span>
+            </div>
+            <div className="demo-sheet-actions">
+              <button className="demo-sheet-skip">Skip</button>
+              <button className="demo-sheet-nav">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                Navigate to Stop
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -207,13 +326,16 @@ export default function DriverAppDemo() {
       {/* Step indicator */}
       <div className="demo-dots">
         {STEPS.map((s, i) => (
-          <div key={s} className={`demo-dot ${i === step ? 'demo-dot--active' : ''}`} onClick={() => setStep(i)} />
+          <div key={s} className={`demo-dot ${i === step ? 'demo-dot--active' : ''}`} onClick={() => { setActive(false); setStep(i) }} />
         ))}
       </div>
       <div className="demo-step-labels">
-        {['Route', 'Delivered', 'Next', 'Photo 1', 'Photo 2', 'Note', 'POD'].map((label, i) => (
+        {['Route', 'Scan', 'Photo 1', 'Photo 2', 'Note', 'Delivered', 'Next'].map((label, i) => (
           <span key={i} className={i === step ? 'demo-step-label--active' : ''}>{label}</span>
         ))}
+      </div>
+      <div className="demo-kbd-hint">
+        <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> navigate &middot; <kbd>space</kbd> {active ? 'pause' : 'play'} &middot; <kbd>1</kbd>&ndash;<kbd>7</kbd> jump
       </div>
     </div>
   )
