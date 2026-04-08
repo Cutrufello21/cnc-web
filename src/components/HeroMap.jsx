@@ -16,7 +16,7 @@ mapboxgl.accessToken =
 
 // Map center sits west of Akron so Akron itself reads on the
 // right side of the hero (off-center, not dead middle).
-const CENTER = [-81.78, 41.0534]
+const CENTER = [-81.78, 40.88]
 const HUB = [-81.5185, 41.0534] // True Akron — keep route lines anchored here
 
 // Full NE Ohio service area — every ZIP CNC actually delivers to.
@@ -110,7 +110,7 @@ const PULSE_POINTS = (() => {
   const features = []
   const BASE_STOPS = 3
   const DENSE_STOPS = 5
-  const SUPER_DENSE_STOPS = 10
+  const SUPER_DENSE_STOPS = 30
   const JITTER = 0.01
   PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
