@@ -23,22 +23,10 @@
   pointer-events: none;
 }
 
-/* Soft white wash over the map so the map reads as a subtle
-   background and the text stays crisp. */
+/* No overlay — map shows fully across the hero. White text with
+   text-shadow provides separation (Mercury-style). */
 .hero__overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background:
-    linear-gradient(90deg,
-      rgba(255, 255, 255, 0.78) 0%,
-      rgba(255, 255, 255, 0.55) 40%,
-      rgba(255, 255, 255, 0.35) 70%,
-      rgba(255, 255, 255, 0.25) 100%);
-  z-index: 1;
-  pointer-events: none;
+  display: none;
 }
 
 .hero__content {
@@ -63,7 +51,8 @@
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #60A5FA;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 24px rgba(0, 0, 0, 0.3);
   margin-bottom: 24px;
 }
 
@@ -72,66 +61,78 @@
   font-weight: 600;
   line-height: 1.08;
   letter-spacing: -1.5px;
-  color: #111111;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 24px rgba(0, 0, 0, 0.3);
   margin-bottom: 28px;
   white-space: normal;
 }
 
-/* 'Every day.' accent — substituted from teal to brand periwinkle */
+/* 'Every day.' accent — deeper mid-blue for stronger contrast
+   against the white hero map. */
 .hero__accent {
-  color: #60A5FA;
+  color: #1D4ED8;
 }
 
 .hero__sub {
   font-size: 18px;
   line-height: 1.6;
-  color: #111111;
-  opacity: 0.75;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 24px rgba(0, 0, 0, 0.3);
   max-width: 560px;
   margin: 0 0 44px 0;
 }
 
 .hero__actions {
   display: flex;
-  gap: 16px;
+  gap: 32px;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: flex-start;
 }
 
 .hero__btn {
   display: inline-flex;
   align-items: center;
-  padding: 12px 28px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 4px 0;
   font-size: 16px;
   font-weight: 500;
-  border: 1px solid transparent;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease, transform 200ms ease;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  transition: color 200ms ease, opacity 200ms ease;
+}
+
+.hero__btn::after {
+  content: '→';
+  display: inline-block;
+  font-size: 16px;
+  transition: transform 200ms ease;
+}
+
+.hero__btn:hover::after {
+  transform: translateX(4px);
 }
 
 .hero__btn--primary {
-  background: #0A2463;
-  border-color: #0A2463;
-  color: #ffffff;
+  color: #0A2463;
+  border-bottom: 1px solid #0A2463;
+  padding-bottom: 6px;
 }
 
 .hero__btn--primary:hover {
-  background: #123080;
-  border-color: #123080;
-  transform: translateY(-1px);
+  color: #123080;
+  border-bottom-color: #123080;
 }
 
 .hero__btn--secondary {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: rgba(10, 36, 99, 0.2);
-  color: #0A2463;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  color: #111111;
+  opacity: 0.6;
 }
 
 .hero__btn--secondary:hover {
-  background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(10, 36, 99, 0.35);
+  opacity: 1;
 }
 
 @media (max-width: 900px) {
@@ -152,9 +153,7 @@
     font-size: 17px;
   }
   .hero__btn {
-    padding: 12px 24px;
     font-size: 15px;
-    min-width: 160px;
   }
 }
 

@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
-import ThemeToggle from './ThemeToggle'
 import BrandMark from './BrandMark'
 import './Navbar.css'
 
 const sections = ['services', 'coverage', 'about', 'team']
 
 export default function Navbar() {
-  const [scrolled, setScrolled] = useState(false)
   const [pastHero, setPastHero] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
@@ -15,16 +13,16 @@ export default function Navbar() {
   const heroRef = useRef(null)
 
   useEffect(() => {
-    heroRef.current = document.querySelector('.hero')
-
     const onScroll = () => {
       const y = window.scrollY
-      setScrolled(y > 80)
 
-      // Past hero = hero bottom sits above the nav
+      // Re-query each time so we catch the hero after it mounts
+      if (!heroRef.current) heroRef.current = document.querySelector('.hero')
+
+      // Past hero = hero bottom has scrolled above the top of the viewport
       if (heroRef.current) {
         const rect = heroRef.current.getBoundingClientRect()
-        setPastHero(rect.bottom <= 80)
+        setPastHero(rect.bottom <= 0)
       }
 
       const height = document.documentElement.scrollHeight - window.innerHeight
@@ -50,7 +48,7 @@ export default function Navbar() {
     }
   }, [])
 
-  const mode = pastHero ? 'light' : scrolled ? 'frosted' : 'transparent'
+  const mode = pastHero ? 'solid' : 'transparent'
   // Hero is light/white in every state — always use the navy BrandMark.
   // (BrandMark naming is inverted: "dark" variant = navy text on light.)
   const brandVariant = 'dark'
@@ -68,7 +66,6 @@ export default function Navbar() {
           <a href="#coverage" className={active === 'coverage' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Coverage</a>
           <a href="#about" className={active === 'about' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>About</a>
           <a href="#team" className={active === 'team' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Team</a>
-          <ThemeToggle />
           <Link to="/login" className="navbar__cta" onClick={() => setMenuOpen(false)}>
             Sign In
           </Link>

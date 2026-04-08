@@ -5,27 +5,23 @@
   right: 0;
   z-index: 100;
   padding: 16px 0;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border-bottom: 1px solid transparent;
   transition:
     background-color 300ms ease,
-    backdrop-filter 300ms ease,
-    -webkit-backdrop-filter 300ms ease,
     border-color 300ms ease,
     color 300ms ease;
 }
 
-/* Nav is fully transparent in every state — no backgrounds, no
-   blur, no borders. The map and content show through. */
-.navbar--transparent,
-.navbar--frosted,
-.navbar--light {
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+/* Mercury-style: transparent over the hero, solid white once the
+   visitor scrolls past it. */
+.navbar.navbar--transparent {
+  background-color: transparent;
   border-bottom-color: transparent;
+}
+
+.navbar.navbar--solid {
+  background-color: #ffffff;
+  border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 
 .navbar__progress {
@@ -65,18 +61,15 @@
   transition: color 200ms ease, opacity 200ms ease;
 }
 
-/* Hero map is white now — navy text links in every scroll state.
-   The :not() exclusion keeps this rule from leaking onto the
-   navy-filled .navbar__cta (Sign In) button. */
+/* Dark text in both states — readable over the white hero map
+   and the solid white post-hero nav. */
 .navbar--transparent .navbar__links a:not(.navbar__cta),
-.navbar--frosted .navbar__links a:not(.navbar__cta),
-.navbar--light .navbar__links a:not(.navbar__cta) {
-  color: #0A2463;
+.navbar--solid .navbar__links a:not(.navbar__cta) {
+  color: #111111;
   opacity: 0.75;
 }
 .navbar--transparent .navbar__links a:not(.navbar__cta):hover,
-.navbar--frosted .navbar__links a:not(.navbar__cta):hover,
-.navbar--light .navbar__links a:not(.navbar__cta):hover {
+.navbar--solid .navbar__links a:not(.navbar__cta):hover {
   opacity: 1;
 }
 
@@ -100,15 +93,13 @@
 }
 
 .navbar--transparent .navbar__cta,
-.navbar--frosted .navbar__cta,
-.navbar--light .navbar__cta {
+.navbar--solid .navbar__cta {
   background: #0A2463;
   border-color: #0A2463;
   color: #ffffff;
 }
 .navbar--transparent .navbar__cta:hover,
-.navbar--frosted .navbar__cta:hover,
-.navbar--light .navbar__cta:hover {
+.navbar--solid .navbar__cta:hover {
   background: #123080;
   border-color: #123080;
 }
@@ -132,9 +123,8 @@
 }
 
 .navbar--transparent .navbar__hamburger-line,
-.navbar--frosted .navbar__hamburger-line,
-.navbar--light .navbar__hamburger-line {
-  background: #0A2463;
+.navbar--solid .navbar__hamburger-line {
+  background: #111111;
 }
 
 .navbar__hamburger-line.open:first-child {
@@ -165,7 +155,7 @@
     transition: transform 0.3s ease;
   }
 
-  .navbar--light .navbar__links {
+  .navbar--solid .navbar__links {
     background: rgba(255, 255, 255, 0.97);
   }
 
@@ -178,23 +168,3 @@
   }
 }
 
-/* Dark mode — when the site theme is dark, past-hero mode inverts */
-[data-theme="dark"] .navbar--light {
-  background: rgba(13, 17, 23, 0.9);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
-}
-[data-theme="dark"] .navbar--light .navbar__links a {
-  color: #ffffff;
-  opacity: 0.75;
-}
-[data-theme="dark"] .navbar--light .navbar__links a:hover {
-  opacity: 1;
-}
-[data-theme="dark"] .navbar--light .navbar__hamburger-line {
-  background: #ffffff;
-}
-[data-theme="dark"] .navbar--light .navbar__cta {
-  background: #60A5FA;
-  border-color: #60A5FA;
-  color: #0A2463;
-}
