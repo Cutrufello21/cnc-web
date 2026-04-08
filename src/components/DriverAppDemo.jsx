@@ -255,7 +255,7 @@ export default function DriverAppDemo() {
             </div>
             <div className="demo-note-section-label">WHERE WAS IT LEFT?</div>
             <div className="demo-note-pills">
-              <span className="demo-note-pill">Front door</span>
+              <span className="demo-note-pill demo-note-pill--selected">Front door</span>
               <span className="demo-note-pill">Back door</span>
               <span className="demo-note-pill">Handed to patient</span>
               <span className="demo-note-pill">Left with neighbor</span>
@@ -264,13 +264,13 @@ export default function DriverAppDemo() {
             </div>
             <div className="demo-note-section-label">ADD DETAILS (OPTIONAL)</div>
             <div className="demo-note-field">
-              <span className="demo-note-placeholder">Gate code, special instructions...</span>
-              <span className="demo-char-count">0/200</span>
+              <span className="demo-note-text">Left at front door</span>
+              <span className="demo-char-count">18/200</span>
             </div>
             <div className="demo-note-spacer" />
             <div className="demo-note-footer">
-              <button className="demo-note-complete demo-note-complete--disabled">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+              <button className="demo-note-complete">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
                 Complete Delivery
               </button>
             </div>

@@ -763,6 +763,12 @@
   color: #cbd5e1;
 }
 
+.demo-note-text {
+  font-size: 13px;
+  color: #1a1a2e;
+  font-weight: 500;
+}
+
 .demo-char-count {
   position: absolute;
   bottom: 4px;
