@@ -17,9 +17,19 @@
     color 300ms ease;
 }
 
-/* --- On hero: fully transparent --- */
+/* --- On hero: fully transparent body, but a subtle dark gradient
+       behind it via ::before so nav items stay readable over the map --- */
 .navbar--transparent {
   background: transparent;
+}
+
+.navbar--transparent::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* --- Scrolled past hero top, still over the dark hero map --- */

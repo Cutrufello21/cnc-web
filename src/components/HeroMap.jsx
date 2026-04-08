@@ -57,7 +57,7 @@ export default function HeroMap() {
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/navigation-night-v1',
+      style: 'mapbox://styles/mapbox/dark-v11',
       center: CENTER,
       zoom: 9.5,
       interactive: false,
@@ -72,45 +72,46 @@ export default function HeroMap() {
     let currentFlashId = null
 
     map.on('load', () => {
+      // Strip all label / road-label / highway-shield / POI symbol layers
+      // so the map reads as an abstract silhouette instead of a nav app.
+      // Keep settlement-major-label only, but dim it heavily.
+      const style = map.getStyle()
+      if (style && style.layers) {
+        for (const layer of style.layers) {
+          if (layer.type !== 'symbol') continue
+          if (layer.id === 'settlement-major-label') {
+            map.setPaintProperty(layer.id, 'text-opacity', 0.25)
+            map.setPaintProperty(layer.id, 'text-color', '#ffffff')
+            map.setPaintProperty(layer.id, 'text-halo-color', 'rgba(0,0,0,0)')
+            continue
+          }
+          map.setLayoutProperty(layer.id, 'visibility', 'none')
+        }
+      }
+
       // Pulse stops
       map.addSource('hero-pulses', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: PULSE_POINTS },
       })
 
-      // Case expression: when a feature is flashing, paint it periwinkle,
-      // otherwise use the warm off-white base color.
+      // Case expression: flashing pin → periwinkle, otherwise white.
       const flashColor = [
         'case',
         ['boolean', ['feature-state', 'flashing'], false],
         '#60A5FA',
-        '#F5F0E8',
+        '#ffffff',
       ]
 
-      // Outer animated halo
-      map.addLayer({
-        id: 'hero-pulse-halo',
-        type: 'circle',
-        source: 'hero-pulses',
-        paint: {
-          'circle-color': flashColor,
-          'circle-radius': 6,
-          'circle-opacity': 0,
-          'circle-stroke-color': flashColor,
-          'circle-stroke-width': 1.5,
-          'circle-stroke-opacity': 0,
-        },
-      })
-
-      // Solid center dot
+      // Solid 5px white dot — no halo, no pulse rings
       map.addLayer({
         id: 'hero-pulse-core',
         type: 'circle',
         source: 'hero-pulses',
         paint: {
           'circle-color': flashColor,
-          'circle-radius': 3.2,
-          'circle-opacity': 0.95,
+          'circle-radius': 2.5,
+          'circle-opacity': 0.9,
           'circle-color-transition': { duration: 250 },
         },
       })
@@ -125,8 +126,8 @@ export default function HeroMap() {
           source: sid,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#F5F0E8',
-            'line-width': 1.6,
+            'line-color': '#ffffff',
+            'line-width': 1.2,
             'line-opacity': 0,
             'line-blur': 0.4,
             'line-trim-offset': [0, 1],
@@ -169,31 +170,9 @@ export default function HeroMap() {
       }
 
       if (layersReady) {
-        // Pulse: halo grows and fades every 3s, staggered by feature phase
-        const pulseT = (elapsed / 3) % 1
-        const modExpr = ['%', ['+', ['get', 'phase'], pulseT], 1]
-
-        map.setPaintProperty('hero-pulse-halo', 'circle-radius', [
-          'interpolate', ['linear'], modExpr,
-          0,    4,
-          0.5, 18,
-          1,   28,
-        ])
-        map.setPaintProperty('hero-pulse-halo', 'circle-opacity', [
-          'interpolate', ['linear'], modExpr,
-          0,   0.0,
-          0.1, 0.5,
-          1,   0.0,
-        ])
-        map.setPaintProperty('hero-pulse-halo', 'circle-stroke-opacity', [
-          'interpolate', ['linear'], modExpr,
-          0,   0.9,
-          1,   0.0,
-        ])
-
         // Routes: draw in → hold → fade → reset, 14s cycle, staggered.
-        // Max opacity capped at 0.2 per spec — just suggests movement.
-        const MAX_LINE_OPACITY = 0.2
+        // Max opacity capped low — almost invisible, just movement hint.
+        const MAX_LINE_OPACITY = 0.15
         ROUTE_FEATURES.forEach((_, i) => {
           const id = `hero-route-${i}`
           const phase = ((elapsed / 14) + i * 0.25) % 1
