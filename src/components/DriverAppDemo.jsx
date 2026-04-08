@@ -196,6 +196,7 @@ export default function DriverAppDemo() {
             <div className="demo-scan-wrap">
               <div className="demo-scan-frame">
                 <img src="/images/demo-bag.jpg" alt="" className="demo-scan-img" />
+                <div className="demo-scan-line" />
                 <div className="demo-scan-corners">
                   <span /><span /><span /><span />
                 </div>
