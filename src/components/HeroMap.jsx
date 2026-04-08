@@ -150,12 +150,13 @@ export default function HeroMap() {
         }
 
         // === 60 real Mapbox markers — styling lives in HeroMap.css ===
-        // Random animation-delay per marker so the subtle pulse is
-        // staggered and no two dots pulse in phase.
+        // Random delay per marker so the pulse and halo ring are
+        // staggered via --delay custom property (used by both the
+        // dot and its ::before in CSS).
         STOP_COORDS.forEach((coord) => {
           const dot = document.createElement('div')
           dot.className = 'hero-marker'
-          dot.style.animationDelay = `${(Math.random() * -3).toFixed(2)}s`
+          dot.style.setProperty('--delay', `${(Math.random() * -3).toFixed(2)}s`)
           const marker = new mapboxgl.Marker({ element: dot, anchor: 'center' })
             .setLngLat(coord)
             .addTo(map)

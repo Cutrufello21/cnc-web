@@ -31,36 +31,67 @@
   display: none !important;
 }
 
-/* --- Delivery stop markers — warm white, subtle pulse --- */
+/* --- Delivery stop markers — warm white dot with expanding halo --- */
 .hero-marker {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #F5F0E8;
   box-shadow:
-    0 0 0 1px rgba(245, 240, 232, 0.22),
-    0 0 8px rgba(245, 240, 232, 0.18);
+    0 0 0 1px rgba(245, 240, 232, 0.25),
+    0 0 6px rgba(245, 240, 232, 0.2);
   pointer-events: none;
-  animation: hero-marker-pulse 3s ease-in-out infinite;
+  animation: hero-marker-breathe 3s ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
   transition:
     background-color 300ms ease,
-    box-shadow 300ms ease,
-    transform 300ms ease;
+    box-shadow 300ms ease;
 }
 
-@keyframes hero-marker-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 0.95; }
+/* Expanding halo ring — the visible pulse */
+.hero-marker::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #F5F0E8;
+  opacity: 0;
+  transform-origin: center;
+  animation: hero-marker-ring 2.8s ease-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* Dot itself breathes subtly in opacity */
+@keyframes hero-marker-breathe {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; }
+}
+
+/* Ring scales out and fades */
+@keyframes hero-marker-ring {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  80%  { transform: scale(4.5); opacity: 0; }
+  100% { transform: scale(4.5); opacity: 0; }
 }
 
 /* Every 4s one pin flashes periwinkle — the one accent thread. */
 .hero-marker--flash {
   background: #60A5FA;
   box-shadow:
-    0 0 0 2px rgba(96, 165, 250, 0.55),
-    0 0 16px rgba(96, 165, 250, 0.85),
-    0 0 34px rgba(96, 165, 250, 0.45);
-  transform: scale(1.5);
+    0 0 0 2px rgba(96, 165, 250, 0.6),
+    0 0 18px rgba(96, 165, 250, 0.9),
+    0 0 36px rgba(96, 165, 250, 0.5);
   animation: none;
   opacity: 1;
+}
+
+.hero-marker--flash::before {
+  background: #60A5FA;
+  animation: hero-marker-ring-flash 0.9s ease-out 1;
+}
+
+@keyframes hero-marker-ring-flash {
+  0%   { transform: scale(1); opacity: 0.9; }
+  100% { transform: scale(7); opacity: 0; }
 }
