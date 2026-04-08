@@ -69,7 +69,7 @@ export default function DriverAppDemo() {
             <div className="demo-driver-avatar">D</div>
             <div className="demo-driver-meta">
               <div className="demo-driver-name">Dom</div>
-              <div className="demo-driver-sub">#55500 <span className="demo-driver-tag">Aultman</span></div>
+              <div className="demo-driver-sub">#55500</div>
             </div>
             <div className="demo-bell">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -94,7 +94,7 @@ export default function DriverAppDemo() {
           <div className="demo-progress-bar">
             <div className="demo-progress-row">
               <span>0/15 delivered</span>
-              <span>Done by 3:51 AM</span>
+              <span>Done by 1:23 PM</span>
             </div>
             <div className="demo-progress-track"><div className="demo-progress-fill" style={{width:'0%'}} /></div>
           </div>
