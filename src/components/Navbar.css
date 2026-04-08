@@ -65,20 +65,15 @@
   transition: color 200ms ease, opacity 200ms ease;
 }
 
-/* Default link colors per nav mode */
+/* Nav always sits on a white/cream hero now — links are navy */
 .navbar--transparent .navbar__links a,
-.navbar--frosted .navbar__links a {
-  color: rgba(255, 255, 255, 0.8);
-}
-.navbar--transparent .navbar__links a:hover,
-.navbar--frosted .navbar__links a:hover {
-  color: #ffffff;
-}
-
+.navbar--frosted .navbar__links a,
 .navbar--light .navbar__links a {
   color: #0A2463;
   opacity: 0.75;
 }
+.navbar--transparent .navbar__links a:hover,
+.navbar--frosted .navbar__links a:hover,
 .navbar--light .navbar__links a:hover {
   opacity: 1;
 }
@@ -101,31 +96,15 @@
     color 200ms ease;
 }
 
-.navbar--transparent .navbar__cta {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-}
-.navbar--transparent .navbar__cta:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-.navbar--frosted .navbar__cta {
-  background: #60A5FA;
-  border-color: #60A5FA;
-  color: #0A2463;
-}
-.navbar--frosted .navbar__cta:hover {
-  background: #93c5fd;
-  border-color: #93c5fd;
-}
-
+.navbar--transparent .navbar__cta,
+.navbar--frosted .navbar__cta,
 .navbar--light .navbar__cta {
   background: #0A2463;
   border-color: #0A2463;
   color: #ffffff;
 }
+.navbar--transparent .navbar__cta:hover,
+.navbar--frosted .navbar__cta:hover,
 .navbar--light .navbar__cta:hover {
   background: #123080;
   border-color: #123080;
@@ -150,9 +129,7 @@
 }
 
 .navbar--transparent .navbar__hamburger-line,
-.navbar--frosted .navbar__hamburger-line {
-  background: #ffffff;
-}
+.navbar--frosted .navbar__hamburger-line,
 .navbar--light .navbar__hamburger-line {
   background: #0A2463;
 }

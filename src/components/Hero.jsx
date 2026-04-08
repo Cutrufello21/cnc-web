@@ -1,12 +1,9 @@
 import { motion } from 'framer-motion'
-import HeroMap from './HeroMap'
 import './Hero.css'
 
 export default function Hero() {
   return (
     <section className="hero">
-      <HeroMap />
-      <div className="hero__overlay" />
       <div className="container hero__content">
         <motion.p className="hero__eyebrow"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
