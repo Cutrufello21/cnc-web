@@ -9,8 +9,15 @@
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  background: #0a0a0a;
+  background: #0a0810;
   overflow: hidden;
+}
+
+/* Push the raw mapbox canvas toward a warmer, moodier palette
+   without touching brand colors. Adds contrast + slight purple
+   hue shift so dark-v11's neutral grays feel cinematic. */
+.hero-map .mapboxgl-canvas {
+  filter: contrast(1.12) brightness(0.92) saturate(0.85) hue-rotate(-8deg);
 }
 
 .hero-map .mapboxgl-canvas-container,
@@ -30,11 +37,11 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #ffffff;
+  background: #F5F0E8; /* warm off-white instead of pure cold white */
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.25),
-    0 0 6px rgba(96, 165, 250, 0.35),
-    0 0 14px rgba(96, 165, 250, 0.15);
+    0 0 0 1px rgba(245, 240, 232, 0.3),
+    0 0 6px rgba(147, 197, 253, 0.3),
+    0 0 16px rgba(147, 197, 253, 0.12);
   pointer-events: none;
   transition:
     background-color 300ms ease,
