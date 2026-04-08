@@ -13,10 +13,10 @@
   overflow: hidden;
 }
 
-/* navigation-night-v1 already has warm road tones — just a small
-   contrast/brightness bump for atmospheric depth, no hue shift. */
+/* dark-v11 is already neutral and quiet — just a gentle brightness
+   pull-down so the map sinks into the background. */
 .hero-map .mapboxgl-canvas {
-  filter: contrast(1.08) brightness(0.94);
+  filter: brightness(0.85) saturate(0.7);
 }
 
 .hero-map .mapboxgl-canvas-container,
