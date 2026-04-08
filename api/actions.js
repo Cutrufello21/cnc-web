@@ -95,9 +95,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // Notify both drivers
-      await notifyDriver(toDriverName, 'Stops Added', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName}.`, 'transfer_in')
-      if (fromDriverName) await notifyDriver(fromDriverName, 'Stops Transferred', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`, 'transfer_out')
+      // Transfer notifications removed — drivers only get notified on Route Ready (Send button)
 
       return res.status(200).json({ success: true, moved: orderIds.length })
     }
