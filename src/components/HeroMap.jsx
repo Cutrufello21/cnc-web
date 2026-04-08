@@ -114,13 +114,18 @@ const PULSE_POINTS = (() => {
   const BASE_STOPS = 5
   const DENSE_STOPS = 10
   const SUPER_DENSE_STOPS = 60
-  const JITTER = 0.01
+  // Jitter scales with density so super-dense ZIPs spread out into
+  // a natural-looking field instead of piling into a centroid blob.
+  const BASE_JITTER = 0.012
+  const DENSE_JITTER = 0.022
+  const SUPER_JITTER = 0.045
   PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
     if (!info) return
-    const n = SUPER_DENSE_ZIPS.has(z)
-      ? SUPER_DENSE_STOPS
-      : DENSE_ZIPS.has(z) ? DENSE_STOPS : BASE_STOPS
+    const isSuper = SUPER_DENSE_ZIPS.has(z)
+    const isDense = DENSE_ZIPS.has(z)
+    const n = isSuper ? SUPER_DENSE_STOPS : isDense ? DENSE_STOPS : BASE_STOPS
+    const jit = isSuper ? SUPER_JITTER : isDense ? DENSE_JITTER : BASE_JITTER
     for (let i = 0; i < n; i++) {
       features.push({
         type: 'Feature',
@@ -128,8 +133,8 @@ const PULSE_POINTS = (() => {
         geometry: {
           type: 'Point',
           coordinates: [
-            info.longitude + gauss(_rand) * JITTER,
-            info.latitude + gauss(_rand) * JITTER * 0.75,
+            info.longitude + gauss(_rand) * jit,
+            info.latitude + gauss(_rand) * jit * 0.75,
           ],
         },
       })
