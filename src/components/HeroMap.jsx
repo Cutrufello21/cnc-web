@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import zipcodes from 'zipcodes'
 import './HeroMap.css'
 
 // Split-string token fallback so GitHub push protection does not
@@ -13,64 +14,62 @@ const _tokenParts = [
 mapboxgl.accessToken =
   import.meta.env.VITE_MAPBOX_TOKEN || _tokenParts.join('')
 
-const CENTER = [-81.5185, 41.0534]
+const CENTER = [-81.5185, 41.0534] // Akron, OH
+const HUB = CENTER
 
-// Service-area stops — clean spread across NE Ohio
-const STOPS = [
-  // Akron
-  [-81.52, 41.08], [-81.49, 41.06], [-81.55, 41.10], [-81.51, 41.04],
-  // Canton
-  [-81.37, 40.80], [-81.40, 40.82], [-81.34, 40.78], [-81.38, 40.85],
-  // Medina
-  [-81.86, 41.14], [-81.88, 41.10], [-81.83, 41.16],
-  // Cuyahoga Falls
-  [-81.48, 41.13], [-81.45, 41.15],
-  // Stow
-  [-81.44, 41.16], [-81.42, 41.18],
-  // Hudson
-  [-81.44, 41.24], [-81.46, 41.22],
-  // Strongsville
-  [-81.83, 41.31], [-81.81, 41.29],
-  // Brunswick
-  [-81.84, 41.24], [-81.82, 41.22],
-  // Wooster
-  [-81.93, 40.81], [-81.91, 40.83],
-  // Wadsworth
-  [-81.73, 41.03], [-81.75, 41.01],
-  // Massillon
-  [-81.52, 40.80], [-81.54, 40.78],
-  // North Canton
-  [-81.40, 40.88], [-81.38, 40.86],
-  // Fairlawn
-  [-81.61, 41.12], [-81.59, 41.10],
-  // Barberton
-  [-81.61, 41.01], [-81.63, 41.03],
-  // Tallmadge
-  [-81.44, 41.10], [-81.42, 41.08],
-  // Ravenna
-  [-81.24, 41.16], [-81.22, 41.14],
-  // Alliance
-  [-81.10, 40.92], [-81.08, 40.90],
-  // Warren
-  [-80.82, 41.24], [-80.80, 41.22],
+// 45 real NE Ohio ZIPs scattered across the service area
+const PULSE_ZIPS = [
+  '44301','44310','44320','44333','44203','44221','44224','44240',
+  '44260','44256','44212','44223','44272','44280','44236','44202',
+  '44139','44141','44067','44087','44125','44134','44131','44319',
+  '44312','44622','44646','44708','44718','44601','44685','44688',
+  '44614','44641','44730','44411','44460','44281','44276','44266',
+  '44250','44255','44274','44273','44286',
 ]
+
+const PULSE_POINTS = PULSE_ZIPS
+  .map((z, i) => {
+    const info = zipcodes.lookup(z)
+    if (!info) return null
+    return {
+      type: 'Feature',
+      properties: { phase: (i * 0.137) % 1 }, // staggered 0-1
+      geometry: {
+        type: 'Point',
+        coordinates: [info.longitude, info.latitude],
+      },
+    }
+  })
+  .filter(Boolean)
+
+// 4 route lines fanning out from Akron hub
+const ROUTE_ENDS = [
+  [-81.86, 41.42], // NW — Medina/Cleveland
+  [-80.82, 41.20], // NE — Youngstown
+  [-81.10, 40.82], // SE — Alliance/Canton
+  [-81.95, 40.80], // SW — Wooster
+]
+const ROUTE_FEATURES = ROUTE_ENDS.map((end) => ({
+  type: 'Feature',
+  properties: {},
+  geometry: { type: 'LineString', coordinates: [HUB, end] },
+}))
 
 export default function HeroMap() {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
 
   useEffect(() => {
-    let markers = []
-    let rotationFrame = null
+    let rafId = null
     let disposed = false
+    let layersReady = false
 
     const init = () => {
       if (disposed) return
       const el = containerRef.current
       if (!el || mapRef.current) return
 
-      // Explicit pixel height derived from the parent, so mapbox
-      // measures a concrete non-zero size at init time.
+      // Explicit pixel height before mapbox init
       const parent = el.parentElement
       const parentH = parent ? parent.getBoundingClientRect().height : 0
       const h = parentH > 0 ? parentH : window.innerHeight
@@ -84,11 +83,9 @@ export default function HeroMap() {
       try {
         map = new mapboxgl.Map({
           container: el,
-          style: 'mapbox://styles/cutrufello/cmnq93yoq000q01qtc02a657q',
-          center: [-81.508177, 41.102230],
-          zoom: 8.5,
-          bearing: -15.2,
-          pitch: 45,
+          style: 'mapbox://styles/mapbox/dark-v11',
+          center: CENTER,
+          zoom: 9,
           interactive: false,
           attributionControl: false,
           pitchWithRotate: false,
@@ -106,37 +103,142 @@ export default function HeroMap() {
 
       map.on('load', () => {
         if (disposed) return
-
-        // Force a resize so the canvas fills the container even if
-        // the initial measurement was stale.
         try { map.resize() } catch {}
         requestAnimationFrame(() => { try { map.resize() } catch {} })
 
-        // Simple white dots — no animations, no pulses, no halos.
-        STOPS.forEach((coord) => {
-          const dot = document.createElement('div')
-          dot.className = 'hero-marker'
-          const marker = new mapboxgl.Marker({ element: dot, anchor: 'center' })
-            .setLngLat(coord)
-            .addTo(map)
-          markers.push(marker)
+        // Pulse dot source + two layers: solid core and animated halo
+        map.addSource('hero-pulses', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: PULSE_POINTS },
         })
 
-        // Continuous camera rotation — one full 360° orbit every
-        // 4 minutes. Pitch stays at 45°. Starts from the initial
-        // bearing of -15.2 so there is no visible jump on load.
-        const INITIAL_BEARING = -15.2
-        const FULL_ROTATION_MS = 240000 // 4 minutes
-        const rotStart = performance.now()
-        const rotateCamera = (timestamp) => {
-          if (disposed || !mapRef.current) return
-          const elapsed = timestamp - rotStart
-          const bearing = (INITIAL_BEARING + (elapsed / FULL_ROTATION_MS) * 360) % 360
-          try { map.setBearing(bearing) } catch {}
-          rotationFrame = requestAnimationFrame(rotateCamera)
-        }
-        rotationFrame = requestAnimationFrame(rotateCamera)
+        // Outer animated halo — periwinkle glow so navy cores read on dark
+        map.addLayer({
+          id: 'hero-pulse-halo',
+          type: 'circle',
+          source: 'hero-pulses',
+          paint: {
+            'circle-color': '#60A5FA',
+            'circle-radius': 6,
+            'circle-opacity': 0,
+            'circle-stroke-color': '#60A5FA',
+            'circle-stroke-width': 1.5,
+            'circle-stroke-opacity': 0,
+          },
+        })
+
+        // Solid center dot — navy with a thin periwinkle ring
+        map.addLayer({
+          id: 'hero-pulse-core',
+          type: 'circle',
+          source: 'hero-pulses',
+          paint: {
+            'circle-color': '#0A2463',
+            'circle-radius': 3.5,
+            'circle-opacity': 1,
+            'circle-stroke-color': '#60A5FA',
+            'circle-stroke-width': 1,
+            'circle-stroke-opacity': 0.75,
+          },
+        })
+
+        // Route lines — one layer per route so we can trim independently
+        ROUTE_FEATURES.forEach((feat, i) => {
+          const sid = `hero-route-${i}`
+          try {
+            map.addSource(sid, { type: 'geojson', data: feat })
+            map.addLayer({
+              id: sid,
+              type: 'line',
+              source: sid,
+              layout: { 'line-cap': 'round', 'line-join': 'round' },
+              paint: {
+                'line-color': '#60A5FA',
+                'line-width': 1.8,
+                'line-opacity': 0,
+                'line-blur': 0.5,
+                'line-trim-offset': [0, 1],
+              },
+            })
+          } catch (err) {
+            console.warn(`HeroMap: route layer ${i} failed`, err)
+          }
+        })
+
+        layersReady = true
       })
+
+      const start = performance.now()
+      const isMobile = window.matchMedia('(max-width: 640px)').matches
+
+      const loop = (now) => {
+        if (disposed) return
+        const elapsed = (now - start) / 1000
+
+        // Ken Burns drift — 30s full cycle, moving NE then back
+        if (!isMobile) {
+          const t = (elapsed / 30) * Math.PI * 2
+          // sin for west-east, (1-cos)/2 for south-north (always >=0),
+          // so the path sweeps from center out to the NE and back
+          const dx = Math.sin(t) * 0.08
+          const dy = ((1 - Math.cos(t)) / 2) * 0.06
+          try { map.setCenter([CENTER[0] + dx, CENTER[1] + dy]) } catch {}
+        }
+
+        if (layersReady) {
+          // Pulse: halo grows and fades every 3s, staggered by feature phase
+          const pulseT = (elapsed / 3) % 1
+          const modExpr = ['%', ['+', ['get', 'phase'], pulseT], 1]
+          try {
+            map.setPaintProperty('hero-pulse-halo', 'circle-radius', [
+              'interpolate', ['linear'], modExpr,
+              0,    4,
+              0.5, 16,
+              1,   26,
+            ])
+            map.setPaintProperty('hero-pulse-halo', 'circle-opacity', [
+              'interpolate', ['linear'], modExpr,
+              0,   0,
+              0.1, 0.35,
+              1,   0,
+            ])
+            map.setPaintProperty('hero-pulse-halo', 'circle-stroke-opacity', [
+              'interpolate', ['linear'], modExpr,
+              0, 0.7,
+              1, 0,
+            ])
+          } catch {}
+
+          // Routes: draw-in -> hold -> fade -> reset, 14s cycle, staggered
+          const MAX_OPACITY = 0.55
+          ROUTE_FEATURES.forEach((_, i) => {
+            const id = `hero-route-${i}`
+            if (!map.getLayer(id)) return
+            const phase = ((elapsed / 14) + i * 0.25) % 1
+            let trimEnd, opacity
+            if (phase < 0.5) {
+              trimEnd = 1 - phase / 0.5
+              opacity = MAX_OPACITY
+            } else if (phase < 0.7) {
+              trimEnd = 0
+              opacity = MAX_OPACITY
+            } else if (phase < 0.9) {
+              trimEnd = 0
+              opacity = MAX_OPACITY * (1 - (phase - 0.7) / 0.2)
+            } else {
+              trimEnd = 1
+              opacity = 0
+            }
+            try {
+              map.setPaintProperty(id, 'line-trim-offset', [0, trimEnd])
+              map.setPaintProperty(id, 'line-opacity', opacity)
+            } catch {}
+          })
+        }
+
+        rafId = requestAnimationFrame(loop)
+      }
+      rafId = requestAnimationFrame(loop)
     }
 
     if (document.readyState === 'complete') {
@@ -147,9 +249,7 @@ export default function HeroMap() {
 
     return () => {
       disposed = true
-      if (rotationFrame) cancelAnimationFrame(rotationFrame)
-      markers.forEach((m) => { try { m.remove() } catch {} })
-      markers = []
+      if (rafId) cancelAnimationFrame(rafId)
       window.removeEventListener('load', init)
       if (mapRef.current) {
         try { mapRef.current.remove() } catch {}

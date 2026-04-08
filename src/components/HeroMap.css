@@ -6,8 +6,9 @@
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  background: #0a0a0a;
+  background: #070b15;
   overflow: hidden;
+  opacity: 0.4;
 }
 
 .hero-map .mapboxgl-canvas-container,
@@ -20,13 +21,4 @@
 .hero-map .mapboxgl-ctrl-attrib,
 .hero-map .mapboxgl-ctrl-logo {
   display: none !important;
-}
-
-/* --- Clean white delivery dots. No animation. --- */
-.hero-marker {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
-  pointer-events: none;
 }
