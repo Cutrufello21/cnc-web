@@ -83,9 +83,11 @@ export default function HeroMap() {
       try {
         map = new mapboxgl.Map({
           container: el,
-          style: 'mapbox://styles/mapbox/dark-v11',
-          center: CENTER,
+          style: 'mapbox://styles/cutrufello/cmnq93yoq000q01qtc02a657q',
+          center: [-81.508177, 41.102230],
           zoom: 8.5,
+          bearing: -15.2,
+          pitch: 45,
           interactive: false,
           attributionControl: false,
           pitchWithRotate: false,
