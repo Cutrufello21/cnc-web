@@ -16,12 +16,16 @@ const DELIVERIES = [
   { name: "O'Brien, Michael",   address: '2468 Magnolia Drive', city: 'Dover',       driver: 'Josh', time: '10:42 AM' },
 ]
 
-const TOTAL = DELIVERIES.length
+const TOTAL = 379
+const VISIBLE_ROWS = DELIVERIES.length
+const STEPS = VISIBLE_ROWS // one visual row flip per step
+const INCREMENT = Math.ceil(TOTAL / STEPS) // ~32 per tick
 const TICK = 1500
 const RESET_DELAY = 3500
 
 export default function PharmacyPortalDemo() {
   const [delivered, setDelivered] = useState(0)
+  const [rowsDelivered, setRowsDelivered] = useState(0)
   const [justDelivered, setJustDelivered] = useState(-1)
   const [inView, setInView] = useState(false)
   const containerRef = useRef(null)
@@ -40,18 +44,21 @@ export default function PharmacyPortalDemo() {
   useEffect(() => {
     if (!inView) return
     const tick = () => {
-      setDelivered(prev => {
-        if (prev >= TOTAL) {
+      setRowsDelivered(prev => {
+        if (prev >= VISIBLE_ROWS) {
           clearInterval(timerRef.current)
           setTimeout(() => {
+            setRowsDelivered(0)
             setDelivered(0)
             setJustDelivered(-1)
             timerRef.current = setInterval(tick, TICK)
           }, RESET_DELAY)
           return prev
         }
+        const nextRows = prev + 1
         setJustDelivered(prev)
-        return prev + 1
+        setDelivered(Math.min(TOTAL, nextRows * INCREMENT))
+        return nextRows
       })
     }
     timerRef.current = setInterval(tick, TICK)
@@ -136,7 +143,7 @@ export default function PharmacyPortalDemo() {
               </div>
               <div className="pharm-tbody">
                 {DELIVERIES.map((d, i) => {
-                  const isDelivered = i < delivered
+                  const isDelivered = i < rowsDelivered
                   const isJust = i === justDelivered
                   return (
                     <div key={i} className={`pharm-row ${isDelivered ? 'pharm-row--delivered' : ''} ${isJust ? 'pharm-row--flash' : ''}`}>
