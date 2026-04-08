@@ -65,7 +65,7 @@
 }
 
 .contact__form {
-  background: var(--surface, #f8f9fb);
+  background: var(--surface, #EFEDE8);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 16px;
   padding: 2.5rem;
@@ -98,8 +98,8 @@
   border-radius: 8px;
   font-size: 0.9rem;
   font-family: inherit;
-  background: #fff;
-  color: var(--text, #0f172a);
+  background: #F5F3EE;
+  color: var(--text, #1A1A2E);
   transition: border-color 0.2s;
 }
 
