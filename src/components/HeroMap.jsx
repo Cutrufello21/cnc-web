@@ -149,14 +149,10 @@ export default function HeroMap() {
           console.warn('HeroMap: label hide failed', err)
         }
 
-        // === 60 real Mapbox markers ===
+        // === 60 real Mapbox markers — styling lives in HeroMap.css ===
         STOP_COORDS.forEach((coord) => {
           const dot = document.createElement('div')
           dot.className = 'hero-marker'
-          dot.style.width = '6px'
-          dot.style.height = '6px'
-          dot.style.borderRadius = '50%'
-          dot.style.background = 'rgba(255,255,255,0.7)'
           const marker = new mapboxgl.Marker({ element: dot, anchor: 'center' })
             .setLngLat(coord)
             .addTo(map)
@@ -184,10 +180,10 @@ export default function HeroMap() {
               source: sid,
               layout: { 'line-cap': 'round', 'line-join': 'round' },
               paint: {
-                'line-color': '#ffffff',
-                'line-width': 1.2,
+                'line-color': '#93C5FD',
+                'line-width': 1.8,
                 'line-opacity': 0,
-                'line-blur': 0.4,
+                'line-blur': 0.6,
                 'line-trim-offset': [0, 1],
               },
             })
@@ -210,7 +206,7 @@ export default function HeroMap() {
             try { map.setCenter([CENTER[0] + dx, CENTER[1] + dy]) } catch {}
           }
 
-          const MAX_OPACITY = 0.15
+          const MAX_OPACITY = 0.35
           ROUTE_FEATURES.forEach((_, i) => {
             const id = `hero-route-${i}`
             if (!map.getLayer(id)) return
