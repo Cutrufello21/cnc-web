@@ -124,13 +124,13 @@ const PULSE_POINTS = (() => {
   // legible at a glance.
   const BASE_STOPS = 3
   const DENSE_STOPS = 8
-  const URBAN_STOPS = 22
+  const URBAN_STOPS = 14
   const SUPER_DENSE_STOPS = 45
   // Jitter scales with density so dense ZIPs spread out into a
   // natural-looking field instead of piling into a centroid blob.
   const BASE_JITTER = 0.012
   const DENSE_JITTER = 0.022
-  const URBAN_JITTER = 0.030
+  const URBAN_JITTER = 0.050
   const SUPER_JITTER = 0.045
   PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
