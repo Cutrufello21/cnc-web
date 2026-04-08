@@ -156,7 +156,7 @@ export default function HeroMap() {
           container: el,
           style: 'mapbox://styles/mapbox/light-v11',
           center: CENTER,
-          zoom: 8.5,
+          zoom: 9.4,
           interactive: false,
           attributionControl: false,
           pitchWithRotate: false,

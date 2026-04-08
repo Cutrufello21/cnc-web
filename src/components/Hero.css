@@ -31,12 +31,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background:
-    linear-gradient(90deg,
-      rgba(255, 255, 255, 0.78) 0%,
-      rgba(255, 255, 255, 0.65) 30%,
-      rgba(255, 255, 255, 0.3) 55%,
-      rgba(255, 255, 255, 0) 75%);
+  background: rgba(255, 255, 255, 0.3);
   z-index: 1;
   pointer-events: none;
 }
@@ -77,10 +72,9 @@
   white-space: normal;
 }
 
-/* 'Every day.' — same near-black as the headline. Reads as one
-   confident statement instead of fighting the map dots for color. */
+/* 'Every day.' — CNC navy accent for color emphasis. */
 .hero__accent {
-  color: #111111;
+  color: #0A2463;
 }
 
 .hero__sub {
