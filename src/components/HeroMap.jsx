@@ -40,13 +40,32 @@ const PULSE_ZIPS = [
   '44470','44491','44601','44606','44608','44612','44613','44614',
   '44615','44618','44620','44621','44622','44624','44626','44627',
   '44630','44632','44640','44641','44643','44644','44645','44646',
-  '44647','44650','44651','44652','44656','44657','44662','44663',
+  '44647','44650','44651','44652','44653','44656','44657','44662','44663',
   '44666','44667','44671','44675','44677','44678','44680','44681',
   '44683','44685','44688','44691','44693','44695','44697','44699',
   '44701','44702','44703','44704','44705','44706','44707','44708',
   '44709','44710','44711','44714','44718','44720','44721','44730',
   '44735','44750','44767','44799',
 ]
+
+// Tuscarawas/Carroll core — New Philly, Dover, Sugarcreek, Carrollton
+// and immediate neighbors. CNC runs heavy volume here, so these get
+// the most synthetic stops to reflect real density.
+const SUPER_DENSE_ZIPS = new Set([
+  '44663', // New Philadelphia
+  '44622', // Dover
+  '44681', // Sugarcreek
+  '44615', // Carrollton
+  '44612', // Beach City
+  '44621', // Dennison
+  '44683', // Uhrichsville
+  '44680', // Strasburg
+  '44697', // Zoar/Bolivar
+  '44624', // Dundee
+  '44693', // Stone Creek
+  '44653', // Midvale
+  '44656', // Mineral City
+])
 
 // South and east fringe ZIPs get extra synthetic stops so those
 // sides of the service area don't look thin on the hero map.
@@ -91,11 +110,14 @@ const PULSE_POINTS = (() => {
   const features = []
   const BASE_STOPS = 3
   const DENSE_STOPS = 5
+  const SUPER_DENSE_STOPS = 10
   const JITTER = 0.01
   PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
     if (!info) return
-    const n = DENSE_ZIPS.has(z) ? DENSE_STOPS : BASE_STOPS
+    const n = SUPER_DENSE_ZIPS.has(z)
+      ? SUPER_DENSE_STOPS
+      : DENSE_ZIPS.has(z) ? DENSE_STOPS : BASE_STOPS
     for (let i = 0; i < n; i++) {
       features.push({
         type: 'Feature',
