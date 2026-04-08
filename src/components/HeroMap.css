@@ -1,6 +1,3 @@
-/* Container lives inside .hero as an absolute background. Dimensions
-   are set imperatively in JS from the parent's bounding rect so
-   mapbox measures a concrete pixel height at init. */
 .hero-map {
   position: absolute;
   top: 0;
@@ -9,14 +6,8 @@
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  background: #0a0810;
+  background: #0a0a0a;
   overflow: hidden;
-}
-
-/* dark-v11 base — gentle saturation pull so roads stay neutral
-   without hiding the map underneath. */
-.hero-map .mapboxgl-canvas {
-  filter: saturate(0.75);
 }
 
 .hero-map .mapboxgl-canvas-container,
@@ -31,60 +22,11 @@
   display: none !important;
 }
 
-/* --- Delivery stop markers — still dot + pulsing halo ring --- */
+/* --- Clean white delivery dots. No animation. --- */
 .hero-marker {
-  position: relative;
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #F5F0E8;
-  opacity: 0.9;
-  box-shadow:
-    0 0 0 1px rgba(245, 240, 232, 0.3),
-    0 0 6px rgba(245, 240, 232, 0.25);
+  background: rgba(255, 255, 255, 0.6);
   pointer-events: none;
-  transition:
-    background-color 300ms ease,
-    box-shadow 300ms ease;
-}
-
-/* Expanding halo ring — the only thing that moves */
-.hero-marker::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: #F5F0E8;
-  opacity: 0;
-  transform-origin: center;
-  animation: hero-marker-ring 3s ease-out infinite;
-  animation-delay: var(--delay, 0s);
-  will-change: transform, opacity;
-}
-
-@keyframes hero-marker-ring {
-  0%   { transform: scale(1);   opacity: 0.6; }
-  80%  { transform: scale(4.5); opacity: 0; }
-  100% { transform: scale(4.5); opacity: 0; }
-}
-
-/* Every 4s one pin flashes periwinkle — the one accent thread. */
-.hero-marker--flash {
-  background: #60A5FA;
-  box-shadow:
-    0 0 0 2px rgba(96, 165, 250, 0.6),
-    0 0 18px rgba(96, 165, 250, 0.9),
-    0 0 36px rgba(96, 165, 250, 0.5);
-  animation: none;
-  opacity: 1;
-}
-
-.hero-marker--flash::before {
-  background: #60A5FA;
-  animation: hero-marker-ring-flash 0.9s ease-out 1;
-}
-
-@keyframes hero-marker-ring-flash {
-  0%   { transform: scale(1); opacity: 0.9; }
-  100% { transform: scale(7); opacity: 0; }
 }
