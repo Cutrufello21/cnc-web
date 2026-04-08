@@ -106,7 +106,7 @@ export default function HeroMap() {
           container: el,
           style: 'mapbox://styles/mapbox/navigation-night-v1',
           center: CENTER,
-          zoom: 9,
+          zoom: 8.5,
           interactive: false,
           attributionControl: false,
           pitchWithRotate: false,
