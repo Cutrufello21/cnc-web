@@ -61,6 +61,7 @@ export default function HeroMap() {
 
   useEffect(() => {
     let markers = []
+    let rotationFrame = null
     let disposed = false
 
     const init = () => {
@@ -120,6 +121,21 @@ export default function HeroMap() {
             .addTo(map)
           markers.push(marker)
         })
+
+        // Continuous camera rotation — one full 360° orbit every
+        // 4 minutes. Pitch stays at 45°. Starts from the initial
+        // bearing of -15.2 so there is no visible jump on load.
+        const INITIAL_BEARING = -15.2
+        const FULL_ROTATION_MS = 240000 // 4 minutes
+        const rotStart = performance.now()
+        const rotateCamera = (timestamp) => {
+          if (disposed || !mapRef.current) return
+          const elapsed = timestamp - rotStart
+          const bearing = (INITIAL_BEARING + (elapsed / FULL_ROTATION_MS) * 360) % 360
+          try { map.setBearing(bearing) } catch {}
+          rotationFrame = requestAnimationFrame(rotateCamera)
+        }
+        rotationFrame = requestAnimationFrame(rotateCamera)
       })
     }
 
@@ -131,6 +147,7 @@ export default function HeroMap() {
 
     return () => {
       disposed = true
+      if (rotationFrame) cancelAnimationFrame(rotationFrame)
       markers.forEach((m) => { try { m.remove() } catch {} })
       markers = []
       window.removeEventListener('load', init)
