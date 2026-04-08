@@ -3,79 +3,73 @@
   min-height: 100vh;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   overflow: hidden;
-  --mouse-x: 0px;
-  --mouse-y: 0px;
+  background: #050b15;
 }
 
-.hero__bg {
+/* Live Mapbox map — sits at the bottom of the stack */
+.hero-map {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(100, 149, 237, 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 50% at calc(50% + var(--mouse-x)) calc(40% + var(--mouse-y)), rgba(10, 36, 99, 0.04) 0%, transparent 60%);
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.hero-map .mapboxgl-ctrl,
+.hero-map .mapboxgl-ctrl-attrib,
+.hero-map .mapboxgl-ctrl-logo {
+  display: none !important;
+}
+
+/* Navy gradient overlay to keep headline text readable */
+.hero__overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 36, 99, 0.85) 0%,
+    rgba(10, 36, 99, 0.6) 100%
+  );
+  z-index: 1;
   pointer-events: none;
 }
 
 .hero__content {
-  text-align: center;
-  padding: 120px 24px 80px;
+  text-align: left;
+  padding: 140px 24px 100px;
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  max-width: 900px;
+  margin-left: max(24px, calc((100vw - 1200px) / 2));
+  margin-right: auto;
 }
 
 .hero__eyebrow {
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--cornflower);
-  margin-bottom: 20px;
+  color: #5eead4; /* light teal */
+  margin-bottom: 24px;
 }
 
-
 .hero__headline {
-  font-size: clamp(40px, 7vw, 72px);
+  font-size: clamp(42px, 7vw, 78px);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -2px;
-  color: var(--gray-900);
-  margin-bottom: 24px;
+  color: #ffffff;
+  margin-bottom: 28px;
   position: relative;
-  overflow: hidden;
-}
-
-.hero__headline::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 80%;
-  height: 100%;
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    transparent 30%,
-    rgba(255, 255, 255, 0.2) 38%,
-    rgba(255, 255, 255, 0.4) 45%,
-    rgba(255, 255, 255, 0.5) 50%,
-    rgba(255, 255, 255, 0.4) 55%,
-    rgba(255, 255, 255, 0.2) 62%,
-    transparent 70%,
-    transparent 100%
-  );
-  animation: shine 3.5s ease-in-out 1s forwards;
-  pointer-events: none;
-}
-
-@keyframes shine {
-  0% { left: -100%; }
-  100% { left: 200%; }
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
 }
 
 .hero__accent {
-  background: linear-gradient(135deg, var(--navy) 0%, var(--cornflower) 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #5eead4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -84,17 +78,15 @@
 .hero__sub {
   font-size: 19px;
   line-height: 1.6;
-  color: var(--gray-500);
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-  margin-bottom: 40px;
+  color: rgba(226, 232, 240, 0.85);
+  max-width: 560px;
+  margin-bottom: 44px;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
 }
 
 .hero__actions {
   display: flex;
   gap: 16px;
-  justify-content: center;
   flex-wrap: wrap;
 }
 
@@ -109,27 +101,38 @@
 }
 
 .hero__btn--primary {
-  background: var(--navy);
-  color: var(--white);
+  background: #0a2463;
+  color: #ffffff;
+  box-shadow: 0 10px 30px rgba(10, 36, 99, 0.5);
 }
 
 .hero__btn--primary:hover {
-  background: var(--navy-light);
-  transform: scale(1.02);
+  background: #123080;
+  transform: translateY(-1px);
 }
 
 .hero__btn--secondary {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: rgba(255, 255, 255, 0.92);
+  color: #0a2463;
+  backdrop-filter: blur(6px);
 }
 
 .hero__btn--secondary:hover {
-  background: var(--gray-200);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .hero__content {
+    margin-left: 24px;
+    padding: 120px 20px 80px;
+  }
 }
 
 @media (max-width: 640px) {
   .hero__content {
     padding: 100px 16px 60px;
+    margin-left: 0;
   }
   .hero__sub {
     font-size: 17px;
@@ -137,30 +140,13 @@
   .hero__btn {
     padding: 12px 24px;
     font-size: 15px;
-    width: 100%;
+    flex: 1;
     justify-content: center;
+    min-width: 160px;
   }
 }
 
-[data-theme="dark"] .hero__btn--primary {
-  color: #f3f5f8;
-}
-
-[data-theme="dark"] .hero__headline::after {
-  background: linear-gradient(
-    105deg,
-    transparent 0%,
-    transparent 35%,
-    rgba(100, 149, 237, 0.15) 45%,
-    rgba(100, 149, 237, 0.3) 50%,
-    rgba(100, 149, 237, 0.15) 55%,
-    transparent 65%,
-    transparent 100%
-  );
-}
-
-[data-theme="dark"] .hero__accent {
-  background: linear-gradient(135deg, var(--cornflower) 0%, #89b0f2 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
+/* Dark theme — keep same colors, hero is always "dark-ish" now */
+[data-theme="dark"] .hero {
+  background: #020510;
 }
