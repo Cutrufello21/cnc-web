@@ -13,10 +13,10 @@
   overflow: hidden;
 }
 
-/* dark-v11 is already neutral and quiet — just a gentle brightness
-   pull-down so the map sinks into the background. */
+/* dark-v11 base — gentle saturation pull so roads stay neutral
+   without hiding the map underneath. */
 .hero-map .mapboxgl-canvas {
-  filter: brightness(0.85) saturate(0.7);
+  filter: saturate(0.75);
 }
 
 .hero-map .mapboxgl-canvas-container,
@@ -31,25 +31,24 @@
   display: none !important;
 }
 
-/* --- Delivery stop markers — warm white dot with expanding halo --- */
+/* --- Delivery stop markers — still dot + pulsing halo ring --- */
 .hero-marker {
   position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #F5F0E8;
+  opacity: 0.9;
   box-shadow:
-    0 0 0 1px rgba(245, 240, 232, 0.25),
-    0 0 6px rgba(245, 240, 232, 0.2);
+    0 0 0 1px rgba(245, 240, 232, 0.3),
+    0 0 6px rgba(245, 240, 232, 0.25);
   pointer-events: none;
-  animation: hero-marker-breathe 3s ease-in-out infinite;
-  animation-delay: var(--delay, 0s);
   transition:
     background-color 300ms ease,
     box-shadow 300ms ease;
 }
 
-/* Expanding halo ring — the visible pulse */
+/* Expanding halo ring — the only thing that moves */
 .hero-marker::before {
   content: '';
   position: absolute;
@@ -58,19 +57,13 @@
   background: #F5F0E8;
   opacity: 0;
   transform-origin: center;
-  animation: hero-marker-ring 2.8s ease-out infinite;
+  animation: hero-marker-ring 3s ease-out infinite;
   animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
 }
 
-/* Dot itself breathes subtly in opacity */
-@keyframes hero-marker-breathe {
-  0%, 100% { opacity: 0.65; }
-  50%      { opacity: 1; }
-}
-
-/* Ring scales out and fades */
 @keyframes hero-marker-ring {
-  0%   { transform: scale(1);   opacity: 0.7; }
+  0%   { transform: scale(1);   opacity: 0.6; }
   80%  { transform: scale(4.5); opacity: 0; }
   100% { transform: scale(4.5); opacity: 0; }
 }

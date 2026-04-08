@@ -194,7 +194,7 @@ export default function HeroMap() {
                 layer.type === 'line' &&
                 /road|bridge|tunnel|motorway|ferry|rail/i.test(layer.id)
               ) {
-                try { map.setPaintProperty(layer.id, 'line-opacity', 0.18) } catch {}
+                try { map.setPaintProperty(layer.id, 'line-opacity', 0.35) } catch {}
                 continue
               }
               if (layer.type !== 'symbol') continue
