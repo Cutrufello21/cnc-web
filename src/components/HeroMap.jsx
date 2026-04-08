@@ -43,20 +43,50 @@ const PULSE_ZIPS = [
   '44735','44750','44767','44799',
 ]
 
-const PULSE_POINTS = PULSE_ZIPS
-  .map((z, i) => {
+// Seeded PRNG so the synthetic dots are stable across reloads.
+// These are NOT real patient addresses — they're procedural jitter
+// around ZIP centroids to visualize delivery density without PHI.
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5)
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+function gauss(rand) {
+  const u = Math.max(rand(), 1e-6)
+  const v = rand()
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
+}
+
+// Generate 2 synthetic "delivery stops" per ZIP centroid → ~336
+// dots that look like homes on residential streets but map back to
+// no one. Jitter std ≈ 0.008 deg (~0.5 mi).
+const _rand = mulberry32(42)
+const PULSE_POINTS = (() => {
+  const features = []
+  const STOPS_PER_ZIP = 2
+  const JITTER = 0.008
+  PULSE_ZIPS.forEach((z) => {
     const info = zipcodes.lookup(z)
-    if (!info) return null
-    return {
-      type: 'Feature',
-      properties: { phase: (i * 0.137) % 1 }, // staggered 0-1
-      geometry: {
-        type: 'Point',
-        coordinates: [info.longitude, info.latitude],
-      },
+    if (!info) return
+    for (let i = 0; i < STOPS_PER_ZIP; i++) {
+      features.push({
+        type: 'Feature',
+        properties: { phase: _rand() },
+        geometry: {
+          type: 'Point',
+          coordinates: [
+            info.longitude + gauss(_rand) * JITTER,
+            info.latitude + gauss(_rand) * JITTER * 0.75,
+          ],
+        },
+      })
     }
   })
-  .filter(Boolean)
+  return features
+})()
 
 // 4 route lines fanning out from Akron hub
 const ROUTE_ENDS = [
