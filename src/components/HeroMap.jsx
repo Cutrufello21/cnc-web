@@ -16,7 +16,7 @@ mapboxgl.accessToken =
 
 // Map center sits west of Akron so Akron itself reads on the
 // right side of the hero (off-center, not dead middle).
-const CENTER = [-81.78, 40.88]
+const CENTER = [-81.78, 40.96]
 const HUB = [-81.5185, 41.0534] // True Akron — keep route lines anchored here
 
 // Full NE Ohio service area — every ZIP CNC actually delivers to.
@@ -122,10 +122,14 @@ const PULSE_POINTS = (() => {
   // Targeting ~1,875 total dots — roughly one full week of CNC
   // deliveries (5 days × 375/day average) to make the volume story
   // legible at a glance.
-  const BASE_STOPS = 3
-  const DENSE_STOPS = 8
-  const URBAN_STOPS = 14
-  const SUPER_DENSE_STOPS = 45
+  // Density balance — Akron urban core is heaviest (real book of
+  // business), Tuscarawas super-dense is secondary, fringe is
+  // scattered. Total lands around 900 dots — restraint reads as
+  // more credible than blanket coverage.
+  const BASE_STOPS = 1
+  const DENSE_STOPS = 4
+  const URBAN_STOPS = 22
+  const SUPER_DENSE_STOPS = 18
   // Jitter scales with density so dense ZIPs spread out into a
   // natural-looking field instead of piling into a centroid blob.
   const BASE_JITTER = 0.012
@@ -146,10 +150,14 @@ const PULSE_POINTS = (() => {
               : isUrban ? URBAN_JITTER
               : isDense ? DENSE_JITTER
               : BASE_JITTER
+    // Dense/super/urban tiers skip the animated halo so the urban
+    // core reads as a confident field of solid dots instead of a
+    // bubbly foam where every ring overlaps.
+    const isHighDensity = isSuper || isUrban || isDense
     for (let i = 0; i < n; i++) {
       features.push({
         type: 'Feature',
-        properties: { phase: _rand() },
+        properties: { phase: _rand(), dense: isHighDensity },
         geometry: {
           type: 'Point',
           coordinates: [
@@ -233,11 +241,15 @@ export default function HeroMap() {
           data: { type: 'FeatureCollection', features: PULSE_POINTS },
         })
 
-        // Outer animated halo — periwinkle glow so navy cores read on dark
+        // Outer animated halo — only on sparse/base dots so dense
+        // urban clusters don't turn into a bubble-bath of overlapping
+        // rings. The halo becomes a "points of interest" cue in the
+        // fringe instead of a texture fill everywhere.
         map.addLayer({
           id: 'hero-pulse-halo',
           type: 'circle',
           source: 'hero-pulses',
+          filter: ['!', ['get', 'dense']],
           paint: {
             'circle-color': '#60A5FA',
             'circle-radius': 4,
