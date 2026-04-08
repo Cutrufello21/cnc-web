@@ -68,11 +68,15 @@
 }
 
 .tech-feature__image--phone {
-  background: var(--gray-100);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 20px 0;
 }
 
 .tech-feature__image--phone img {

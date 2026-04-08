@@ -1,25 +1,22 @@
 .demo-phone {
-  width: 290px;
-  background: #f8f9fb;
-  border-radius: 36px;
-  padding: 6px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  width: 300px;
   position: relative;
-  overflow: hidden;
   outline: none;
-  transition: box-shadow 0.2s ease;
 }
 
-.demo-phone:focus-visible {
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 3px #3b82f6;
+.demo-phone:focus-visible .demo-screen {
+  box-shadow: 0 30px 80px rgba(10,36,99,0.18), 0 0 0 3px #3b82f6;
 }
 
 .demo-screen {
   position: relative;
-  min-height: 580px;
+  min-height: 600px;
   overflow: hidden;
-  border-radius: 30px;
+  border-radius: 28px;
   background: #f8f9fb;
+  box-shadow: 0 30px 80px rgba(10,36,99,0.18), 0 1px 0 rgba(255,255,255,0.6) inset;
+  border: 1px solid rgba(10,36,99,0.08);
+  transition: box-shadow 0.2s ease;
 }
 
 .demo-step {
