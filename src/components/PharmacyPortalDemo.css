@@ -1,4 +1,4 @@
-.portal-demo {
+.pharm-demo {
   width: 100%;
   max-width: 100%;
   display: block;
@@ -7,7 +7,7 @@
   overflow: visible;
 }
 
-.portal-browser {
+.pharm-browser {
   width: 100%;
   max-width: 100%;
   border-radius: 12px;
@@ -18,7 +18,7 @@
 }
 
 /* Browser chrome */
-.portal-chrome {
+.pharm-chrome {
   background: #1a2436;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   display: flex;
@@ -27,23 +27,23 @@
   gap: 12px;
 }
 
-.portal-chrome-dots {
+.pharm-chrome-dots {
   display: flex;
   gap: 6px;
 }
 
-.portal-chrome-dots span {
+.pharm-chrome-dots span {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   display: block;
 }
 
-.portal-chrome-dots span:nth-child(1) { background: #ff5f57; }
-.portal-chrome-dots span:nth-child(2) { background: #febc2e; }
-.portal-chrome-dots span:nth-child(3) { background: #28c840; }
+.pharm-chrome-dots span:nth-child(1) { background: #ff5f57; }
+.pharm-chrome-dots span:nth-child(2) { background: #febc2e; }
+.pharm-chrome-dots span:nth-child(3) { background: #28c840; }
 
-.portal-chrome-url {
+.pharm-chrome-url {
   flex: 1;
   background: rgba(255,255,255,0.06);
   border-radius: 6px;
@@ -59,7 +59,7 @@
 }
 
 /* Frame */
-.portal-frame {
+.pharm-frame {
   width: 100%;
   background: #07101F;
   display: grid;
@@ -71,29 +71,30 @@
   min-width: 0;
 }
 
-.portal-sidebar,
-.portal-main {
+.pharm-sidebar,
+.pharm-main {
   min-width: 0;
 }
 
 /* Sidebar */
-.portal-sidebar {
+.pharm-sidebar {
   background: #050b15;
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 12px 4px;
   border-right: 1px solid rgba(255,255,255,0.05);
+  width: 56px;
 }
 
-.portal-brand {
+.pharm-brand {
   padding: 0 0 12px;
   border-bottom: 1px solid rgba(255,255,255,0.05);
   width: 100%;
   text-align: center;
 }
 
-.portal-brand-cnc {
+.pharm-brand-cnc {
   font-family: Georgia, serif;
   font-size: 13px;
   color: white;
@@ -102,7 +103,7 @@
   white-space: nowrap;
 }
 
-.portal-brand-delivery {
+.pharm-brand-delivery {
   font-family: Georgia, serif;
   font-size: 6px;
   color: #94a3b8;
@@ -110,7 +111,7 @@
   margin-top: 2px;
 }
 
-.portal-nav {
+.pharm-nav {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -120,7 +121,7 @@
   align-items: center;
 }
 
-.portal-nav-item {
+.pharm-nav-item {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,13 +131,13 @@
   border-radius: 6px;
 }
 
-.portal-nav-item--active {
+.pharm-nav-item--active {
   background: rgba(59,130,246,0.12);
   color: white;
 }
 
 /* Main */
-.portal-main {
+.pharm-main {
   padding: 14px 18px 16px;
   display: flex;
   flex-direction: column;
@@ -144,21 +145,21 @@
   overflow: hidden;
 }
 
-.portal-header {
+.pharm-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
 
-.portal-header h3 {
+.pharm-header h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 800;
   color: white;
 }
 
-.portal-avatar {
+.pharm-avatar {
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -172,14 +173,14 @@
 }
 
 /* Toolbar */
-.portal-toolbar {
+.pharm-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
 
-.portal-date {
+.pharm-date {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -191,18 +192,18 @@
   font-weight: 600;
 }
 
-.portal-date-arrow {
+.pharm-date-arrow {
   color: #64748b;
   font-size: 12px;
   line-height: 1;
 }
 
-.portal-actions {
+.pharm-actions {
   display: flex;
   gap: 6px;
 }
 
-.portal-btn {
+.pharm-btn {
   padding: 6px 12px;
   border-radius: 6px;
   border: none;
@@ -213,36 +214,36 @@
   transition: all 0.3s;
 }
 
-.portal-btn--ghost {
+.pharm-btn--ghost {
   background: #1e40af;
   color: white;
 }
 
-.portal-btn--primary {
+.pharm-btn--primary {
   background: #047857;
   color: white;
 }
 
-.portal-btn--ready {
+.pharm-btn--ready {
   background: #16a34a;
   box-shadow: 0 0 0 3px rgba(34,197,94,0.25);
-  animation: portalBtnPulse 1.6s ease-in-out infinite;
+  animation: pharmBtnPulse 1.6s ease-in-out infinite;
 }
 
-@keyframes portalBtnPulse {
+@keyframes pharmBtnPulse {
   0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.25); }
   50%      { box-shadow: 0 0 0 6px rgba(34,197,94,0.15); }
 }
 
 /* Stats */
-.portal-stats {
+.pharm-stats {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 6px;
   margin-bottom: 12px;
 }
 
-.portal-stat {
+.pharm-stat {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 8px;
@@ -251,20 +252,20 @@
   transition: all 0.4s;
 }
 
-.portal-stat--pulse {
+.pharm-stat--pulse {
   background: rgba(34,197,94,0.1);
   border-color: rgba(34,197,94,0.4);
   box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
 }
 
-.portal-stat-label {
+.pharm-stat-label {
   font-size: 7px;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: #64748b;
 }
 
-.portal-stat-value {
+.pharm-stat-value {
   font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
@@ -272,127 +273,112 @@
   font-variant-numeric: tabular-nums;
 }
 
-.portal-stat-value--white { color: white; }
-.portal-stat-value--green { color: #22c55e; }
-.portal-stat-value--amber { color: #f59e0b; }
-.portal-stat-value--red   { color: #ef4444; }
+.pharm-stat-value--white { color: white; }
+.pharm-stat-value--green { color: #22c55e; }
+.pharm-stat-value--amber { color: #f59e0b; }
+.pharm-stat-value--red   { color: #ef4444; }
 
-/* Deliveries grid */
-.portal-grid-label {
-  font-size: 8px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.6px;
-  margin-bottom: 8px;
-}
-
-.portal-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  flex: 1;
-}
-
-.portal-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
+/* Table */
+.pharm-table {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.05);
   border-radius: 8px;
-  padding: 7px 9px;
-  transition: all 0.4s;
+  overflow: hidden;
+  flex: 1;
   min-width: 0;
 }
 
-.portal-card--delivered {
-  background: rgba(34,197,94,0.05);
-  border-color: rgba(34,197,94,0.2);
-}
-
-.portal-card--flash {
-  animation: portalCardFlash 1.2s ease-out;
-}
-
-@keyframes portalCardFlash {
-  0%   { background: rgba(34,197,94,0.25); border-color: rgba(34,197,94,0.6); }
-  100% { background: rgba(34,197,94,0.05); border-color: rgba(34,197,94,0.2); }
-}
-
-.portal-card-top {
-  display: flex;
+.pharm-thead,
+.pharm-row {
+  display: grid;
+  grid-template-columns: 1.6fr 2fr 0.8fr 1fr 0.8fr;
+  gap: 8px;
+  padding: 7px 14px;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 4px;
+  font-size: 10px;
+  min-width: 0;
 }
 
-.portal-card-name {
-  font-size: 10px;
+.pharm-thead {
+  background: rgba(255,255,255,0.03);
+  font-size: 8px;
   font-weight: 700;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.pharm-tbody {
+  display: flex;
+  flex-direction: column;
+}
+
+.pharm-row {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: #cbd5e1;
+  transition: background 0.4s;
+}
+
+.pharm-row:last-child { border-bottom: none; }
+
+.pharm-row--delivered { color: #94a3b8; }
+
+.pharm-row--flash {
+  animation: pharmFlashRow 1.4s ease-out;
+}
+
+@keyframes pharmFlashRow {
+  0%   { background: rgba(34,197,94,0.18); }
+  100% { background: transparent; }
+}
+
+.pharm-cell-name {
   color: white;
+  font-weight: 600;
+}
+
+.pharm-row--delivered .pharm-cell-name { color: #cbd5e1; }
+
+.pharm-cell-name,
+.pharm-cell-addr,
+.pharm-cell-driver,
+.pharm-cell-time {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
   min-width: 0;
 }
 
-.portal-pill {
-  font-size: 7px;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 3px;
-  letter-spacing: 0.3px;
-  flex-shrink: 0;
+.pharm-cell-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 9px;
+  color: #94a3b8;
 }
 
-.portal-pill--cold {
-  background: rgba(59,130,246,0.15);
-  color: #60a5fa;
-}
-
-.portal-status {
-  font-size: 7px;
+.pharm-status {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 8px;
   font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 3px;
   letter-spacing: 0.2px;
-  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.portal-status--off {
+.pharm-status--off {
   color: #f59e0b;
   background: rgba(245,158,11,0.12);
   border: 1px solid rgba(245,158,11,0.3);
 }
 
-.portal-status--ok {
+.pharm-status--ok {
   color: #22c55e;
   background: rgba(34,197,94,0.12);
   border: 1px solid rgba(34,197,94,0.3);
 }
 
-.portal-card-addr {
-  font-size: 9px;
-  color: #94a3b8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 3px;
-}
-
-.portal-card-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: #64748b;
-}
-
-.portal-card-meta span:first-child { color: white; font-weight: 600; }
-
-.portal-card-time {
-  font-variant-numeric: tabular-nums;
-}
-
 /* POD Modal */
-.portal-modal-overlay {
+.pharm-modal-overlay {
   position: absolute;
   inset: 0;
   background: rgba(7,16,31,0.7);
@@ -402,12 +388,12 @@
   align-items: center;
   justify-content: center;
   z-index: 10;
-  animation: portalFadeIn 0.3s ease-out;
+  animation: pharmFadeIn 0.3s ease-out;
 }
 
-@keyframes portalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pharmFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.portal-modal {
+.pharm-modal {
   background: #0f172a;
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 14px;
@@ -415,15 +401,15 @@
   width: 92%;
   max-width: 560px;
   box-shadow: 0 30px 80px rgba(0,0,0,0.6);
-  animation: portalModalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: pharmModalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes portalModalIn {
+@keyframes pharmModalIn {
   from { opacity: 0; transform: scale(0.92); }
   to   { opacity: 1; transform: scale(1); }
 }
 
-.portal-modal-header {
+.pharm-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -432,7 +418,7 @@
   margin-bottom: 14px;
 }
 
-.portal-modal-eyebrow {
+.pharm-modal-eyebrow {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 1px;
@@ -440,39 +426,39 @@
   margin-bottom: 4px;
 }
 
-.portal-modal-title {
+.pharm-modal-title {
   font-size: 16px;
   font-weight: 800;
   color: white;
   line-height: 1.2;
 }
 
-.portal-modal-sub {
+.pharm-modal-sub {
   font-size: 10px;
   color: #94a3b8;
   margin-top: 2px;
 }
 
-.portal-modal-close {
+.pharm-modal-close {
   font-size: 20px;
   color: #64748b;
   font-weight: 300;
   line-height: 1;
 }
 
-.portal-modal-body {
+.pharm-modal-body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
-.portal-modal-photos {
+.pharm-modal-photos {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.portal-modal-photo {
+.pharm-modal-photo {
   width: 100%;
   aspect-ratio: 4/3;
   background-size: cover;
@@ -484,7 +470,7 @@
   overflow: hidden;
 }
 
-.portal-modal-photo-label {
+.pharm-modal-photo-label {
   position: absolute;
   bottom: 6px;
   left: 6px;
@@ -496,13 +482,13 @@
   border-radius: 4px;
 }
 
-.portal-modal-meta {
+.pharm-modal-meta {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.portal-modal-row {
+.pharm-modal-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -512,15 +498,15 @@
   gap: 8px;
 }
 
-.portal-modal-row:last-child { border-bottom: none; }
+.pharm-modal-row:last-child { border-bottom: none; }
 
-.portal-modal-label {
+.pharm-modal-label {
   color: #64748b;
   font-weight: 500;
   flex-shrink: 0;
 }
 
-.portal-modal-value {
+.pharm-modal-value {
   color: white;
   font-weight: 600;
   text-align: right;
@@ -529,21 +515,24 @@
   text-overflow: ellipsis;
 }
 
-.portal-modal-mono {
+.pharm-modal-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 9px;
 }
 
-.portal-modal-ok { color: #22c55e; }
-.portal-modal-cold { color: #3b82f6; }
+.pharm-modal-ok { color: #22c55e; }
+.pharm-modal-cold { color: #3b82f6; }
 
 /* Responsive */
 @media (max-width: 720px) {
-  .portal-stats { grid-template-columns: 1fr 1fr; }
-  .portal-grid { grid-template-columns: 1fr 1fr; }
-  .portal-modal-body { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 480px) {
-  .portal-grid { grid-template-columns: 1fr; }
+  .pharm-stats { grid-template-columns: 1fr 1fr; }
+  .pharm-thead,
+  .pharm-row {
+    grid-template-columns: 1.6fr 1fr 1fr 0.8fr;
+  }
+  .pharm-cell-addr,
+  .pharm-thead span:nth-child(2) {
+    display: none;
+  }
+  .pharm-modal-body { grid-template-columns: 1fr; }
 }
