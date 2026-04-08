@@ -65,16 +65,18 @@
   transition: color 200ms ease, opacity 200ms ease;
 }
 
-/* Hero map is white now — navy links in every scroll state */
-.navbar--transparent .navbar__links a,
-.navbar--frosted .navbar__links a,
-.navbar--light .navbar__links a {
+/* Hero map is white now — navy text links in every scroll state.
+   The :not() exclusion keeps this rule from leaking onto the
+   navy-filled .navbar__cta (Sign In) button. */
+.navbar--transparent .navbar__links a:not(.navbar__cta),
+.navbar--frosted .navbar__links a:not(.navbar__cta),
+.navbar--light .navbar__links a:not(.navbar__cta) {
   color: #0A2463;
   opacity: 0.75;
 }
-.navbar--transparent .navbar__links a:hover,
-.navbar--frosted .navbar__links a:hover,
-.navbar--light .navbar__links a:hover {
+.navbar--transparent .navbar__links a:not(.navbar__cta):hover,
+.navbar--frosted .navbar__links a:not(.navbar__cta):hover,
+.navbar--light .navbar__links a:not(.navbar__cta):hover {
   opacity: 1;
 }
 

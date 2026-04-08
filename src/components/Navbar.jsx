@@ -51,8 +51,9 @@ export default function Navbar() {
   }, [])
 
   const mode = pastHero ? 'light' : scrolled ? 'frosted' : 'transparent'
-  // BrandMark: "light" means white text, "dark" means navy text (confusing naming in BrandMark)
-  const brandVariant = mode === 'light' ? 'dark' : 'light'
+  // Hero is light/white in every state — always use the navy BrandMark.
+  // (BrandMark naming is inverted: "dark" variant = navy text on light.)
+  const brandVariant = 'dark'
 
   return (
     <nav className={`navbar navbar--${mode}`}>
