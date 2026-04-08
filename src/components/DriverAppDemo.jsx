@@ -323,20 +323,6 @@ export default function DriverAppDemo() {
         </div>
       </div>
 
-      {/* Step indicator */}
-      <div className="demo-dots">
-        {STEPS.map((s, i) => (
-          <div key={s} className={`demo-dot ${i === step ? 'demo-dot--active' : ''}`} onClick={() => { setActive(false); setStep(i) }} />
-        ))}
-      </div>
-      <div className="demo-step-labels">
-        {['Route', 'Scan', 'Photo 1', 'Photo 2', 'Note', 'Delivered', 'Next'].map((label, i) => (
-          <span key={i} className={i === step ? 'demo-step-label--active' : ''}>{label}</span>
-        ))}
-      </div>
-      <div className="demo-kbd-hint">
-        <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> navigate &middot; <kbd>space</kbd> {active ? 'pause' : 'play'} &middot; <kbd>1</kbd>&ndash;<kbd>7</kbd> jump
-      </div>
     </div>
   )
 }
