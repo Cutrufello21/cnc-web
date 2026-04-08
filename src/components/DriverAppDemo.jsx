@@ -212,9 +212,10 @@ export default function DriverAppDemo() {
               <div className="demo-preview-title">Photo 1 of 2 &mdash; Where you left the package</div>
               <div className="demo-preview-meta">Sample, Patient A &middot; 123 Sample Street</div>
             </div>
-            <div className="demo-preview-area">
-              <img src="/images/demo-porch.jpg" alt="" className="demo-preview-img" />
-            </div>
+            <div
+              className="demo-preview-area"
+              style={{ backgroundImage: 'url(/images/demo-porch.jpg)', backgroundSize: '160%', backgroundPosition: 'center 55%' }}
+            />
             <div className="demo-preview-actions">
               <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
               <button className="demo-preview-btn demo-preview-btn--use">Use Photo</button>
@@ -229,9 +230,10 @@ export default function DriverAppDemo() {
               <div className="demo-preview-title">Photo 2 of 2 &mdash; The house or front door</div>
               <div className="demo-preview-meta">Sample, Patient A &middot; 123 Sample Street</div>
             </div>
-            <div className="demo-preview-area">
-              <img src="/images/demo-house.jpg" alt="" className="demo-preview-img" />
-            </div>
+            <div
+              className="demo-preview-area"
+              style={{ backgroundImage: 'url(/images/demo-house.jpg)', backgroundSize: 'cover', backgroundPosition: 'center 40%' }}
+            />
             <div className="demo-preview-actions">
               <button className="demo-preview-btn demo-preview-btn--retake">Retake</button>
               <button className="demo-preview-btn demo-preview-btn--use">Use Photo</button>
