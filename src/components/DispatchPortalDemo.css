@@ -6,7 +6,7 @@
 
 .dispatch-browser {
   width: 100%;
-  max-width: 720px;
+  max-width: 1080px;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 30px 80px rgba(7,16,31,0.35), 0 0 0 1px rgba(255,255,255,0.05);
@@ -57,11 +57,11 @@
   width: 100%;
   background: #07101F;
   display: grid;
-  grid-template-columns: 50px 1fr;
+  grid-template-columns: 56px 1fr;
   overflow: hidden;
   font-size: 11px;
   color: #cbd5e1;
-  min-height: 440px;
+  min-height: 460px;
 }
 
 /* Sidebar */
@@ -127,7 +127,7 @@
 
 /* Main */
 .dispatch-main {
-  padding: 14px 14px 14px;
+  padding: 14px 18px 16px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -143,8 +143,8 @@
 
 .dispatch-header h3 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: white;
 }
 
@@ -248,10 +248,10 @@
 }
 
 .dispatch-stat-value {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
-  margin-top: 3px;
+  margin-top: 4px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -264,14 +264,14 @@
   font-size: 8px;
   font-weight: 700;
   color: #64748b;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
 }
 
 .dispatch-drivers {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
   flex: 1;
 }
 
