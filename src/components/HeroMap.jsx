@@ -56,7 +56,7 @@ export default function HeroMap() {
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/light-v11',
+      style: 'mapbox://styles/mapbox/dark-v11',
       center: CENTER,
       zoom: 9.5,
       interactive: false,
@@ -81,10 +81,10 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#0a2463',
+          'circle-color': '#5eead4',
           'circle-radius': 6,
           'circle-opacity': 0,
-          'circle-stroke-color': '#0a2463',
+          'circle-stroke-color': '#5eead4',
           'circle-stroke-width': 1.5,
           'circle-stroke-opacity': 0,
         },
@@ -96,7 +96,7 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#0a2463',
+          'circle-color': '#5eead4',
           'circle-radius': 3.2,
           'circle-opacity': 1,
         },
