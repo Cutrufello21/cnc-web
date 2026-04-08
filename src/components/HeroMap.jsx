@@ -188,25 +188,25 @@ export default function HeroMap() {
           source: 'hero-pulses',
           paint: {
             'circle-color': '#60A5FA',
-            'circle-radius': 6,
+            'circle-radius': 4,
             'circle-opacity': 0,
             'circle-stroke-color': '#60A5FA',
-            'circle-stroke-width': 1.5,
+            'circle-stroke-width': 1,
             'circle-stroke-opacity': 0,
           },
         })
 
-        // Solid center dot — navy at 60% with a crisp white ring
+        // Solid center dot — navy at 70% with a thin white ring
         map.addLayer({
           id: 'hero-pulse-core',
           type: 'circle',
           source: 'hero-pulses',
           paint: {
             'circle-color': '#0A2463',
-            'circle-radius': 4,
-            'circle-opacity': 0.6,
+            'circle-radius': 2.5,
+            'circle-opacity': 0.7,
             'circle-stroke-color': '#ffffff',
-            'circle-stroke-width': 1,
+            'circle-stroke-width': 0.75,
             'circle-stroke-opacity': 1,
           },
         })
@@ -261,19 +261,19 @@ export default function HeroMap() {
           try {
             map.setPaintProperty('hero-pulse-halo', 'circle-radius', [
               'interpolate', ['linear'], modExpr,
-              0,    4,
-              0.5, 16,
-              1,   26,
+              0,   2.5,
+              0.5, 9,
+              1,   14,
             ])
             map.setPaintProperty('hero-pulse-halo', 'circle-opacity', [
               'interpolate', ['linear'], modExpr,
               0,   0,
-              0.1, 0.35,
+              0.1, 0.22,
               1,   0,
             ])
             map.setPaintProperty('hero-pulse-halo', 'circle-stroke-opacity', [
               'interpolate', ['linear'], modExpr,
-              0, 0.7,
+              0, 0.5,
               1, 0,
             ])
           } catch {}
