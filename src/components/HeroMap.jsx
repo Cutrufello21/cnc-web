@@ -26,6 +26,7 @@ const PULSE_POINTS = PULSE_ZIPS
     if (!info) return null
     return {
       type: 'Feature',
+      id: i + 1, // required for setFeatureState
       properties: { phase: (i * 0.137) % 1 },
       geometry: { type: 'Point', coordinates: [info.longitude, info.latitude] },
     }
@@ -56,7 +57,7 @@ export default function HeroMap() {
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: 'mapbox://styles/mapbox/navigation-night-v1',
       center: CENTER,
       zoom: 9.5,
       interactive: false,
@@ -67,13 +68,24 @@ export default function HeroMap() {
     mapRef.current = map
 
     let layersReady = false
+    let flashInterval = null
+    let currentFlashId = null
 
     map.on('load', () => {
-      // Pulse dots
+      // Pulse stops
       map.addSource('hero-pulses', {
         type: 'geojson',
         data: { type: 'FeatureCollection', features: PULSE_POINTS },
       })
+
+      // Case expression: when a feature is flashing, paint it periwinkle,
+      // otherwise use the warm off-white base color.
+      const flashColor = [
+        'case',
+        ['boolean', ['feature-state', 'flashing'], false],
+        '#60A5FA',
+        '#F5F0E8',
+      ]
 
       // Outer animated halo
       map.addLayer({
@@ -81,10 +93,10 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#60A5FA',
+          'circle-color': flashColor,
           'circle-radius': 6,
           'circle-opacity': 0,
-          'circle-stroke-color': '#60A5FA',
+          'circle-stroke-color': flashColor,
           'circle-stroke-width': 1.5,
           'circle-stroke-opacity': 0,
         },
@@ -96,9 +108,10 @@ export default function HeroMap() {
         type: 'circle',
         source: 'hero-pulses',
         paint: {
-          'circle-color': '#60A5FA',
+          'circle-color': flashColor,
           'circle-radius': 3.2,
-          'circle-opacity': 1,
+          'circle-opacity': 0.95,
+          'circle-color-transition': { duration: 250 },
         },
       })
 
@@ -112,16 +125,33 @@ export default function HeroMap() {
           source: sid,
           layout: { 'line-cap': 'round', 'line-join': 'round' },
           paint: {
-            'line-color': '#60A5FA',
-            'line-width': 2.2,
+            'line-color': '#F5F0E8',
+            'line-width': 1.6,
             'line-opacity': 0,
-            'line-blur': 0.5,
+            'line-blur': 0.4,
             'line-trim-offset': [0, 1],
           },
         })
       })
 
       layersReady = true
+
+      // Flash a random pin periwinkle every 4s — the one accent thread
+      const triggerFlash = () => {
+        if (currentFlashId != null) {
+          map.setFeatureState({ source: 'hero-pulses', id: currentFlashId }, { flashing: false })
+        }
+        const next = PULSE_POINTS[Math.floor(Math.random() * PULSE_POINTS.length)]
+        currentFlashId = next.id
+        map.setFeatureState({ source: 'hero-pulses', id: currentFlashId }, { flashing: true })
+        setTimeout(() => {
+          if (currentFlashId != null) {
+            map.setFeatureState({ source: 'hero-pulses', id: currentFlashId }, { flashing: false })
+          }
+        }, 700)
+      }
+      flashInterval = setInterval(triggerFlash, 4000)
+      setTimeout(triggerFlash, 1500)
     })
 
     const start = performance.now()
@@ -161,20 +191,22 @@ export default function HeroMap() {
           1,   0.0,
         ])
 
-        // Routes: draw in → hold → fade → reset, 12s cycle, staggered
+        // Routes: draw in → hold → fade → reset, 14s cycle, staggered.
+        // Max opacity capped at 0.2 per spec — just suggests movement.
+        const MAX_LINE_OPACITY = 0.2
         ROUTE_FEATURES.forEach((_, i) => {
           const id = `hero-route-${i}`
-          const phase = ((elapsed / 12) + i * 0.25) % 1
+          const phase = ((elapsed / 14) + i * 0.25) % 1
           let trimEnd, opacity
           if (phase < 0.5) {
             trimEnd = 1 - phase / 0.5
-            opacity = 0.95
+            opacity = MAX_LINE_OPACITY
           } else if (phase < 0.7) {
             trimEnd = 0
-            opacity = 0.95
+            opacity = MAX_LINE_OPACITY
           } else if (phase < 0.9) {
             trimEnd = 0
-            opacity = 0.95 * (1 - (phase - 0.7) / 0.2)
+            opacity = MAX_LINE_OPACITY * (1 - (phase - 0.7) / 0.2)
           } else {
             trimEnd = 1
             opacity = 0
@@ -190,6 +222,7 @@ export default function HeroMap() {
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      if (flashInterval) clearInterval(flashInterval)
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
