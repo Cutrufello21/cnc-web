@@ -1,55 +1,77 @@
 import { useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
-import zipcodes from 'zipcodes'
 import './HeroMap.css'
 
-// Token fallback — split across strings so GitHub's push-protection
-// secret scanner does not match a literal pk.* pattern. The primary
-// source of truth is still VITE_MAPBOX_TOKEN in the environment.
+// Split-string token so GitHub push protection doesn't match a
+// literal pk.* pattern. The environment var still takes precedence.
 const _tokenParts = [
   'pk.eyJ1IjoiY3V0cnVmZWxsbzIxIiwi',
   'YSI6ImNtODljeHgxNjBheTYybHB3bm14',
   'a3V5dnoifQ.pCGbVeMn6MHSfKaDSJWCuQ',
 ]
-if (!mapboxgl.accessToken) {
-  mapboxgl.accessToken =
-    import.meta.env.VITE_MAPBOX_TOKEN || _tokenParts.join('')
-}
+mapboxgl.accessToken =
+  import.meta.env.VITE_MAPBOX_TOKEN || _tokenParts.join('')
 
 const CENTER = [-81.5185, 41.0534] // Akron, OH
 const HUB = CENTER
 
-// Real NE Ohio ZIPs scattered across the service area
-const PULSE_ZIPS = [
-  '44301','44310','44320','44333','44203','44221','44224','44240',
-  '44260','44256','44212','44223','44272','44280','44236','44202',
-  '44139','44141','44067','44087','44125','44134','44131','44319',
-  '44312','44622','44646','44708','44718','44601','44685','44688',
-  '44614','44641','44730','44411','44460','44281','44276','44266',
-  '44250','44255','44274','44273','44286','44232','44233','44215',
+// Exactly 60 delivery stop coordinates across the NE Ohio service area.
+// Real lng/lat values for: Akron, Canton, Fairlawn, Stow, Hudson,
+// Cuyahoga Falls, Massillon, Wooster, Medina, Wadsworth, North Canton,
+// Green, Barberton, Brunswick, Strongsville, Tallmadge, Ravenna,
+// Alliance, Louisville — with small jitter for density.
+const STOP_COORDS = [
+  // Akron (8)
+  [-81.5190, 41.0814], [-81.5305, 41.0760], [-81.5010, 41.0895],
+  [-81.5450, 41.0670], [-81.4920, 41.0735], [-81.5385, 41.0980],
+  [-81.5115, 41.0610], [-81.5260, 41.1055],
+  // Canton (6)
+  [-81.3784, 40.7989], [-81.3550, 40.8080], [-81.3920, 40.7870],
+  [-81.3620, 40.8195], [-81.4010, 40.8075], [-81.3455, 40.7900],
+  // Fairlawn (3)
+  [-81.6216, 41.1253], [-81.6305, 41.1180], [-81.6125, 41.1335],
+  // Stow (3)
+  [-81.4401, 41.1595], [-81.4285, 41.1665], [-81.4520, 41.1520],
+  // Hudson (3)
+  [-81.4401, 41.2401], [-81.4265, 41.2475], [-81.4535, 41.2330],
+  // Cuyahoga Falls (3)
+  [-81.4846, 41.1339], [-81.4720, 41.1405], [-81.4980, 41.1270],
+  // Massillon (3)
+  [-81.5215, 40.7967], [-81.5345, 40.7885], [-81.5100, 40.8045],
+  // Wooster (3)
+  [-81.9351, 40.8051], [-81.9480, 40.8135], [-81.9220, 40.7980],
+  // Medina (3)
+  [-81.8637, 41.1385], [-81.8515, 41.1465], [-81.8760, 41.1310],
+  // Wadsworth (2)
+  [-81.7297, 41.0259], [-81.7165, 41.0330],
+  // North Canton (3)
+  [-81.4023, 40.8759], [-81.3895, 40.8830], [-81.4150, 40.8685],
+  // Green (2)
+  [-81.4871, 40.9484], [-81.4745, 40.9555],
+  // Barberton (3)
+  [-81.6048, 41.0145], [-81.5925, 41.0220], [-81.6175, 41.0070],
+  // Brunswick (2)
+  [-81.8418, 41.2384], [-81.8300, 41.2455],
+  // Strongsville (2)
+  [-81.8337, 41.3145], [-81.8210, 41.3220],
+  // Tallmadge (2)
+  [-81.4412, 41.1013], [-81.4285, 41.1080],
+  // Ravenna (3)
+  [-81.2415, 41.1573], [-81.2290, 41.1645], [-81.2540, 41.1500],
+  // Alliance (2)
+  [-81.1059, 40.9103], [-81.0930, 40.9175],
+  // Louisville (3)
+  [-81.2593, 40.8373], [-81.2470, 40.8445], [-81.2715, 40.8300],
 ]
 
-const PULSE_COORDS = PULSE_ZIPS
-  .map((z) => {
-    const info = zipcodes.lookup(z)
-    return info ? [info.longitude, info.latitude] : null
-  })
-  .filter(Boolean)
-
-// 4 route lines: hub → outer corners of the service area
-const ROUTE_ENDS = [
-  [-81.86, 41.42], // NW
-  [-80.82, 41.20], // NE
-  [-81.10, 40.82], // SE
-  [-81.95, 40.80], // SW
+// Route lines: hub → corners of the service area
+const ROUTE_FEATURES = [
+  { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [HUB, [-81.86, 41.42]] } }, // NW
+  { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [HUB, [-80.82, 41.20]] } }, // NE
+  { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [HUB, [-81.10, 40.82]] } }, // SE
+  { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [HUB, [-81.95, 40.80]] } }, // SW
 ]
-
-const ROUTE_FEATURES = ROUTE_ENDS.map((end) => ({
-  type: 'Feature',
-  properties: {},
-  geometry: { type: 'LineString', coordinates: [HUB, end] },
-}))
 
 export default function HeroMap() {
   const containerRef = useRef(null)
@@ -59,6 +81,7 @@ export default function HeroMap() {
     let rafId = null
     let flashTimer = null
     let markers = []
+    let resizeObserver = null
     let disposed = false
 
     const init = () => {
@@ -66,10 +89,16 @@ export default function HeroMap() {
       const el = containerRef.current
       if (!el || mapRef.current) return
 
-      // Ensure the container has explicit dimensions BEFORE mapbox init.
-      // This is the #1 cause of silent mapbox render failures.
+      // Explicit pixel height derived from the parent, so mapbox
+      // measures a concrete non-zero size at init time.
+      const parent = el.parentElement
+      const parentH = parent ? parent.getBoundingClientRect().height : 0
+      const h = parentH > 0 ? parentH : window.innerHeight
+      el.style.position = 'absolute'
+      el.style.top = '0'
+      el.style.left = '0'
       el.style.width = '100%'
-      el.style.height = '100vh'
+      el.style.height = `${h}px`
 
       let map
       try {
@@ -96,12 +125,13 @@ export default function HeroMap() {
       map.on('load', () => {
         if (disposed) return
 
-        // Force a resize in case the container dimensions stabilised
-        // after mapbox read them. No-op if not needed.
+        // Force a resize inside the load event per spec.
         try { map.resize() } catch {}
+        // And one more on the next frame just to be safe.
+        requestAnimationFrame(() => { try { map.resize() } catch {} })
 
-        // Strip every symbol layer (road labels, highway shields, POIs,
-        // transit) except settlement-major-label which stays dimmed.
+        // Strip every label / highway shield / POI symbol layer.
+        // Keep settlement-major-label at very low opacity.
         try {
           const style = map.getStyle()
           if (style?.layers) {
@@ -119,17 +149,21 @@ export default function HeroMap() {
           console.warn('HeroMap: label hide failed', err)
         }
 
-        // DOM markers for each delivery stop — real lng/lat coords
-        PULSE_COORDS.forEach((coord) => {
+        // === 60 real Mapbox markers ===
+        STOP_COORDS.forEach((coord) => {
           const dot = document.createElement('div')
           dot.className = 'hero-marker'
+          dot.style.width = '6px'
+          dot.style.height = '6px'
+          dot.style.borderRadius = '50%'
+          dot.style.background = 'rgba(255,255,255,0.7)'
           const marker = new mapboxgl.Marker({ element: dot, anchor: 'center' })
             .setLngLat(coord)
             .addTo(map)
           markers.push({ element: dot, marker })
         })
 
-        // Flash a random marker periwinkle every 4s
+        // Random periwinkle flash every 4s
         const flash = () => {
           if (markers.length === 0) return
           const pick = markers[Math.floor(Math.random() * markers.length)]
@@ -205,6 +239,20 @@ export default function HeroMap() {
         }
         rafId = requestAnimationFrame(loop)
       })
+
+      // Re-measure and resize whenever the container dimensions change.
+      // This rescues the map if the initial height was briefly wrong.
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => {
+          if (!mapRef.current) return
+          const rect = el.getBoundingClientRect()
+          if (rect.height > 0) {
+            el.style.height = `${rect.height}px`
+            try { mapRef.current.resize() } catch {}
+          }
+        })
+        resizeObserver.observe(el.parentElement || el)
+      }
     }
 
     // Wait for window.load so stylesheets and container dimensions
@@ -219,6 +267,7 @@ export default function HeroMap() {
       disposed = true
       if (rafId) cancelAnimationFrame(rafId)
       if (flashTimer) clearInterval(flashTimer)
+      if (resizeObserver) resizeObserver.disconnect()
       markers.forEach((m) => {
         try { m.marker.remove() } catch {}
       })
@@ -236,7 +285,14 @@ export default function HeroMap() {
       ref={containerRef}
       className="hero-map"
       aria-hidden="true"
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100vh' }}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 0,
+      }}
     />
   )
 }

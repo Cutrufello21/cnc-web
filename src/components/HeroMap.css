@@ -1,14 +1,22 @@
-/* Container lives inside .hero as an absolute background. Inline
-   styles on the element itself are a belt-and-suspenders guarantee
-   that the map has real dimensions before mapbox measures it. */
+/* Container lives inside .hero as an absolute background. Dimensions
+   are set imperatively in JS from the parent's bounding rect so
+   mapbox measures a concrete pixel height at init. */
 .hero-map {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100vh;
+  height: 100%;
   z-index: 0;
   pointer-events: none;
   background: #0a0a0a;
+  overflow: hidden;
+}
+
+.hero-map .mapboxgl-canvas-container,
+.hero-map .mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .hero-map .mapboxgl-ctrl,
