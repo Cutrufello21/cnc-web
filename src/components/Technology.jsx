@@ -108,6 +108,37 @@ export default function Technology() {
 
 function Feature({ feature: f, index: i, inView }) {
   const reversed = i % 2 === 1
+  const fullWidth = f.isPortal || f.isDispatch
+
+  if (fullWidth) {
+    return (
+      <motion.div
+        className="tech-feature tech-feature--fullwidth"
+        initial={{ opacity: 0, y: 40 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6, delay: 0.15 * i }}
+      >
+        <div className="tech-feature__content">
+          <p className="tech-feature__label">{f.label}</p>
+          <h3 className="tech-feature__title">{f.title}</h3>
+          <p className="tech-feature__desc">{f.desc}</p>
+          <div className="tech-feature__points">
+            {f.points.map((pt, j) => (
+              <div className="tech-feature__point" key={j}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span>{pt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="tech-feature__image">
+          {f.isPortal ? <PharmacyPortalDemo /> : <DispatchPortalDemo />}
+        </div>
+      </motion.div>
+    )
+  }
 
   return (
     <motion.div
@@ -116,8 +147,8 @@ function Feature({ feature: f, index: i, inView }) {
       animate={inView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, delay: 0.15 * i }}
     >
-      <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''} ${f.isPortal || f.isDispatch ? 'tech-feature__image--portal' : ''}`}>
-        {f.isPhone ? <DriverAppDemo /> : f.isPortal ? <PharmacyPortalDemo /> : f.isDispatch ? <DispatchPortalDemo /> : <img src={f.image} alt={f.imageAlt} loading="lazy" />}
+      <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''}`}>
+        {f.isPhone ? <DriverAppDemo /> : <img src={f.image} alt={f.imageAlt} loading="lazy" />}
       </div>
       <div className="tech-feature__content">
         <p className="tech-feature__label">{f.label}</p>

@@ -80,6 +80,37 @@
   padding: 20px 0;
 }
 
+/* Full-width portal feature layout — text on top, demo below */
+.tech-feature--fullwidth {
+  display: block;
+  margin-bottom: 100px;
+}
+
+.tech-feature--fullwidth .tech-feature__content {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 40px;
+  padding: 0;
+}
+
+.tech-feature--fullwidth .tech-feature__points {
+  justify-content: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin-top: 24px;
+}
+
+.tech-feature--fullwidth .tech-feature__image {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+  padding: 0;
+  width: 100%;
+}
+
 .tech-feature__image--phone img {
   width: 260px;
   height: auto;

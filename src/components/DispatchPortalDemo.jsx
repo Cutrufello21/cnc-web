@@ -49,6 +49,17 @@ export default function DispatchPortalDemo() {
 
   return (
     <div className="dispatch-demo">
+      <div className="dispatch-browser">
+        <div className="dispatch-chrome">
+          <div className="dispatch-chrome-dots">
+            <span /><span /><span />
+          </div>
+          <div className="dispatch-chrome-url">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            cncdelivery.com/dispatch/routes
+          </div>
+          <div style={{width:30}} />
+        </div>
       <div className="dispatch-frame">
         {/* Sidebar */}
         <aside className="dispatch-sidebar">
@@ -133,6 +144,7 @@ export default function DispatchPortalDemo() {
             })}
           </div>
         </main>
+      </div>
       </div>
     </div>
   )
