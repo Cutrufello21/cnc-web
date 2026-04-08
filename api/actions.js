@@ -95,7 +95,21 @@ export default async function handler(req, res) {
         }
       }
 
-      // Transfer notifications removed — drivers only get notified on Route Ready (Send button)
+      // Only notify if driver's route has been sent today (Route Ready) and it's before 5 PM ET
+      const now = new Date()
+      const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const hour = et.getHours()
+      const todayStr = et.toISOString().split('T')[0]
+      if (hour < 17) { // before 5 PM ET
+        const { data: routeReady } = await supabase.from('driver_notifications').select('id').eq('driver_name', toDriverName).eq('type', 'route_ready').gte('created_at', todayStr + 'T00:00:00').limit(1)
+        if (routeReady?.length > 0) {
+          await notifyDriver(toDriverName, 'Stops Added', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName}.`, 'transfer_in')
+          if (fromDriverName) {
+            const { data: fromReady } = await supabase.from('driver_notifications').select('id').eq('driver_name', fromDriverName).eq('type', 'route_ready').gte('created_at', todayStr + 'T00:00:00').limit(1)
+            if (fromReady?.length > 0) await notifyDriver(fromDriverName, 'Stops Transferred', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`, 'transfer_out')
+          }
+        }
+      }
 
       return res.status(200).json({ success: true, moved: orderIds.length })
     }
