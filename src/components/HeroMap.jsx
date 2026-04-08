@@ -316,7 +316,7 @@ export default function HeroMap() {
         if (!isMobile) {
           const t = (elapsed / 40) * Math.PI * 2
           const dx = Math.sin(t) * 0.10
-          const dy = Math.sin(t * 0.5) * 0.16
+          const dy = Math.sin(t * 0.5) * 0.22
           try { map.setCenter([CENTER[0] + dx, CENTER[1] + dy]) } catch {}
         }
 
