@@ -1,5 +1,45 @@
+/* Mercury-style scroll transition: section starts with a white
+   gradient at the very top (so it blends out of the light Pillars
+   section above) then fades into deep navy by the time the first
+   portal demo appears. End of section fades back to white before
+   Stats/HowItWorks. Effect: visitor feels pulled "into" the app. */
 .tech {
-  padding: 72px 0 56px;
+  padding: 140px 0 120px;
+  position: relative;
+  background: #05101F;
+  color: #E6EDF7;
+  overflow: hidden;
+}
+
+/* Top fade — blend from white (end of Pillars) into navy. */
+.tech::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  background: linear-gradient(180deg, #ffffff 0%, rgba(5, 16, 31, 0.75) 60%, #05101F 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Bottom fade — blend back to white before Stats. */
+.tech::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: linear-gradient(180deg, #05101F 0%, rgba(5, 16, 31, 0.6) 40%, #ffffff 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tech .container {
+  position: relative;
+  z-index: 2;
 }
 
 .tech__header {
@@ -13,7 +53,7 @@
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--cornflower);
+  color: #60A5FA;
   margin-bottom: 12px;
 }
 
@@ -21,14 +61,14 @@
   font-size: clamp(28px, 4vw, 40px);
   font-weight: 700;
   letter-spacing: -1px;
-  color: var(--gray-900);
+  color: #F5F8FF;
   margin-bottom: 16px;
 }
 
 .tech__sub {
   font-size: 17px;
   line-height: 1.6;
-  color: var(--gray-500);
+  color: rgba(230, 237, 247, 0.7);
 }
 
 /* Feature block — alternating image/text */
@@ -130,7 +170,7 @@
   font-weight: 600;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: var(--cornflower);
+  color: #60A5FA;
   margin-bottom: 12px;
 }
 
@@ -138,7 +178,7 @@
   font-size: clamp(24px, 3vw, 32px);
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: var(--gray-900);
+  color: #F5F8FF;
   margin-bottom: 16px;
   line-height: 1.2;
 }
@@ -146,7 +186,7 @@
 .tech-feature__desc {
   font-size: 16px;
   line-height: 1.7;
-  color: var(--gray-500);
+  color: rgba(230, 237, 247, 0.7);
   margin-bottom: 24px;
 }
 
@@ -161,21 +201,21 @@
   align-items: flex-start;
   gap: 10px;
   font-size: 15px;
-  color: var(--gray-600);
+  color: rgba(230, 237, 247, 0.8);
   line-height: 1.4;
 }
 
 .tech-feature__point svg {
   flex-shrink: 0;
   margin-top: 3px;
-  color: var(--cornflower);
+  color: #60A5FA;
 }
 
 /* Proof strip */
 .tech__proof {
   margin-top: 20px;
   padding: 24px 0;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid rgba(96, 165, 250, 0.15);
 }
 
 .tech__proof-items {
@@ -190,11 +230,11 @@
   gap: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--gray-600);
+  color: rgba(230, 237, 247, 0.8);
 }
 
 .tech__proof-item svg {
-  color: var(--cornflower);
+  color: #60A5FA;
 }
 
 /* Dark mode */
