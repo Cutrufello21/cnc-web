@@ -142,12 +142,13 @@ export default function Technology() {
         </motion.div>
       </div>
 
-      {/* Stacked sticky cards — each pins below the nav and the next
-          slides up over it with a rounded top edge. */}
+      {/* Stacked sticky cards — all share the same containing block so
+          they can all pin simultaneously at progressively deeper
+          offsets. Card N+1 slides up from below and covers card N's
+          body, leaving only card N's label strip visible at the top. */}
       <div className="tech__stack">
         {features.map((f, i) => (
-          <div className="tech-card-wrap" key={f.id} style={{ '--i': i }}>
-            <article className="tech-card" data-visual={f.visual} style={{ '--i': i }}>
+          <article className="tech-card" key={f.id} data-visual={f.visual} style={{ '--i': i }}>
               <div className="container tech-card__inner">
                 <div className="tech-card__head">
                   <span className="tech-card__dot" />
@@ -178,8 +179,7 @@ export default function Technology() {
                   </div>
                 </div>
               </div>
-            </article>
-          </div>
+          </article>
         ))}
       </div>
 
