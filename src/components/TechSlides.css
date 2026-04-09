@@ -131,45 +131,133 @@
   font-weight: 600;
 }
 
-/* ---------- Pharmacy: temp graph ---------- */
-.temp-graph {
+/* ---------- Pharmacy: cold chain window timeline ---------- */
+.cold-window {
   width: 100%;
-  max-width: 420px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(96, 165, 250, 0.15);
-  border-radius: 12px;
-  padding: 16px 18px 12px;
+  max-width: 520px;
+  padding: 40px 24px 28px;
 }
 
-.temp-graph__band {
+.cold-window__label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #60A5FA;
+  text-align: center;
+  margin-bottom: 44px;
+}
+
+.cold-window__track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+}
+
+.cold-window__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 77%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.4), rgba(34, 197, 94, 0.7));
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+}
+
+.cold-window__marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.cold-window__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #60A5FA;
+  border: 2px solid #0B1A30;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.5);
+}
+
+.cold-window__dot--ok {
+  background: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.5), 0 0 16px rgba(34, 197, 94, 0.6);
+}
+
+.cold-window__dot--close {
+  background: #0B1A30;
+  border-color: rgba(96, 165, 250, 0.5);
+  box-shadow: none;
+}
+
+.cold-window__tag {
+  position: absolute;
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.8px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-bottom: 8px;
-}
-
-.temp-graph__band--safe {
-  color: #60A5FA;
-  background: rgba(96, 165, 250, 0.1);
-  border: 1px solid rgba(96, 165, 250, 0.3);
-}
-
-.temp-graph__chart {
-  width: 100%;
-  height: 120px;
-  display: block;
-}
-
-.temp-graph__axis {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: rgba(148, 163, 184, 0.6);
+  letter-spacing: 0.5px;
+  color: #cbd5e1;
+  white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  margin-top: 4px;
+}
+
+/* Alternate tags above/below the line so they don't overlap */
+.cold-window__marker--packed .cold-window__tag,
+.cold-window__marker--delivered .cold-window__tag {
+  top: -30px;
+}
+
+.cold-window__marker--pickup .cold-window__tag,
+.cold-window__marker--close .cold-window__tag {
+  top: 22px;
+}
+
+/* Keep edge tags from clipping off the track */
+.cold-window__marker--packed .cold-window__tag {
+  transform: translateX(-10%);
+}
+
+.cold-window__marker--close .cold-window__tag {
+  transform: translateX(-90%);
+  color: #94a3b8;
+}
+
+.cold-window__tag--ok {
+  color: #22c55e;
+}
+
+.cold-window__legend {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 52px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.cold-window__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cold-window__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.cold-window__swatch--ok {
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.4), rgba(34, 197, 94, 0.7));
+}
+
+.cold-window__swatch--margin {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.18);
 }
 
 /* ---------- Pharmacy: audit list ---------- */

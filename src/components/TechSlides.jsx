@@ -72,42 +72,41 @@ export function PharmacyColdChainSlide() {
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">Cold chain verification</div>
-        <h4 className="slide-info__title">Temperature logged. Limits enforced. Flags raised.</h4>
+        <div className="slide-info__eyebrow">Cold chain window</div>
+        <h4 className="slide-info__title">Delivered inside the validated window. Every time.</h4>
         <p className="slide-info__desc">
-          Cold chain packages are flagged at intake, capped per driver, and tracked end to end. If a delivery drifts out of range, dispatch and the pharmacy know before the patient does.
+          Cold packages are flagged at intake, capped per driver, and delivered inside the manufacturer's validated packaging window. Packed at night, picked up before dawn, delivered by mid-morning — no stop slips past its deadline.
         </p>
         <div className="slide-info__stat">
-          <span className="slide-info__stat-num">114</span>
-          <span className="slide-info__stat-unit">cold packages tracked today</span>
+          <span className="slide-info__stat-num">0</span>
+          <span className="slide-info__stat-unit">out-of-window deliveries · 114 today</span>
         </div>
       </div>
       <div className="slide-info__visual">
-        <div className="temp-graph">
-          <div className="temp-graph__band temp-graph__band--safe">
-            <span>36°–46° F · SAFE ZONE</span>
+        <div className="cold-window">
+          <div className="cold-window__label">12-HOUR VALIDATED WINDOW</div>
+          <div className="cold-window__track">
+            <div className="cold-window__fill" />
+            <div className="cold-window__marker cold-window__marker--packed" style={{ left: '0%' }}>
+              <span className="cold-window__dot" />
+              <span className="cold-window__tag">PACKED · 9:00 PM</span>
+            </div>
+            <div className="cold-window__marker cold-window__marker--pickup" style={{ left: '41%' }}>
+              <span className="cold-window__dot" />
+              <span className="cold-window__tag">PICKUP · 5:30 AM</span>
+            </div>
+            <div className="cold-window__marker cold-window__marker--delivered" style={{ left: '77%' }}>
+              <span className="cold-window__dot cold-window__dot--ok" />
+              <span className="cold-window__tag cold-window__tag--ok">DELIVERED · 8:14 AM</span>
+            </div>
+            <div className="cold-window__marker cold-window__marker--close" style={{ left: '100%' }}>
+              <span className="cold-window__dot cold-window__dot--close" />
+              <span className="cold-window__tag cold-window__tag--close">WINDOW CLOSES · 9:00 AM</span>
+            </div>
           </div>
-          <svg className="temp-graph__chart" viewBox="0 0 300 120" preserveAspectRatio="none">
-            <path
-              d="M0,60 L30,58 L60,62 L90,55 L120,63 L150,57 L180,60 L210,56 L240,61 L270,58 L300,60"
-              fill="none"
-              stroke="#60A5FA"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-            <path
-              d="M0,60 L30,58 L60,62 L90,55 L120,63 L150,57 L180,60 L210,56 L240,61 L270,58 L300,60 L300,120 L0,120 Z"
-              fill="url(#tempFill)"
-            />
-            <defs>
-              <linearGradient id="tempFill" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor="#60A5FA" stopOpacity="0.28" />
-                <stop offset="100%" stopColor="#60A5FA" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <div className="temp-graph__axis">
-            <span>6 AM</span><span>9 AM</span><span>12 PM</span><span>3 PM</span><span>6 PM</span>
+          <div className="cold-window__legend">
+            <span><span className="cold-window__swatch cold-window__swatch--ok" /> Delivered in window</span>
+            <span><span className="cold-window__swatch cold-window__swatch--margin" /> Safety margin</span>
           </div>
         </div>
       </div>
