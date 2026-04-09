@@ -134,10 +134,9 @@ export default function Technology() {
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
         >
-          <p className="tech__eyebrow">Our Technology</p>
-          <h2 className="tech__title">Transparency built into every delivery.</h2>
+          <h2 className="tech__title">This is how we prove it.</h2>
           <p className="tech__sub">
-            Three connected platforms. One complete system. We built the software that proves every stop — so your pharmacy clients never have to wonder.
+            Three connected platforms. One system. Built in-house.
           </p>
         </motion.div>
       </div>
