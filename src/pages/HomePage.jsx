@@ -20,14 +20,14 @@ export default function HomePage() {
       <main>
         <Hero />
         <Pillars />
+        <HowItWorks />
         <Technology />
         <Stats />
-        <HowItWorks />
         <ServiceArea />
-        <CTA />
         <About />
         <Team />
         <FAQ />
+        <CTA />
         <ContactForm />
       </main>
       <Footer />
