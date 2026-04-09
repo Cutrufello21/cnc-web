@@ -216,35 +216,34 @@
   display: block;
 }
 
-/* Phone stage centers the phone with an ambient periwinkle glow. */
+/* Phone stage — no frame, phone floats on the card background */
 .tech-card__stage--phone {
-  background:
-    radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.18), transparent 70%),
-    linear-gradient(180deg, rgba(10, 20, 36, 0.6), rgba(5, 13, 24, 0.85));
+  background: transparent;
+  border: none;
+  box-shadow: none;
   padding: 20px;
+  overflow: visible;
 }
 
 /* Wrap the demo in a proper iPhone-style chassis so it reads as a
-   phone and not a landscape window. The .demo-phone element itself
-   is just the inner screen — we add the dark bezel + highlights
-   here. */
+   phone. No stage frame around it. */
 .tech-card__stage--phone .demo-phone {
-  padding: 14px 10px;
+  padding: 12px 8px;
   background:
     linear-gradient(180deg, #1a1a1d 0%, #0a0a0c 100%);
-  border-radius: 42px;
+  border-radius: 38px;
   box-shadow:
     0 0 0 1.5px #2a2a2e,
     0 0 0 3px #0a0a0c,
     0 30px 70px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transform: scale(1.08);
+  transform: scale(0.88);
   transform-origin: center center;
 }
 
 /* Inner screen: clip to a tighter phone radius */
 .tech-card__stage--phone .demo-screen {
-  border-radius: 32px;
+  border-radius: 28px;
   border: none;
 }
 
