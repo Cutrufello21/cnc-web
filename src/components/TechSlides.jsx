@@ -213,7 +213,7 @@ export function DispatchLocalSlide() {
         <div className="slide-info__eyebrow">Local expertise</div>
         <h4 className="slide-info__title">We know Summit, Stark, Portage, and Tuscarawas by heart.</h4>
         <p className="slide-info__desc">
-          Which streets flood in April. Which apartment complexes need buzzer codes. Which patients prefer back-door drops. Which routes slow down during Akron Children's shift change. Every decision we've made since 2007 is baked into how we build your routes tonight.
+          Which streets flood in April. Which apartment complexes need buzzer codes. Which patients prefer back-door drops. Every decision we've made since 2007 is baked into how we build your routes tonight.
         </p>
         <div className="slide-info__stat">
           <span className="slide-info__stat-num">1.3M+</span>
