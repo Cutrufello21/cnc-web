@@ -222,12 +222,11 @@
   background: transparent;
   border: none;
   box-shadow: none;
-  padding: 20px;
+  padding: 20px 20px 60px;
   overflow: visible;
-  /* Let the stage fill the full card body so the phone has room
-     to sit lower — no max-height cap here. */
-  max-height: none;
+  max-height: calc(100vh - var(--nav-offset) - 200px);
   align-items: center;
+  align-self: start;
 }
 
 /* Wrap the demo in a proper iPhone-style chassis so it reads as a
