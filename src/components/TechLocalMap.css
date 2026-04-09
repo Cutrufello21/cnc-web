@@ -1,0 +1,101 @@
+/* Dispatch Portal carousel — NE Ohio dark coverage map */
+.tech-map {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tech-map__canvas {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  background: #05101F;
+}
+
+.tech-map__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: rgba(230, 237, 247, 0.6);
+  align-self: center;
+}
+
+.tech-map__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #60A5FA;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.7);
+}
+
+/* ---------- Anchor markers ---------- */
+/* Each marker is positioned at its lat/lng by Mapbox; the children
+   absolutely position the pulse + dot at center with the label
+   floating above. */
+.tech-map-marker {
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.tech-map-marker__pulse,
+.tech-map-marker__dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.tech-map-marker__dot {
+  width: 10px;
+  height: 10px;
+  background: #F5F8FF;
+  box-shadow:
+    0 0 0 2px #60A5FA,
+    0 0 14px rgba(96, 165, 250, 0.9);
+  z-index: 2;
+}
+
+.tech-map-marker__pulse {
+  width: 10px;
+  height: 10px;
+  background: rgba(96, 165, 250, 0.55);
+  animation: techMapPulse 2.2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes techMapPulse {
+  0%   { transform: translate(-50%, -50%) scale(1);   opacity: 0.75; }
+  70%  { transform: translate(-50%, -50%) scale(4);   opacity: 0;    }
+  100% { transform: translate(-50%, -50%) scale(4.2); opacity: 0;    }
+}
+
+.tech-map-marker__label {
+  position: absolute;
+  top: -22px;
+  left: 0;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #F5F8FF;
+  background: rgba(5, 16, 31, 0.85);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 4px;
+  padding: 3px 7px;
+  white-space: nowrap;
+  z-index: 3;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}

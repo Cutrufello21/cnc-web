@@ -1,7 +1,9 @@
 /* Infographic slides that sit alongside the live demos inside each
    Technology card's carousel. Each slide is a simple two-column
-   layout: copy on the left, animated visual on the right. No
-   external dependencies — all SVG/CSS. */
+   layout: copy on the left, animated visual on the right. Most
+   slides are pure SVG/CSS; the Dispatch Local slide uses Mapbox
+   via the TechLocalMap component. */
+import TechLocalMap from './TechLocalMap'
 import './TechSlides.css'
 
 /* ---------- Pharmacy Portal slides ---------- */
@@ -196,17 +198,6 @@ export function DispatchHandoffSlide() {
 }
 
 export function DispatchLocalSlide() {
-  const expertise = [
-    'Buzzer codes',
-    'Back-door drops',
-    'Flood routes',
-    'Time windows',
-    'Cold chain first',
-    'Patient preferences',
-    'Hospital rush hours',
-    'Rural routes',
-    'Apartment complexes',
-  ]
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
@@ -221,12 +212,7 @@ export function DispatchLocalSlide() {
         </div>
       </div>
       <div className="slide-info__visual">
-        <div className="rule-chips">
-          {expertise.map((r, i) => (
-            <span className="rule-chip" key={r} style={{ '--i': i }}>{r}</span>
-          ))}
-          <span className="rule-chip rule-chip--more">+148 more we've learned</span>
-        </div>
+        <TechLocalMap />
       </div>
     </div>
   )
