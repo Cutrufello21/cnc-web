@@ -10,14 +10,14 @@ export function PharmacyRealtimeSlide() {
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">Live status, every order</div>
-        <h4 className="slide-info__title">Your clients never have to call to ask where a delivery is.</h4>
+        <div className="slide-info__eyebrow">See every delivery</div>
+        <h4 className="slide-info__title">Know where every order is. Without picking up the phone.</h4>
         <p className="slide-info__desc">
-          Every stop updates in real time the moment a driver checks in, loads, or delivers. Pharmacy staff see the same truth your dispatcher sees — no phone tag, no guessing.
+          Every stop updates the moment a driver picks up, arrives, or delivers. Your staff sees the same thing our dispatcher sees — so when a patient calls asking where their meds are, the answer is already on the screen.
         </p>
         <div className="slide-info__stat">
-          <span className="slide-info__stat-num">334</span>
-          <span className="slide-info__stat-unit">active stops today</span>
+          <span className="slide-info__stat-num">0</span>
+          <span className="slide-info__stat-unit">phone calls to us for a status update</span>
         </div>
       </div>
       <div className="slide-info__visual">
@@ -36,14 +36,14 @@ export function PharmacyPodSlide() {
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">POD records on demand</div>
-        <h4 className="slide-info__title">Every delivery is a medical-grade receipt.</h4>
+        <div className="slide-info__eyebrow">Proof of every delivery</div>
+        <h4 className="slide-info__title">Photo, signature, and location for every stop. Pulled up in one click.</h4>
         <p className="slide-info__desc">
-          Geofence confirmation, timestamped photo, digital signature, and driver note — pulled in seconds when audit, compliance, or a patient asks.
+          When a patient calls to say they didn't get their prescription, or an inspector asks for documentation, the full delivery record is one click away: who signed for it, what time, where, and a photo of the package at the door.
         </p>
         <div className="slide-info__stat">
-          <span className="slide-info__stat-num">0.3s</span>
-          <span className="slide-info__stat-unit">average record retrieval</span>
+          <span className="slide-info__stat-num">1 click</span>
+          <span className="slide-info__stat-unit">to pull any delivery record</span>
         </div>
       </div>
       <div className="slide-info__visual">
@@ -58,9 +58,9 @@ export function PharmacyPodSlide() {
               <circle cx="12" cy="12" r="3" />
             </svg>
           </div>
-          <div className="pod-card__row"><span>GPS</span><span className="pod-card__mono">41.0814° N · 81.5190° W</span></div>
+          <div className="pod-card__row"><span>Delivered to</span><span className="pod-card__mono">Anderson, James M</span></div>
           <div className="pod-card__row"><span>Time</span><span className="pod-card__mono">08:14:23 AM</span></div>
-          <div className="pod-card__row"><span>Geofence</span><span className="pod-card__ok">Confirmed</span></div>
+          <div className="pod-card__row"><span>Location</span><span className="pod-card__ok">Confirmed at door</span></div>
           <div className="pod-card__row"><span>Signature</span><span className="pod-card__ok">Captured</span></div>
         </div>
       </div>
@@ -73,13 +73,13 @@ export function PharmacyColdChainSlide() {
     <div className="slide-info">
       <div className="slide-info__copy">
         <div className="slide-info__eyebrow">Cold chain window</div>
-        <h4 className="slide-info__title">Delivered inside the validated window. Every time.</h4>
+        <h4 className="slide-info__title">Cold meds delivered inside the packaging window. Every time.</h4>
         <p className="slide-info__desc">
-          Cold packages are flagged at intake, capped per driver, and delivered inside the manufacturer's validated packaging window. Packed at night, picked up before dawn, delivered by mid-morning — no stop slips past its deadline.
+          Cold packages are flagged when they leave the pharmacy, limited per driver, and delivered before the insulated packaging reaches its time limit. No meds sitting in a warm van. No temperature excursions.
         </p>
         <div className="slide-info__stat">
           <span className="slide-info__stat-num">0</span>
-          <span className="slide-info__stat-unit">out-of-window deliveries · 114 today</span>
+          <span className="slide-info__stat-unit">cold deliveries past the window · 114 today</span>
         </div>
       </div>
       <div className="slide-info__visual">
@@ -126,14 +126,14 @@ export function PharmacyAuditSlide() {
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">Full audit trail</div>
-        <h4 className="slide-info__title">Every action. Every timestamp. Every driver.</h4>
+        <div className="slide-info__eyebrow">The record you can hand to a regulator</div>
+        <h4 className="slide-info__title">Every delivery. Every driver. Every timestamp. All of it.</h4>
         <p className="slide-info__desc">
-          Regulators, compliance officers, and pharmacy directors get the same immutable log. Not a report — the actual record, exported on demand.
+          When a regulator or your compliance team asks for delivery records, you don't generate a report — you hand them the actual log. Searchable, exportable, and complete going back to 2023.
         </p>
         <div className="slide-info__stat">
           <span className="slide-info__stat-num">100%</span>
-          <span className="slide-info__stat-unit">deliveries logged since 2023</span>
+          <span className="slide-info__stat-unit">of deliveries logged since 2023</span>
         </div>
       </div>
       <div className="slide-info__visual">
