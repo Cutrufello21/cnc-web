@@ -321,6 +321,7 @@ export default function DispatchPage() {
   const [sendingForceAll, setSendingForceAll] = useState(false)
   const [forceAllSent, setForceAllSent] = useState(false)
   const [correctionsSent, setCorrectionsSent] = useState(false)
+  const [sendingResendCorrections, setSendingResendCorrections] = useState(false)
   const [sentSnapshot, setSentSnapshot] = useState(null) // { driverName: Set of orderIds }
   const [resending, setResending] = useState(false)
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
@@ -686,6 +687,97 @@ export default function DispatchPage() {
       setMoveToast(`Error: ${err.message}`)
     } finally {
       setSendingCorrections(false)
+    }
+  }
+
+  // Resend every currently-reassigned stop (dispatch_driver_number
+  // differs from assigned_driver_number, or the stop was manually
+  // assigned from unassigned) EVEN IF last_correction_driver already
+  // matches. Use this when BioTouch missed the last correction batch
+  // and you need to push the same reassignments again without touching
+  // the ~80 stops that never moved. Narrower than Force Send All.
+  async function handleResendCorrections() {
+    setSendingResendCorrections(true)
+    try {
+      const dateStr = data.deliveryDateObj
+        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+        : ''
+      if (!dateStr) throw new Error('No delivery date')
+
+      const { data: stops } = await supabase
+        .from('daily_stops')
+        .select('*')
+        .eq('delivery_date', dateStr)
+        .limit(10000)
+
+      // Same correction filter as handleSendCorrections, MINUS the
+      // last_correction_driver gate.
+      const corrections = {}
+      for (const s of (stops || [])) {
+        if (!s.assigned_driver_number) continue
+        const needsCorrection =
+          !s.dispatch_driver_number ||
+          String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
+        if (!needsCorrection) continue
+        const did = s.assigned_driver_number
+        if (!corrections[did]) corrections[did] = []
+        corrections[did].push(s.order_id)
+      }
+
+      const driverCount = Object.keys(corrections).length
+      const totalOrders = Object.values(corrections).reduce((n, arr) => n + arr.length, 0)
+      if (driverCount === 0) {
+        setMoveToast('No reassigned stops to resend — every stop matches its original dispatch')
+        setSendingResendCorrections(false)
+        return
+      }
+      if (!confirm(`Resend ${totalOrders} reassigned orders across ${driverCount} drivers to BioTouch?\n\n(Ignores already-sent tracking. Does NOT send the ${(stops || []).length - totalOrders} stops that match their original dispatch.)`)) {
+        setSendingResendCorrections(false)
+        return
+      }
+
+      let sent = 0
+      const markErrors = []
+      for (const [driverId, orderIds] of Object.entries(corrections)) {
+        try {
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'email',
+              to: 'wfldispatch@biotouchglobal.com',
+              subject: `Assign to Driver ${driverId}`,
+              html: `<pre>${orderIds.join('\n')}</pre>`,
+            }),
+          })
+        } catch (e) {
+          markErrors.push(`email ${driverId}: ${e.message}`)
+          continue
+        }
+        const markRes = await fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'mark_correction_sent',
+            orderIds,
+            driverNumber: driverId,
+          }),
+        })
+        if (!markRes.ok) {
+          const txt = await markRes.text().catch(() => '')
+          markErrors.push(`mark ${driverId}: ${markRes.status} ${txt}`)
+        }
+        sent++
+      }
+      if (markErrors.length) {
+        console.error('[resend corrections] mark errors:', markErrors)
+        setMoveToast(`Resent ${sent} drivers, but ${markErrors.length} failed to mark — check console`)
+      } else {
+        setMoveToast(`Resent ${totalOrders} corrections to BioTouch (${sent} drivers)`)
+      }
+    } catch (err) {
+      setMoveToast(`Error: ${err.message}`)
+    } finally {
+      setSendingResendCorrections(false)
     }
   }
 
@@ -1086,6 +1178,14 @@ export default function DispatchPage() {
                   disabled={sendingCorrections || correctionsSent || totalStops === 0}
                 >
                   {correctionsSent ? 'Sent' : sendingCorrections ? 'Sending...' : 'Send Corrections'}
+                </button>
+                <button
+                  className="dispatch__send-btn dispatch__send-btn--corrections"
+                  onClick={handleResendCorrections}
+                  disabled={sendingResendCorrections || totalStops === 0}
+                  title="Resend every currently-reassigned stop to BioTouch (ignores already-sent, but skips stops that never moved)"
+                >
+                  {sendingResendCorrections ? 'Sending...' : 'Resend Corrections'}
                 </button>
                 <button
                   className={`dispatch__send-btn dispatch__send-btn--corrections ${forceAllSent ? 'dispatch__send-btn--done' : ''}`}
