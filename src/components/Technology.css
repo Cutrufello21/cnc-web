@@ -217,16 +217,17 @@
   display: block;
 }
 
-/* Phone stage — no frame, phone floats on the card background.
-   Anchor to bottom so the phone sits low on the card rather than
-   floating up near the head strip. */
+/* Phone stage — no frame, phone floats on the card background. */
 .tech-card__stage--phone {
   background: transparent;
   border: none;
   box-shadow: none;
   padding: 20px;
   overflow: visible;
-  align-items: flex-end;
+  /* Let the stage fill the full card body so the phone has room
+     to sit lower — no max-height cap here. */
+  max-height: none;
+  align-items: center;
 }
 
 /* Wrap the demo in a proper iPhone-style chassis so it reads as a
