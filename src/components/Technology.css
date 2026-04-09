@@ -1,45 +1,15 @@
-/* Mercury-style scroll transition: section starts with a white
-   gradient at the very top (so it blends out of the light Pillars
-   section above) then fades into deep navy by the time the first
-   portal demo appears. End of section fades back to white before
-   Stats/HowItWorks. Effect: visitor feels pulled "into" the app. */
+/* Scroll-driven light→dark transition: JS in Technology.jsx
+   interpolates .tech backgroundColor based on scroll position so the
+   section smoothly darkens as it enters the viewport and brightens
+   back to white as it leaves. Effect: visitor feels pulled into
+   the live product. */
 .tech {
   padding: 140px 0 120px;
   position: relative;
-  background: #05101F;
+  background: #ffffff;
   color: #E6EDF7;
   overflow: hidden;
-}
-
-/* Top fade — blend from white (end of Pillars) into navy. */
-.tech::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 220px;
-  background: linear-gradient(180deg, #ffffff 0%, rgba(5, 16, 31, 0.75) 60%, #05101F 100%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Bottom fade — blend back to white before Stats. */
-.tech::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 180px;
-  background: linear-gradient(180deg, #05101F 0%, rgba(5, 16, 31, 0.6) 40%, #ffffff 100%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.tech .container {
-  position: relative;
-  z-index: 2;
+  transition: background-color 0ms linear;
 }
 
 .tech__header {

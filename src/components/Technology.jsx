@@ -1,9 +1,71 @@
+import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useInView } from '../hooks/useInView'
 import DriverAppDemo from './DriverAppDemo'
 import PharmacyPortalDemo from './PharmacyPortalDemo'
 import DispatchPortalDemo from './DispatchPortalDemo'
 import './Technology.css'
+
+/* Scroll-driven background: interpolate the .tech section from
+   white → deep navy → white as it enters, fills, and exits the
+   viewport. Uses rAF-throttled scroll listener so it's smooth
+   on 60/120Hz displays. */
+function useTechScrollTransition() {
+  useEffect(() => {
+    const el = document.querySelector('.tech')
+    if (!el) return
+
+    // White → dark navy (matches PharmacyPortalDemo background).
+    const FROM = [255, 255, 255]
+    const TO = [5, 16, 31]
+    const lerp = (a, b, t) => Math.round(a + (b - a) * t)
+    const smoothstep = (t) => t * t * (3 - 2 * t)
+
+    let ticking = false
+    const update = () => {
+      ticking = false
+      const rect = el.getBoundingClientRect()
+      const vh = window.innerHeight
+
+      let t
+      if (rect.top >= vh) {
+        t = 0 // not entered yet
+      } else if (rect.top > 0) {
+        // Entering: top travels vh → 0 across one viewport of scroll
+        t = 1 - rect.top / vh
+      } else if (rect.bottom >= vh) {
+        t = 1 // fully occupying the viewport
+      } else if (rect.bottom > 0) {
+        // Exiting: bottom travels vh → 0
+        t = rect.bottom / vh
+      } else {
+        t = 0 // fully past
+      }
+
+      t = smoothstep(Math.max(0, Math.min(1, t)))
+      const r = lerp(FROM[0], TO[0], t)
+      const g = lerp(FROM[1], TO[1], t)
+      const b = lerp(FROM[2], TO[2], t)
+      el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`
+    }
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(update)
+        ticking = true
+      }
+    }
+
+    update()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      el.style.backgroundColor = ''
+    }
+  }, [])
+}
 
 const features = [
   {
@@ -55,6 +117,7 @@ const features = [
 
 export default function Technology() {
   const [ref, inView] = useInView(0.05)
+  useTechScrollTransition()
 
   return (
     <section className="tech" id="technology" ref={ref}>
