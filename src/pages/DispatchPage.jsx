@@ -629,8 +629,8 @@ export default function DispatchPage() {
             method: 'POST',
             body: JSON.stringify({
               action: 'email',
-              to: 'dom@cncdeliveryservice.com',
-              subject: `[TEST] Assign to Driver ${driverId}`,
+              to: 'wfldispatch@biotouchglobal.com',
+              subject: `Assign to Driver ${driverId}`,
               html: `<pre>${orderIds.join('\n')}</pre>`,
             }),
           })
@@ -734,8 +734,8 @@ export default function DispatchPage() {
             method: 'POST',
             body: JSON.stringify({
               action: 'email',
-              to: 'dom@cncdeliveryservice.com',
-              subject: `[TEST] Assign to Driver ${driverId}`,
+              to: 'wfldispatch@biotouchglobal.com',
+              subject: `Assign to Driver ${driverId}`,
               html: `<pre>${orderIds.join('\n')}</pre>`,
             }),
           })
