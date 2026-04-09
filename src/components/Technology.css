@@ -137,24 +137,25 @@
    strip so everything fits inside the pinned viewport. */
 .tech-card__body {
   display: grid;
-  grid-template-columns: minmax(300px, 400px) 1fr;
-  gap: 48px;
+  grid-template-columns: minmax(380px, 480px) 1fr;
+  gap: 56px;
   align-items: center;
   flex: 1;
   min-height: 0;
 }
 
 .tech-card__copy {
-  max-width: 420px;
+  max-width: 480px;
 }
 
 .tech-card__title {
-  font-size: clamp(26px, 2.6vw, 36px);
+  font-size: clamp(24px, 2.3vw, 32px);
   font-weight: 700;
-  letter-spacing: -0.8px;
+  letter-spacing: -0.6px;
   color: #F5F8FF;
   margin-bottom: 14px;
-  line-height: 1.15;
+  line-height: 1.2;
+  text-wrap: balance;
 }
 
 .tech-card__desc {
@@ -213,12 +214,18 @@
   display: block;
 }
 
-/* Phone stage centers the phone with an ambient periwinkle glow */
+/* Phone stage centers the phone with an ambient periwinkle glow.
+   The demo-phone itself is only 300px wide, so scale it up to fill
+   the stage height nicely instead of floating in empty space. */
 .tech-card__stage--phone {
   background:
-    radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.15), transparent 70%),
-    linear-gradient(180deg, rgba(10, 20, 36, 0.6), rgba(5, 13, 24, 0.8));
-  padding: 24px;
+    radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.18), transparent 70%),
+    linear-gradient(180deg, rgba(10, 20, 36, 0.6), rgba(5, 13, 24, 0.85));
+  padding: 20px;
+}
+.tech-card__stage--phone .demo-phone {
+  transform: scale(1.15);
+  transform-origin: center center;
 }
 
 /* ---------- Proof strip ---------- */
