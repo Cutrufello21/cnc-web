@@ -22,14 +22,6 @@ mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
    the Dispatch card is actually on screen, and the animation pauses when
    the tab is hidden or the slide scrolls off. */
 
-// Static label pins so visitors can orient the map immediately.
-const LABELS = [
-  { lng: -81.5190, lat: 41.0814, label: 'Akron' },
-  { lng: -81.3784, lat: 40.7989, label: 'Canton' },
-  { lng: -81.9351, lat: 40.8051, label: 'Wooster' },
-  { lng: -81.4457, lat: 40.4898, label: 'New Philadelphia' },
-]
-
 // --- Geometry helpers ------------------------------------------------------
 // Haversine distance in meters between two [lng, lat] points.
 function haversine(a, b) {
@@ -118,63 +110,40 @@ export default function TechLocalMap() {
     })
 
     map.on('load', () => {
-      // Static label pins for orientation.
-      for (const m of LABELS) {
-        const el = document.createElement('div')
-        el.className = 'tech-map-marker'
-        el.innerHTML = `
-          <span class="tech-map-marker__dot"></span>
-          <span class="tech-map-marker__label">${m.label}</span>
-        `
-        new mapboxgl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([m.lng, m.lat])
-          .addTo(map)
-      }
-
-      // Spawn 2 cars per circuit (12 total) at staggered offsets so
-      // every corridor always has visible traffic. Each car gets its
-      // own randomized lap time so the fleet never syncs up.
-      const cars = []
-      routesData.forEach((r) => {
+      // One car per city. Each car drives its own road-snapped loop
+      // around the city it belongs to, so no two cars ever come close.
+      const cars = routesData.map((r) => {
         const route = prepRoute(r.coordinates)
-        for (let k = 0; k < 2; k++) {
-          const el = document.createElement('div')
-          el.className = 'tech-car'
-          // Inner wrapper is the one we rotate — Mapbox owns the outer
-          // element's transform for positioning, so we can't touch it.
-          // Chevron icon is visually distinct from the city-label pills
-          // and reads as "moving forward".
-          const inner = document.createElement('div')
-          inner.className = 'tech-car__inner'
-          inner.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-              <path d="M7 1 L12.2 12 L7 9.2 L1.8 12 Z"
-                    fill="#60A5FA"
-                    stroke="#F5F8FF"
-                    stroke-width="0.9"
-                    stroke-linejoin="round"/>
-            </svg>
-          `
-          el.appendChild(inner)
-          const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-            .setLngLat(r.coordinates[0])
-            .addTo(map)
+        const el = document.createElement('div')
+        el.className = 'tech-car'
+        // Mapbox owns the outer element's transform for positioning,
+        // so SVG rotation lives on an inner wrapper.
+        const inner = document.createElement('div')
+        inner.className = 'tech-car__inner'
+        inner.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M7 1 L12.2 12 L7 9.2 L1.8 12 Z"
+                  fill="#60A5FA"
+                  stroke="#F5F8FF"
+                  stroke-width="0.9"
+                  stroke-linejoin="round"/>
+          </svg>
+        `
+        el.appendChild(inner)
+        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+          .setLngLat(r.coordinates[0])
+          .addTo(map)
 
-          // Lap time is route-independent — every car completes its
-          // circuit in 25–40s so apparent pixel speed is consistent
-          // whether the circuit is 50km or 140km.
-          const loopSeconds = 25 + Math.random() * 15
-          // Stagger the two cars by half a lap so the route always
-          // has traffic on both legs (plus a little jitter).
-          const baseOffset = (k * 0.5 + Math.random() * 0.15) * route.total
-          cars.push({
-            route,
-            marker,
-            el,
-            inner,
-            speed: route.total / loopSeconds,
-            dist: baseOffset,
-          })
+        // Lap time 20–32s across all routes — apparent pixel speed
+        // stays consistent even though route lengths vary slightly.
+        const loopSeconds = 20 + Math.random() * 12
+        return {
+          route,
+          marker,
+          el,
+          inner,
+          speed: route.total / loopSeconds,
+          dist: Math.random() * route.total, // desync start positions
         }
       })
       carsRef.current = cars
