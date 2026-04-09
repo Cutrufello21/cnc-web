@@ -8,16 +8,16 @@
   background: #ffffff;
 }
 
-/* Bottom fade — taller and matched to the next section's exact bg
-   (TrustBar uses --gray-50 = #f9fafb) so the seam disappears. */
+/* Bottom fade — the whole page is continuous white now, so we just
+   need a short fade to hide the last map tiles into pure white. */
 .hero::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 180px;
-  background: linear-gradient(180deg, rgba(249, 250, 251, 0) 0%, #f9fafb 100%);
+  height: 160px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 100%);
   z-index: 2;
   pointer-events: none;
 }

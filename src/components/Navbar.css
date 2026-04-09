@@ -8,20 +8,25 @@
   border-bottom: 1px solid transparent;
   transition:
     background-color 300ms ease,
-    border-color 300ms ease,
-    color 300ms ease;
+    backdrop-filter 300ms ease,
+    -webkit-backdrop-filter 300ms ease,
+    border-color 300ms ease;
 }
 
-/* Mercury-style: transparent over the hero, solid white once the
-   visitor scrolls past it. */
+/* Mercury-style: transparent over the hero map, frosted glass
+   once the visitor scrolls past it. No hard chrome — the nav
+   becomes a semi-transparent pane so content scrolling beneath
+   stays visible as a faint tone shift. */
 .navbar.navbar--transparent {
   background-color: transparent;
   border-bottom-color: transparent;
 }
 
 .navbar.navbar--solid {
-  background-color: #ffffff;
-  border-bottom-color: rgba(0, 0, 0, 0.08);
+  background-color: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-bottom-color: transparent;
 }
 
 .navbar__progress {
