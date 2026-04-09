@@ -23,7 +23,7 @@
 }
 
 .navbar.navbar--solid {
-  background-color: rgba(255, 255, 255, 0.72);
+  background-color: var(--nav-bg, rgba(255, 255, 255, 0.72));
   -webkit-backdrop-filter: saturate(180%) blur(16px);
   backdrop-filter: saturate(180%) blur(16px);
   border-bottom-color: transparent;
@@ -67,11 +67,12 @@
 }
 
 /* Dark text in both states — readable over the white hero map
-   and the solid white post-hero nav. */
-.navbar--transparent .navbar__links a:not(.navbar__cta),
-.navbar--solid .navbar__links a:not(.navbar__cta) {
-  color: #111111;
-  opacity: 0.75;
+   and the solid white post-hero nav. Uses var(--nav-text) so the
+   color tracks the scroll animation over the Technology section. */
+.navbar--transparent .navbar__links a:not(.navbar__cta):not(.navbar__signin),
+.navbar--solid .navbar__links a:not(.navbar__cta):not(.navbar__signin) {
+  color: var(--nav-text, #111111);
+  opacity: 0.85;
 }
 .navbar--transparent .navbar__links a:not(.navbar__cta):hover,
 .navbar--solid .navbar__links a:not(.navbar__cta):hover {
@@ -116,16 +117,13 @@
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  border: 1px solid rgba(10, 36, 99, 0.25);
-  color: #0A2463 !important;
+  border: 1px solid var(--nav-border, rgba(10, 36, 99, 0.25));
+  color: var(--nav-text, #0A2463) !important;
   opacity: 1 !important;
   transition:
-    background-color 200ms ease,
-    border-color 200ms ease,
-    color 200ms ease;
+    background-color 200ms ease;
 }
 .navbar__signin:hover {
-  border-color: #0A2463;
   background: rgba(10, 36, 99, 0.04);
 }
 

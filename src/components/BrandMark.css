@@ -61,17 +61,18 @@
   color: #fff;
 }
 
-/* Dark variant — navy text on white */
+/* Dark variant — navy text on white. Uses var(--nav-text) so the
+   logo tracks the scroll-driven light→dark animation in the nav. */
 .brand-mark--dark .brand-mark__cnc,
 .brand-mark--dark .brand-mark__delivery {
-  color: #0A2463;
+  color: var(--nav-text, #0A2463);
 }
 .brand-mark--dark .brand-mark__rule,
 .brand-mark--dark .brand-mark__line {
-  background: #0A2463;
+  background: var(--nav-text, #0A2463);
 }
 .brand-mark--dark .brand-mark__tagline {
-  color: #0A2463;
+  color: var(--nav-text, #0A2463);
 }
 
 /* Small size — for nav headers */

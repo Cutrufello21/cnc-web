@@ -51,6 +51,22 @@ function useTechScrollTransition() {
       const color = `rgb(${r}, ${g}, ${b})`
       document.body.style.backgroundColor = color
       document.documentElement.style.backgroundColor = color
+
+      // Drive navbar colors in sync via CSS variables. At t=0 the nav
+      // is the existing solid-light state; at t=1 it matches the deep
+      // navy section so the visitor feels inside the product shell.
+      const navBgR = lerp(255, 5, t)
+      const navBgG = lerp(255, 16, t)
+      const navBgB = lerp(255, 31, t)
+      // Link / logo text: dark navy (#0A2463, rgb 10,36,99) at t=0
+      // → near-white (#E6EDF7, rgb 230,237,247) at t=1.
+      const navTxtR = lerp(10, 230, t)
+      const navTxtG = lerp(36, 237, t)
+      const navTxtB = lerp(99, 247, t)
+      const root = document.documentElement
+      root.style.setProperty('--nav-bg', `rgba(${navBgR}, ${navBgG}, ${navBgB}, 0.78)`)
+      root.style.setProperty('--nav-text', `rgb(${navTxtR}, ${navTxtG}, ${navTxtB})`)
+      root.style.setProperty('--nav-border', `rgba(${navTxtR}, ${navTxtG}, ${navTxtB}, 0.25)`)
     }
 
     const onScroll = () => {
@@ -68,6 +84,10 @@ function useTechScrollTransition() {
       window.removeEventListener('resize', onScroll)
       document.body.style.backgroundColor = ''
       document.documentElement.style.backgroundColor = ''
+      const root = document.documentElement
+      root.style.removeProperty('--nav-bg')
+      root.style.removeProperty('--nav-text')
+      root.style.removeProperty('--nav-border')
     }
   }, [])
 }
