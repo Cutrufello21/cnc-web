@@ -574,15 +574,28 @@ export default function DispatchPage() {
         : ''
       if (!dateStr) throw new Error('No delivery date')
 
-      const { data: stops } = await supabase.from('daily_stops').select('*').eq('delivery_date', dateStr)
+      // Supabase default row limit is 1000 — explicit limit so we
+      // don't silently drop corrections on heavy days.
+      const { data: stops } = await supabase
+        .from('daily_stops')
+        .select('*')
+        .eq('delivery_date', dateStr)
+        .limit(10000)
 
       const corrections = {}
       for (const s of (stops || [])) {
-        if (s.dispatch_driver_number && s.assigned_driver_number && s.dispatch_driver_number !== s.assigned_driver_number) {
-          const did = s.assigned_driver_number
-          if (!corrections[did]) corrections[did] = []
-          corrections[did].push(s.order_id)
-        }
+        if (!s.assigned_driver_number) continue
+        // A row needs a correction email if the current assignment
+        // differs from the original dispatch, OR if there was no
+        // original dispatch driver at all (manually assigned from
+        // unassigned bucket).
+        const needsCorrection =
+          !s.dispatch_driver_number ||
+          String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
+        if (!needsCorrection) continue
+        const did = s.assigned_driver_number
+        if (!corrections[did]) corrections[did] = []
+        corrections[did].push(s.order_id)
       }
 
       if (Object.keys(corrections).length === 0) {
