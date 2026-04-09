@@ -83,7 +83,7 @@
   opacity: 1 !important;
 }
 
-/* --- CTA button: Sign In (navy fill, white text, 500) --- */
+/* --- Primary CTA: Request Consultation (navy fill) --- */
 .navbar__cta {
   padding: 9px 20px;
   border-radius: 8px;
@@ -107,6 +107,26 @@
 .navbar--solid .navbar__cta:hover {
   background: #123080;
   border-color: #123080;
+}
+
+/* --- Secondary: Sign In (outlined) --- */
+.navbar__signin {
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  border: 1px solid rgba(10, 36, 99, 0.25);
+  color: #0A2463 !important;
+  opacity: 1 !important;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease;
+}
+.navbar__signin:hover {
+  border-color: #0A2463;
+  background: rgba(10, 36, 99, 0.04);
 }
 
 /* --- Hamburger --- */

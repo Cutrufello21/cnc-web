@@ -2,7 +2,7 @@
   position: relative;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   overflow: hidden;
   background: #ffffff;
@@ -40,7 +40,7 @@
   position: relative;
   z-index: 2;
   text-align: left;
-  padding: 40px 24px 80px 80px;
+  padding: 140px 24px 60px 80px;
   width: 60%;
   max-width: 720px;
   margin: 0;
@@ -59,16 +59,16 @@
   letter-spacing: 2px;
   text-transform: uppercase;
   color: #60A5FA;
-  margin-bottom: 36px;
+  margin-bottom: 20px;
 }
 
 .hero__headline {
-  font-size: clamp(40px, 4.8vw, 64px);
+  font-size: clamp(36px, 4.4vw, 58px);
   font-weight: 600;
   line-height: 1.08;
   letter-spacing: -1.5px;
   color: #1A1F36;
-  margin-bottom: 36px;
+  margin-bottom: 24px;
   white-space: normal;
 }
 
@@ -83,7 +83,7 @@
   color: #111111;
   opacity: 0.85;
   max-width: 560px;
-  margin: 0 0 56px 0;
+  margin: 0 0 36px 0;
 }
 
 .hero__actions {
@@ -133,7 +133,7 @@
 
 @media (max-width: 900px) {
   .hero__content {
-    padding: 120px 20px 80px 40px;
+    padding: 130px 20px 60px 40px;
     width: 85%;
     max-width: 85%;
   }

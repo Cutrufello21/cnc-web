@@ -51,7 +51,7 @@ export default function Pillars() {
           <p className="pillars__eyebrow">What We Do Differently</p>
           <h2 className="pillars__title">Designed around the delivery. Not the other way around.</h2>
           <p className="pillars__sub">
-            Seventeen years without delivering anything except medications.
+            Seventeen years. One thing: medications.
           </p>
         </motion.div>
 

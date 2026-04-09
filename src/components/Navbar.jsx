@@ -66,9 +66,12 @@ export default function Navbar() {
           <a href="#coverage" className={active === 'coverage' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Coverage</a>
           <a href="#about" className={active === 'about' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>About</a>
           <a href="#team" className={active === 'team' ? 'navbar__link--active' : ''} onClick={() => setMenuOpen(false)}>Team</a>
-          <Link to="/login" className="navbar__cta" onClick={() => setMenuOpen(false)}>
+          <Link to="/login" className="navbar__signin" onClick={() => setMenuOpen(false)}>
             Sign In
           </Link>
+          <a href="#contact" className="navbar__cta" onClick={() => setMenuOpen(false)}>
+            Request Consultation
+          </a>
         </div>
 
         <button

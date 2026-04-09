@@ -1,11 +1,11 @@
 .tech {
-  padding: 100px 0 60px;
+  padding: 72px 0 56px;
 }
 
 .tech__header {
   text-align: center;
-  max-width: 640px;
-  margin: 0 auto 80px;
+  max-width: 760px;
+  margin: 0 auto 48px;
 }
 
 .tech__eyebrow {
@@ -37,7 +37,7 @@
   grid-template-columns: 1.1fr 1fr;
   gap: 64px;
   align-items: center;
-  margin-bottom: 80px;
+  margin-bottom: 56px;
 }
 
 .tech-feature--reversed {
@@ -83,7 +83,7 @@
 /* Full-width portal feature layout — text on top, demo below */
 .tech-feature--fullwidth {
   display: block;
-  margin-bottom: 100px;
+  margin-bottom: 72px;
 }
 
 .tech-feature--fullwidth .tech-feature__content {
