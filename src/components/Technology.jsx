@@ -156,14 +156,14 @@ export default function Technology() {
                   <span className="tech-card__index">0{i + 1} / 03</span>
                 </div>
 
-                <div className="tech-card__grid">
-                  <div className="tech-card__content">
+                <div className="tech-card__body">
+                  <div className="tech-card__copy">
                     <h3 className="tech-card__title">{f.title}</h3>
                     <p className="tech-card__desc">{f.desc}</p>
                     <ul className="tech-card__points">
                       {f.points.map((pt, j) => (
                         <li key={j}>
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
                             <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                           <span>{pt}</span>
@@ -172,7 +172,7 @@ export default function Technology() {
                     </ul>
                   </div>
 
-                  <div className={`tech-card__visual tech-card__visual--${f.visual}`}>
+                  <div className={`tech-card__stage tech-card__stage--${f.visual}`}>
                     {f.visual === 'portal' && <PharmacyPortalDemo />}
                     {f.visual === 'dispatch' && <DispatchPortalDemo />}
                     {f.visual === 'phone' && <DriverAppDemo />}

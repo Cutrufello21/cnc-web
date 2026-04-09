@@ -129,100 +129,90 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Content grid — compact text column, dominant product stage */
-.tech-card__grid {
-  display: grid;
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
-  gap: 56px;
-  align-items: start;
-  min-height: calc(100vh - var(--nav-offset) - var(--strip) - 120px);
+/* Card body: compact copy block on top, huge product stage below.
+   Linear-style — the product fills the full card width as a
+   dominant "stage" so visitors can actually read the UI. */
+.tech-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
-.tech-card__content {
-  max-width: 340px;
-  padding-top: 4px;
+.tech-card__copy {
+  max-width: 720px;
 }
 
 .tech-card__title {
-  font-size: clamp(24px, 2.2vw, 32px);
+  font-size: clamp(32px, 3.6vw, 48px);
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -1px;
   color: #F5F8FF;
   margin-bottom: 16px;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 .tech-card__desc {
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 16px;
+  line-height: 1.6;
   color: rgba(230, 237, 247, 0.65);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  max-width: 640px;
 }
 
+/* Bullets as inline pills — save vertical space above the stage */
 .tech-card__points {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 10px 20px;
 }
 .tech-card__points li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: rgba(230, 237, 247, 0.82);
-  line-height: 1.5;
+  line-height: 1;
 }
 .tech-card__points svg {
   flex-shrink: 0;
-  margin-top: 2px;
   color: #60A5FA;
-  width: 14px;
-  height: 14px;
 }
 
-/* Visual column — the product IS the hero. Fills the rest of the
-   card and scales up so the UI inside is actually readable. */
-.tech-card__visual {
+/* Product stage — full-width frame that dominates the card */
+.tech-card__stage {
   position: relative;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  background: rgba(5, 13, 24, 0.4);
+  box-shadow:
+    0 40px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+}
+
+/* Portal + dispatch stages let the browser mockup fill full width.
+   We strip the mockup's own outer chrome styling via child selector. */
+.tech-card__stage--portal > *,
+.tech-card__stage--dispatch > * {
+  width: 100%;
+  max-width: none;
+  display: block;
+}
+
+/* Phone stage centers the phone with an ambient periwinkle glow */
+.tech-card__stage--phone {
+  background:
+    radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.15), transparent 70%),
+    linear-gradient(180deg, rgba(10, 20, 36, 0.6), rgba(5, 13, 24, 0.8));
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 0;
-  width: 100%;
-  /* Subtle ambient glow behind the product to lift it off the card */
-  filter: drop-shadow(0 40px 80px rgba(0, 0, 0, 0.45));
-}
-
-/* Portal / dispatch browser mockups scale to the column width */
-.tech-card__visual--portal,
-.tech-card__visual--dispatch {
-  align-items: flex-start;
-}
-.tech-card__visual--portal > *,
-.tech-card__visual--dispatch > * {
-  width: 100%;
-  max-width: 960px;
-}
-
-/* Phone mockup gets an ambient gradient backdrop */
-.tech-card__visual--phone {
-  padding: 20px 0;
-  min-height: 580px;
-}
-.tech-card__visual--phone::before {
-  content: "";
-  position: absolute;
-  inset: 10% 15%;
-  background: radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.18), transparent 70%);
-  filter: blur(20px);
-  z-index: 0;
-}
-.tech-card__visual--phone > * {
-  position: relative;
-  z-index: 1;
+  padding: 40px 20px;
+  min-height: 540px;
 }
 
 /* ---------- Proof strip ---------- */
