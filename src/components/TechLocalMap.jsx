@@ -48,10 +48,10 @@ function prepRoute(coords) {
   return { segs, total }
 }
 
-// Given a distance along the route, return interpolated [lng, lat] + bearing.
-function pointAt(route, dist) {
+// Return interpolated [lng, lat] at a distance along the route. No bearing.
+function positionAt(route, dist) {
   const { segs, total } = route
-  let d = ((dist % total) + total) % total
+  const d = ((dist % total) + total) % total
   // Binary search for the segment containing d.
   let lo = 0
   let hi = segs.length - 1
@@ -62,13 +62,24 @@ function pointAt(route, dist) {
   }
   const s = segs[lo]
   const t = s.len === 0 ? 0 : (d - s.cumStart) / s.len
-  const lng = s.from[0] + (s.to[0] - s.from[0]) * t
-  const lat = s.from[1] + (s.to[1] - s.from[1]) * t
-  // Bearing in degrees, 0 = north, clockwise.
-  const dx = s.to[0] - s.from[0]
-  const dy = s.to[1] - s.from[1]
+  return {
+    lng: s.from[0] + (s.to[0] - s.from[0]) * t,
+    lat: s.from[1] + (s.to[1] - s.from[1]) * t,
+  }
+}
+
+// Point-with-bearing using lookahead: compute heading from the current
+// position to a point LOOKAHEAD_M meters further along the polyline.
+// This averages out the zigzag of short segments so the chevron
+// doesn't twitch through every intersection.
+const LOOKAHEAD_M = 350
+function pointAt(route, dist) {
+  const here = positionAt(route, dist)
+  const ahead = positionAt(route, dist + LOOKAHEAD_M)
+  const dx = ahead.lng - here.lng
+  const dy = ahead.lat - here.lat
   const bearing = (Math.atan2(dx, dy) * 180) / Math.PI
-  return { lng, lat, bearing }
+  return { lng: here.lng, lat: here.lat, bearing }
 }
 
 // --- Component -------------------------------------------------------------
@@ -134,9 +145,10 @@ export default function TechLocalMap() {
           .setLngLat(r.coordinates[0])
           .addTo(map)
 
-        // Lap time 20–32s across all routes — apparent pixel speed
-        // stays consistent even though route lengths vary slightly.
-        const loopSeconds = 20 + Math.random() * 12
+        // Slow lap times (40–55s) so the chevrons drift rather than
+        // race. Combined with bearing smoothing below this gives a
+        // "live fleet" feel instead of a toy animation.
+        const loopSeconds = 40 + Math.random() * 15
         return {
           route,
           marker,
@@ -144,11 +156,17 @@ export default function TechLocalMap() {
           inner,
           speed: route.total / loopSeconds,
           dist: Math.random() * route.total, // desync start positions
+          bearing: null, // lazily initialized on first tick
         }
       })
       carsRef.current = cars
 
-      // Animation loop.
+      // Animation loop. Position is hard-assigned each frame; rotation
+      // is exponentially smoothed toward the target heading so the
+      // chevron turns gracefully instead of snapping every segment.
+      // BEARING_TAU controls how "heavy" the rotation feels — higher
+      // = slower, more graceful; lower = snappier.
+      const BEARING_TAU = 0.45 // seconds
       let last = performance.now()
       const tick = (now) => {
         if (!runningRef.current) {
@@ -157,11 +175,22 @@ export default function TechLocalMap() {
         }
         const dt = Math.min(0.05, (now - last) / 1000)
         last = now
+        // Frame-rate-independent smoothing factor (0..1).
+        const k = 1 - Math.exp(-dt / BEARING_TAU)
         for (const car of carsRef.current) {
           car.dist += car.speed * dt
           const p = pointAt(car.route, car.dist)
           car.marker.setLngLat([p.lng, p.lat])
-          car.inner.style.transform = `rotate(${p.bearing}deg)`
+          // Angle-safe lerp with 360° wraparound.
+          if (car.bearing == null) {
+            car.bearing = p.bearing
+          } else {
+            let delta = p.bearing - car.bearing
+            if (delta > 180) delta -= 360
+            else if (delta < -180) delta += 360
+            car.bearing += delta * k
+          }
+          car.inner.style.transform = `rotate(${car.bearing}deg)`
         }
         rafRef.current = requestAnimationFrame(tick)
       }
