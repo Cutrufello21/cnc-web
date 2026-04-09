@@ -6,10 +6,12 @@ import PharmacyPortalDemo from './PharmacyPortalDemo'
 import DispatchPortalDemo from './DispatchPortalDemo'
 import './Technology.css'
 
-/* Scroll-driven background: interpolate the .tech section from
-   white → deep navy → white as it enters, fills, and exits the
-   viewport. Uses rAF-throttled scroll listener so it's smooth
-   on 60/120Hz displays. */
+/* Scroll-driven background: interpolate the entire page background
+   (document.body) from white → deep navy → white as the Technology
+   section enters, fills, and exits the viewport. The .tech section
+   itself is transparent so the body color shows through and the
+   effect reads as the whole page darkening. rAF-throttled for 60/
+   120Hz smoothness. */
 function useTechScrollTransition() {
   useEffect(() => {
     const el = document.querySelector('.tech')
@@ -46,7 +48,9 @@ function useTechScrollTransition() {
       const r = lerp(FROM[0], TO[0], t)
       const g = lerp(FROM[1], TO[1], t)
       const b = lerp(FROM[2], TO[2], t)
-      el.style.backgroundColor = `rgb(${r}, ${g}, ${b})`
+      const color = `rgb(${r}, ${g}, ${b})`
+      document.body.style.backgroundColor = color
+      document.documentElement.style.backgroundColor = color
     }
 
     const onScroll = () => {
@@ -62,7 +66,8 @@ function useTechScrollTransition() {
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onScroll)
-      el.style.backgroundColor = ''
+      document.body.style.backgroundColor = ''
+      document.documentElement.style.backgroundColor = ''
     }
   }, [])
 }

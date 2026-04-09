@@ -6,10 +6,9 @@
 .tech {
   padding: 140px 0 120px;
   position: relative;
-  background: #ffffff;
+  background: transparent;
   color: #E6EDF7;
   overflow: hidden;
-  transition: background-color 0ms linear;
 }
 
 .tech__header {
