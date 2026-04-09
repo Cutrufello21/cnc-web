@@ -60,10 +60,9 @@
 .tech-card {
   position: sticky;
   top: calc(var(--nav-offset) + var(--i, 0) * var(--strip));
-  /* Full viewport height below the nav so each pinned card fully
-     covers the previous card's body region. Content can still
-     push it taller when the product demo is big. */
-  min-height: calc(100vh - var(--nav-offset));
+  /* Fixed viewport-height card so copy + stage always fit inside
+     the pinned area — no bleed below the fold. */
+  height: calc(100vh - var(--nav-offset));
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
   /* Clip only the top so the rounded corners read cleanly; the
@@ -92,7 +91,10 @@
 }
 
 .tech-card__inner {
-  padding: 0 0 64px;
+  padding: 0 0 32px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header strip: fixed height so the sticky-offset math aligns —
@@ -102,8 +104,9 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
   border-bottom: 1px solid rgba(96, 165, 250, 0.12);
+  flex-shrink: 0;
 }
 .tech-card__dot {
   width: 10px;
@@ -129,34 +132,36 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Card body: compact copy block on top, huge product stage below.
-   Linear-style — the product fills the full card width as a
-   dominant "stage" so visitors can actually read the UI. */
+/* Card body: two-column grid — compact copy on the left, product
+   stage on the right. Fills the remaining height below the head
+   strip so everything fits inside the pinned viewport. */
 .tech-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) 1fr;
+  gap: 48px;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
 }
 
 .tech-card__copy {
-  max-width: 720px;
+  max-width: 420px;
 }
 
 .tech-card__title {
-  font-size: clamp(32px, 3.6vw, 48px);
+  font-size: clamp(26px, 2.6vw, 36px);
   font-weight: 700;
-  letter-spacing: -1px;
+  letter-spacing: -0.8px;
   color: #F5F8FF;
-  margin-bottom: 16px;
-  line-height: 1.1;
+  margin-bottom: 14px;
+  line-height: 1.15;
 }
 
 .tech-card__desc {
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.55;
   color: rgba(230, 237, 247, 0.65);
-  margin-bottom: 20px;
-  max-width: 640px;
+  margin-bottom: 18px;
 }
 
 /* Bullets as inline pills — save vertical space above the stage */
@@ -181,10 +186,12 @@
   color: #60A5FA;
 }
 
-/* Product stage — full-width frame that dominates the card */
+/* Product stage — right column, fills available height */
 .tech-card__stage {
   position: relative;
   width: 100%;
+  height: 100%;
+  max-height: calc(100vh - var(--nav-offset) - 160px);
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(96, 165, 250, 0.14);
@@ -192,13 +199,16 @@
   box-shadow:
     0 40px 80px rgba(0, 0, 0, 0.5),
     0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Portal + dispatch stages let the browser mockup fill full width.
-   We strip the mockup's own outer chrome styling via child selector. */
+/* Portal + dispatch stages let the browser mockup fill the stage */
 .tech-card__stage--portal > *,
 .tech-card__stage--dispatch > * {
   width: 100%;
+  height: 100%;
   max-width: none;
   display: block;
 }
@@ -208,11 +218,7 @@
   background:
     radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.15), transparent 70%),
     linear-gradient(180deg, rgba(10, 20, 36, 0.6), rgba(5, 13, 24, 0.8));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  min-height: 540px;
+  padding: 24px;
 }
 
 /* ---------- Proof strip ---------- */
@@ -243,21 +249,31 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1024px) {
-  .tech-card__grid {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    min-height: auto;
-  }
-  .tech-card__content {
-    max-width: none;
-  }
   .tech-card {
     position: relative;
     top: auto;
+    height: auto;
     min-height: auto;
   }
-  .tech-card__visual--phone {
-    min-height: auto;
+  .tech-card__inner {
+    height: auto;
+  }
+  .tech-card__body {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    align-items: stretch;
+  }
+  .tech-card__copy {
+    max-width: none;
+  }
+  .tech-card__stage {
+    height: auto;
+    max-height: none;
+    aspect-ratio: 16 / 10;
+  }
+  .tech-card__stage--phone {
+    aspect-ratio: auto;
+    min-height: 540px;
   }
 }
 
