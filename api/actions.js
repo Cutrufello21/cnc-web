@@ -114,6 +114,19 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, moved: orderIds.length })
     }
 
+    if (data.action === 'mark_correction_sent') {
+      const { orderIds, driverNumber } = data
+      if (!orderIds?.length || !driverNumber) {
+        return res.status(400).json({ error: 'Missing orderIds or driverNumber' })
+      }
+      const { error } = await supabase
+        .from('daily_stops')
+        .update({ last_correction_driver: String(driverNumber) })
+        .in('order_id', orderIds)
+      if (error) throw error
+      return res.status(200).json({ success: true, marked: orderIds.length })
+    }
+
     if (data.action === 'roadwarrior') {
       const rwKey = process.env.RW_API_KEY
       const rwAccount = process.env.RW_ACCOUNT_ID

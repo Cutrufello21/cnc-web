@@ -583,6 +583,7 @@ export default function DispatchPage() {
         .limit(10000)
 
       const corrections = {}
+      let alreadySent = 0
       for (const s of (stops || [])) {
         if (!s.assigned_driver_number) continue
         // A row needs a correction email if the current assignment
@@ -593,20 +594,34 @@ export default function DispatchPage() {
           !s.dispatch_driver_number ||
           String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
         if (!needsCorrection) continue
+        // Skip if we already told WFL about this exact assignment.
+        // If the stop gets moved again later, last_correction_driver
+        // will no longer match and it'll be re-included.
+        if (
+          s.last_correction_driver &&
+          String(s.last_correction_driver) === String(s.assigned_driver_number)
+        ) {
+          alreadySent++
+          continue
+        }
         const did = s.assigned_driver_number
         if (!corrections[did]) corrections[did] = []
         corrections[did].push(s.order_id)
       }
 
       if (Object.keys(corrections).length === 0) {
-        setMoveToast('No corrections needed — all assignments match')
+        setMoveToast(
+          alreadySent > 0
+            ? `No new corrections — ${alreadySent} already sent`
+            : 'No corrections needed — all assignments match'
+        )
         setSendingCorrections(false)
         return
       }
 
       let sent = 0
       for (const [driverId, orderIds] of Object.entries(corrections)) {
-        await fetch(APPS_SCRIPT_URL, {
+        const emailRes = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           body: JSON.stringify({
             action: 'email',
@@ -615,7 +630,19 @@ export default function DispatchPage() {
             html: `<pre>${orderIds.join('\n')}</pre>`,
           }),
         })
-        sent++
+        // Only mark as sent if the email actually went through.
+        if (emailRes.ok) {
+          await fetch('/api/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'mark_correction_sent',
+              orderIds,
+              driverNumber: driverId,
+            }),
+          })
+          sent++
+        }
       }
       // Push notifications for corrections — tell each driver what changed
       const stopsByDriver = {}
