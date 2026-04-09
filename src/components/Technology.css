@@ -40,32 +40,39 @@
 }
 
 /* ---------- Stacked sticky cards ---------- */
-/* Each wrap is ~100vh tall; the card inside is sticky and pins
-   below the navbar. As you scroll past a wrap, the next card's
-   rounded top edge rises over the previous card. */
+/* Bringg-style layered stack: each card is sticky with a
+   progressively larger top offset (--i * STRIP). That way when
+   card N+1 pins, its top edge sits just below card N's label
+   strip — so only the previous card's label remains visible while
+   its body is covered. Scrolling all the way down leaves all N
+   label strips stacked at the top. */
 .tech__stack {
+  --nav-offset: 88px;
+  --strip: 64px; /* must match .tech-card__head height */
   position: relative;
   padding-bottom: 80px;
 }
 
 .tech-card-wrap {
   position: relative;
-  min-height: 100vh;
+  min-height: 110vh;
 }
 
 .tech-card {
   position: sticky;
-  top: 88px; /* sits just below fixed navbar */
+  top: calc(var(--nav-offset) + var(--i, 0) * var(--strip));
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
-  border: 1px solid rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.14);
   border-bottom: none;
   background:
     radial-gradient(120% 80% at 0% 0%, rgba(96, 165, 250, 0.08), transparent 60%),
     linear-gradient(180deg, #0B1A30 0%, #07121F 100%);
-  box-shadow: 0 -20px 60px -30px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 -24px 60px -30px rgba(0, 0, 0, 0.7);
   overflow: hidden;
-  min-height: calc(100vh - 120px);
+  /* Fill the remaining viewport below this card's sticky anchor
+     so the body fully covers the previous card. */
+  min-height: calc(100vh - var(--nav-offset) - var(--i, 0) * var(--strip));
 }
 
 /* Subtle tint progression so stacked cards read as distinct layers */
@@ -81,16 +88,17 @@
 }
 
 .tech-card__inner {
-  padding: 56px 0 64px;
+  padding: 0 0 64px;
 }
 
-/* Header strip: dot + label pill + index counter, Bringg-style */
+/* Header strip: fixed height so the sticky-offset math aligns —
+   its height MUST equal --strip in .tech__stack. */
 .tech-card__head {
+  height: 64px;
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 48px;
-  padding-bottom: 20px;
+  margin-bottom: 40px;
   border-bottom: 1px solid rgba(96, 165, 250, 0.12);
 }
 .tech-card__dot {

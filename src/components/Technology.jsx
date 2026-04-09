@@ -146,8 +146,8 @@ export default function Technology() {
           slides up over it with a rounded top edge. */}
       <div className="tech__stack">
         {features.map((f, i) => (
-          <div className="tech-card-wrap" key={f.id}>
-            <article className="tech-card" data-visual={f.visual}>
+          <div className="tech-card-wrap" key={f.id} style={{ '--i': i }}>
+            <article className="tech-card" data-visual={f.visual} style={{ '--i': i }}>
               <div className="container tech-card__inner">
                 <div className="tech-card__head">
                   <span className="tech-card__dot" />
