@@ -4,6 +4,19 @@ import { useInView } from '../hooks/useInView'
 import DriverAppDemo from './DriverAppDemo'
 import PharmacyPortalDemo from './PharmacyPortalDemo'
 import DispatchPortalDemo from './DispatchPortalDemo'
+import CardCarousel from './CardCarousel'
+import {
+  PharmacyRealtimeSlide,
+  PharmacyPodSlide,
+  PharmacyColdChainSlide,
+  PharmacyAuditSlide,
+  DispatchRulesSlide,
+  DispatchStopsSlide,
+  DispatchPayrollSlide,
+  DriverPodBreakdownSlide,
+  DriverColdPrioritySlide,
+  DriverEtaSlide,
+} from './TechSlides'
 import './Technology.css'
 
 /* Scroll-driven background: interpolate the entire page background
@@ -83,41 +96,33 @@ const features = [
   {
     id: 'pharmacy',
     label: 'Pharmacy Portal',
-    title: 'Your clients see everything. In real time.',
-    desc: "Every delivery tracked. Every POD record on demand. Status updates, compliance reporting, and full audit trail — accessible from any browser. Your pharmacy clients never have to call to ask where a delivery is.",
-    points: [
-      'Live delivery status for every order',
-      'On-demand proof of delivery records',
-      'Cold chain verification and compliance',
-      'Full audit trail for regulatory needs',
+    slides: [
+      { id: 'demo',     render: () => <PharmacyPortalDemo /> },
+      { id: 'realtime', render: () => <PharmacyRealtimeSlide /> },
+      { id: 'pod',      render: () => <PharmacyPodSlide /> },
+      { id: 'cold',     render: () => <PharmacyColdChainSlide /> },
+      { id: 'audit',    render: () => <PharmacyAuditSlide /> },
     ],
-    visual: 'portal',
   },
   {
     id: 'dispatch',
     label: 'Dispatch Portal',
-    title: 'Every route. Every driver. One screen.',
-    desc: "272 stops across 11 drivers — dispatched before midnight, delivered by 6 PM. Route optimization, cold chain tracking, automated payroll, and real-time driver management. Built by the dispatchers who use it every day.",
-    points: [
-      'Route optimization with 156 routing rules',
-      'Real-time driver tracking and stop distribution',
-      'Cold chain package limits enforced per driver',
-      'Automated payroll calculated on delivery',
+    slides: [
+      { id: 'demo',    render: () => <DispatchPortalDemo /> },
+      { id: 'rules',   render: () => <DispatchRulesSlide /> },
+      { id: 'stops',   render: () => <DispatchStopsSlide /> },
+      { id: 'payroll', render: () => <DispatchPayrollSlide /> },
     ],
-    visual: 'dispatch',
   },
   {
     id: 'driver',
     label: 'Driver App',
-    title: 'Proof of every stop. Before the driver leaves.',
-    desc: "GPS-verified location, timestamped photos, digital signatures, geofence confirmation. A four-step proof-of-delivery flow captured at every door. The driver app that turns every delivery into a medical record.",
-    points: [
-      'Optimized route with turn-by-turn navigation',
-      '4-step POD: geofence, photo, signature, note',
-      'Cold chain flagging and priority delivery',
-      'Real-time ETA and progress tracking',
+    slides: [
+      { id: 'demo',  render: () => <DriverAppDemo /> },
+      { id: 'pod',   render: () => <DriverPodBreakdownSlide /> },
+      { id: 'cold',  render: () => <DriverColdPrioritySlide /> },
+      { id: 'eta',   render: () => <DriverEtaSlide /> },
     ],
-    visual: 'phone',
   },
 ]
 
@@ -147,37 +152,18 @@ export default function Technology() {
           body, leaving only card N's label strip visible at the top. */}
       <div className="tech__stack">
         {features.map((f, i) => (
-          <article className="tech-card" key={f.id} data-visual={f.visual} style={{ '--i': i }}>
-              <div className="container tech-card__inner">
-                <div className="tech-card__head">
-                  <span className="tech-card__dot" />
-                  <span className="tech-card__label">{f.label}</span>
-                  <span className="tech-card__index">0{i + 1} / 03</span>
-                </div>
-
-                <div className="tech-card__body">
-                  <div className="tech-card__copy">
-                    <h3 className="tech-card__title">{f.title}</h3>
-                    <p className="tech-card__desc">{f.desc}</p>
-                    <ul className="tech-card__points">
-                      {f.points.map((pt, j) => (
-                        <li key={j}>
-                          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                            <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                          <span>{pt}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className={`tech-card__stage tech-card__stage--${f.visual}`}>
-                    {f.visual === 'portal' && <PharmacyPortalDemo />}
-                    {f.visual === 'dispatch' && <DispatchPortalDemo />}
-                    {f.visual === 'phone' && <DriverAppDemo />}
-                  </div>
-                </div>
+          <article className="tech-card" key={f.id} style={{ '--i': i }}>
+            <div className="container tech-card__inner">
+              <div className="tech-card__head">
+                <span className="tech-card__dot" />
+                <span className="tech-card__label">{f.label}</span>
+                <span className="tech-card__index">0{i + 1} / 03</span>
               </div>
+
+              <div className="tech-card__carousel">
+                <CardCarousel slides={f.slides} />
+              </div>
+            </div>
           </article>
         ))}
       </div>

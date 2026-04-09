@@ -133,108 +133,21 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Card body: two-column grid — compact copy on the left, product
-   stage on the right. Fills the remaining height below the head
-   strip so everything fits inside the pinned viewport. */
-.tech-card__body {
-  display: grid;
-  grid-template-columns: minmax(380px, 480px) 1fr;
-  gap: 56px;
-  align-items: stretch;
+/* Card body is now a single full-width carousel — pagination lives
+   inside the carousel's own control bar at the bottom. */
+.tech-card__carousel {
   flex: 1;
   min-height: 0;
-}
-
-.tech-card__copy {
-  max-width: 480px;
-  align-self: start;
-  padding-top: 8px;
-}
-
-.tech-card__title {
-  font-size: clamp(24px, 2.3vw, 32px);
-  font-weight: 700;
-  letter-spacing: -0.6px;
-  color: #F5F8FF;
-  margin-bottom: 14px;
-  line-height: 1.2;
-  text-wrap: balance;
-}
-
-.tech-card__desc {
-  font-size: 15px;
-  line-height: 1.55;
-  color: rgba(230, 237, 247, 0.65);
-  margin-bottom: 18px;
-}
-
-/* Bullets as inline pills — save vertical space above the stage */
-.tech-card__points {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 20px;
-}
-.tech-card__points li {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: rgba(230, 237, 247, 0.82);
-  line-height: 1;
-}
-.tech-card__points svg {
-  flex-shrink: 0;
-  color: #60A5FA;
-}
-
-/* Product stage — right column, fills available height */
-.tech-card__stage {
-  position: relative;
   width: 100%;
-  height: 100%;
-  max-height: calc(100vh - var(--nav-offset) - 260px);
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(96, 165, 250, 0.14);
-  background: rgba(5, 13, 24, 0.4);
-  box-shadow:
-    0 40px 80px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Portal + dispatch stages let the browser mockup fill the stage */
-.tech-card__stage--portal > *,
-.tech-card__stage--dispatch > * {
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  display: block;
-}
-
-/* Phone stage — no frame, phone floats on the card background. */
-.tech-card__stage--phone {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 20px 20px 60px;
-  overflow: visible;
-  max-height: calc(100vh - var(--nav-offset) - 200px);
-  align-items: center;
-  align-self: start;
-}
-
-/* Wrap the demo in a proper iPhone-style chassis so it reads as a
-   phone. No stage frame around it. */
-.tech-card__stage--phone .demo-phone {
+/* Phone demo (Driver App slide 1) needs special handling — it's
+   not a full-bleed browser mockup, it's a floating phone chassis
+   that should center inside the slide viewport. */
+.carousel__slide .demo-phone {
   padding: 12px 8px;
-  background:
-    linear-gradient(180deg, #1a1a1d 0%, #0a0a0c 100%);
+  background: linear-gradient(180deg, #1a1a1d 0%, #0a0a0c 100%);
   border-radius: 38px;
   box-shadow:
     0 0 0 1.5px #2a2a2e,
@@ -243,12 +156,21 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transform: scale(0.72);
   transform-origin: center center;
+  width: auto !important;
+  height: auto !important;
 }
 
-/* Inner screen: clip to a tighter phone radius */
-.tech-card__stage--phone .demo-screen {
+.carousel__slide .demo-screen {
   border-radius: 28px;
   border: none;
+}
+
+/* Slide 1 of Driver App card: center the phone in the viewport
+   instead of stretching it. */
+.carousel__slide:has(.demo-phone) {
+  align-items: center;
+  justify-content: center;
+  background: transparent;
 }
 
 /* ---------- Proof strip ---------- */
@@ -287,27 +209,11 @@
     position: relative;
     top: auto;
     height: auto;
-    min-height: auto;
+    min-height: 640px;
   }
   .tech-card__inner {
     height: auto;
-  }
-  .tech-card__body {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    align-items: stretch;
-  }
-  .tech-card__copy {
-    max-width: none;
-  }
-  .tech-card__stage {
-    height: auto;
-    max-height: none;
-    aspect-ratio: 16 / 10;
-  }
-  .tech-card__stage--phone {
-    aspect-ratio: auto;
-    min-height: 540px;
+    min-height: 640px;
   }
 }
 

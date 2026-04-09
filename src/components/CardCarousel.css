@@ -1,0 +1,225 @@
+/* In-card horizontal carousel — Apple iPhone-page pattern. Pagination
+   pills + progress bar at bottom center, play/pause at bottom right.
+   Slides translate horizontally in the track. */
+.carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.carousel__viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  min-height: 0;
+}
+
+.carousel__track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.carousel__slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+  opacity: 0.35;
+  transition: opacity 0.7s ease;
+}
+
+.carousel__slide--active {
+  opacity: 1;
+}
+
+.carousel__slide > * {
+  width: 100%;
+  height: 100%;
+}
+
+/* Bottom control bar — pagination + play/pause */
+.carousel__controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 18px 0 6px;
+  position: relative;
+}
+
+.carousel__pills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+
+.carousel__pill {
+  position: relative;
+  width: 28px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background 0.25s, width 0.4s;
+}
+
+.carousel__pill:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.carousel__pill--active {
+  width: 52px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.carousel__pill-fill {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  border-radius: 999px;
+  transform-origin: left;
+  animation: carouselFill linear forwards;
+}
+
+.carousel__pill-fill--paused {
+  animation-play-state: paused;
+  width: 30%;
+}
+
+@keyframes carouselFill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.carousel__playpause {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.carousel__playpause:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(1.05);
+}
+
+/* ---------- Shared slide scaffolding ---------- */
+/* Infographic slides share a common frame so they read as siblings
+   of the live demo slide. Content is placed inside .slide-info with
+   generous padding, centered copy on the left, visual on the right. */
+.slide-info {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: 48px;
+  padding: 40px 56px;
+  background:
+    radial-gradient(110% 70% at 0% 0%, rgba(96, 165, 250, 0.08), transparent 60%),
+    linear-gradient(180deg, rgba(10, 22, 40, 0.6) 0%, rgba(5, 13, 24, 0.6) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  align-items: center;
+}
+
+.slide-info__copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.slide-info__eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #60A5FA;
+  margin-bottom: 14px;
+}
+
+.slide-info__title {
+  font-size: clamp(26px, 2.6vw, 38px);
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  color: #F5F8FF;
+  line-height: 1.15;
+  margin-bottom: 16px;
+  text-wrap: balance;
+}
+
+.slide-info__desc {
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(230, 237, 247, 0.7);
+  margin-bottom: 20px;
+}
+
+.slide-info__stat {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.slide-info__stat-num {
+  font-size: clamp(48px, 6vw, 84px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: #F5F8FF;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.slide-info__stat-unit {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(230, 237, 247, 0.55);
+}
+
+.slide-info__visual {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 1024px) {
+  .slide-info {
+    grid-template-columns: 1fr;
+    padding: 28px 24px;
+    gap: 24px;
+  }
+  .slide-info__visual {
+    height: 280px;
+  }
+}
