@@ -39,47 +39,36 @@
   color: rgba(230, 237, 247, 0.7);
 }
 
-/* ---------- Stacked sticky cards ---------- */
-/* Bringg-style layered stack: ALL cards share the same containing
-   block (.tech__stack) so they can all be sticky-pinned at once.
-   Each card has a progressively larger top offset (--i * STRIP),
-   so when card N+1's natural position scrolls up to its sticky
-   anchor, it pins just below card N's label strip — its body
-   covers card N's body while card N's strip remains visible.
-   Because they share a parent, card N stays pinned while N+1 and
-   N+2 slide up over it. */
+/* ---------- Sticky card sections ---------- */
+/* Each tech card sits inside its own .tech-card-wrap which is
+   taller than the viewport. The card uses position:sticky at the
+   top of its wrap, so it pins for the duration of the wrap's
+   scroll range and releases cleanly when the wrap scrolls off.
+   No card overlaps another — one card fills the viewport at a
+   time. */
 .tech__stack {
-  --nav-offset: 88px;
-  --strip: 64px; /* must match .tech-card__head height */
   position: relative;
-  /* Tiny tail so the last card releases cleanly without a big
-     empty navy gap before the next section. */
   padding-bottom: 0;
+}
+
+.tech-card-wrap {
+  height: 140vh;
+  position: relative;
 }
 
 .tech-card {
   position: sticky;
-  top: calc(var(--nav-offset) + var(--i, 0) * var(--strip));
-  /* Fixed height sized to fit copy + stage without bleeding and
-     without leaving a large empty gap at the bottom of the card. */
-  height: calc(100vh - var(--nav-offset) - 120px);
-  min-height: 560px;
-  border-top-left-radius: 28px;
-  border-top-right-radius: 28px;
-  /* Clip only the top so the rounded corners read cleanly; the
-     bottom can bleed so tall demos (dispatch grid, phone) aren't
-     cut off. Achieved with a mask that only clips the top. */
-  border: 1px solid rgba(96, 165, 250, 0.14);
-  border-bottom: none;
+  top: 0;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   background:
     radial-gradient(120% 80% at 0% 0%, rgba(96, 165, 250, 0.08), transparent 60%),
     linear-gradient(180deg, #0B1A30 0%, #07121F 100%);
-  box-shadow: 0 -24px 60px -30px rgba(0, 0, 0, 0.7);
-  /* No overflow:hidden — content drives height. Later cards in
-     source order naturally render over earlier ones. */
 }
 
-/* Subtle tint progression so stacked cards read as distinct layers */
+/* Subtle tint progression so consecutive cards read as distinct */
 .tech-card-wrap:nth-child(2) .tech-card {
   background:
     radial-gradient(120% 80% at 100% 0%, rgba(96, 165, 250, 0.09), transparent 60%),
@@ -92,16 +81,16 @@
 }
 
 .tech-card__inner {
-  padding: 0 0 32px;
+  padding: 48px 0 48px;
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
-/* Header strip: fixed height so the sticky-offset math aligns —
-   its height MUST equal --strip in .tech__stack. */
+/* Header strip at the top of each pinned card */
 .tech-card__head {
-  height: 64px;
+  height: 56px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -205,15 +194,18 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1024px) {
+  .tech-card-wrap {
+    height: auto;
+  }
   .tech-card {
     position: relative;
     top: auto;
     height: auto;
-    min-height: 640px;
+    min-height: 680px;
   }
   .tech-card__inner {
     height: auto;
-    min-height: 640px;
+    min-height: 680px;
   }
 }
 

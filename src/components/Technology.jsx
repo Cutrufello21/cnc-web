@@ -67,6 +67,15 @@ function useTechScrollTransition() {
       root.style.setProperty('--nav-bg', `rgba(${navBgR}, ${navBgG}, ${navBgB}, 0.78)`)
       root.style.setProperty('--nav-text', `rgb(${navTxtR}, ${navTxtG}, ${navTxtB})`)
       root.style.setProperty('--nav-border', `rgba(${navTxtR}, ${navTxtG}, ${navTxtB}, 0.25)`)
+
+      // Fade + slide the navbar out as we enter the Tech section so
+      // each sticky card gets the full viewport. Remap t so the
+      // hide happens between 0.15 and 0.4 — nav is gone before the
+      // first card locks.
+      const hideT = Math.max(0, Math.min(1, (t - 0.15) / 0.25))
+      root.style.setProperty('--nav-opacity', String(1 - hideT))
+      root.style.setProperty('--nav-translate', `${-hideT * 100}%`)
+      root.style.setProperty('--nav-pointer', hideT > 0.8 ? 'none' : 'auto')
     }
 
     const onScroll = () => {
@@ -88,6 +97,9 @@ function useTechScrollTransition() {
       root.style.removeProperty('--nav-bg')
       root.style.removeProperty('--nav-text')
       root.style.removeProperty('--nav-border')
+      root.style.removeProperty('--nav-opacity')
+      root.style.removeProperty('--nav-translate')
+      root.style.removeProperty('--nav-pointer')
     }
   }, [])
 }
@@ -150,21 +162,25 @@ export default function Technology() {
           they can all pin simultaneously at progressively deeper
           offsets. Card N+1 slides up from below and covers card N's
           body, leaving only card N's label strip visible at the top. */}
+      {/* Each card lives in its own full-viewport wrapper so it
+          pins alone — no peek of the next card at the bottom. */}
       <div className="tech__stack">
         {features.map((f, i) => (
-          <article className="tech-card" key={f.id} style={{ '--i': i }}>
-            <div className="container tech-card__inner">
-              <div className="tech-card__head">
-                <span className="tech-card__dot" />
-                <span className="tech-card__label">{f.label}</span>
-                <span className="tech-card__index">0{i + 1} / 03</span>
-              </div>
+          <div className="tech-card-wrap" key={f.id}>
+            <article className="tech-card">
+              <div className="container tech-card__inner">
+                <div className="tech-card__head">
+                  <span className="tech-card__dot" />
+                  <span className="tech-card__label">{f.label}</span>
+                  <span className="tech-card__index">0{i + 1} / 03</span>
+                </div>
 
-              <div className="tech-card__carousel">
-                <CardCarousel slides={f.slides} />
+                <div className="tech-card__carousel">
+                  <CardCarousel slides={f.slides} />
+                </div>
               </div>
-            </div>
-          </article>
+            </article>
+          </div>
         ))}
       </div>
 

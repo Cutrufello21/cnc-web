@@ -6,11 +6,19 @@
   z-index: 100;
   padding: 16px 0;
   border-bottom: 1px solid transparent;
+  /* Driven by Technology.jsx scroll transition — when the viewer
+     enters the Tech section, nav fades out and slides up so each
+     sticky card gets the full viewport height to itself. */
+  opacity: var(--nav-opacity, 1);
+  transform: translateY(var(--nav-translate, 0));
+  pointer-events: var(--nav-pointer, auto);
   transition:
     background-color 300ms ease,
     backdrop-filter 300ms ease,
     -webkit-backdrop-filter 300ms ease,
-    border-color 300ms ease;
+    border-color 300ms ease,
+    opacity 250ms ease,
+    transform 250ms ease;
 }
 
 /* Mercury-style: transparent over the hero map, frosted glass
