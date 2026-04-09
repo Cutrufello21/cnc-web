@@ -19,6 +19,9 @@ if (!TOKEN) {
 
 // Centers picked inside each city's street grid (not in parks/lakes) so
 // the Directions snap has real road to work with.
+// 8 well-distributed cities. Deliberately skipping Akron-area satellites
+// (Cuyahoga Falls, Stow, Hudson, Barberton) because at zoom 7.6 they
+// stack on top of the Akron label and the fleet looks crowded.
 const CITIES = [
   { name: 'Akron',           lat: 41.0814, lng: -81.5190 },
   { name: 'Canton',          lat: 40.7989, lng: -81.3784 },
@@ -26,12 +29,8 @@ const CITIES = [
   { name: 'New Philadelphia',lat: 40.4898, lng: -81.4457 },
   { name: 'Massillon',       lat: 40.7967, lng: -81.5215 },
   { name: 'Kent',            lat: 41.1537, lng: -81.3579 },
-  { name: 'Hudson',          lat: 41.2401, lng: -81.4404 },
-  { name: 'Stow',            lat: 41.1595, lng: -81.4404 },
   { name: 'Dover',           lat: 40.5201, lng: -81.4742 },
   { name: 'Alliance',        lat: 40.9123, lng: -81.1057 },
-  { name: 'Cuyahoga Falls',  lat: 41.1339, lng: -81.4846 },
-  { name: 'Barberton',       lat: 41.0142, lng: -81.6068 },
 ]
 
 // Build a ~1.5km rectangular loop around each center and let Directions

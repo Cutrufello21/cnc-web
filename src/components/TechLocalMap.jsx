@@ -139,16 +139,17 @@ export default function TechLocalMap() {
         el.className = 'tech-car'
         // Inner wrapper is the one we rotate — Mapbox owns the outer
         // element's transform for positioning, so we can't touch it.
+        // Icon is a filled chevron so it's visually distinct from the
+        // rectangular city-label pills and reads as "moving forward".
         const inner = document.createElement('div')
         inner.className = 'tech-car__inner'
         inner.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
-            <rect x="6" y="2.5" width="8" height="15" rx="2.2"
-                  fill="#F5F8FF" stroke="#60A5FA" stroke-width="1.2"/>
-            <rect x="7.2" y="4.5" width="5.6" height="3.4" rx="0.6"
-                  fill="#60A5FA" opacity="0.75"/>
-            <rect x="7.2" y="11.5" width="5.6" height="2.6" rx="0.5"
-                  fill="#0A2463" opacity="0.35"/>
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M7 1 L12.2 12 L7 9.2 L1.8 12 Z"
+                  fill="#60A5FA"
+                  stroke="#F5F8FF"
+                  stroke-width="0.9"
+                  stroke-linejoin="round"/>
           </svg>
         `
         el.appendChild(inner)
@@ -156,9 +157,10 @@ export default function TechLocalMap() {
           .setLngLat(r.coordinates[0])
           .addTo(map)
 
-        // Target ~35–55 seconds per loop so movement is clearly visible
-        // without being frantic.
-        const loopSeconds = 35 + Math.random() * 20
+        // Target ~12–18 seconds per loop. At zoom 7.6 each ~8km route
+        // only spans 20–30 screen pixels, so slower loops read as
+        // stepping due to sub-pixel rounding. Faster = smoother here.
+        const loopSeconds = 12 + Math.random() * 6
         return {
           route,
           marker,

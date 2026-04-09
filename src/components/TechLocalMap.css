@@ -80,25 +80,27 @@
 }
 
 /* ---------- Animated cars ---------- */
-/* Mapbox owns the outer .tech-car element's transform for positioning,
-   so the SVG rotation happens on the inner wrapper. */
+/* Mapbox writes transform onto the outer .tech-car every frame for
+   positioning, so the SVG rotation lives on the inner wrapper. The
+   will-change hint promotes the outer element to its own layer so
+   Mapbox's transform updates don't trigger whole-map repaints. */
 .tech-car {
   width: 0;
   height: 0;
   pointer-events: none;
   z-index: 5;
+  will-change: transform;
 }
 
 .tech-car__inner {
   position: absolute;
   top: 0;
   left: 0;
-  width: 16px;
-  height: 16px;
-  margin: -8px 0 0 -8px;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
   transform-origin: center center;
   will-change: transform;
-  filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.55));
 }
 
 .tech-car__inner svg {
