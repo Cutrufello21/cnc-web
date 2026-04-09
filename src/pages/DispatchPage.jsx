@@ -620,29 +620,42 @@ export default function DispatchPage() {
       }
 
       let sent = 0
+      let markErrors = []
       for (const [driverId, orderIds] of Object.entries(corrections)) {
-        const emailRes = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'email',
-            to: 'dom@cncdeliveryservice.com',
-            subject: `[TEST] Assign to Driver ${driverId}`,
-            html: `<pre>${orderIds.join('\n')}</pre>`,
-          }),
-        })
-        // Only mark as sent if the email actually went through.
-        if (emailRes.ok) {
-          await fetch('/api/actions', {
+        try {
+          await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              action: 'mark_correction_sent',
-              orderIds,
-              driverNumber: driverId,
+              action: 'email',
+              to: 'dom@cncdeliveryservice.com',
+              subject: `[TEST] Assign to Driver ${driverId}`,
+              html: `<pre>${orderIds.join('\n')}</pre>`,
             }),
           })
-          sent++
+        } catch (e) {
+          markErrors.push(`email ${driverId}: ${e.message}`)
+          continue
         }
+        // Mark rows so they don't re-send on the next batch. Apps
+        // Script responses are often opaque (CORS) so we don't
+        // gate on .ok — if the fetch didn't throw, assume sent.
+        const markRes = await fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'mark_correction_sent',
+            orderIds,
+            driverNumber: driverId,
+          }),
+        })
+        if (!markRes.ok) {
+          const txt = await markRes.text().catch(() => '')
+          markErrors.push(`mark ${driverId}: ${markRes.status} ${txt}`)
+        }
+        sent++
+      }
+      if (markErrors.length) {
+        console.error('[send corrections] mark errors:', markErrors)
       }
       // Push notifications for corrections — tell each driver what changed
       const stopsByDriver = {}
@@ -662,7 +675,11 @@ export default function DispatchPage() {
       }
 
       setCorrectionsSent(true)
-      setMoveToast(`Correction emails sent for ${sent} drivers`)
+      if (markErrors.length) {
+        setMoveToast(`Sent ${sent} drivers, but ${markErrors.length} failed to mark — check console`)
+      } else {
+        setMoveToast(`Correction emails sent for ${sent} drivers`)
+      }
     } catch (err) {
       setMoveToast(`Error: ${err.message}`)
     } finally {
