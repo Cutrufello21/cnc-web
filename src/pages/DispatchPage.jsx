@@ -318,6 +318,8 @@ export default function DispatchPage() {
   const [sendingRoutes, setSendingRoutes] = useState(false)
   const [routesSent, setRoutesSent] = useState(false)
   const [sendingCorrections, setSendingCorrections] = useState(false)
+  const [sendingForceAll, setSendingForceAll] = useState(false)
+  const [forceAllSent, setForceAllSent] = useState(false)
   const [correctionsSent, setCorrectionsSent] = useState(false)
   const [sentSnapshot, setSentSnapshot] = useState(null) // { driverName: Set of orderIds }
   const [resending, setResending] = useState(false)
@@ -687,6 +689,92 @@ export default function DispatchPage() {
     }
   }
 
+  async function handleForceSendAll() {
+    if (!confirm('FORCE SEND ALL: email WFL the full order list for every driver (ignores already-sent tracking). Continue?')) return
+    setSendingForceAll(true)
+    try {
+      const dateStr = data.deliveryDateObj
+        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+        : ''
+      if (!dateStr) throw new Error('No delivery date')
+
+      const { data: stops } = await supabase
+        .from('daily_stops')
+        .select('*')
+        .eq('delivery_date', dateStr)
+        .limit(10000)
+
+      // Group every currently-assigned stop by assigned_driver_number,
+      // ignoring dispatch_driver_number and last_correction_driver entirely.
+      const byDriver = {}
+      for (const s of (stops || [])) {
+        if (!s.assigned_driver_number || !s.order_id) continue
+        const did = String(s.assigned_driver_number)
+        if (!byDriver[did]) byDriver[did] = []
+        byDriver[did].push(s.order_id)
+      }
+
+      if (Object.keys(byDriver).length === 0) {
+        setMoveToast('No assigned stops found')
+        setSendingForceAll(false)
+        return
+      }
+
+      const totalToSend = Object.values(byDriver).reduce((n, arr) => n + arr.length, 0)
+      if (!confirm(`Send ${totalToSend} order IDs across ${Object.keys(byDriver).length} drivers to WFL?`)) {
+        setSendingForceAll(false)
+        return
+      }
+
+      let sent = 0
+      const markErrors = []
+      for (const [driverId, orderIds] of Object.entries(byDriver)) {
+        try {
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'email',
+              to: 'dom@cncdeliveryservice.com',
+              subject: `[TEST] Assign to Driver ${driverId}`,
+              html: `<pre>${orderIds.join('\n')}</pre>`,
+            }),
+          })
+        } catch (e) {
+          markErrors.push(`email ${driverId}: ${e.message}`)
+          continue
+        }
+        // Update last_correction_driver so future Send Corrections still
+        // works correctly (only new reassignments will flag as needing sending).
+        const markRes = await fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'mark_correction_sent',
+            orderIds,
+            driverNumber: driverId,
+          }),
+        })
+        if (!markRes.ok) {
+          const txt = await markRes.text().catch(() => '')
+          markErrors.push(`mark ${driverId}: ${markRes.status} ${txt}`)
+        }
+        sent++
+      }
+
+      setForceAllSent(true)
+      if (markErrors.length) {
+        console.error('[force send all] mark errors:', markErrors)
+        setMoveToast(`Force-sent ${sent} drivers, but ${markErrors.length} failed to mark — check console`)
+      } else {
+        setMoveToast(`Force-sent full order list for ${sent} drivers (${totalToSend} stops)`)
+      }
+    } catch (err) {
+      setMoveToast(`Error: ${err.message}`)
+    } finally {
+      setSendingForceAll(false)
+    }
+  }
+
   const totalStops = data?.drivers?.reduce((sum, d) => sum + (d.stops || 0), 0) ?? 0
   const totalColdChain = data?.drivers?.reduce((sum, d) => sum + (d.coldChain || 0), 0) ?? 0
   const allActiveDrivers = data?.drivers?.filter((d) => d.stops > 0) ?? []
@@ -998,6 +1086,14 @@ export default function DispatchPage() {
                   disabled={sendingCorrections || correctionsSent || totalStops === 0}
                 >
                   {correctionsSent ? 'Sent' : sendingCorrections ? 'Sending...' : 'Send Corrections'}
+                </button>
+                <button
+                  className={`dispatch__send-btn dispatch__send-btn--corrections ${forceAllSent ? 'dispatch__send-btn--done' : ''}`}
+                  onClick={handleForceSendAll}
+                  disabled={sendingForceAll || totalStops === 0}
+                  title="Force-send WFL the full order list for every driver (ignores already-sent tracking)"
+                >
+                  {sendingForceAll ? 'Sending...' : forceAllSent ? 'Force Sent' : 'Force Send All'}
                 </button>
               </div>
             </div>
