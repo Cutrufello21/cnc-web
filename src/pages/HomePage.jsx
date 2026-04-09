@@ -1,6 +1,5 @@
 import Navbar from '../components/Navbar'
 import Hero from '../components/Hero'
-import TrustBar from '../components/TrustBar'
 import Pillars from '../components/Pillars'
 import Technology from '../components/Technology'
 import Stats from '../components/Stats'
@@ -20,7 +19,6 @@ export default function HomePage() {
       <Navbar />
       <main>
         <Hero />
-        <TrustBar />
         <Pillars />
         <Technology />
         <Stats />
