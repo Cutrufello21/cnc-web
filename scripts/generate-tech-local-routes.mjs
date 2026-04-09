@@ -1,7 +1,13 @@
 // One-time route generator for the Dispatch Portal "Local Expertise" slide.
-// Queries Mapbox Directions for a small drivable loop in each NE Ohio city
-// we serve, and writes the snapped polylines to techLocalRoutes.json for
-// the TechLocalMap animation to consume at runtime (no runtime API cost).
+// Queries Mapbox Directions for a set of inter-city delivery circuits
+// across NE Ohio and writes the snapped polylines to techLocalRoutes.json
+// for the TechLocalMap animation to consume at runtime (no runtime API
+// cost).
+//
+// Each "circuit" is a multi-waypoint round trip — the car drives from
+// city A to city B (and sometimes to a third city) and back. This gives
+// us big, regional motion on the map instead of tight loops around a
+// single label.
 //
 // Run:  node scripts/generate-tech-local-routes.mjs
 // Needs VITE_MAPBOX_TOKEN in .env
@@ -17,35 +23,64 @@ if (!TOKEN) {
   process.exit(1)
 }
 
-// Centers picked inside each city's street grid (not in parks/lakes) so
-// the Directions snap has real road to work with.
-// 8 well-distributed cities. Deliberately skipping Akron-area satellites
-// (Cuyahoga Falls, Stow, Hudson, Barberton) because at zoom 7.6 they
-// stack on top of the Akron label and the fleet looks crowded.
-const CITIES = [
-  { name: 'Akron',           lat: 41.0814, lng: -81.5190 },
-  { name: 'Canton',          lat: 40.7989, lng: -81.3784 },
-  { name: 'Wooster',         lat: 40.8051, lng: -81.9351 },
-  { name: 'New Philadelphia',lat: 40.4898, lng: -81.4457 },
-  { name: 'Massillon',       lat: 40.7967, lng: -81.5215 },
-  { name: 'Kent',            lat: 41.1537, lng: -81.3579 },
-  { name: 'Dover',           lat: 40.5201, lng: -81.4742 },
-  { name: 'Alliance',        lat: 40.9123, lng: -81.1057 },
+// Inter-city delivery circuits. Waypoints are real city centers; Mapbox
+// Directions snaps the connections onto the actual highway network so
+// every route follows real roads (I-77, US-30, US-62, SR-59, etc.).
+const CIRCUITS = [
+  {
+    name: 'Akron ↔ Kent',
+    waypoints: [
+      [-81.5190, 41.0814], // Akron
+      [-81.3579, 41.1537], // Kent
+      [-81.5190, 41.0814],
+    ],
+  },
+  {
+    name: 'Akron ↔ Canton (I-77)',
+    waypoints: [
+      [-81.5190, 41.0814],
+      [-81.3784, 40.7989], // Canton
+      [-81.5190, 41.0814],
+    ],
+  },
+  {
+    name: 'Akron → Wooster → Massillon → Akron',
+    waypoints: [
+      [-81.5190, 41.0814],
+      [-81.9351, 40.8051], // Wooster
+      [-81.5215, 40.7967], // Massillon
+      [-81.5190, 41.0814],
+    ],
+  },
+  {
+    name: 'Canton → New Philadelphia → Dover → Canton',
+    waypoints: [
+      [-81.3784, 40.7989],
+      [-81.4457, 40.4898], // New Philadelphia
+      [-81.4742, 40.5201], // Dover
+      [-81.3784, 40.7989],
+    ],
+  },
+  {
+    name: 'Canton ↔ Alliance',
+    waypoints: [
+      [-81.3784, 40.7989],
+      [-81.1057, 40.9123], // Alliance
+      [-81.3784, 40.7989],
+    ],
+  },
+  {
+    name: 'Massillon ↔ Wooster',
+    waypoints: [
+      [-81.5215, 40.7967],
+      [-81.9351, 40.8051],
+      [-81.5215, 40.7967],
+    ],
+  },
 ]
 
-// Build a ~1.5km rectangular loop around each center and let Directions
-// snap the corners to real streets.
-async function fetchLoop({ name, lat, lng }) {
-  const dLat = 0.006 // ~670m
-  const dLng = 0.008 // ~680m at 41°N
-  const corners = [
-    [lng - dLng, lat - dLat],
-    [lng + dLng, lat - dLat],
-    [lng + dLng, lat + dLat],
-    [lng - dLng, lat + dLat],
-    [lng - dLng, lat - dLat], // close the loop
-  ]
-  const coordStr = corners.map(([x, y]) => `${x},${y}`).join(';')
+async function fetchCircuit({ name, waypoints }) {
+  const coordStr = waypoints.map(([x, y]) => `${x},${y}`).join(';')
   const url =
     `https://api.mapbox.com/directions/v5/mapbox/driving/${coordStr}` +
     `?geometries=geojson&overview=full&access_token=${TOKEN}`
@@ -63,19 +98,20 @@ async function fetchLoop({ name, lat, lng }) {
 }
 
 const out = []
-for (const city of CITIES) {
+for (const circuit of CIRCUITS) {
   try {
-    const r = await fetchLoop(city)
-    console.log(`✓ ${city.name.padEnd(18)} ${r.coordinates.length.toString().padStart(4)} pts  ${Math.round(r.distance)}m`)
+    const r = await fetchCircuit(circuit)
+    console.log(
+      `✓ ${circuit.name.padEnd(40)} ${r.coordinates.length.toString().padStart(5)} pts  ${(r.distance / 1000).toFixed(1)}km`
+    )
     out.push(r)
   } catch (e) {
-    console.error(`✗ ${city.name}: ${e.message}`)
+    console.error(`✗ ${circuit.name}: ${e.message}`)
   }
-  // Gentle pacing so we don't burst the free-tier Directions limit.
   await new Promise((r) => setTimeout(r, 200))
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const outPath = path.resolve(__dirname, '../src/components/techLocalRoutes.json')
 await fs.writeFile(outPath, JSON.stringify(out, null, 2))
-console.log(`\nWrote ${out.length} routes → ${path.relative(process.cwd(), outPath)}`)
+console.log(`\nWrote ${out.length} circuits → ${path.relative(process.cwd(), outPath)}`)

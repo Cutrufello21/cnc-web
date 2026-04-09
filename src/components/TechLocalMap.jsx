@@ -131,44 +131,50 @@ export default function TechLocalMap() {
           .addTo(map)
       }
 
-      // Build a car marker per route, with a randomized start offset and
-      // speed so the fleet looks uncoordinated.
-      const cars = routesData.map((r, i) => {
+      // Spawn 2 cars per circuit (12 total) at staggered offsets so
+      // every corridor always has visible traffic. Each car gets its
+      // own randomized lap time so the fleet never syncs up.
+      const cars = []
+      routesData.forEach((r) => {
         const route = prepRoute(r.coordinates)
-        const el = document.createElement('div')
-        el.className = 'tech-car'
-        // Inner wrapper is the one we rotate — Mapbox owns the outer
-        // element's transform for positioning, so we can't touch it.
-        // Icon is a filled chevron so it's visually distinct from the
-        // rectangular city-label pills and reads as "moving forward".
-        const inner = document.createElement('div')
-        inner.className = 'tech-car__inner'
-        inner.innerHTML = `
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path d="M7 1 L12.2 12 L7 9.2 L1.8 12 Z"
-                  fill="#60A5FA"
-                  stroke="#F5F8FF"
-                  stroke-width="0.9"
-                  stroke-linejoin="round"/>
-          </svg>
-        `
-        el.appendChild(inner)
-        const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
-          .setLngLat(r.coordinates[0])
-          .addTo(map)
+        for (let k = 0; k < 2; k++) {
+          const el = document.createElement('div')
+          el.className = 'tech-car'
+          // Inner wrapper is the one we rotate — Mapbox owns the outer
+          // element's transform for positioning, so we can't touch it.
+          // Chevron icon is visually distinct from the city-label pills
+          // and reads as "moving forward".
+          const inner = document.createElement('div')
+          inner.className = 'tech-car__inner'
+          inner.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M7 1 L12.2 12 L7 9.2 L1.8 12 Z"
+                    fill="#60A5FA"
+                    stroke="#F5F8FF"
+                    stroke-width="0.9"
+                    stroke-linejoin="round"/>
+            </svg>
+          `
+          el.appendChild(inner)
+          const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+            .setLngLat(r.coordinates[0])
+            .addTo(map)
 
-        // Target ~12–18 seconds per loop. At zoom 7.6 each ~8km route
-        // only spans 20–30 screen pixels, so slower loops read as
-        // stepping due to sub-pixel rounding. Faster = smoother here.
-        const loopSeconds = 12 + Math.random() * 6
-        return {
-          route,
-          marker,
-          el,
-          speed: route.total / loopSeconds, // meters per second
-          dist: Math.random() * route.total,
-          inner,
-          _i: i,
+          // Lap time is route-independent — every car completes its
+          // circuit in 25–40s so apparent pixel speed is consistent
+          // whether the circuit is 50km or 140km.
+          const loopSeconds = 25 + Math.random() * 15
+          // Stagger the two cars by half a lap so the route always
+          // has traffic on both legs (plus a little jitter).
+          const baseOffset = (k * 0.5 + Math.random() * 0.15) * route.total
+          cars.push({
+            route,
+            marker,
+            el,
+            inner,
+            speed: route.total / loopSeconds,
+            dist: baseOffset,
+          })
         }
       })
       carsRef.current = cars
