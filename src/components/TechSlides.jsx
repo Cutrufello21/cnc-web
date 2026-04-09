@@ -154,80 +154,39 @@ export function PharmacyAuditSlide() {
 
 /* ---------- Dispatch Portal slides ---------- */
 
-export function DispatchRulesSlide() {
-  const rules = [
-    'Cold chain first',
-    'Priority patients',
-    'Route density',
-    'Driver capacity',
-    'Time windows',
-    'Cluster by ZIP',
-    'Rx hand-off',
-    'Traffic patterns',
-    'Cold cap per driver',
+export function DispatchHandoffSlide() {
+  const steps = [
+    { time: 'CUTOVER',   label: 'Orders received', sub: '~6 PM' },
+    { time: 'OVERNIGHT', label: 'Routes built',    sub: 'by midnight' },
+    { time: 'DAWN',      label: 'Drivers loaded',  sub: '5–6 AM' },
+    { time: 'BY 6 PM',   label: 'Delivered',       sub: 'every day' },
   ]
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">156 routing rules</div>
-        <h4 className="slide-info__title">Built from years on these roads — not an algorithm guessing.</h4>
+        <div className="slide-info__eyebrow">The handoff</div>
+        <h4 className="slide-info__title">You send us the orders. We handle the rest.</h4>
         <p className="slide-info__desc">
-          Every rule came from a real dispatch decision a human made at 2 AM. National algorithms can't replicate that.
+          At cutover, your pharmacy sends us the day's prescriptions. By midnight, every order is matched to a driver, routed, and ready. By 6 AM, drivers are loaded. By 6 PM, every patient has their meds in hand. You never touch a route, a driver, or a map.
         </p>
         <div className="slide-info__stat">
-          <span className="slide-info__stat-num">156</span>
-          <span className="slide-info__stat-unit">rules in production</span>
+          <span className="slide-info__stat-num">0</span>
+          <span className="slide-info__stat-unit">routes you have to build</span>
         </div>
       </div>
       <div className="slide-info__visual">
-        <div className="rule-chips">
-          {rules.map((r, i) => (
-            <span className="rule-chip" key={r} style={{ '--i': i }}>{r}</span>
-          ))}
-          <span className="rule-chip rule-chip--more">+147 more</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export function DispatchStopsSlide() {
-  const drivers = [
-    { name: 'Adam',  stops: 51 },
-    { name: 'Alex',  stops: 34 },
-    { name: 'Bobby', stops: 31 },
-    { name: 'Dom',   stops: 14 },
-    { name: 'Josh',  stops: 32 },
-    { name: 'Kasey', stops: 24 },
-    { name: 'Laura', stops: 25 },
-    { name: 'Mike',  stops: 29 },
-    { name: 'Sara',  stops: 18 },
-    { name: 'Tara',  stops: 21 },
-    { name: 'Brad',  stops: 9  },
-  ]
-  const max = Math.max(...drivers.map((d) => d.stops))
-  return (
-    <div className="slide-info">
-      <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">Stop distribution</div>
-        <h4 className="slide-info__title">272 stops, 11 drivers — balanced by cold chain, not by count.</h4>
-        <p className="slide-info__desc">
-          Stops are distributed by package density, cold chain limits, and ZIP geometry — not divided evenly. Every driver's capacity is honored.
-        </p>
-        <div className="slide-info__stat">
-          <span className="slide-info__stat-num">272</span>
-          <span className="slide-info__stat-unit">stops · 11 drivers</span>
-        </div>
-      </div>
-      <div className="slide-info__visual">
-        <div className="bar-chart">
-          {drivers.map((d) => (
-            <div className="bar-chart__row" key={d.name}>
-              <span className="bar-chart__name">{d.name}</span>
-              <div className="bar-chart__track">
-                <div className="bar-chart__bar" style={{ width: `${(d.stops / max) * 100}%` }} />
+        <div className="handoff-flow">
+          {steps.map((s, i) => (
+            <div className="handoff-flow__step" key={i}>
+              <div className="handoff-flow__node">
+                <span className="handoff-flow__dot" />
+                {i < steps.length - 1 && <span className="handoff-flow__line" />}
               </div>
-              <span className="bar-chart__count">{d.stops}</span>
+              <div className="handoff-flow__body">
+                <div className="handoff-flow__time">{s.time}</div>
+                <div className="handoff-flow__label">{s.label}</div>
+                <div className="handoff-flow__sub">{s.sub}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -236,42 +195,78 @@ export function DispatchStopsSlide() {
   )
 }
 
-export function DispatchPayrollSlide() {
+export function DispatchLocalSlide() {
+  const expertise = [
+    'Buzzer codes',
+    'Back-door drops',
+    'Flood routes',
+    'Time windows',
+    'Cold chain first',
+    'Patient preferences',
+    'Hospital rush hours',
+    'Rural routes',
+    'Apartment complexes',
+  ]
   return (
     <div className="slide-info">
       <div className="slide-info__copy">
-        <div className="slide-info__eyebrow">Payroll automation</div>
-        <h4 className="slide-info__title">Payroll calculated the moment a delivery completes.</h4>
+        <div className="slide-info__eyebrow">Local expertise</div>
+        <h4 className="slide-info__title">We know Summit, Stark, Portage, and Tuscarawas by heart.</h4>
         <p className="slide-info__desc">
-          Every stop, every cold chain surcharge, every route bonus — rolled up per driver automatically. No spreadsheets. No disputes. Payroll is ready when the day ends.
+          Which streets flood in April. Which apartment complexes need buzzer codes. Which patients prefer back-door drops. Which routes slow down during Akron Children's shift change. Every decision we've made since 2007 is baked into how we build your routes tonight.
         </p>
         <div className="slide-info__stat">
-          <span className="slide-info__stat-num">0</span>
-          <span className="slide-info__stat-unit">manual payroll entries</span>
+          <span className="slide-info__stat-num">1.3M+</span>
+          <span className="slide-info__stat-unit">deliveries across NE Ohio since 2007</span>
         </div>
       </div>
       <div className="slide-info__visual">
-        <div className="payroll-flow">
-          <div className="payroll-flow__col">
-            <div className="payroll-flow__col-label">STOPS COMPLETED</div>
-            <div className="payroll-flow__item">Anderson, J.</div>
-            <div className="payroll-flow__item">Brown, S.</div>
-            <div className="payroll-flow__item">Chen, W.</div>
-            <div className="payroll-flow__item">Davis, E.</div>
-            <div className="payroll-flow__item">Garcia, C.</div>
+        <div className="rule-chips">
+          {expertise.map((r, i) => (
+            <span className="rule-chip" key={r} style={{ '--i': i }}>{r}</span>
+          ))}
+          <span className="rule-chip rule-chip--more">+148 more we've learned</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function DispatchAdaptSlide() {
+  return (
+    <div className="slide-info">
+      <div className="slide-info__copy">
+        <div className="slide-info__eyebrow">When things change</div>
+        <h4 className="slide-info__title">Rush order? Reroute? Driver swap? One call — and it's handled.</h4>
+        <p className="slide-info__desc">
+          Plans change. A patient needs insulin an hour earlier. A cold chain stop has to move to a different driver. When you call CNC dispatch, you get Mark or Dom — a Cutrufello on the other end of the line, not a ticket queue. We re-solve the day in real time so your patients don't wait.
+        </p>
+        <div className="slide-info__stat">
+          <span className="slide-info__stat-num">2007</span>
+          <span className="slide-info__stat-unit">same family answering the phone since</span>
+        </div>
+      </div>
+      <div className="slide-info__visual">
+        <div className="adapt-diagram">
+          <div className="adapt-diagram__col">
+            <div className="adapt-diagram__col-label">BEFORE</div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">1</span>Brown, S.<span className="adapt-diagram__time">8:26 AM</span></div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">2</span>Chen, W.<span className="adapt-diagram__time">8:39 AM</span></div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">3</span>Davis, E.<span className="adapt-diagram__time">8:51 AM</span></div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">4</span>Garcia, C.<span className="adapt-diagram__time">9:04 AM</span></div>
           </div>
-          <div className="payroll-flow__arrow">
-            <svg width="40" height="16" viewBox="0 0 40 16" fill="none">
-              <path d="M0 8 H34 M28 2 L34 8 L28 14" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          <div className="adapt-diagram__arrow">
+            <svg width="32" height="14" viewBox="0 0 32 14" fill="none">
+              <path d="M0 7 H26 M22 2 L26 7 L22 12" stroke="#60A5FA" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <div className="payroll-flow__col">
-            <div className="payroll-flow__col-label">DRIVER PAY · TODAY</div>
-            <div className="payroll-flow__pay"><span>Dom</span><span>$284.00</span></div>
-            <div className="payroll-flow__pay"><span>Mike</span><span>$312.50</span></div>
-            <div className="payroll-flow__pay"><span>Sara</span><span>$226.75</span></div>
-            <div className="payroll-flow__pay"><span>Adam</span><span>$358.25</span></div>
-            <div className="payroll-flow__pay"><span>Alex</span><span>$268.00</span></div>
+          <div className="adapt-diagram__col">
+            <div className="adapt-diagram__col-label adapt-diagram__col-label--rush">+ RUSH ORDER</div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">1</span>Brown, S.<span className="adapt-diagram__time">8:26 AM</span></div>
+            <div className="adapt-diagram__row adapt-diagram__row--rush"><span className="adapt-diagram__rush">RUSH</span>Ward, M.<span className="adapt-diagram__time">8:32 AM</span></div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">2</span>Chen, W.<span className="adapt-diagram__time">8:41 AM</span></div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">3</span>Davis, E.<span className="adapt-diagram__time">8:53 AM</span></div>
+            <div className="adapt-diagram__row"><span className="adapt-diagram__num">4</span>Garcia, C.<span className="adapt-diagram__time">9:06 AM</span></div>
           </div>
         </div>
       </div>

@@ -339,70 +339,88 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ---------- Dispatch: bar chart ---------- */
-.bar-chart {
-  width: 100%;
-  max-width: 440px;
+/* ---------- Dispatch: handoff flow (the 4-step overnight timeline) ---------- */
+.handoff-flow {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 22px;
+  width: 100%;
+  max-width: 380px;
 }
 
-.bar-chart__row {
+.handoff-flow__step {
   display: grid;
-  grid-template-columns: 48px 1fr 32px;
-  align-items: center;
-  gap: 12px;
-  font-size: 11px;
+  grid-template-columns: 32px 1fr;
+  gap: 16px;
+  align-items: start;
 }
 
-.bar-chart__name {
-  color: #E6EDF7;
-  font-weight: 600;
+.handoff-flow__node {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
 }
 
-.bar-chart__track {
-  height: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 4px;
-  overflow: hidden;
+.handoff-flow__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #60A5FA;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.15), 0 0 20px rgba(96, 165, 250, 0.6);
+  flex-shrink: 0;
+  z-index: 1;
 }
 
-.bar-chart__bar {
-  height: 100%;
-  background: linear-gradient(90deg, rgba(96, 165, 250, 0.4), #60A5FA);
-  border-radius: 4px;
-  animation: barFill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+.handoff-flow__line {
+  position: absolute;
+  top: 20px;
+  bottom: -22px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.4), rgba(96, 165, 250, 0.1));
 }
 
-@keyframes barFill {
-  from { width: 0 !important; }
-}
-
-.bar-chart__count {
-  color: #94a3b8;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  text-align: right;
+.handoff-flow__time {
   font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #60A5FA;
+  margin-bottom: 2px;
 }
 
-/* ---------- Dispatch: payroll flow ---------- */
-.payroll-flow {
+.handoff-flow__label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #F5F8FF;
+  line-height: 1.2;
+}
+
+.handoff-flow__sub {
+  font-size: 11px;
+  color: rgba(230, 237, 247, 0.55);
+  margin-top: 2px;
+}
+
+/* ---------- Dispatch: adapt diagram (before/after route with rush insert) ---------- */
+.adapt-diagram {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 20px;
+  align-items: start;
+  gap: 14px;
   width: 100%;
-  max-width: 460px;
+  max-width: 500px;
 }
 
-.payroll-flow__col {
+.adapt-diagram__col {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
+  min-width: 0;
 }
 
-.payroll-flow__col-label {
+.adapt-diagram__col-label {
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.8px;
@@ -411,30 +429,63 @@
   text-transform: uppercase;
 }
 
-.payroll-flow__item,
-.payroll-flow__pay {
-  font-size: 11px;
-  color: #cbd5e1;
+.adapt-diagram__col-label--rush {
+  color: #f59e0b;
+}
+
+.adapt-diagram__row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 6px;
-  padding: 7px 10px;
+  font-size: 10px;
+  color: #cbd5e1;
 }
 
-.payroll-flow__pay {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: #E6EDF7;
-  font-weight: 600;
+.adapt-diagram__row--rush {
+  grid-template-columns: auto 1fr auto;
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.12);
+  animation: rushPulse 2.4s ease-in-out infinite;
 }
 
-.payroll-flow__pay span:last-child {
-  color: #22c55e;
+@keyframes rushPulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.12); }
+  50%      { box-shadow: 0 0 24px rgba(245, 158, 11, 0.25); }
+}
+
+.adapt-diagram__num {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-.payroll-flow__arrow {
+.adapt-diagram__rush {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 3px;
+  padding: 2px 5px;
+}
+
+.adapt-diagram__time {
+  font-size: 9px;
+  color: #94a3b8;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.adapt-diagram__arrow {
+  padding-top: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
