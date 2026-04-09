@@ -52,17 +52,18 @@
   --nav-offset: 88px;
   --strip: 64px; /* must match .tech-card__head height */
   position: relative;
-  /* Extra scroll room so all three sticky cards can pin together
-     and each stays pinned for a meaningful dwell before release. */
-  padding-bottom: 15vh;
+  /* Tiny tail so the last card releases cleanly without a big
+     empty navy gap before the next section. */
+  padding-bottom: 0;
 }
 
 .tech-card {
   position: sticky;
   top: calc(var(--nav-offset) + var(--i, 0) * var(--strip));
-  /* Fixed viewport-height card so copy + stage always fit inside
-     the pinned area — no bleed below the fold. */
-  height: calc(100vh - var(--nav-offset));
+  /* Fixed height sized to fit copy + stage without bleeding and
+     without leaving a large empty gap at the bottom of the card. */
+  height: calc(100vh - var(--nav-offset) - 120px);
+  min-height: 560px;
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
   /* Clip only the top so the rounded corners read cleanly; the
@@ -194,7 +195,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  max-height: calc(100vh - var(--nav-offset) - 160px);
+  max-height: calc(100vh - var(--nav-offset) - 260px);
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(96, 165, 250, 0.14);
@@ -249,8 +250,8 @@
 
 /* ---------- Proof strip ---------- */
 .tech__proof {
-  margin-top: 24px;
-  padding: 24px 0 48px;
+  margin-top: 0;
+  padding: 20px 0 28px;
   border-top: 1px solid rgba(96, 165, 250, 0.15);
 }
 
