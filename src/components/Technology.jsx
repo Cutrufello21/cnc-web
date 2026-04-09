@@ -11,13 +11,13 @@ import './Technology.css'
    section enters, fills, and exits the viewport. The .tech section
    itself is transparent so the body color shows through and the
    effect reads as the whole page darkening. rAF-throttled for 60/
-   120Hz smoothness. */
+   120Hz smoothness. Also writes --nav-bg / --nav-text / --nav-border
+   so the navbar tracks the same curve. */
 function useTechScrollTransition() {
   useEffect(() => {
     const el = document.querySelector('.tech')
     if (!el) return
 
-    // White → dark navy (matches PharmacyPortalDemo background).
     const FROM = [255, 255, 255]
     const TO = [5, 16, 31]
     const lerp = (a, b, t) => Math.round(a + (b - a) * t)
@@ -30,19 +30,11 @@ function useTechScrollTransition() {
       const vh = window.innerHeight
 
       let t
-      if (rect.top >= vh) {
-        t = 0 // not entered yet
-      } else if (rect.top > 0) {
-        // Entering: top travels vh → 0 across one viewport of scroll
-        t = 1 - rect.top / vh
-      } else if (rect.bottom >= vh) {
-        t = 1 // fully occupying the viewport
-      } else if (rect.bottom > 0) {
-        // Exiting: bottom travels vh → 0
-        t = rect.bottom / vh
-      } else {
-        t = 0 // fully past
-      }
+      if (rect.top >= vh) t = 0
+      else if (rect.top > 0) t = 1 - rect.top / vh
+      else if (rect.bottom >= vh) t = 1
+      else if (rect.bottom > 0) t = rect.bottom / vh
+      else t = 0
 
       t = smoothstep(Math.max(0, Math.min(1, t)))
       const r = lerp(FROM[0], TO[0], t)
@@ -52,14 +44,9 @@ function useTechScrollTransition() {
       document.body.style.backgroundColor = color
       document.documentElement.style.backgroundColor = color
 
-      // Drive navbar colors in sync via CSS variables. At t=0 the nav
-      // is the existing solid-light state; at t=1 it matches the deep
-      // navy section so the visitor feels inside the product shell.
       const navBgR = lerp(255, 5, t)
       const navBgG = lerp(255, 16, t)
       const navBgB = lerp(255, 31, t)
-      // Link / logo text: dark navy (#0A2463, rgb 10,36,99) at t=0
-      // → near-white (#E6EDF7, rgb 230,237,247) at t=1.
       const navTxtR = lerp(10, 230, t)
       const navTxtG = lerp(36, 237, t)
       const navTxtB = lerp(99, 247, t)
@@ -104,9 +91,7 @@ const features = [
       'Cold chain verification and compliance',
       'Full audit trail for regulatory needs',
     ],
-    image: '/images/pharmacy-portal.png',
-    imageAlt: 'CNC Delivery Pharmacy Portal showing delivery tracking dashboard',
-    isPortal: true,
+    visual: 'portal',
   },
   {
     id: 'dispatch',
@@ -119,9 +104,7 @@ const features = [
       'Cold chain package limits enforced per driver',
       'Automated payroll calculated on delivery',
     ],
-    image: '/images/dispatch-portal.png',
-    imageAlt: 'CNC Delivery Dispatch Portal showing driver assignments and route optimization',
-    isDispatch: true,
+    visual: 'dispatch',
   },
   {
     id: 'driver',
@@ -134,9 +117,7 @@ const features = [
       'Cold chain flagging and priority delivery',
       'Real-time ETA and progress tracking',
     ],
-    image: '/images/driver-app.png',
-    imageAlt: 'CNC Delivery Driver App showing stop list and delivery flow',
-    isPhone: true,
+    visual: 'phone',
   },
 ]
 
@@ -159,18 +140,52 @@ export default function Technology() {
             Three connected platforms. One complete system. We built the software that proves every stop — so your pharmacy clients never have to wonder.
           </p>
         </motion.div>
+      </div>
 
+      {/* Stacked sticky cards — each pins below the nav and the next
+          slides up over it with a rounded top edge. */}
+      <div className="tech__stack">
         {features.map((f, i) => (
-          <Feature key={f.id} feature={f} index={i} inView={inView} />
-        ))}
+          <div className="tech-card-wrap" key={f.id}>
+            <article className="tech-card" data-visual={f.visual}>
+              <div className="container tech-card__inner">
+                <div className="tech-card__head">
+                  <span className="tech-card__dot" />
+                  <span className="tech-card__label">{f.label}</span>
+                  <span className="tech-card__index">0{i + 1} / 03</span>
+                </div>
 
-        {/* POD proof strip */}
-        <motion.div
-          className="tech__proof"
-          initial={{ opacity: 0, y: 20 }}
-          animate={inView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.6 }}
-        >
+                <div className="tech-card__grid">
+                  <div className="tech-card__content">
+                    <h3 className="tech-card__title">{f.title}</h3>
+                    <p className="tech-card__desc">{f.desc}</p>
+                    <ul className="tech-card__points">
+                      {f.points.map((pt, j) => (
+                        <li key={j}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <span>{pt}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className={`tech-card__visual tech-card__visual--${f.visual}`}>
+                    {f.visual === 'portal' && <PharmacyPortalDemo />}
+                    {f.visual === 'dispatch' && <DispatchPortalDemo />}
+                    {f.visual === 'phone' && <DriverAppDemo />}
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        ))}
+      </div>
+
+      {/* POD proof strip */}
+      <div className="container">
+        <div className="tech__proof">
           <div className="tech__proof-items">
             {[
               { icon: 'M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z M12 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6z', label: 'GPS Verified' },
@@ -188,71 +203,8 @@ export default function Technology() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
-  )
-}
-
-function Feature({ feature: f, index: i, inView }) {
-  const reversed = i % 2 === 1
-  const fullWidth = f.isPortal || f.isDispatch
-
-  if (fullWidth) {
-    return (
-      <motion.div
-        className="tech-feature tech-feature--fullwidth"
-        initial={{ opacity: 0, y: 40 }}
-        animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ duration: 0.6, delay: 0.15 * i }}
-      >
-        <div className="tech-feature__content">
-          <p className="tech-feature__label">{f.label}</p>
-          <h3 className="tech-feature__title">{f.title}</h3>
-          <p className="tech-feature__desc">{f.desc}</p>
-          <div className="tech-feature__points">
-            {f.points.map((pt, j) => (
-              <div className="tech-feature__point" key={j}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span>{pt}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="tech-feature__image">
-          {f.isPortal ? <PharmacyPortalDemo /> : <DispatchPortalDemo />}
-        </div>
-      </motion.div>
-    )
-  }
-
-  return (
-    <motion.div
-      className={`tech-feature ${reversed ? 'tech-feature--reversed' : ''}`}
-      initial={{ opacity: 0, y: 40 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay: 0.15 * i }}
-    >
-      <div className={`tech-feature__image ${f.isPhone ? 'tech-feature__image--phone' : ''}`}>
-        {f.isPhone ? <DriverAppDemo /> : <img src={f.image} alt={f.imageAlt} loading="lazy" />}
-      </div>
-      <div className="tech-feature__content">
-        <p className="tech-feature__label">{f.label}</p>
-        <h3 className="tech-feature__title">{f.title}</h3>
-        <p className="tech-feature__desc">{f.desc}</p>
-        <div className="tech-feature__points">
-          {f.points.map((pt, j) => (
-            <div className="tech-feature__point" key={j}>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>{pt}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </motion.div>
   )
 }

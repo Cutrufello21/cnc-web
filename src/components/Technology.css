@@ -1,20 +1,18 @@
 /* Scroll-driven light→dark transition: JS in Technology.jsx
-   interpolates .tech backgroundColor based on scroll position so the
-   section smoothly darkens as it enters the viewport and brightens
-   back to white as it leaves. Effect: visitor feels pulled into
-   the live product. */
+   interpolates document.body + CSS vars (--nav-bg / --nav-text) so
+   the whole page and navbar darken as the section enters the
+   viewport. This file handles layout only. */
 .tech {
-  padding: 140px 0 120px;
+  padding: 120px 0 0;
   position: relative;
   background: transparent;
   color: #E6EDF7;
-  overflow: hidden;
 }
 
 .tech__header {
   text-align: center;
   max-width: 760px;
-  margin: 0 auto 48px;
+  margin: 0 auto 80px;
 }
 
 .tech__eyebrow {
@@ -27,11 +25,12 @@
 }
 
 .tech__title {
-  font-size: clamp(28px, 4vw, 40px);
+  font-size: clamp(28px, 4vw, 44px);
   font-weight: 700;
   letter-spacing: -1px;
   color: #F5F8FF;
   margin-bottom: 16px;
+  line-height: 1.1;
 }
 
 .tech__sub {
@@ -40,150 +39,151 @@
   color: rgba(230, 237, 247, 0.7);
 }
 
-/* Feature block — alternating image/text */
-.tech-feature {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 64px;
-  align-items: center;
-  margin-bottom: 56px;
+/* ---------- Stacked sticky cards ---------- */
+/* Each wrap is ~100vh tall; the card inside is sticky and pins
+   below the navbar. As you scroll past a wrap, the next card's
+   rounded top edge rises over the previous card. */
+.tech__stack {
+  position: relative;
+  padding-bottom: 80px;
 }
 
-.tech-feature--reversed {
-  grid-template-columns: 1fr 1.1fr;
+.tech-card-wrap {
+  position: relative;
+  min-height: 100vh;
 }
 
-.tech-feature--reversed .tech-feature__image {
-  order: 2;
-}
-
-.tech-feature--reversed .tech-feature__content {
-  order: 1;
-}
-
-/* Image */
-.tech-feature__image {
-  border-radius: var(--radius-lg);
+.tech-card {
+  position: sticky;
+  top: 88px; /* sits just below fixed navbar */
+  border-top-left-radius: 28px;
+  border-top-right-radius: 28px;
+  border: 1px solid rgba(96, 165, 250, 0.12);
+  border-bottom: none;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(96, 165, 250, 0.08), transparent 60%),
+    linear-gradient(180deg, #0B1A30 0%, #07121F 100%);
+  box-shadow: 0 -20px 60px -30px rgba(0, 0, 0, 0.6);
   overflow: hidden;
-  background: var(--navy);
-  border: 1px solid var(--gray-200);
-  box-shadow: var(--shadow-xl);
+  min-height: calc(100vh - 120px);
 }
 
-.tech-feature__image img {
-  width: 100%;
-  height: auto;
-  display: block;
+/* Subtle tint progression so stacked cards read as distinct layers */
+.tech-card-wrap:nth-child(2) .tech-card {
+  background:
+    radial-gradient(120% 80% at 100% 0%, rgba(96, 165, 250, 0.09), transparent 60%),
+    linear-gradient(180deg, #0A1830 0%, #060F1C 100%);
+}
+.tech-card-wrap:nth-child(3) .tech-card {
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(96, 165, 250, 0.10), transparent 60%),
+    linear-gradient(180deg, #091628 0%, #050D18 100%);
 }
 
-.tech-feature__image--phone,
-.tech-feature__image--portal {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-  overflow: visible;
+.tech-card__inner {
+  padding: 56px 0 64px;
+}
+
+/* Header strip: dot + label pill + index counter, Bringg-style */
+.tech-card__head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 20px 0;
+  gap: 14px;
+  margin-bottom: 48px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.12);
 }
-
-/* Full-width portal feature layout — text on top, demo below */
-.tech-feature--fullwidth {
-  display: block;
-  margin-bottom: 72px;
+.tech-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #60A5FA;
+  box-shadow: 0 0 12px rgba(96, 165, 250, 0.6);
+  flex-shrink: 0;
 }
-
-.tech-feature--fullwidth .tech-feature__content {
-  text-align: center;
-  max-width: 720px;
-  margin: 0 auto 40px;
-  padding: 0;
-}
-
-.tech-feature--fullwidth .tech-feature__points {
-  justify-content: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px 32px;
-  margin-top: 24px;
-}
-
-.tech-feature--fullwidth .tech-feature__image {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  overflow: visible !important;
-  padding: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  display: block !important;
-}
-
-.tech-feature__image--phone img {
-  width: 260px;
-  height: auto;
-  border-radius: 24px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-}
-
-/* Content */
-.tech-feature__content {
-  padding: 8px 0;
-}
-
-.tech-feature__label {
+.tech-card__label {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 1.2px;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: #60A5FA;
-  margin-bottom: 12px;
+  color: #E6EDF7;
+}
+.tech-card__index {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  color: rgba(230, 237, 247, 0.4);
+  font-variant-numeric: tabular-nums;
 }
 
-.tech-feature__title {
-  font-size: clamp(24px, 3vw, 32px);
+/* Content grid */
+.tech-card__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.tech-card__content {
+  max-width: 520px;
+}
+
+.tech-card__title {
+  font-size: clamp(28px, 3.4vw, 44px);
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.8px;
   color: #F5F8FF;
-  margin-bottom: 16px;
-  line-height: 1.2;
+  margin-bottom: 20px;
+  line-height: 1.1;
 }
 
-.tech-feature__desc {
+.tech-card__desc {
   font-size: 16px;
   line-height: 1.7;
-  color: rgba(230, 237, 247, 0.7);
-  margin-bottom: 24px;
+  color: rgba(230, 237, 247, 0.68);
+  margin-bottom: 28px;
 }
 
-.tech-feature__points {
+.tech-card__points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-
-.tech-feature__point {
+.tech-card__points li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px;
   font-size: 15px;
-  color: rgba(230, 237, 247, 0.8);
-  line-height: 1.4;
+  color: rgba(230, 237, 247, 0.85);
+  line-height: 1.5;
 }
-
-.tech-feature__point svg {
+.tech-card__points svg {
   flex-shrink: 0;
   margin-top: 3px;
   color: #60A5FA;
 }
 
-/* Proof strip */
+/* Visual column */
+.tech-card__visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.tech-card__visual--phone {
+  padding: 20px 0;
+}
+
+/* ---------- Proof strip ---------- */
 .tech__proof {
-  margin-top: 20px;
-  padding: 24px 0;
+  margin-top: 60px;
+  padding: 32px 0 120px;
   border-top: 1px solid rgba(96, 165, 250, 0.15);
 }
 
@@ -206,42 +206,44 @@
   color: #60A5FA;
 }
 
-/* Dark mode */
-[data-theme="dark"] .tech-feature__image {
-  background: #0a1a3a;
-  border-color: var(--gray-700);
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .tech-card__grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+  .tech-card__content {
+    max-width: none;
+  }
+  .tech-card-wrap {
+    min-height: auto;
+  }
+  .tech-card {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
 }
 
-[data-theme="dark"] .tech-feature__image--phone {
-  background: var(--gray-800);
-}
-
-[data-theme="dark"] .tech__proof {
-  border-color: var(--gray-700);
-}
-
-/* Responsive */
 @media (max-width: 768px) {
   .tech {
-    padding: 72px 0 40px;
+    padding: 72px 0 0;
   }
   .tech__header {
     margin-bottom: 48px;
   }
-  .tech-feature {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    margin-bottom: 56px;
+  .tech-card {
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
   }
-  .tech-feature--reversed .tech-feature__image,
-  .tech-feature--reversed .tech-feature__content {
-    order: unset;
+  .tech-card__inner {
+    padding: 36px 0 44px;
   }
-  .tech-feature__image--phone {
-    padding: 24px;
+  .tech-card__head {
+    margin-bottom: 32px;
   }
-  .tech-feature__image--phone img {
-    width: 200px;
+  .tech__proof {
+    padding: 32px 0 72px;
   }
   .tech__proof-items {
     flex-wrap: wrap;
