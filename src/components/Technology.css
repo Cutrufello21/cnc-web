@@ -139,13 +139,15 @@
   display: grid;
   grid-template-columns: minmax(380px, 480px) 1fr;
   gap: 56px;
-  align-items: center;
+  align-items: stretch;
   flex: 1;
   min-height: 0;
 }
 
 .tech-card__copy {
   max-width: 480px;
+  align-self: start;
+  padding-top: 8px;
 }
 
 .tech-card__title {
