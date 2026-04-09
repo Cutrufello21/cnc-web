@@ -108,9 +108,30 @@ export default function PharmacyPortalDemo() {
           {/* Main */}
           <main className="pharm-main">
             <header className="pharm-header">
-              <h3>Dashboard</h3>
+              <h3>
+                Dashboard
+                <span className="pharm-live-dot" aria-hidden="true" />
+              </h3>
               <div className="pharm-avatar">SH</div>
             </header>
+
+            {/* New-delivery toast — keyed on justDelivered so it
+                re-mounts and re-plays the slide-in each tick. */}
+            {justDelivered >= 0 && DELIVERIES[justDelivered] && (
+              <div className="pharm-toast" key={justDelivered}>
+                <span className="pharm-toast-check">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8.5L6.5 12L13 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <div className="pharm-toast-body">
+                  <div className="pharm-toast-title">Delivered</div>
+                  <div className="pharm-toast-sub">
+                    {DELIVERIES[justDelivered].name} · {DELIVERIES[justDelivered].driver}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="pharm-toolbar">
               <div className="pharm-date">
@@ -120,7 +141,8 @@ export default function PharmacyPortalDemo() {
               </div>
               <div className="pharm-actions">
                 <button className="pharm-btn pharm-btn--ghost">Export</button>
-                <button className={`pharm-btn pharm-btn--primary ${allDelivered ? 'pharm-btn--ready' : ''}`}>
+                <button className={`pharm-btn pharm-btn--primary ${allDelivered ? 'pharm-btn--ready' : 'pharm-btn--live'}`}>
+                  {!allDelivered && <span className="pharm-btn-dot" />}
                   {allDelivered ? 'All Delivered' : 'Live'}
                 </button>
               </div>

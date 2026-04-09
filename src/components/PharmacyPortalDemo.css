@@ -157,6 +157,25 @@
   font-size: 16px;
   font-weight: 800;
   color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Heartbeat dot next to Dashboard title — "connected / receiving" */
+.pharm-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34,197,94,0.6);
+  animation: pharmHeartbeat 1.6s ease-out infinite;
+}
+
+@keyframes pharmHeartbeat {
+  0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
 }
 
 .pharm-avatar {
@@ -222,6 +241,35 @@
 .pharm-btn--primary {
   background: #047857;
   color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Live button — pulsing dot + breathing halo so it reads as real-time */
+.pharm-btn--live {
+  background: #16a34a;
+  box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
+  animation: pharmBtnLive 1.8s ease-in-out infinite;
+}
+
+.pharm-btn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255,255,255,0.9);
+  animation: pharmDotPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pharmBtnLive {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+  50%      { box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+}
+
+@keyframes pharmDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.85); }
 }
 
 .pharm-btn--ready {
@@ -324,12 +372,79 @@
 .pharm-row--delivered { color: #94a3b8; }
 
 .pharm-row--flash {
-  animation: pharmFlashRow 1.4s ease-out;
+  animation: pharmFlashRow 1.6s ease-out;
+  position: relative;
 }
 
 @keyframes pharmFlashRow {
-  0%   { background: rgba(34,197,94,0.18); }
-  100% { background: transparent; }
+  0%   { background: rgba(34,197,94,0.35); box-shadow: inset 3px 0 0 #22c55e; }
+  30%  { background: rgba(34,197,94,0.25); box-shadow: inset 3px 0 0 #22c55e; }
+  100% { background: transparent; box-shadow: inset 3px 0 0 rgba(34,197,94,0); }
+}
+
+/* New-delivery toast — slides in from top-right of main pane */
+.pharm-main { position: relative; }
+
+.pharm-toast {
+  position: absolute;
+  top: 10px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(180deg, rgba(15,30,50,0.96), rgba(8,18,32,0.96));
+  border: 1px solid rgba(34,197,94,0.35);
+  border-radius: 8px;
+  padding: 7px 11px 7px 9px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45), 0 0 0 1px rgba(34,197,94,0.08);
+  z-index: 5;
+  animation: pharmToastIn 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2),
+             pharmToastOut 0.4s ease-in 2.1s forwards;
+  pointer-events: none;
+}
+
+.pharm-toast-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(34,197,94,0.18);
+  color: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pharm-toast-body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.pharm-toast-title {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+
+.pharm-toast-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-top: 1px;
+  white-space: nowrap;
+}
+
+@keyframes pharmToastIn {
+  from { opacity: 0; transform: translateX(20px) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(0) translateY(0); }
+}
+
+@keyframes pharmToastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(12px); }
 }
 
 .pharm-cell-name {
