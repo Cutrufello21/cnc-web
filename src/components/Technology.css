@@ -216,18 +216,36 @@
   display: block;
 }
 
-/* Phone stage centers the phone with an ambient periwinkle glow.
-   The demo-phone itself is only 300px wide, so scale it up to fill
-   the stage height nicely instead of floating in empty space. */
+/* Phone stage centers the phone with an ambient periwinkle glow. */
 .tech-card__stage--phone {
   background:
     radial-gradient(60% 60% at 50% 50%, rgba(96, 165, 250, 0.18), transparent 70%),
     linear-gradient(180deg, rgba(10, 20, 36, 0.6), rgba(5, 13, 24, 0.85));
   padding: 20px;
 }
+
+/* Wrap the demo in a proper iPhone-style chassis so it reads as a
+   phone and not a landscape window. The .demo-phone element itself
+   is just the inner screen — we add the dark bezel + highlights
+   here. */
 .tech-card__stage--phone .demo-phone {
-  transform: scale(1.15);
+  padding: 14px 10px;
+  background:
+    linear-gradient(180deg, #1a1a1d 0%, #0a0a0c 100%);
+  border-radius: 42px;
+  box-shadow:
+    0 0 0 1.5px #2a2a2e,
+    0 0 0 3px #0a0a0c,
+    0 30px 70px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: scale(1.08);
   transform-origin: center center;
+}
+
+/* Inner screen: clip to a tighter phone radius */
+.tech-card__stage--phone .demo-screen {
+  border-radius: 32px;
+  border: none;
 }
 
 /* ---------- Proof strip ---------- */
