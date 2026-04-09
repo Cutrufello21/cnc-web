@@ -266,12 +266,16 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  font-weight: 500;
-  color: rgba(230, 237, 247, 0.8);
+  font-weight: 600;
+  /* Tracks the same scroll-driven var as the navbar so the strip
+     stays legible as the page fades from dark navy back to white
+     on exit. */
+  color: var(--nav-text, #0A2463);
+  transition: color 0.1s linear;
 }
 
 .tech__proof-item svg {
-  color: #60A5FA;
+  color: var(--nav-text, #0A2463);
 }
 
 /* ---------- Responsive ---------- */
