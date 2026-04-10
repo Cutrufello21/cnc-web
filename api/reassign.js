@@ -84,6 +84,15 @@ export default async function handler(req, res) {
         .eq('order_id', oid)
     }
 
+    // 4. Sync orders table so historical records reflect the final driver
+    try {
+      await supabase.from('orders')
+        .update({ driver_name: toDriverName })
+        .in('order_id', orderIds)
+    } catch (ordSyncErr) {
+      console.error('[reassign orders sync]', ordSyncErr.message)
+    }
+
     return res.status(200).json({
       success: true,
       moved: rowsToMove.length,

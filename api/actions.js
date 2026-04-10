@@ -122,6 +122,16 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: `Transfer update failed: ${moveError}` })
       }
 
+      // Sync orders table so historical records reflect the final
+      // driver, not the original import-time assignment.
+      try {
+        await supabase.from('orders')
+          .update({ driver_name: toDriverName })
+          .in('order_id', orderIds)
+      } catch (ordSyncErr) {
+        console.error('[transfer orders sync]', ordSyncErr.message)
+      }
+
       // Keep driver_routes.stop_sequence in sync for both drivers so
       // the sender doesn't see a ghost stop and the receiver gets the
       // transferred stops appended to their saved ordering.
