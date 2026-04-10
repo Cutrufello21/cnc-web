@@ -3,10 +3,71 @@
    layout: copy on the left, animated visual on the right. Most
    slides are pure SVG/CSS; the Dispatch Local slide uses Mapbox
    via the TechLocalMap component. */
+import { useEffect, useRef, useState } from 'react'
 import TechLocalMap from './TechLocalMap'
 import './TechSlides.css'
 
 /* ---------- Pharmacy Portal slides ---------- */
+
+/* Simulated live status feed — new delivery updates appear every
+   ~2.8 s, slide in from the bottom, older ones scroll up and fade.
+   Uses Sample addresses (no real PHI). The feed loops after all
+   events have played, so the card never goes static. */
+const FEED_EVENTS = [
+  { status: 'pickup',    driver: 'Alex',     text: 'Picked up 4 orders from SHSP',     time: '5:32 AM' },
+  { status: 'transit',   driver: 'Bobby',    text: 'En route to 425 Springbrook Dr',    time: '5:48 AM' },
+  { status: 'delivered', driver: 'Bobby',     text: 'Delivered to 425 Springbrook Dr',   time: '5:54 AM' },
+  { status: 'pickup',    driver: 'Tara',      text: 'Picked up 6 orders from Aultman',   time: '5:58 AM' },
+  { status: 'delivered', driver: 'Alex',      text: 'Delivered to 211 2nd St SW',        time: '6:03 AM' },
+  { status: 'transit',   driver: 'Nicholas',  text: 'En route to 755 5th St SW',         time: '6:07 AM' },
+  { status: 'delivered', driver: 'Tara',      text: 'Delivered to 836 2nd St SE',        time: '6:12 AM' },
+  { status: 'delivered', driver: 'Nicholas',  text: 'Delivered to 755 5th St SW',        time: '6:18 AM' },
+  { status: 'transit',   driver: 'Mike',      text: 'En route — ETA 8 min',              time: '6:22 AM' },
+  { status: 'delivered', driver: 'Mike',       text: 'Delivered to 1791 Goshen Hill Rd',  time: '6:30 AM' },
+  { status: 'pickup',    driver: 'Nick',       text: 'Picked up 5 orders from SHSP',     time: '6:34 AM' },
+  { status: 'delivered', driver: 'Alex',      text: 'Delivered to 869 2nd St SE',        time: '6:41 AM' },
+]
+
+function LiveFeed() {
+  const [rows, setRows] = useState([])
+  const counter = useRef(0)
+
+  useEffect(() => {
+    // Seed with first 3 immediately so the card isn't empty
+    const seed = FEED_EVENTS.slice(0, 3).map((e, i) => ({ ...e, _k: i }))
+    setRows(seed)
+    counter.current = 3
+
+    const interval = setInterval(() => {
+      const evt = FEED_EVENTS[counter.current % FEED_EVENTS.length]
+      const _k = counter.current
+      counter.current++
+      setRows((prev) => [...prev.slice(-5), { ...evt, _k }])
+    }, 2800)
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div className="live-feed">
+      <div className="live-feed__hdr">
+        <span className="live-feed__hdr-dot" />
+        <span>Live Updates</span>
+      </div>
+      <div className="live-feed__list">
+        {rows.map((e) => (
+          <div key={e._k} className={`live-feed__row live-feed__row--${e.status}`}>
+            <span className={`live-feed__dot live-feed__dot--${e.status}`} />
+            <div className="live-feed__body">
+              <span className="live-feed__driver">{e.driver}</span>
+              <span className="live-feed__text">{e.text}</span>
+            </div>
+            <span className="live-feed__time">{e.time}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function PharmacyRealtimeSlide() {
   return (
@@ -23,12 +84,7 @@ export function PharmacyRealtimeSlide() {
         </div>
       </div>
       <div className="slide-info__visual">
-        <div className="pulse-map">
-          <div className="pulse-map__hub" />
-          {[...Array(7)].map((_, i) => (
-            <span key={i} className="pulse-map__ping" style={{ '--i': i }} />
-          ))}
-        </div>
+        <LiveFeed />
       </div>
     </div>
   )
