@@ -1,0 +1,194 @@
+// AI Dispatch Suggestions — READ ONLY
+// GET /api/ai-dispatch?date=2026-04-10
+//
+// Reads: daily_stops, routing_rules, dispatch_history_import, drivers
+// Writes: NOTHING
+// Returns: { assignments, flags, summary, stats }
+
+import Anthropic from '@anthropic-ai/sdk'
+import { supabase } from './_lib/supabase.js'
+
+export default async function handler(req, res) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' })
+
+  try {
+    // ── 1. Target date ──────────────────────────────────────────
+    const dateStr = req.query.date || new Date().toISOString().split('T')[0]
+    const dateObj = new Date(dateStr + 'T12:00:00')
+    const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' })
+
+    // ── 2. Fetch all context in parallel ────────────────────────
+    const cutoff90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
+
+    const [stopsRes, rulesRes, driversRes, historyRes] = await Promise.all([
+      supabase
+        .from('daily_stops')
+        .select('id, order_id, driver_name, driver_number, zip, city, address, pharmacy, cold_chain, assigned_driver_number, dispatch_driver_number')
+        .eq('delivery_date', dateStr)
+        .eq('status', 'dispatched')
+        .limit(1000),
+
+      supabase
+        .from('routing_rules')
+        .select('*')
+        .limit(500),
+
+      supabase
+        .from('drivers')
+        .select('driver_name, driver_number, pharmacy, active')
+        .eq('active', true),
+
+      supabase
+        .from('dispatch_history_import')
+        .select('delivery_date, day_of_week, driver_name, zip, city, pharmacy, cold_chain')
+        .gte('delivery_date', cutoff90)
+        .order('delivery_date', { ascending: false })
+        .limit(6000),
+    ])
+
+    const stops = stopsRes.data || []
+    const rules = rulesRes.data || []
+    const drivers = driversRes.data || []
+    const history = historyRes.data || []
+
+    if (stops.length === 0) {
+      return res.status(200).json({
+        assignments: [],
+        flags: [],
+        summary: `No dispatched stops found for ${dateStr}.`,
+        stats: { total_stops: 0, assigned: 0, flagged: 0, high_confidence: 0 },
+      })
+    }
+
+    // ── 3. Build context for Claude ─────────────────────────────
+
+    // Stops to assign
+    const stopsContext = stops.map(s => ({
+      stop_id: s.id,
+      order_id: s.order_id,
+      current_driver: s.driver_name || null,
+      driver_number: s.driver_number || null,
+      zip: s.zip,
+      city: s.city,
+      pharmacy: s.pharmacy,
+      cold_chain: !!s.cold_chain,
+    }))
+
+    // Routing rules for this day
+    const dayShort = dayOfWeek.slice(0, 3).toLowerCase()
+    const dayRules = rules
+      .filter(r => r[dayShort])
+      .map(r => ({ zip: r.zip, driver: r[dayShort] }))
+
+    // Active drivers
+    const driverList = drivers.map(d => ({
+      name: d.driver_name,
+      number: d.driver_number,
+      pharmacy: d.pharmacy || 'SHSP',
+    }))
+
+    // Historical patterns for this day of week
+    const histForDay = history.filter(h => h.day_of_week === dayOfWeek)
+    const zipDriverFreq = {}
+    for (const h of histForDay) {
+      if (!h.zip || !h.driver_name) continue
+      if (!zipDriverFreq[h.zip]) zipDriverFreq[h.zip] = {}
+      zipDriverFreq[h.zip][h.driver_name] = (zipDriverFreq[h.zip][h.driver_name] || 0) + 1
+    }
+    // Convert to sorted array per ZIP
+    const histPatterns = Object.entries(zipDriverFreq).map(([zip, drivers]) => {
+      const sorted = Object.entries(drivers).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      return { zip, drivers: sorted.map(([name, count]) => ({ name, count })) }
+    })
+
+    // ── 4. Call Claude ──────────────────────────────────────────
+    const systemPrompt = `You are Dom's dispatch assistant at CNC Delivery Service in Northeast Ohio. Dom has 7 years of dispatch experience. Analyze his historical patterns and assign today's stops exactly the way Dom would.
+Rules:
+- Keep ZIP codes in geographic clusters together
+- Balance cold chain stops across drivers appropriately
+- Match historical day-of-week patterns
+- Never overload one driver significantly vs others
+- SHSP stops stay with SHSP drivers
+- Aultman stops stay with Aultman drivers
+- Flag anything unusual or uncertain
+Return valid JSON only. No explanation outside the JSON.`
+
+    const userPrompt = `Analyze and suggest assignments for ${dayOfWeek}, ${dateStr}.
+
+TODAY'S STOPS (${stops.length} total):
+${JSON.stringify(stopsContext, null, 2)}
+
+ACTIVE DRIVERS:
+${JSON.stringify(driverList, null, 2)}
+
+ROUTING RULES FOR ${dayOfWeek.toUpperCase()}:
+${JSON.stringify(dayRules, null, 2)}
+
+HISTORICAL ${dayOfWeek.toUpperCase()} PATTERNS (last 90 days, ZIP → top drivers):
+${JSON.stringify(histPatterns, null, 2)}
+
+Return this exact JSON format:
+{
+  "assignments": [
+    {
+      "stop_id": <number from stop_id above>,
+      "suggested_driver": "<driver_name>",
+      "driver_number": "<driver_number>",
+      "confidence": "high" | "medium" | "low",
+      "reason": "<one-line explanation>"
+    }
+  ],
+  "flags": [
+    {
+      "stop_id": <number or null>,
+      "reason": "<description of issue>"
+    }
+  ],
+  "summary": "<2-3 sentence overview>",
+  "stats": {
+    "total_stops": ${stops.length},
+    "assigned": <count of assignments>,
+    "flagged": <count of flags>,
+    "high_confidence": <count where confidence is high>
+  }
+}`
+
+    const client = new Anthropic({ apiKey })
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8192,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    })
+
+    const text = response.content
+      .filter(c => c.type === 'text')
+      .map(c => c.text)
+      .join('')
+
+    // Parse JSON — handle markdown code fences
+    let result
+    try {
+      const jsonStr = text.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
+      result = JSON.parse(jsonStr)
+    } catch (parseErr) {
+      return res.status(200).json({
+        assignments: [],
+        flags: [],
+        summary: text,
+        stats: { total_stops: stops.length, assigned: 0, flagged: 0, high_confidence: 0 },
+        _raw: text,
+        _parseError: parseErr.message,
+      })
+    }
+
+    return res.status(200).json(result)
+
+  } catch (err) {
+    console.error('[ai-dispatch]', err)
+    return res.status(500).json({ error: err.message })
+  }
+}
