@@ -205,27 +205,32 @@ export default async function handler(req, res) {
         }
       }
 
-      // Push notify both drivers. Loosened from the old rules — we
-      // always notify the receiver (they need to know a stop was added
-      // to their route) and the sender (so they know it went through),
-      // regardless of time of day or whether route_ready has fired.
-      try {
-        await notifyDriver(
-          toDriverName,
-          'Stops Added',
-          `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName || 'dispatch'}.`,
-          'transfer_in'
-        )
-        if (fromDriverName && fromDriverName !== toDriverName) {
+      // Push notify both drivers ONLY between 6 AM and 6 PM ET.
+      // Night-time transfers (Dom building routes) should NOT buzz
+      // drivers' phones. The only notification they get overnight is
+      // route_ready (with stop + cold chain counts) when Send Routes
+      // fires. Transfer-in/out are daytime-only.
+      const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const etHour = etNow.getHours()
+      if (etHour >= 6 && etHour < 18) {
+        try {
           await notifyDriver(
-            fromDriverName,
-            'Stops Transferred',
-            `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`,
-            'transfer_out'
+            toDriverName,
+            'Stops Added',
+            `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName || 'dispatch'}.`,
+            'transfer_in'
           )
+          if (fromDriverName && fromDriverName !== toDriverName) {
+            await notifyDriver(
+              fromDriverName,
+              'Stops Transferred',
+              `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`,
+              'transfer_out'
+            )
+          }
+        } catch (notifyErr) {
+          console.error('[transfer notify]', notifyErr.message)
         }
-      } catch (notifyErr) {
-        console.error('[transfer notify]', notifyErr.message)
       }
 
       return res.status(200).json({
@@ -400,17 +405,20 @@ export default async function handler(req, res) {
       const dateStr = data.date
       if (!dateStr) return res.status(400).json({ error: 'Missing date' })
 
-      const { data: stops } = await supabase.from('daily_stops').select('driver_name').eq('delivery_date', dateStr)
+      const { data: stops } = await supabase.from('daily_stops').select('driver_name,cold_chain').eq('delivery_date', dateStr)
       const driverNames = [...new Set((stops || []).map(s => s.driver_name).filter(Boolean))]
 
       const { data: drivers } = await supabase.from('drivers').select('driver_name, push_token').in('driver_name', driverNames)
       const messages = (drivers || []).filter(d => d.push_token).map(d => {
-        const stopCount = (stops || []).filter(s => s.driver_name === d.driver_name).length
+        const driverStops = (stops || []).filter(s => s.driver_name === d.driver_name)
+        const stopCount = driverStops.length
+        const coldCount = driverStops.filter(s => s.cold_chain).length
+        const coldStr = coldCount > 0 ? ` (${coldCount} cold chain)` : ''
         return {
           to: d.push_token,
           sound: 'default',
           title: 'Route Ready',
-          body: `You have ${stopCount} stops assigned. Open the app to view your route.`,
+          body: `You have ${stopCount} stops${coldStr} assigned. Open the app to view your route.`,
           data: { type: 'route_ready', date: dateStr },
         }
       })
@@ -425,8 +433,11 @@ export default async function handler(req, res) {
 
       // Save notifications to DB so drivers can view history
       const notifRows = driverNames.map(name => {
-        const stopCount = (stops || []).filter(s => s.driver_name === name).length
-        return { driver_name: name, title: 'Route Ready', body: `You have ${stopCount} stops assigned.`, type: 'route_ready' }
+        const driverStops = (stops || []).filter(s => s.driver_name === name)
+        const stopCount = driverStops.length
+        const coldCount = driverStops.filter(s => s.cold_chain).length
+        const coldStr = coldCount > 0 ? ` (${coldCount} cold chain)` : ''
+        return { driver_name: name, title: 'Route Ready', body: `You have ${stopCount} stops${coldStr} assigned.`, type: 'route_ready' }
       })
       await supabase.from('driver_notifications').insert(notifRows).then(() => {})
 
