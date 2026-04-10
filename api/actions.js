@@ -57,61 +57,177 @@ export default async function handler(req, res) {
     }
 
     if (data.action === 'transfer') {
-      const { orderIds, toDriverName, toDriverNumber, fromDriverName } = data
+      const { orderIds, toDriverName, toDriverNumber, fromDriverName, source, deliveryDate } = data
       if (!orderIds?.length || !toDriverName || !toDriverNumber) {
         return res.status(400).json({ error: 'Missing transfer data' })
       }
 
-      // Move stops in Supabase using service role key
-      for (const orderId of orderIds) {
-        await supabase.from('daily_stops').update({
+      // Scope all daily_stops operations to a specific delivery_date
+      // so a stray order_id that happens to exist on a historic day
+      // can never be silently reassigned along with today's stop.
+      // Falls back to today (UTC) if the client doesn't pass it, but
+      // the driver app's transferStops() now always sends dd.
+      const dateStr = deliveryDate || new Date().toISOString().split('T')[0]
+
+      // Fetch stop details BEFORE the update so the BioTouch email
+      // can include patient + address (plaintext fields per the
+      // current encryptForWrite passthrough in the driver app).
+      let stopDetails = []
+      try {
+        const { data: fetched } = await supabase
+          .from('daily_stops')
+          .select('order_id,patient_name,address,city,zip')
+          .in('order_id', orderIds)
+          .eq('delivery_date', dateStr)
+        stopDetails = fetched || []
+      } catch (e) {
+        console.error('[transfer fetch details]', e.message)
+      }
+
+      // Find the receiving driver's max sort_order so the transferred
+      // stops land at the END of their route list instead of inheriting
+      // a random position from the sender.
+      let baseSort = 0
+      try {
+        const { data: recvStops } = await supabase
+          .from('daily_stops')
+          .select('sort_order')
+          .eq('delivery_date', dateStr)
+          .eq('driver_name', toDriverName)
+          .order('sort_order', { ascending: false })
+          .limit(1)
+        baseSort = (recvStops?.[0]?.sort_order ?? -1) + 1
+      } catch {}
+
+      // Reassign the stops. Scoped by delivery_date. If any row fails,
+      // bubble up as an error so the driver sees the failure instead
+      // of an incorrect "Transferred" toast.
+      let moveError = null
+      for (let i = 0; i < orderIds.length; i++) {
+        const { error } = await supabase.from('daily_stops').update({
           driver_name: toDriverName,
           driver_number: toDriverNumber,
           assigned_driver_number: toDriverNumber,
-        }).eq('order_id', orderId)
+          sort_order: baseSort + i,
+        }).eq('order_id', orderIds[i]).eq('delivery_date', dateStr)
+        if (error) moveError = error.message
+      }
+      if (moveError) {
+        return res.status(500).json({ error: `Transfer update failed: ${moveError}` })
       }
 
-      // Only send BioTouch email from driver portal (dispatch uses Send Corrections)
-      if (data.source === 'driver') {
-        const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
-        const gmailPass = process.env.GMAIL_APP_PASSWORD
-        if (gmailPass) {
-          try {
-            const transporter = nodemailer.createTransport({
-              service: 'gmail',
-              auth: { user: gmailUser, pass: gmailPass },
-            })
-            for (const orderId of orderIds) {
-              await transporter.sendMail({
-                from: `"CNC Delivery" <${gmailUser}>`,
-                to: 'wfldispatch@biotouchglobal.com',
-                subject: `Assign Order to driver ${toDriverNumber}`,
-                text: orderId,
-              })
-            }
-          } catch (emailErr) {
-            console.error('[transfer email]', emailErr.message)
+      // Keep driver_routes.stop_sequence in sync for both drivers so
+      // the sender doesn't see a ghost stop and the receiver gets the
+      // transferred stops appended to their saved ordering.
+      try {
+        if (fromDriverName) {
+          const { data: fromRoute } = await supabase
+            .from('driver_routes')
+            .select('stop_sequence')
+            .eq('driver_name', fromDriverName)
+            .eq('date', dateStr)
+            .single()
+          if (fromRoute?.stop_sequence?.length) {
+            const pruned = fromRoute.stop_sequence.filter(id => !orderIds.includes(String(id)))
+            await supabase.from('driver_routes').update({
+              stop_sequence: pruned,
+              manually_adjusted: true,
+              adjusted_at: new Date().toISOString(),
+            }).eq('driver_name', fromDriverName).eq('date', dateStr)
           }
+        }
+        const { data: toRoute } = await supabase
+          .from('driver_routes')
+          .select('stop_sequence')
+          .eq('driver_name', toDriverName)
+          .eq('date', dateStr)
+          .single()
+        if (toRoute?.stop_sequence?.length) {
+          const pruned = toRoute.stop_sequence.filter(id => !orderIds.includes(String(id)))
+          const appended = [...pruned, ...orderIds.map(String)]
+          await supabase.from('driver_routes').update({
+            stop_sequence: appended,
+            manually_adjusted: true,
+            adjusted_at: new Date().toISOString(),
+          }).eq('driver_name', toDriverName).eq('date', dateStr)
+        }
+      } catch (seqErr) {
+        console.error('[transfer seq]', seqErr.message)
+      }
+
+      // Email BioTouch via the same Apps Script pipeline Send Corrections
+      // uses — proven working, removes the GMAIL_APP_PASSWORD env-var
+      // single point of failure that was silently swallowing transfer
+      // emails. The body includes patient + address so BioTouch can
+      // actually read what moved, not just the raw order_id.
+      let emailStatus = 'skipped'
+      let emailError = null
+      if (source === 'driver') {
+        try {
+          const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+          const rowsHtml = orderIds.map(oid => {
+            const s = stopDetails.find(x => String(x.order_id) === String(oid)) || {}
+            const esc = (v) => String(v || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+            return `<tr><td>${esc(oid)}</td><td>${esc(s.patient_name)}</td><td>${esc(s.address)}</td><td>${esc(s.city)}</td><td>${esc(s.zip)}</td></tr>`
+          }).join('')
+          const html = `
+            <p>The following order${orderIds.length > 1 ? 's have' : ' has'} been transferred from <b>${fromDriverName || 'another driver'}</b> to <b>${toDriverName}</b> (Driver #${toDriverNumber}).</p>
+            <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
+              <tr style="background:#0A2463;color:white"><th>Order #</th><th>Patient</th><th>Address</th><th>City</th><th>ZIP</th></tr>
+              ${rowsHtml}
+            </table>
+            <p style="color:#64748b;font-size:12px;margin-top:12px">Sent by CNC Driver app · ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
+          `
+          const r = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'email',
+              to: 'wfldispatch@biotouchglobal.com',
+              subject: `Assign ${orderIds.length} Order${orderIds.length > 1 ? 's' : ''} to Driver ${toDriverNumber}`,
+              html,
+            }),
+          })
+          if (!r.ok) {
+            emailError = `Apps Script HTTP ${r.status}`
+            emailStatus = 'failed'
+          } else {
+            emailStatus = 'sent'
+          }
+        } catch (e) {
+          emailError = e.message
+          emailStatus = 'failed'
         }
       }
 
-      // Only notify if driver's route has been sent today (Route Ready) and it's before 5 PM ET
-      const now = new Date()
-      const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-      const hour = et.getHours()
-      const todayStr = et.toISOString().split('T')[0]
-      if (hour < 17) { // before 5 PM ET
-        const { data: routeReady } = await supabase.from('driver_notifications').select('id').eq('driver_name', toDriverName).eq('type', 'route_ready').gte('created_at', todayStr + 'T00:00:00').limit(1)
-        if (routeReady?.length > 0) {
-          await notifyDriver(toDriverName, 'Stops Added', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName}.`, 'transfer_in')
-          if (fromDriverName) {
-            const { data: fromReady } = await supabase.from('driver_notifications').select('id').eq('driver_name', fromDriverName).eq('type', 'route_ready').gte('created_at', todayStr + 'T00:00:00').limit(1)
-            if (fromReady?.length > 0) await notifyDriver(fromDriverName, 'Stops Transferred', `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`, 'transfer_out')
-          }
+      // Push notify both drivers. Loosened from the old rules — we
+      // always notify the receiver (they need to know a stop was added
+      // to their route) and the sender (so they know it went through),
+      // regardless of time of day or whether route_ready has fired.
+      try {
+        await notifyDriver(
+          toDriverName,
+          'Stops Added',
+          `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName || 'dispatch'}.`,
+          'transfer_in'
+        )
+        if (fromDriverName && fromDriverName !== toDriverName) {
+          await notifyDriver(
+            fromDriverName,
+            'Stops Transferred',
+            `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`,
+            'transfer_out'
+          )
         }
+      } catch (notifyErr) {
+        console.error('[transfer notify]', notifyErr.message)
       }
 
-      return res.status(200).json({ success: true, moved: orderIds.length })
+      return res.status(200).json({
+        success: true,
+        moved: orderIds.length,
+        emailStatus,
+        emailError,
+      })
     }
 
     if (data.action === 'mark_correction_sent') {
