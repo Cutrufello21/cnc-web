@@ -36,24 +36,30 @@ export default async function handler(req, res) {
     }
 
     if (data.action === 'email') {
-      const { to, subject, html } = data
+      // Route generic outbound email through the Apps Script pipeline
+      // that the dispatch portal's Send Routes / Send Corrections flow
+      // already uses successfully. Removes the GMAIL_APP_PASSWORD env-
+      // var single point of failure and gives a consistent email
+      // delivery path across the entire app. Accepts either `html` or
+      // `body` so callers written against the old nodemailer contract
+      // don't need to change field names.
+      const { to, subject } = data
+      const html = data.html || data.body || ''
       if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' })
 
-      const gmailUser = process.env.GMAIL_USER || 'dom@cncdeliveryservice.com'
-      const gmailPass = process.env.GMAIL_APP_PASSWORD
-      if (!gmailPass) return res.status(500).json({ error: 'GMAIL_APP_PASSWORD not configured' })
-
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: gmailUser, pass: gmailPass },
-      })
-
-      const info = await transporter.sendMail({
-        from: `"CNC Delivery" <${gmailUser}>`,
-        to, subject, html,
-      })
-
-      return res.status(200).json({ success: true, messageId: info.messageId, to, subject })
+      try {
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+        const r = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'email', to, subject, html }),
+        })
+        if (!r.ok) {
+          return res.status(502).json({ error: `Apps Script HTTP ${r.status}` })
+        }
+        return res.status(200).json({ success: true, to, subject, via: 'apps_script' })
+      } catch (e) {
+        return res.status(500).json({ error: `Email send failed: ${e.message}` })
+      }
     }
 
     if (data.action === 'transfer') {
