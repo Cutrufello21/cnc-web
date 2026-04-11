@@ -192,12 +192,13 @@
 .sched__btoggle--saving { opacity: 0.5; }
 
 .sched__btoggle-btn {
-  width: 36px; height: 28px; border-radius: 6px; border: none; cursor: pointer;
+  width: 40px; height: 32px; border-radius: 6px; border: none; cursor: pointer;
   font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  transition: all 0.1s ease;
 }
 .sched__btoggle--on .sched__btoggle-btn { background: #0A2463; color: #fff; }
-.sched__btoggle--off .sched__btoggle-btn { background: var(--color-background-secondary); color: var(--color-border); }
-.sched__btoggle-btn:hover { opacity: 0.85; }
+.sched__btoggle--off .sched__btoggle-btn { background: var(--color-background-secondary); color: var(--color-text-secondary); border: 1px dashed var(--color-border); }
+.sched__btoggle-btn:hover { opacity: 0.75; transform: scale(1.05); }
 
 .sched__bpharm-select {
   padding: 2px 4px; font-size: 10px; font-weight: 600;
