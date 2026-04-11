@@ -123,6 +123,21 @@ function processThread(thread) {
   writeDispatchLog(deliveryDay, deliveryDate, assigned, unassigned);
   updatePayroll(deliveryDay, deliveryDate, assigned);
 
+  // Auto-assign: reassign stops from off-duty drivers based on schedule
+  let autoAssignResult = null;
+  try {
+    const aaRes = UrlFetchApp.fetch('https://cncdelivery.com/api/auto-assign', {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ deliveryDate, deliveryDay }),
+      muteHttpExceptions: true,
+    });
+    autoAssignResult = JSON.parse(aaRes.getContentText());
+    Logger.log(`Auto-assign: ${autoAssignResult.reassigned || 0} reassigned, ${autoAssignResult.unassigned || 0} unassigned`);
+  } catch (aaErr) {
+    Logger.log(`Auto-assign error: ${aaErr.message}`);
+  }
+
   // Send confirmation
   const driverSummary = Object.entries(assigned)
     .map(([id, orders]) => `${DRIVERS[id] || id}: ${orders.length} stops`)
@@ -133,13 +148,22 @@ function processThread(thread) {
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const fmtDate = `${monthNames[+mo - 1]} ${+dy}, ${yr}`;
 
-  MailApp.sendEmail(NOTIFY_EMAIL,
-    `${deliveryDay}'s Orders — ${fmtDate}`,
-    `${totalAssigned} orders ready for ${deliveryDay}, ${fmtDate}.\n\n` +
-    `Driver Breakdown:\n${driverSummary}\n\n` +
-    (unassigned.length > 0 ? `Unassigned: ${unassigned.length} (ZIPs: ${unassigned.map(u => u.zip).join(', ')})\n\n` : '') +
-    `View at: https://cncdelivery.com`
-  );
+  let emailBody = `${totalAssigned} orders ready for ${deliveryDay}, ${fmtDate}.\n\n` +
+    `Driver Breakdown:\n${driverSummary}\n\n`;
+  if (autoAssignResult?.reassigned > 0) {
+    emailBody += `Schedule Auto-Assign: ${autoAssignResult.reassigned} stops moved from off-duty drivers.\n`;
+    (autoAssignResult.reassignedDetails || []).forEach(r => {
+      emailBody += `  ${r.orderId} (${r.zip}): ${r.from} → ${r.to}\n`;
+    });
+    emailBody += '\n';
+  }
+  if ((autoAssignResult?.unassigned || 0) > 0 || unassigned.length > 0) {
+    const totalUn = (autoAssignResult?.unassigned || 0) + unassigned.length;
+    emailBody += `Unassigned: ${totalUn}\n\n`;
+  }
+  emailBody += 'View at: https://cncdelivery.com';
+
+  MailApp.sendEmail(NOTIFY_EMAIL, `${deliveryDay}'s Orders — ${fmtDate}`, emailBody);
 
   Logger.log('Import complete');
 }
