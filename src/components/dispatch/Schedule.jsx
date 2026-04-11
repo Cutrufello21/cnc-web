@@ -350,11 +350,14 @@ export default function Schedule() {
                         const isOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
                         const isSaving = saving === `${driver.driver_name}|${col}`
                         const pharmVal = sched[`${col}_pharm`] || 'SHSP'
+                        // Effective pharmacy: Aultman drivers always Aultman, Both uses per-day selection
+                        const effectivePharm = pharm === 'Aultman' ? 'Aultman' : (isBoth ? pharmVal : pharm)
+                        const isAultman = isOn && effectivePharm === 'Aultman'
                         return (
                           <td key={col} className="sched__bcell-day">
-                            <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
+                            <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isAultman ? 'sched__btoggle--aultman' : ''} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
                               <button
-                                className="sched__btoggle-btn"
+                                className={`sched__btoggle-btn ${isAultman ? 'sched__btoggle-btn--aultman' : ''}`}
                                 onClick={() => handleBuilderToggle(driver.driver_name, i)}
                                 disabled={isSaving}
                               >

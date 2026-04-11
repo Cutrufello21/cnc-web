@@ -197,6 +197,7 @@
   transition: all 0.1s ease;
 }
 .sched__btoggle--on .sched__btoggle-btn { background: #0A2463; color: #fff; }
+.sched__btoggle-btn--aultman { background: #16a34a !important; color: #fff; }
 .sched__btoggle--off .sched__btoggle-btn { background: var(--color-background-secondary); color: var(--color-text-secondary); border: 1px dashed var(--color-border); }
 .sched__btoggle-btn:hover { opacity: 0.75; transform: scale(1.05); }
 
