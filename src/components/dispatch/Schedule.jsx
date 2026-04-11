@@ -367,7 +367,12 @@ export default function Schedule() {
                 <tr>
                   <th className="sched__bth-driver">Driver</th>
                   <th className="sched__bth-type">Type</th>
-                  {DAY_LABELS.map(d => <th key={d} className="sched__bth-day">{d}</th>)}
+                  {DAY_LABELS.map((d, i) => (
+                    <th key={d} className="sched__bth-day">
+                      <span>{d}</span>
+                      <span className="sched__bth-date">{weekDates[i].getMonth() + 1}/{weekDates[i].getDate()}</span>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -402,7 +407,7 @@ export default function Schedule() {
                         const btnLabel = !state.on ? '—' :
                           state.pharm === 'Aultman' && state.shift === 'AM' ? 'ALT' :
                           state.shift === 'PM' ? 'PM' :
-                          state.shift === 'BOTH' ? 'A+P' : '✓'
+                          state.shift === 'BOTH' ? 'A+P' : 'SHSP'
 
                         const titles = ['Off → SHSP', 'SHSP → Aultman', 'Aultman → PM', 'PM → AM+PM', 'AM+PM → Off']
 
