@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     for (const u of updates) {
       const { error } = await supabase.from('routing_rules')
         .update({ [u.day]: u.to })
-        .eq('zip', u.zip)
+        .eq('zip_code', u.zip)
 
       if (error) {
         errors.push({ zip: u.zip, day: u.day, error: error.message })

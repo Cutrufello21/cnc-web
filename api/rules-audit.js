@@ -62,6 +62,8 @@ export default async function handler(req, res) {
     const recommendations = []
 
     for (const rule of rules) {
+      const zip = rule.zip_code || rule.zip
+      if (!zip) continue
       for (const day of ['mon', 'tue', 'wed', 'thu', 'fri']) {
         const ruleDriver = (rule[day] || '').trim()
         if (!ruleDriver) continue
@@ -69,11 +71,11 @@ export default async function handler(req, res) {
         // Parse "Name/ID" or just "Name"
         const ruleName = ruleDriver.includes('/') ? ruleDriver.split('/')[0].trim() : ruleDriver
 
-        const key = `${rule.zip}|${day}`
+        const key = `${zip}|${day}`
         const patterns = actual[key]
 
         if (!patterns || Object.keys(patterns).length === 0) {
-          noData.push({ zip: rule.zip, day: dayFull[day], ruleDriver: ruleName })
+          noData.push({ zip: zip, day: dayFull[day], ruleDriver: ruleName })
           continue
         }
 
@@ -92,10 +94,10 @@ export default async function handler(req, res) {
         const isScheduled = !sched || (sched[day] !== false && sched[day] !== 'false' && sched[day] !== 0)
 
         if (topDriver === ruleName && topPct >= 50) {
-          correct.push({ zip: rule.zip, day: dayFull[day], driver: ruleName, pct: rulePct, total })
+          correct.push({ zip: zip, day: dayFull[day], driver: ruleName, pct: rulePct, total })
         } else {
           const entry = {
-            zip: rule.zip,
+            zip: zip,
             day: dayFull[day],
             currentRule: ruleName,
             currentRulePct: rulePct,
@@ -116,7 +118,7 @@ export default async function handler(req, res) {
             entry.reason = `${ruleName} is not scheduled to work ${dayFull[day]}s`
           } else if (rulePct === 0) {
             entry.severity = 'critical'
-            entry.reason = `${ruleName} has never delivered to ZIP ${rule.zip} on ${dayFull[day]}s in the last 90 days`
+            entry.reason = `${ruleName} has never delivered to ZIP ${zip} on ${dayFull[day]}s in the last 90 days`
           } else if (topPct - rulePct > 30) {
             entry.severity = 'high'
             entry.reason = `${topDriver} handles this ZIP ${topPct}% of the time vs ${ruleName} at ${rulePct}%`
@@ -130,7 +132,7 @@ export default async function handler(req, res) {
           // Build recommendation
           if (topPct >= 60) {
             recommendations.push({
-              zip: rule.zip,
+              zip: zip,
               day,
               dayFull: dayFull[day],
               from: ruleName,
@@ -148,7 +150,7 @@ export default async function handler(req, res) {
     const ruledZips = new Set()
     for (const rule of rules) {
       for (const day of ['mon', 'tue', 'wed', 'thu', 'fri']) {
-        if (rule[day]) ruledZips.add(`${rule.zip}|${day}`)
+        if (rule[day]) ruledZips.add(`${rule.zip_code || rule.zip}|${day}`)
       }
     }
     const unruled = []
