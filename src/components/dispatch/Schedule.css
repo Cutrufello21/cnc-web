@@ -237,6 +237,60 @@
   font-size: 10px; font-weight: 600; color: #6B21A8; text-transform: uppercase;
 }
 
+/* Release Preview Modal */
+.sched__preview-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+}
+.sched__preview {
+  background: var(--color-background); border-radius: 16px;
+  width: 90%; max-width: 700px; max-height: 80vh; overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.sched__preview-header {
+  padding: 20px 24px; border-bottom: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sched__preview-header h3 { font-size: 18px; font-weight: 700; margin: 0; color: var(--color-text-primary); }
+.sched__preview-close {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: var(--color-background-secondary); cursor: pointer;
+  font-size: 16px; color: var(--color-text-secondary);
+}
+.sched__preview-sub { padding: 12px 24px 0; font-size: 13px; color: var(--color-text-secondary); margin: 0; }
+.sched__preview-list {
+  padding: 16px 24px; overflow-y: auto; flex: 1;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;
+}
+.sched__preview-card { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sched__preview-name { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.sched__preview-phone {
+  width: 100%; padding: 12px; border-radius: 12px;
+  background: #f1f1f1; border: 1px solid #e0e0e0;
+}
+.sched__preview-notif {
+  background: #fff; border-radius: 10px; padding: 12px 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.sched__preview-app { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.sched__preview-title { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 2px; }
+.sched__preview-body { font-size: 13px; color: #374151; line-height: 1.4; }
+.sched__preview-actions {
+  padding: 16px 24px; border-top: 1px solid var(--color-border);
+  display: flex; gap: 10px; justify-content: flex-end;
+}
+.sched__preview-send {
+  padding: 10px 24px; font-size: 14px; font-weight: 700;
+  background: #0A2463; color: #fff; border: none; border-radius: 10px; cursor: pointer;
+}
+.sched__preview-send:disabled { opacity: 0.6; cursor: not-allowed; }
+.sched__preview-cancel {
+  padding: 10px 20px; font-size: 13px;
+  background: none; border: 1px solid var(--color-border); border-radius: 10px;
+  cursor: pointer; color: var(--color-text-secondary);
+}
+
 /* Legend */
 .sched__legend {
   display: flex; gap: 20px; padding: 16px 0; margin-top: 16px;

@@ -20,6 +20,7 @@ export default function Schedule() {
   const [saving, setSaving] = useState(null)
   const [releasing, setReleasing] = useState(false)
   const [released, setReleased] = useState(false)
+  const [preview, setPreview] = useState(null) // array of { name, days, title, body }
   const [toast, setToast] = useState(null)
 
   // Compute week dates
@@ -245,49 +246,54 @@ export default function Schedule() {
   }
 
   // Release schedule — notify all working drivers
-  async function handleRelease() {
-    if (!confirm(`Release schedule for ${weekDateStrs[0]} – ${weekDateStrs[4]}?\n\nThis will push-notify all scheduled drivers with their shifts.`)) return
+  function buildNotifications() {
+    const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} – ${weekDates[4].getMonth() + 1}/${weekDates[4].getDate()}`
+    const notifications = []
+    for (const driver of drivers) {
+      const days = []
+      for (let i = 0; i < 5; i++) {
+        const sched = schedule[driver.driver_name] || {}
+        const stateIdx = getCurrentStateIdx(sched, DAY_COLS[i])
+        const state = STATES[stateIdx]
+        if (state.on) {
+          const label = state.shift === 'PM' ? 'PM' : state.shift === 'BOTH' ? 'AM+PM' : state.pharm
+          days.push(`${DAY_LABELS[i]} (${label})`)
+        }
+      }
+      if (days.length > 0) {
+        notifications.push({
+          name: driver.driver_name,
+          days,
+          title: `Schedule Released — ${weekLabel}`,
+          body: `Your shifts: ${days.join(', ')}`,
+        })
+      }
+    }
+    return notifications
+  }
+
+  function handlePreview() {
+    setPreview(buildNotifications())
+  }
+
+  async function handleSend() {
     setReleasing(true)
     try {
-      // Build summary per driver
-      const notifications = []
-      for (const driver of drivers) {
-        const days = []
-        for (let i = 0; i < 5; i++) {
-          const sched = schedule[driver.driver_name] || {}
-          const stateIdx = getCurrentStateIdx(sched, DAY_COLS[i])
-          const state = STATES[stateIdx]
-          if (state.on) {
-            const label = state.shift === 'PM' ? 'PM' : state.shift === 'BOTH' ? 'AM+PM' : state.pharm
-            days.push(`${DAY_LABELS[i]} (${label})`)
-          }
-        }
-        if (days.length > 0) {
-          notifications.push({ name: driver.driver_name, days })
-        }
+      for (const n of preview) {
+        await fetch('/api/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'push_notify',
+            driverNames: [n.name],
+            title: n.title,
+            body: n.body,
+          }),
+        }).catch(() => {})
       }
-
-      // Send push notifications
-      const driverNames = notifications.map(n => n.name)
-      if (driverNames.length > 0) {
-        const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} – ${weekDates[4].getMonth() + 1}/${weekDates[4].getDate()}`
-        // Notify each driver with their personal schedule
-        for (const n of notifications) {
-          await fetch('/api/actions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'push_notify',
-              driverNames: [n.name],
-              title: `Schedule Released — ${weekLabel}`,
-              body: `Your shifts: ${n.days.join(', ')}`,
-            }),
-          }).catch(() => {})
-        }
-      }
-
       setReleased(true)
-      showToastMsg(`Schedule released — ${driverNames.length} drivers notified`)
+      setPreview(null)
+      showToastMsg(`Schedule released — ${preview.length} drivers notified`)
     } catch (err) {
       showToastMsg(`Error: ${err.message}`, true)
     } finally {
@@ -417,10 +423,10 @@ export default function Schedule() {
             </div>
             <button
               className={`sched__release-btn ${released ? 'sched__release-btn--done' : ''}`}
-              onClick={handleRelease}
+              onClick={handlePreview}
               disabled={releasing || released}
             >
-              {released ? 'Released ✓' : releasing ? 'Releasing...' : 'Release Schedule'}
+              {released ? 'Released ✓' : 'Release Schedule'}
             </button>
           </div>
           <div className="sched__builder-grid-wrap">
@@ -585,6 +591,39 @@ export default function Schedule() {
           </tbody>
         </table>
       </div>
+
+      {/* Release Preview Modal */}
+      {preview && (
+        <div className="sched__preview-overlay" onClick={() => setPreview(null)}>
+          <div className="sched__preview" onClick={e => e.stopPropagation()}>
+            <div className="sched__preview-header">
+              <h3>Release Preview — {preview.length} drivers</h3>
+              <button className="sched__preview-close" onClick={() => setPreview(null)}>✕</button>
+            </div>
+            <p className="sched__preview-sub">Each driver will receive this push notification on their phone:</p>
+            <div className="sched__preview-list">
+              {preview.map(n => (
+                <div key={n.name} className="sched__preview-card">
+                  <div className="sched__preview-phone">
+                    <div className="sched__preview-notif">
+                      <div className="sched__preview-app">CNC Driver</div>
+                      <div className="sched__preview-title">{n.title}</div>
+                      <div className="sched__preview-body">{n.body}</div>
+                    </div>
+                  </div>
+                  <span className="sched__preview-name">{n.name}</span>
+                </div>
+              ))}
+            </div>
+            <div className="sched__preview-actions">
+              <button className="sched__preview-send" onClick={handleSend} disabled={releasing}>
+                {releasing ? 'Sending...' : `Send to ${preview.length} drivers`}
+              </button>
+              <button className="sched__preview-cancel" onClick={() => setPreview(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="sched__legend">
