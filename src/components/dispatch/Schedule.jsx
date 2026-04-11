@@ -401,9 +401,8 @@ export default function Schedule() {
                         const shiftState = getCurrentShiftState(sched, col)
                         const isOn = shiftState !== false
                         const isSaving = saving === `${driver.driver_name}|${col}`
-                        const pharmVal = sched[`${col}_pharm`] || 'SHSP'
-                        const effectivePharm = pharm === 'Aultman' ? 'Aultman' : (isBoth ? pharmVal : pharm)
-                        const isAultman = isOn && effectivePharm === 'Aultman'
+                        const pharmVal = sched[`${col}_pharm`] || (pharm === 'Aultman' ? 'Aultman' : 'SHSP')
+                        const isAultman = isOn && pharmVal === 'Aultman'
 
                         // Button color based on shift state + pharmacy
                         let btnClass = ''
@@ -427,7 +426,7 @@ export default function Schedule() {
                               >
                                 {btnLabel}
                               </button>
-                              {isOn && isBoth && (
+                              {isOn && !isFloat && (
                                 <select
                                   className="sched__bpharm-select"
                                   value={pharmVal}
