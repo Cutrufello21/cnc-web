@@ -18,7 +18,7 @@ const COLUMNS = [
   { key: 'Pharmacy', label: 'Pharmacy' },
 ]
 
-export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, onRefresh, onMoveComplete }) {
+export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, deliveryDate, onRefresh, onMoveComplete }) {
   const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [reassignTo, setReassignTo] = useState('')
@@ -149,6 +149,11 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       })
 
       // Update daily_stops via API (service role, bypasses RLS)
+      // Format delivery date for the API
+      const dd = deliveryDate
+        ? `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth()+1).padStart(2,'0')}-${String(deliveryDate.getDate()).padStart(2,'0')}`
+        : undefined
+
       const res = await fetch('/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,6 +163,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           toDriverName,
           toDriverNumber,
           fromDriverName: name,
+          deliveryDate: dd,
         }),
       })
       const result = await res.json()

@@ -1238,6 +1238,7 @@ export default function DispatchPage() {
                       driver={driver}
                       allDrivers={data.drivers}
                       selectedDay={selectedDay}
+                      deliveryDate={data.deliveryDateObj}
                       onRefresh={() => fetchDispatchData(selectedDay)}
                       onMoveComplete={handleMoveComplete}
                     />
@@ -1262,6 +1263,7 @@ export default function DispatchPage() {
                       inactive
                       allDrivers={data.drivers}
                       selectedDay={selectedDay}
+                      deliveryDate={data.deliveryDateObj}
                       onRefresh={() => fetchDispatchData(selectedDay)}
                       onMoveComplete={handleMoveComplete}
                     />
