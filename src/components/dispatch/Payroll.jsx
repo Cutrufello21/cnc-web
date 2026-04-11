@@ -339,10 +339,9 @@ export default function Payroll() {
 
       const grandTotal = drivers.reduce((sum, d) => sum + d.calculatedPay, 0)
 
-      // Auto-sync stop counts back to payroll table (fire-and-forget)
-      // Uses final resolved values (reconciliation > daily_stops > manual)
+      // Auto-sync stop counts back to payroll table and ensure all drivers have rows
       const upsertRows = drivers
-        .filter(d => !d.isFlat && (actualStops[d.name] || reconMap[d.name]))
+        .filter(d => !d.isFlat)
         .map(d => ({
           week_of: weekOf,
           driver_name: d.name,
@@ -354,7 +353,14 @@ export default function Payroll() {
           week_total: d.weekTotal,
         }))
       if (upsertRows.length > 0) {
-        supabase.from('payroll').upsert(upsertRows, { onConflict: 'week_of,driver_name' }).then(() => {})
+        await supabase.from('payroll').upsert(upsertRows, { onConflict: 'week_of,driver_name' })
+        // Re-fetch IDs so edits work for all drivers
+        const { data: freshRows } = await supabase.from('payroll').select('id, driver_name').eq('week_of', weekOf)
+        if (freshRows) {
+          const idMap = {}
+          freshRows.forEach(r => { idMap[r.driver_name] = r.id })
+          drivers.forEach(d => { if (idMap[d.name]) d.rowIndex = idMap[d.name] })
+        }
       }
 
       setData({
