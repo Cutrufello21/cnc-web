@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
 import TimeOffCalendar from '../components/driver/TimeOffCalendar'
+import DriverScheduleView from '../components/driver/DriverScheduleView'
 import DriverSortList from '../components/driver/DriverSortList'
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
@@ -483,7 +484,10 @@ export default function DriverPage() {
             )}
 
             {activeTab === 'timeoff' && (
-              <TimeOffCalendar driverName={data.driverName} />
+              <>
+                <DriverScheduleView driverName={data.driverName} />
+                <TimeOffCalendar driverName={data.driverName} />
+              </>
             )}
 
             {activeTab === 'team' && (

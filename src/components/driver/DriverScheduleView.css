@@ -1,0 +1,64 @@
+.dsv { padding: 0 0 20px; }
+.dsv__loading { padding: 20px; color: var(--color-text-secondary); font-size: 14px; }
+.dsv__title { font-size: 18px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 16px; }
+
+.dsv__week { margin-bottom: 20px; }
+.dsv__week--current { }
+.dsv__week-label {
+  font-size: 13px; font-weight: 700; color: var(--color-text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+}
+.dsv__week--current .dsv__week-label { color: #0A2463; }
+
+.dsv__days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+
+.dsv__day { border-radius: 10px; overflow: hidden; border: 1px solid var(--color-border); }
+.dsv__day--today { border-color: #0A2463; border-width: 2px; }
+
+.dsv__day-header {
+  padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;
+  background: var(--color-background-secondary);
+}
+.dsv__day--today .dsv__day-header { background: #0A2463; }
+.dsv__day--today .dsv__day-name,
+.dsv__day--today .dsv__day-date { color: #fff; }
+.dsv__day-name { font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; }
+.dsv__day-date { font-size: 12px; color: var(--color-text-secondary); }
+
+.dsv__day-body {
+  padding: 14px 10px; min-height: 60px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+
+/* Working states */
+.dsv__day-body--working { background: #E6F1FB; }
+.dsv__day-body--aultman { background: #ECFDF5; }
+.dsv__day-body--pm { background: #FFF7ED; }
+.dsv__day-body--ampm { background: linear-gradient(135deg, #E6F1FB 50%, #FFF7ED 50%); }
+
+.dsv__day-shift { font-size: 15px; font-weight: 700; color: #0C447C; }
+.dsv__day-body--aultman .dsv__day-shift { color: #166534; }
+.dsv__day-body--pm .dsv__day-shift { color: #9A3412; }
+.dsv__day-body--ampm .dsv__day-shift { color: #0A2463; }
+.dsv__day-pharm { font-size: 11px; font-weight: 600; color: #6B85C4; text-transform: uppercase; }
+.dsv__day-body--pm .dsv__day-pharm { color: #EA580C; }
+
+/* Time off */
+.dsv__day-body--timeoff { background: #FAEEDA; }
+.dsv__day-body--timeoff .dsv__day-off-label { font-size: 13px; font-weight: 600; color: #854F0B; }
+.dsv__day-body--timeoff .dsv__day-off-status { font-size: 11px; color: #A16B1A; }
+
+/* Off */
+.dsv__day-body--off { background: var(--color-background-secondary); }
+.dsv__day-body--off .dsv__day-off-label { font-size: 13px; color: var(--color-text-secondary); }
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .dsv__days { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .dsv__day-header { padding: 6px 6px; }
+  .dsv__day-name { font-size: 10px; }
+  .dsv__day-date { font-size: 10px; }
+  .dsv__day-body { padding: 10px 4px; min-height: 50px; }
+  .dsv__day-shift { font-size: 12px; }
+  .dsv__day-pharm { font-size: 9px; }
+}
