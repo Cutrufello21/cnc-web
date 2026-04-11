@@ -382,7 +382,8 @@ export default function Schedule() {
                         // Effective pharmacy: Aultman drivers always Aultman, Both uses per-day selection
                         const effectivePharm = pharm === 'Aultman' ? 'Aultman' : (isBoth ? pharmVal : pharm)
                         const isAultman = isOn && effectivePharm === 'Aultman'
-                        const btnShiftClass = isOn && isPM ? 'sched__btoggle-btn--pm' : isOn && isBothShift ? 'sched__btoggle-btn--bothshift' : isAultman ? 'sched__btoggle-btn--aultman' : ''
+                        // PM + SHSP = blue/orange split, PM + Aultman = green/orange split, pure PM only if no pharmacy
+                        const btnShiftClass = isOn && isPM ? 'sched__btoggle-btn--ampm' : isOn && isBothShift ? 'sched__btoggle-btn--ampm' : isAultman ? 'sched__btoggle-btn--aultman' : ''
                         return (
                           <td key={col} className="sched__bcell-day">
                             <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
@@ -496,8 +497,8 @@ export default function Schedule() {
                           )}
                           {cell.type === 'default_on' && (
                             <div className={`sched__cell-inner sched__cell--default ${cell.pharmacy === 'Aultman' ? 'sched__cell--default-aultman' : ''} ${cell.shift === 'PM' ? 'sched__cell--default-pm' : ''} ${cell.shift === 'BOTH' ? 'sched__cell--default-both' : ''}`}>
-                              <span className="sched__cell-label">{cell.shift === 'PM' ? 'PM' : cell.shift === 'BOTH' ? 'AM + PM' : 'Working'}</span>
-                              <span className="sched__cell-pharm">{cell.pharmacy}</span>
+                              <span className="sched__cell-label">{cell.shift === 'PM' || cell.shift === 'BOTH' ? `${cell.pharmacy} + PM` : 'Working'}</span>
+                              <span className="sched__cell-pharm">{cell.shift === 'PM' || cell.shift === 'BOTH' ? 'AM + PM' : cell.pharmacy}</span>
                             </div>
                           )}
                         </td>
