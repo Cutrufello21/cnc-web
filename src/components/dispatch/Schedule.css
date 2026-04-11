@@ -68,17 +68,17 @@
 
 /* Grid */
 .sched__grid-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--color-border); }
-.sched__grid { width: 100%; border-collapse: collapse; }
+.sched__grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .sched__grid th, .sched__grid td { border: 1px solid var(--color-border); }
 
 .sched__th-driver {
   padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
   color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
-  background: var(--color-background-secondary); min-width: 160px;
+  background: var(--color-background-secondary); width: 160px;
 }
 .sched__th-day {
   padding: 10px 8px; text-align: center; background: var(--color-background-secondary);
-  min-width: 120px; vertical-align: middle;
+  vertical-align: middle;
 }
 .sched__th-day--today { background: #0A2463; }
 .sched__th-day--today .sched__day-name,
@@ -124,6 +124,9 @@
 .sched__cell--off { background: var(--color-background-secondary); }
 .sched__cell--off .sched__cell-label { font-size: 13px; color: var(--color-text-secondary); }
 
+.sched__cell--nodata { background: var(--color-background); }
+.sched__cell--nodata .sched__cell-label { font-size: 12px; color: var(--color-border); font-style: italic; }
+
 /* Approve/deny inline */
 .sched__cell-actions { display: flex; gap: 6px; }
 .sched__approve-btn, .sched__deny-btn {
@@ -143,3 +146,4 @@
 .sched__legend-dot--timeoff { background: #FAEEDA; border: 1px solid #F3D59B; }
 .sched__legend-dot--gap { background: #FCEBEB; border: 1px solid #F5A3A3; }
 .sched__legend-dot--off { background: var(--color-background-secondary); border: 1px solid var(--color-border); }
+.sched__legend-dot--nodata { background: var(--color-background); border: 1px dashed var(--color-border); }

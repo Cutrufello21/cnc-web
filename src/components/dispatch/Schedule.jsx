@@ -153,6 +153,11 @@ export default function Schedule() {
       return { type: 'scheduled', pkgCount }
     }
 
+    // Future dates with no data yet → "No data" instead of "Off"
+    if (dateStr > todayStr) {
+      return { type: 'nodata' }
+    }
+
     return { type: 'off' }
   }
 
@@ -255,7 +260,7 @@ export default function Schedule() {
                   <th key={i} className={`sched__th-day ${isToday ? 'sched__th-day--today' : ''}`}>
                     <span className="sched__day-name">{DAY_LABELS[i]}</span>
                     <span className="sched__day-date">{d.getDate()}</span>
-                    {dayTotals[i] > 0 && <span className="sched__day-total">{dayTotals[i]} pkg</span>}
+                    {dayTotals[i] > 0 && <span className="sched__day-total">{dayTotals[i]} stops</span>}
                   </th>
                 )
               })}
@@ -316,6 +321,11 @@ export default function Schedule() {
                               <span className="sched__cell-label">Off</span>
                             </div>
                           )}
+                          {cell.type === 'nodata' && (
+                            <div className="sched__cell-inner sched__cell--nodata">
+                              <span className="sched__cell-label">No data</span>
+                            </div>
+                          )}
                         </td>
                       )
                     })}
@@ -332,6 +342,7 @@ export default function Schedule() {
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--timeoff" />Time off</span>
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--gap" />Coverage gap</span>
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--off" />Off</span>
+        <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--nodata" />No data</span>
       </div>
     </div>
   )
