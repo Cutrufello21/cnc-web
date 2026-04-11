@@ -159,7 +159,7 @@ Return this exact JSON format:
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 8192,
+      max_tokens: 16384,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     })
@@ -169,20 +169,40 @@ Return this exact JSON format:
       .map(c => c.text)
       .join('')
 
-    // Parse JSON — handle markdown code fences
+    // Parse JSON — handle markdown code fences and truncation
     let result
     try {
-      const jsonStr = text.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
+      let jsonStr = text.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
       result = JSON.parse(jsonStr)
     } catch (parseErr) {
-      return res.status(200).json({
-        assignments: [],
-        flags: [],
-        summary: text,
-        stats: { total_stops: stops.length, assigned: 0, flagged: 0, high_confidence: 0 },
-        _raw: text,
-        _parseError: parseErr.message,
-      })
+      // If truncated mid-JSON, try to salvage by closing open structures
+      try {
+        let jsonStr = text.replace(/^```json?\s*\n?/m, '').replace(/\n?```\s*$/m, '').trim()
+        // Find last complete assignment object (ends with })
+        const lastBrace = jsonStr.lastIndexOf('}')
+        if (lastBrace > 0) {
+          // Truncate to last complete object, close arrays + root
+          let truncated = jsonStr.slice(0, lastBrace + 1)
+          // Count open brackets to close them
+          const opens = (truncated.match(/\[/g) || []).length
+          const closes = (truncated.match(/\]/g) || []).length
+          for (let i = 0; i < opens - closes; i++) truncated += ']'
+          if (!truncated.endsWith('}')) truncated += '}'
+          result = JSON.parse(truncated)
+          result._truncated = true
+        } else {
+          throw parseErr
+        }
+      } catch {
+        return res.status(200).json({
+          assignments: [],
+          flags: [],
+          summary: 'AI response was too large to parse. Retry with fewer stops.',
+          stats: { total_stops: stops.length, assigned: 0, flagged: 0, high_confidence: 0 },
+          _raw: text.slice(0, 2000),
+          _parseError: parseErr.message,
+        })
+      }
     }
 
     return res.status(200).json(result)
