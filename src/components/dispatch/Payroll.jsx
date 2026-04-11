@@ -231,6 +231,25 @@ export default function Payroll() {
     }
   }
 
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState(null)
+
+  async function syncSheets() {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/sync-stops', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setLastSync(data)
+      return data
+    } catch (err) {
+      console.error('Sync error:', err)
+      return null
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   async function loadPayroll() {
     setLoading(true)
     try {
@@ -634,6 +653,20 @@ export default function Payroll() {
           </p>
         </div>
         <div className="pay__header-right">
+          <button
+            className="pay__sync-btn"
+            onClick={async () => { await syncSheets(); await loadPayroll() }}
+            disabled={syncing}
+            title="Sync stop counts from Google Sheets"
+            style={{
+              padding: '8px 16px', fontSize: 13, fontWeight: 600,
+              background: syncing ? '#94a3b8' : '#f0f2f7', color: '#475569',
+              border: '1px solid #e2e8f0', borderRadius: 8, cursor: syncing ? 'wait' : 'pointer',
+              marginRight: 12,
+            }}
+          >
+            {syncing ? 'Syncing...' : 'Sync Sheets'}
+          </button>
           <div className="pay__grand-total">
             <span className="pay__grand-label">Total Payroll</span>
             <span className="pay__grand-value">${adjustedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
