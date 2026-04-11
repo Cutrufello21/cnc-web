@@ -132,11 +132,15 @@
 .sched__cell--gap .sched__cell-label { font-size: 13px; font-weight: 600; color: #A32D2D; }
 .sched__cell--gap .sched__cell-sub { font-size: 11px; color: #C94444; }
 
+.sched__cell--default { background: #F0F4FF; }
+.sched__cell--default .sched__cell-label { font-size: 13px; font-weight: 600; color: #3B5998; }
+.sched__cell--default .sched__cell-pharm { font-size: 11px; font-weight: 600; color: #6B85C4; text-transform: uppercase; }
+.sched__cell--default-aultman { background: #ECFDF5; }
+.sched__cell--default-aultman .sched__cell-label { color: #166534; }
+.sched__cell--default-aultman .sched__cell-pharm { color: #22C55E; }
+
 .sched__cell--off { }
 .sched__cell--off .sched__cell-label { font-size: 13px; color: var(--color-border); }
-
-.sched__cell--nodata { }
-.sched__cell--nodata .sched__cell-label { font-size: 12px; color: var(--color-border); font-style: italic; }
 
 /* Approve/deny inline */
 .sched__cell-actions { display: flex; gap: 6px; }
@@ -221,5 +225,5 @@
 .sched__legend-dot--scheduled { background: #E6F1FB; border: 1px solid #93C5FD; }
 .sched__legend-dot--timeoff { background: #FAEEDA; border: 1px solid #F3D59B; }
 .sched__legend-dot--gap { background: #FCEBEB; border: 1px solid #F5A3A3; }
+.sched__legend-dot--default { background: #F0F4FF; border: 1px solid #93AADB; }
 .sched__legend-dot--off { background: var(--color-background-secondary); border: 1px solid var(--color-border); }
-.sched__legend-dot--nodata { background: var(--color-background); border: 1px dashed var(--color-border); }

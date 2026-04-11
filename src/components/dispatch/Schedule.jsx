@@ -145,13 +145,36 @@ export default function Schedule() {
     loadData()
   }
 
+  // Determine if a driver is set to work a given day from default schedule
+  function isDefaultWorking(driverName, dateStr) {
+    const d = new Date(dateStr + 'T12:00:00')
+    const dayIdx = d.getDay() - 1 // 0=Mon, 4=Fri
+    if (dayIdx < 0 || dayIdx > 4) return false
+    const sched = schedule[driverName]
+    if (!sched) return true // no schedule = working by default
+    const val = sched[DAY_COLS[dayIdx]]
+    return val !== false && val !== 'false' && val !== 0
+  }
+
+  function getDefaultPharmacy(driverName, dateStr) {
+    const d = new Date(dateStr + 'T12:00:00')
+    const dayIdx = d.getDay() - 1
+    if (dayIdx < 0 || dayIdx > 4) return null
+    const sched = schedule[driverName]
+    const driver = drivers.find(dr => dr.driver_name === driverName)
+    const basePharm = driver?.pharmacy || 'SHSP'
+    if (basePharm === 'Both') {
+      return sched?.[`${DAY_COLS[dayIdx]}_pharm`] || 'SHSP'
+    }
+    return basePharm
+  }
+
   // Build cell data
   function getCellState(driverName, dateStr) {
     const to = timeOff.find(r => r.driver_name === driverName && r.date_off === dateStr)
     const pkgCount = stops[`${driverName}|${dateStr}`] || 0
 
     if (to && (to.status === 'approved' || to.status === 'pending')) {
-      // Check for coverage gap — driver is off but has stops assigned
       if (pkgCount > 0) {
         return { type: 'gap', pkgCount, to }
       }
@@ -162,9 +185,11 @@ export default function Schedule() {
       return { type: 'scheduled', pkgCount }
     }
 
-    // Future dates with no data yet → "No data" instead of "Off"
-    if (dateStr > todayStr) {
-      return { type: 'nodata' }
+    // For dates without stop data, check the default schedule
+    const working = isDefaultWorking(driverName, dateStr)
+    if (working) {
+      const pharm = getDefaultPharmacy(driverName, dateStr)
+      return { type: 'default_on', pharmacy: pharm }
     }
 
     return { type: 'off' }
@@ -179,16 +204,17 @@ export default function Schedule() {
       activeSet.add(key.split('|')[0])
     })
     const pending = timeOff.filter(r => r.status === 'pending').length
-    // Unscheduled: days with stops but driver is off
     let gaps = 0
     drivers.forEach(d => {
       weekDateStrs.forEach(dateStr => {
         const cell = getCellState(d.driver_name, dateStr)
         if (cell.type === 'gap') gaps++
+        // Count drivers who are working (scheduled or default) at least one day
+        if (cell.type === 'default_on' || cell.type === 'scheduled') activeSet.add(d.driver_name)
       })
     })
     return { weekStops, activeDrivers: activeSet.size, pending, gaps }
-  }, [stops, timeOff, drivers, weekDateStrs])
+  }, [stops, timeOff, drivers, weekDateStrs, schedule])
 
   // Day totals
   const dayTotals = useMemo(() => {
@@ -464,9 +490,10 @@ export default function Schedule() {
                               <span className="sched__cell-label">Off</span>
                             </div>
                           )}
-                          {cell.type === 'nodata' && (
-                            <div className="sched__cell-inner sched__cell--nodata">
-                              <span className="sched__cell-label">No data</span>
+                          {cell.type === 'default_on' && (
+                            <div className={`sched__cell-inner sched__cell--default ${cell.pharmacy === 'Aultman' ? 'sched__cell--default-aultman' : ''}`}>
+                              <span className="sched__cell-label">Working</span>
+                              <span className="sched__cell-pharm">{cell.pharmacy}</span>
                             </div>
                           )}
                         </td>
@@ -484,8 +511,8 @@ export default function Schedule() {
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--scheduled" />Scheduled</span>
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--timeoff" />Time off</span>
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--gap" />Coverage gap</span>
+        <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--default" />Working (default)</span>
         <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--off" />Off</span>
-        <span className="sched__legend-item"><span className="sched__legend-dot sched__legend-dot--nodata" />No data</span>
       </div>
     </div>
   )
