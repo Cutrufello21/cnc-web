@@ -253,16 +253,26 @@ export default function Payroll() {
         supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf).then(r => r).catch(() => ({ data: [] })),
         supabase.from('daily_stops').select('driver_name, delivery_date, delivery_day')
           .gte('delivery_date', weekOf).lte('delivery_date', fridayStr)
-          .not('status', 'eq', 'DELETED'),
+          .not('status', 'eq', 'DELETED')
+          .limit(5000),
       ])
 
       // Count actual stops per driver per day from daily_stops
+      const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
       const actualStops = {}
       ;(stopsRes.data || []).forEach(s => {
-        if (!s.driver_name || !s.delivery_day) return
+        if (!s.driver_name) return
+        // Derive day from delivery_date (reliable) with delivery_day as fallback
+        let dayKey
+        if (s.delivery_date) {
+          const d = new Date(s.delivery_date + 'T12:00:00')
+          dayKey = dayNames[d.getDay()]
+        } else if (s.delivery_day) {
+          dayKey = s.delivery_day.slice(0, 3).toLowerCase()
+        }
+        if (!dayKey) return
         if (!actualStops[s.driver_name]) actualStops[s.driver_name] = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0 }
-        const dayKey = s.delivery_day?.slice(0, 3).toLowerCase()
-        if (dayKey && actualStops[s.driver_name][dayKey] !== undefined) {
+        if (actualStops[s.driver_name][dayKey] !== undefined) {
           actualStops[s.driver_name][dayKey]++
         }
       })
