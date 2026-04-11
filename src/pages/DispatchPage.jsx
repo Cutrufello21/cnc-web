@@ -251,6 +251,7 @@ export default function DispatchPage() {
   function handleMoveComplete(moveInfo) {
     setLastMove(moveInfo)
     setMoveToast(`Moved ${moveInfo.count} stop${moveInfo.count > 1 ? 's' : ''} to ${moveInfo.toName}`)
+    fetchDispatchData(selectedDay)
   }
 
   async function handleUndo() {
