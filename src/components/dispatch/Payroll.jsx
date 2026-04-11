@@ -301,12 +301,13 @@ export default function Payroll() {
         const p = payrollByName[d.driver_name] || {}
         const actual = actualStops[d.driver_name]
         const recon = reconMap[d.driver_name] || {}
-        // Priority: approved reconciliation > payroll table (if set) > daily_stops auto-count
+        // Priority: approved reconciliation > higher of (payroll table, daily_stops auto-count)
+        // Manual edits are corrections upward; if auto-count is higher, payroll value is stale
+        // To correct downward, use driver reconciliation (which takes top priority when approved)
         const pickDay = (dayShort, pVal) => {
           if (recon[dayShort]?.approved && recon[dayShort]?.actual != null) return recon[dayShort].actual
-          if (pVal != null && pVal > 0) return pVal
           const autoVal = actual ? (actual[dayShort.toLowerCase()] || 0) : 0
-          return autoVal
+          return Math.max(pVal || 0, autoVal)
         }
         const mon = pickDay('Mon', p.mon)
         const tue = pickDay('Tue', p.tue)
