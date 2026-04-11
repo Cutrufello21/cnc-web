@@ -1,19 +1,23 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { dbInsert, dbUpdate, dbDelete } from '../../lib/db'
+import { dbInsert, dbUpdate, dbDelete, dbUpsert } from '../../lib/db'
 import './Schedule.css'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const DAY_COLS = ['mon', 'tue', 'wed', 'thu', 'fri']
 
 export default function Schedule() {
   const [drivers, setDrivers] = useState([])
   const [stops, setStops] = useState([])
   const [timeOff, setTimeOff] = useState([])
+  const [schedule, setSchedule] = useState({}) // driverName → { mon, tue, ... , mon_pharm, tue_pharm, ... }
   const [loading, setLoading] = useState(true)
   const [weekOffset, setWeekOffset] = useState(0)
   const [showAdd, setShowAdd] = useState(false)
+  const [showBuilder, setShowBuilder] = useState(false)
   const [newReq, setNewReq] = useState({ driver_name: '', date_from: '', date_to: '', reason: '' })
   const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(null)
   const [toast, setToast] = useState(null)
 
   // Compute week dates
@@ -59,11 +63,16 @@ export default function Schedule() {
       ),
     ])
 
-    // Time off for the week range
-    const { data: toData } = await supabase.from('time_off_requests')
-      .select('*')
-      .gte('date_off', weekDateStrs[0])
-      .lte('date_off', weekDateStrs[4])
+    // Time off + default schedule
+    const [toRes, schedRes] = await Promise.all([
+      supabase.from('time_off_requests').select('*')
+        .gte('date_off', weekDateStrs[0]).lte('date_off', weekDateStrs[4]),
+      supabase.from('driver_schedule').select('*'),
+    ])
+    const toData = toRes.data
+    const schedMap = {}
+    ;(schedRes.data || []).forEach(r => { schedMap[r.driver_name] = r })
+    setSchedule(schedMap)
 
     // Count packages per driver per day
     const stopMap = {}
@@ -192,6 +201,50 @@ export default function Schedule() {
     })
   }, [stops, weekDateStrs])
 
+  // ── Schedule Builder logic ─────────────────────────────────
+  function isDefaultWorking(driverName, dayIdx) {
+    const sched = schedule[driverName]
+    if (!sched) return true // no schedule = working by default
+    return sched[DAY_COLS[dayIdx]] !== false
+  }
+
+  function getPharmLabel(driver) {
+    const p = driver.pharmacy || 'SHSP'
+    if (p === 'Both') return 'Both'
+    if (p === 'Float') return 'Float'
+    return p
+  }
+
+  async function handleBuilderToggle(driverName, dayIdx) {
+    const col = DAY_COLS[dayIdx]
+    const sched = schedule[driverName] || {}
+    const currentlyOn = sched[col] !== false
+    const newVal = !currentlyOn
+
+    setSaving(`${driverName}|${col}`)
+    const update = { driver_name: driverName, [col]: newVal }
+    // Clear pharmacy override if toggling off
+    if (!newVal) update[`${col}_pharm`] = null
+    await dbUpsert('driver_schedule', update, 'driver_name')
+    setSchedule(prev => ({
+      ...prev,
+      [driverName]: { ...prev[driverName], ...update },
+    }))
+    setSaving(null)
+  }
+
+  async function handlePharmChange(driverName, dayIdx, pharm) {
+    const col = DAY_COLS[dayIdx]
+    setSaving(`${driverName}|${col}`)
+    const update = { driver_name: driverName, [`${col}_pharm`]: pharm }
+    await dbUpsert('driver_schedule', update, 'driver_name')
+    setSchedule(prev => ({
+      ...prev,
+      [driverName]: { ...prev[driverName], ...update },
+    }))
+    setSaving(null)
+  }
+
   if (loading) return <div className="sched__loading"><div className="dispatch__spinner" />Loading schedule...</div>
 
   return (
@@ -208,7 +261,15 @@ export default function Schedule() {
             <button className="sched__today-btn" onClick={() => setWeekOffset(0)}>Today</button>
           )}
         </div>
-        <button className="sched__add-btn" onClick={() => setShowAdd(true)}>Schedule driver</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className={`sched__builder-toggle ${showBuilder ? 'sched__builder-toggle--active' : ''}`}
+            onClick={() => setShowBuilder(!showBuilder)}
+          >
+            {showBuilder ? 'Close Builder' : 'Edit Schedule'}
+          </button>
+          <button className="sched__add-btn" onClick={() => setShowAdd(true)}>Schedule driver</button>
+        </div>
       </div>
 
       {/* Add form */}
@@ -247,6 +308,75 @@ export default function Schedule() {
           <span className="sched__stat-label">Coverage gaps</span>
         </div>
       </div>
+
+      {/* Schedule Builder */}
+      {showBuilder && (
+        <div className="sched__builder">
+          <div className="sched__builder-header">
+            <h3 className="sched__builder-title">Default Weekly Schedule</h3>
+            <span className="sched__builder-hint">Toggle days on/off. "Both" drivers select pharmacy per night.</span>
+          </div>
+          <div className="sched__builder-grid-wrap">
+            <table className="sched__builder-grid">
+              <thead>
+                <tr>
+                  <th className="sched__bth-driver">Driver</th>
+                  <th className="sched__bth-type">Type</th>
+                  {DAY_LABELS.map(d => <th key={d} className="sched__bth-day">{d}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.sort((a, b) => a.driver_name.localeCompare(b.driver_name)).map(driver => {
+                  const pharm = driver.pharmacy || 'SHSP'
+                  const isBoth = pharm === 'Both'
+                  const isFloat = pharm === 'Float'
+                  return (
+                    <tr key={driver.driver_name}>
+                      <td className="sched__bcell-driver">{driver.driver_name}</td>
+                      <td className="sched__bcell-type">
+                        <span className={`sched__type-badge sched__type-badge--${pharm.toLowerCase()}`}>{isFloat ? 'Float' : pharm}</span>
+                      </td>
+                      {DAY_COLS.map((col, i) => {
+                        const sched = schedule[driver.driver_name] || {}
+                        const isOn = sched[col] !== false
+                        const isSaving = saving === `${driver.driver_name}|${col}`
+                        const pharmVal = sched[`${col}_pharm`] || 'SHSP'
+                        return (
+                          <td key={col} className="sched__bcell-day">
+                            <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
+                              <button
+                                className="sched__btoggle-btn"
+                                onClick={() => handleBuilderToggle(driver.driver_name, i)}
+                                disabled={isSaving}
+                              >
+                                {isOn ? '✓' : '—'}
+                              </button>
+                              {isOn && isBoth && (
+                                <select
+                                  className="sched__bpharm-select"
+                                  value={pharmVal}
+                                  onChange={e => handlePharmChange(driver.driver_name, i, e.target.value)}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <option value="SHSP">SHSP</option>
+                                  <option value="Aultman">Aultman</option>
+                                </select>
+                              )}
+                              {isOn && isFloat && (
+                                <span className="sched__bfloat-label">Float</span>
+                              )}
+                            </div>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="sched__grid-wrap">

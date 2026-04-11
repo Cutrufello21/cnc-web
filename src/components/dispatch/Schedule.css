@@ -147,6 +147,69 @@
 .sched__approve-btn { background: #16a34a; color: #fff; }
 .sched__deny-btn { background: #dc2626; color: #fff; }
 
+/* Builder toggle button */
+.sched__builder-toggle {
+  padding: 10px 20px; font-size: 13px; font-weight: 600;
+  background: var(--color-background); color: var(--color-text-secondary);
+  border: 1px solid var(--color-border); border-radius: 10px; cursor: pointer;
+}
+.sched__builder-toggle:hover { background: var(--color-background-secondary); }
+.sched__builder-toggle--active { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: #0A2463; }
+
+/* Schedule Builder */
+.sched__builder {
+  margin-bottom: 24px; border-radius: 12px; border: 1px solid var(--color-border);
+  background: var(--color-background); overflow: hidden;
+}
+.sched__builder-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sched__builder-title { font-size: 16px; font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.sched__builder-hint { font-size: 12px; color: var(--color-text-secondary); }
+.sched__builder-grid-wrap { overflow-x: auto; }
+.sched__builder-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.sched__builder-grid th, .sched__builder-grid td { border-bottom: 1px solid var(--color-border); }
+
+.sched__bth-driver { padding: 10px 16px; text-align: left; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; width: 140px; }
+.sched__bth-type { padding: 10px 8px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; width: 80px; }
+.sched__bth-day { padding: 10px 8px; text-align: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; }
+
+.sched__bcell-driver { padding: 8px 16px; font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.sched__bcell-type { padding: 8px; text-align: center; }
+.sched__bcell-day { padding: 6px 4px; text-align: center; vertical-align: middle; }
+
+.sched__type-badge {
+  display: inline-block; padding: 2px 8px; font-size: 10px; font-weight: 700;
+  border-radius: 4px; text-transform: uppercase;
+}
+.sched__type-badge--shsp { background: #E6F1FB; color: #0C447C; }
+.sched__type-badge--aultman { background: #FCE7E7; color: #9B2C2C; }
+.sched__type-badge--both { background: #E8F5E9; color: #2E7D32; }
+.sched__type-badge--float { background: #F3E8FF; color: #6B21A8; }
+
+.sched__btoggle { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sched__btoggle--saving { opacity: 0.5; }
+
+.sched__btoggle-btn {
+  width: 36px; height: 28px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.sched__btoggle--on .sched__btoggle-btn { background: #0A2463; color: #fff; }
+.sched__btoggle--off .sched__btoggle-btn { background: var(--color-background-secondary); color: var(--color-border); }
+.sched__btoggle-btn:hover { opacity: 0.85; }
+
+.sched__bpharm-select {
+  padding: 2px 4px; font-size: 10px; font-weight: 600;
+  border: 1px solid var(--color-border); border-radius: 4px;
+  background: var(--color-background); color: var(--color-text-primary);
+  cursor: pointer; width: 64px; text-align: center;
+}
+
+.sched__bfloat-label {
+  font-size: 10px; font-weight: 600; color: #6B21A8; text-transform: uppercase;
+}
+
 /* Legend */
 .sched__legend {
   display: flex; gap: 20px; padding: 16px 0; margin-top: 16px;
