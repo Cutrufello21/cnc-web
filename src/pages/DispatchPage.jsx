@@ -1307,7 +1307,7 @@ export default function DispatchPage() {
                     <th>Driver</th>
                     <th>Stops</th>
                     <th>Cold</th>
-                    <th>ZIPs</th>
+                    <th>Areas</th>
                     <th>Confidence</th>
                     <th>Reasoning</th>
                   </tr>
@@ -1321,8 +1321,11 @@ export default function DispatchPage() {
                       <td style={{ fontWeight: 700 }}>{a.driver_name}</td>
                       <td style={{ textAlign: 'center', fontWeight: 700 }}>{a.stop_count}</td>
                       <td style={{ textAlign: 'center', color: '#2563eb', fontWeight: 600 }}>{a.cold_chain_count || 0}</td>
-                      <td style={{ fontSize: 12, fontFamily: 'ui-monospace, monospace', maxWidth: 200 }}>
-                        {(a.zips || []).join(', ')}
+                      <td style={{ fontSize: 12, maxWidth: 260, lineHeight: 1.5 }}>
+                        {(a.zips || []).map(z => {
+                          const city = aiResult.zip_city_map?.[z]
+                          return city ? `${city} (${z})` : z
+                        }).join(', ')}
                       </td>
                       <td>
                         <span className={`dispatch__ai-badge dispatch__ai-badge--${a.confidence}`}>

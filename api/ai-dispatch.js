@@ -241,6 +241,13 @@ Every ZIP must be assigned to exactly one driver. Every stop must be covered. Do
       }
     }
 
+    // Include zip→city map so frontend can show city names
+    const zipCityMap = {}
+    for (const s of stops) {
+      if (s.zip && s.city && !zipCityMap[s.zip]) zipCityMap[s.zip] = s.city
+    }
+    result.zip_city_map = zipCityMap
+
     return res.status(200).json(result)
 
   } catch (err) {
