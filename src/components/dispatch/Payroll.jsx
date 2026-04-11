@@ -330,7 +330,7 @@ export default function Payroll() {
           flatSalary,
           calculatedPay: Math.round(calculatedPay * 100) / 100,
           sheetPay: parseFloat(p.weekly_pay) || 0,
-          isBrad: d.driver_name === 'Brad',
+          isBrad: false,
           isFlat: !!flatSalary,
           rowIndex: p.id || null,
           recon: reconMap[d.driver_name] || null,
@@ -777,7 +777,6 @@ export default function Payroll() {
         <span>Rate format: Mon/Tue/Thu rate / Wed/Fri rate</span>
         <span>Will Calls: $9 each</span>
         <span>Flat: Mark $1,550 · Dom $2,500 · Paul $2,000</span>
-        <span>Brad: manual entry</span>
       </div>
 
       {/* Driver Reconciliation */}
