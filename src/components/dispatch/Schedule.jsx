@@ -387,8 +387,9 @@ export default function Schedule() {
                   </div>
                   <div className="ops__day-body">
                     {(() => {
-                      const shsp = data.working.filter(w => w.shift === 'AM' && w.pharm !== 'Aultman')
-                      const alt = data.working.filter(w => w.shift === 'AM' && w.pharm === 'Aultman')
+                      // BOTH shift drivers appear in their pharmacy group AND PM group
+                      const shsp = data.working.filter(w => (w.shift === 'AM' || w.shift === 'BOTH') && w.pharm !== 'Aultman')
+                      const alt = data.working.filter(w => (w.shift === 'AM' || w.shift === 'BOTH') && w.pharm === 'Aultman')
                       const pm = data.working.filter(w => w.shift === 'PM' || w.shift === 'BOTH')
                       return <>
                         {shsp.length > 0 && <>
