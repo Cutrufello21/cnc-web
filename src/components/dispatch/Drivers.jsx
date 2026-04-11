@@ -176,14 +176,6 @@ export default function Drivers() {
               <label>Driver ID *</label>
               <input value={newDriver.driver_number} onChange={e => setNewDriver({ ...newDriver, driver_number: e.target.value })} placeholder="55493" />
             </div>
-            <div className="drv__add-field">
-              <label>Pharmacy</label>
-              <select value={newDriver.pharmacy} onChange={e => setNewDriver({ ...newDriver, pharmacy: e.target.value })}>
-                <option value="SHSP">SHSP</option>
-                <option value="Aultman">Aultman</option>
-                <option value="Both">Both</option>
-              </select>
-            </div>
           </div>
           <div className="drv__add-row">
             <div className="drv__add-field">
@@ -228,7 +220,6 @@ export default function Drivers() {
             <tr>
               <th>Name</th>
               <th>ID</th>
-              <th>Pharmacy</th>
               <th>Email</th>
               <th>Rate M/T/Th</th>
               <th>Rate W/F</th>
@@ -246,13 +237,6 @@ export default function Drivers() {
                   <tr key={d.id} className="drv__row--editing">
                     <td><input className="drv__input" value={editData.driver_name} onChange={e => setEditData({ ...editData, driver_name: e.target.value })} /></td>
                     <td><input className="drv__input drv__input--sm" value={editData.driver_number} onChange={e => setEditData({ ...editData, driver_number: e.target.value })} /></td>
-                    <td>
-                      <select className="drv__select" value={editData.pharmacy} onChange={e => setEditData({ ...editData, pharmacy: e.target.value })}>
-                        <option value="SHSP">SHSP</option>
-                        <option value="Aultman">Aultman</option>
-                        <option value="Both">Both</option>
-                      </select>
-                    </td>
                     <td><input className="drv__input" value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} /></td>
                     <td><input className="drv__input drv__input--sm" type="number" step="0.01" value={editData.rate_mth} onChange={e => setEditData({ ...editData, rate_mth: e.target.value })} /></td>
                     <td><input className="drv__input drv__input--sm" type="number" step="0.01" value={editData.rate_wf} onChange={e => setEditData({ ...editData, rate_wf: e.target.value })} /></td>
@@ -282,11 +266,6 @@ export default function Drivers() {
                       {hasRules && <span className="drv__rules-dot" title="Has dispatch rules">●</span>}
                     </td>
                     <td className="drv__cell-id">{d.driver_number}</td>
-                    <td>
-                      <span className={`drv__pharma ${d.pharmacy === 'Aultman' ? 'drv__pharma--aultman' : d.pharmacy === 'Both' ? 'drv__pharma--both' : 'drv__pharma--shsp'}`}>
-                        {d.pharmacy || '—'}
-                      </span>
-                    </td>
                     <td className="drv__cell-email">{d.email || '—'}</td>
                     <td className="drv__cell-num">${parseFloat(d.rate_mth || 0).toFixed(2)}</td>
                     <td className="drv__cell-num">${parseFloat(d.rate_wf || 0).toFixed(2)}</td>
