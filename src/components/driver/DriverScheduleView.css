@@ -1,64 +1,114 @@
-.dsv { padding: 0 0 20px; }
-.dsv__loading { padding: 20px; color: var(--color-text-secondary); font-size: 14px; }
-.dsv__title { font-size: 18px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 16px; }
+.dsv { padding: 0; }
+.dsv__loading { display: flex; align-items: center; gap: 12px; padding: 30px; color: var(--color-text-secondary); }
 
-.dsv__week { margin-bottom: 20px; }
-.dsv__week--current { }
-.dsv__week-label {
-  font-size: 13px; font-weight: 700; color: var(--color-text-secondary);
-  text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
-}
-.dsv__week--current .dsv__week-label { color: #0A2463; }
+.dsv__cards { display: flex; flex-direction: column; gap: 0; }
 
-.dsv__days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-
-.dsv__day { border-radius: 10px; overflow: hidden; border: 1px solid var(--color-border); }
-.dsv__day--today { border-color: #0A2463; border-width: 2px; }
-
-.dsv__day-header {
-  padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;
-  background: var(--color-background-secondary);
-}
-.dsv__day--today .dsv__day-header { background: #0A2463; }
-.dsv__day--today .dsv__day-name,
-.dsv__day--today .dsv__day-date { color: #fff; }
-.dsv__day-name { font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; }
-.dsv__day-date { font-size: 12px; color: var(--color-text-secondary); }
-
-.dsv__day-body {
-  padding: 14px 10px; min-height: 60px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+/* Week divider */
+.dsv__week-divider {
+  height: 1px; background: var(--color-border); margin: 16px 0;
 }
 
-/* Working states */
-.dsv__day-body--working { background: #E6F1FB; }
-.dsv__day-body--aultman { background: #ECFDF5; }
-.dsv__day-body--pm { background: #FFF7ED; }
-.dsv__day-body--ampm { background: linear-gradient(135deg, #E6F1FB 50%, #FFF7ED 50%); }
+/* Card */
+.dsv__card {
+  position: relative;
+  border-radius: 16px; overflow: hidden;
+  margin-bottom: 4px;
+  transition: transform 0.15s ease;
+}
+.dsv__card--past { opacity: 0.5; }
+.dsv__card--today { transform: scale(1.02); z-index: 1; margin-bottom: 8px; margin-top: 4px; }
 
-.dsv__day-shift { font-size: 15px; font-weight: 700; color: #0C447C; }
-.dsv__day-body--aultman .dsv__day-shift { color: #166534; }
-.dsv__day-body--pm .dsv__day-shift { color: #9A3412; }
-.dsv__day-body--ampm .dsv__day-shift { color: #0A2463; }
-.dsv__day-pharm { font-size: 11px; font-weight: 600; color: #6B85C4; text-transform: uppercase; }
-.dsv__day-body--pm .dsv__day-pharm { color: #EA580C; }
+.dsv__card-month {
+  padding: 12px 20px 4px;
+  font-size: 13px; font-weight: 700; letter-spacing: 2px;
+  opacity: 0.7;
+}
 
-/* Time off */
-.dsv__day-body--timeoff { background: #FAEEDA; }
-.dsv__day-body--timeoff .dsv__day-off-label { font-size: 13px; font-weight: 600; color: #854F0B; }
-.dsv__day-body--timeoff .dsv__day-off-status { font-size: 11px; color: #A16B1A; }
+.dsv__card-main {
+  display: flex; align-items: center; padding: 16px 20px;
+  gap: 20px; min-height: 80px;
+}
 
-/* Off */
-.dsv__day-body--off { background: var(--color-background-secondary); }
-.dsv__day-body--off .dsv__day-off-label { font-size: 13px; color: var(--color-text-secondary); }
+.dsv__card-left {
+  display: flex; align-items: baseline; gap: 6px;
+}
+.dsv__card-letter {
+  font-size: 48px; font-weight: 800; line-height: 1;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+.dsv__card-date {
+  font-size: 48px; font-weight: 300; line-height: 1;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
 
-/* Mobile responsive */
-@media (max-width: 480px) {
-  .dsv__days { grid-template-columns: repeat(5, 1fr); gap: 4px; }
-  .dsv__day-header { padding: 6px 6px; }
-  .dsv__day-name { font-size: 10px; }
-  .dsv__day-date { font-size: 10px; }
-  .dsv__day-body { padding: 10px 4px; min-height: 50px; }
-  .dsv__day-shift { font-size: 12px; }
-  .dsv__day-pharm { font-size: 9px; }
+.dsv__card-right {
+  display: flex; flex-direction: column; gap: 2px; margin-left: auto; text-align: right;
+}
+.dsv__card-shift { font-size: 16px; font-weight: 700; }
+.dsv__card-detail { font-size: 13px; opacity: 0.7; }
+
+/* Today badge */
+.dsv__card-now {
+  position: absolute; top: 12px; right: 16px;
+  font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
+  padding: 3px 10px; border-radius: 20px;
+  background: rgba(255,255,255,0.3); backdrop-filter: blur(4px);
+}
+
+/* ── Color Themes ────────────────────────────── */
+
+/* SHSP — Navy */
+.dsv__card--shsp {
+  background: #0A2463; color: #fff;
+}
+.dsv__card--shsp .dsv__card-month { color: #93AADB; }
+.dsv__card--shsp .dsv__card-now { color: #fff; }
+
+/* Aultman — Green */
+.dsv__card--aultman {
+  background: #166534; color: #fff;
+}
+.dsv__card--aultman .dsv__card-month { color: #86EFAC; }
+
+/* PM — Orange */
+.dsv__card--pm {
+  background: #EA580C; color: #fff;
+}
+.dsv__card--pm .dsv__card-month { color: #FDBA74; }
+
+/* AM+PM — Split */
+.dsv__card--ampm {
+  background: linear-gradient(135deg, #0A2463 50%, #EA580C 50%); color: #fff;
+}
+.dsv__card--ampm .dsv__card-month { color: #93AADB; }
+
+/* Time Off — Amber */
+.dsv__card--timeoff {
+  background: #F59E0B; color: #fff;
+}
+.dsv__card--timeoff .dsv__card-month { color: #FDE68A; }
+
+/* Off — Light Gray */
+.dsv__card--off {
+  background: var(--color-background-secondary); color: var(--color-text-secondary);
+}
+.dsv__card--off .dsv__card-letter,
+.dsv__card--off .dsv__card-date { opacity: 0.4; }
+.dsv__card--off .dsv__card-month { color: var(--color-text-secondary); }
+.dsv__card--off .dsv__card-now { color: var(--color-text-primary); background: rgba(0,0,0,0.05); }
+
+/* ── Desktop: side-by-side rows ────────────── */
+@media (min-width: 768px) {
+  .dsv__cards {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+  }
+  .dsv__week-divider {
+    grid-column: 1 / -1; margin: 12px 0;
+  }
+  .dsv__card { margin-bottom: 0; }
+  .dsv__card--today { transform: none; margin: 0; }
+  .dsv__card-letter { font-size: 36px; }
+  .dsv__card-date { font-size: 36px; }
+  .dsv__card-main { padding: 12px 16px; min-height: 70px; gap: 12px; }
+  .dsv__card-shift { font-size: 14px; }
 }
