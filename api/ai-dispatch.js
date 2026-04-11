@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     // ── 2. Fetch all context in parallel ────────────────────────
     const cutoff90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
-    const [stopsRes, rulesRes, driversRes, historyRes] = await Promise.all([
+    const [stopsRes, rulesRes, driversRes, historyRes, decisionsRes, snapshotsRes] = await Promise.all([
       supabase
         .from('daily_stops')
         .select('id, order_id, driver_name, driver_number, zip, city, address, pharmacy, cold_chain, assigned_driver_number, dispatch_driver_number')
@@ -46,12 +46,32 @@ export default async function handler(req, res) {
         .gte('delivery_date', cutoff90)
         .order('delivery_date', { ascending: false })
         .limit(6000),
+
+      // Dom's manual dispatch decisions (moves, corrections)
+      supabase
+        .from('dispatch_decisions')
+        .select('delivery_date, delivery_day, zip, city, pharmacy, from_driver, to_driver, decision_type, context')
+        .in('decision_type', ['manual_move', 'optimize_accepted'])
+        .gte('delivery_date', cutoff90)
+        .order('delivery_date', { ascending: false })
+        .limit(3000),
+
+      // Final dispatch snapshots (what Dom actually sent out)
+      supabase
+        .from('dispatch_decisions')
+        .select('delivery_date, delivery_day, zip, from_driver, decision_type')
+        .eq('decision_type', 'final_state')
+        .gte('delivery_date', cutoff90)
+        .order('delivery_date', { ascending: false })
+        .limit(5000),
     ])
 
     const stops = stopsRes.data || []
     const rules = rulesRes.data || []
     const drivers = driversRes.data || []
     const history = historyRes.data || []
+    const decisions = decisionsRes.data || []
+    const snapshots = snapshotsRes.data || []
 
     if (stops.length === 0) {
       return res.status(200).json({
@@ -116,13 +136,64 @@ export default async function handler(req, res) {
       return { zip, drivers: sorted.map(([name, count]) => ({ name, count })) }
     })
 
+    // ── 3b. Learn from Dom's manual decisions ──────────────────
+    // Manual moves: when Dom moved a ZIP from one driver to another
+    const movePatterns = {}
+    for (const d of decisions) {
+      if (!d.zip || !d.to_driver) continue
+      const key = `${d.zip}|${d.delivery_day || ''}`
+      if (!movePatterns[key]) movePatterns[key] = {}
+      movePatterns[key][d.to_driver] = (movePatterns[key][d.to_driver] || 0) + 1
+    }
+    const domDecisions = Object.entries(movePatterns)
+      .map(([key, targets]) => {
+        const [zip, day] = key.split('|')
+        const sorted = Object.entries(targets).sort((a, b) => b[1] - a[1])
+        const total = sorted.reduce((s, [, v]) => s + v, 0)
+        if (total < 2) return null
+        return {
+          zip, day: day || 'any',
+          preferred_driver: sorted[0][0],
+          times: sorted[0][1],
+          total,
+        }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.times - a.times)
+      .slice(0, 40)
+
+    // Final state patterns: how Dom actually assigned ZIPs on this day of week
+    const finalForDay = snapshots.filter(s => {
+      if (!s.delivery_day) return false
+      return s.delivery_day === dayOfWeek || s.delivery_day === dayOfWeek.slice(0, 3)
+    })
+    const finalZipDriver = {}
+    for (const s of finalForDay) {
+      if (!s.zip || !s.from_driver) continue
+      if (!finalZipDriver[s.zip]) finalZipDriver[s.zip] = {}
+      finalZipDriver[s.zip][s.from_driver] = (finalZipDriver[s.zip][s.from_driver] || 0) + 1
+    }
+    const finalPatterns = Object.entries(finalZipDriver)
+      .map(([zip, drivers]) => {
+        const sorted = Object.entries(drivers).sort((a, b) => b[1] - a[1]).slice(0, 3)
+        return { zip, drivers: sorted.map(([name, count]) => ({ name, count })) }
+      })
+      .filter(p => p.drivers[0]?.count >= 2)
+
     // ── 4. Call Claude ──────────────────────────────────────────
-    const systemPrompt = `You are Dom's dispatch assistant at CNC Delivery Service in Northeast Ohio. Dom has 7 years of dispatch experience. Analyze his historical patterns and assign today's stops exactly the way Dom would.
+    const systemPrompt = `You are Dom's dispatch assistant at CNC Delivery Service in Northeast Ohio. Dom has 7 years of dispatch experience. Your #1 goal is to assign stops EXACTLY the way Dom would.
+
+LEARNING FROM DOM'S DECISIONS (highest priority):
+- DOM'S MANUAL DECISIONS show corrections he made — these reveal his true preferences
+- DOM'S FINAL ASSIGNMENTS show how he actually dispatched — this is ground truth
+- When Dom consistently moves a ZIP to a specific driver, ALWAYS assign that ZIP to that driver
+- His decisions override routing rules and historical import data when they conflict
+
 Rules:
 - Assign ZIP codes to drivers, not individual stops
 - Keep geographically close ZIPs clustered on the same driver
 - Balance cold chain stops across drivers — no driver should have a disproportionate cold load
-- Match historical day-of-week patterns — if Mike always gets 44270 on Fridays, give it to Mike
+- Match Dom's day-of-week patterns — if Dom always gives Mike 44270 on Fridays, give it to Mike
 - Never overload one driver significantly vs others (target 35-50 stops each)
 - SHSP stops stay with SHSP pharmacy drivers
 - Aultman stops stay with Aultman pharmacy drivers
@@ -162,6 +233,12 @@ ${JSON.stringify(dayRules, null, 2)}
 
 HISTORICAL ${dayOfWeek.toUpperCase()} PATTERNS (last 90 days, ZIP → top drivers):
 ${JSON.stringify(histPatterns, null, 2)}
+
+DOM'S MANUAL DISPATCH DECISIONS (moves he made to correct auto-routing — follow these closely):
+${domDecisions.length > 0 ? JSON.stringify(domDecisions, null, 2) : 'No manual decisions logged yet.'}
+
+DOM'S FINAL ${dayOfWeek.toUpperCase()} ASSIGNMENTS (how he actually dispatched on past ${dayOfWeek}s — this is ground truth):
+${finalPatterns.length > 0 ? JSON.stringify(finalPatterns, null, 2) : 'No final dispatch snapshots yet.'}
 
 Return ONE object per driver (not per stop). Each driver gets a list of ZIPs they should cover. Return this exact JSON format:
 {
