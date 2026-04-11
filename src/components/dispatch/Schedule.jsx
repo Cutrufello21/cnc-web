@@ -686,6 +686,9 @@ export default function Schedule() {
                                 ...prev,
                                 [overKey]: { status: next.status, pharmacy: next.pharm, shift: next.shift },
                               }))
+                              const dayLabel = `${DAY_LABELS[d.dayIdx]} ${d.date.getMonth()+1}/${d.date.getDate()}`
+                              const statusLabel = next.status === 'off' ? 'Off' : next.pharm === 'Aultman' ? 'Aultman' : next.shift === 'PM' ? 'PM' : 'SHSP'
+                              showToastMsg(`${driver.driver_name} → ${statusLabel} on ${dayLabel}`)
                             } catch (err) { showToastMsg(`Error: ${err.message}`, true) }
                             finally { setSaving(null) }
                           }
