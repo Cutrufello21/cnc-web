@@ -218,31 +218,40 @@ export default function Schedule() {
   async function handleBuilderToggle(driverName, dayIdx) {
     const col = DAY_COLS[dayIdx]
     const sched = schedule[driverName] || {}
-    const currentlyOn = sched[col] !== false
+    const currentlyOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
     const newVal = !currentlyOn
 
     setSaving(`${driverName}|${col}`)
-    const update = { driver_name: driverName, [col]: newVal }
-    // Clear pharmacy override if toggling off
-    if (!newVal) update[`${col}_pharm`] = null
-    await dbUpsert('driver_schedule', update, 'driver_name')
-    setSchedule(prev => ({
-      ...prev,
-      [driverName]: { ...prev[driverName], ...update },
-    }))
-    setSaving(null)
+    try {
+      const update = { driver_name: driverName, [col]: newVal }
+      if (!newVal) update[`${col}_pharm`] = null
+      await dbUpsert('driver_schedule', update, 'driver_name')
+      setSchedule(prev => ({
+        ...prev,
+        [driverName]: { ...(prev[driverName] || {}), ...update },
+      }))
+    } catch (err) {
+      showToastMsg(`Error: ${err.message}`, true)
+    } finally {
+      setSaving(null)
+    }
   }
 
   async function handlePharmChange(driverName, dayIdx, pharm) {
     const col = DAY_COLS[dayIdx]
     setSaving(`${driverName}|${col}`)
-    const update = { driver_name: driverName, [`${col}_pharm`]: pharm }
-    await dbUpsert('driver_schedule', update, 'driver_name')
-    setSchedule(prev => ({
-      ...prev,
-      [driverName]: { ...prev[driverName], ...update },
-    }))
-    setSaving(null)
+    try {
+      const update = { driver_name: driverName, [`${col}_pharm`]: pharm }
+      await dbUpsert('driver_schedule', update, 'driver_name')
+      setSchedule(prev => ({
+        ...prev,
+        [driverName]: { ...(prev[driverName] || {}), ...update },
+      }))
+    } catch (err) {
+      showToastMsg(`Error: ${err.message}`, true)
+    } finally {
+      setSaving(null)
+    }
   }
 
   if (loading) return <div className="sched__loading"><div className="dispatch__spinner" />Loading schedule...</div>
@@ -338,7 +347,7 @@ export default function Schedule() {
                       </td>
                       {DAY_COLS.map((col, i) => {
                         const sched = schedule[driver.driver_name] || {}
-                        const isOn = sched[col] !== false
+                        const isOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
                         const isSaving = saving === `${driver.driver_name}|${col}`
                         const pharmVal = sched[`${col}_pharm`] || 'SHSP'
                         return (
@@ -355,8 +364,9 @@ export default function Schedule() {
                                 <select
                                   className="sched__bpharm-select"
                                   value={pharmVal}
-                                  onChange={e => handlePharmChange(driver.driver_name, i, e.target.value)}
+                                  onChange={e => { e.stopPropagation(); handlePharmChange(driver.driver_name, i, e.target.value) }}
                                   onClick={e => e.stopPropagation()}
+                                  onMouseDown={e => e.stopPropagation()}
                                 >
                                   <option value="SHSP">SHSP</option>
                                   <option value="Aultman">Aultman</option>
