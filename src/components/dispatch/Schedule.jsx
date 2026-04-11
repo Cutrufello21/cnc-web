@@ -189,8 +189,13 @@ export default function Schedule() {
     const working = isDefaultWorking(driverName, dateStr)
     if (working) {
       const pharm = getDefaultPharmacy(driverName, dateStr)
+      // Read per-day shift from schedule, fallback to driver's default shift
+      const d = new Date(dateStr + 'T12:00:00')
+      const dayIdx = d.getDay() - 1
+      const sched = schedule[driverName] || {}
+      const dayShift = (dayIdx >= 0 && dayIdx <= 4) ? (sched[`${DAY_COLS[dayIdx]}_shift`] || null) : null
       const driver = drivers.find(dr => dr.driver_name === driverName)
-      const shift = driver?.shift || 'AM'
+      const shift = dayShift || driver?.shift || 'AM'
       return { type: 'default_on', pharmacy: pharm, shift }
     }
 
@@ -237,16 +242,33 @@ export default function Schedule() {
     return p
   }
 
+  // Cycle: Off → AM → PM → AM+PM → Off
+  const SHIFT_CYCLE = [false, 'AM', 'PM', 'BOTH']
+
+  function getCurrentShiftState(sched, col) {
+    const isOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
+    if (!isOn) return false
+    return sched[`${col}_shift`] || 'AM'
+  }
+
   async function handleBuilderToggle(driverName, dayIdx) {
     const col = DAY_COLS[dayIdx]
     const sched = schedule[driverName] || {}
-    const currentlyOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
-    const newVal = !currentlyOn
+    const current = getCurrentShiftState(sched, col)
+    const currentIdx = SHIFT_CYCLE.indexOf(current)
+    const next = SHIFT_CYCLE[(currentIdx + 1) % SHIFT_CYCLE.length]
 
     setSaving(`${driverName}|${col}`)
     try {
-      const update = { driver_name: driverName, [col]: newVal }
-      if (!newVal) update[`${col}_pharm`] = null
+      const update = { driver_name: driverName }
+      if (next === false) {
+        update[col] = false
+        update[`${col}_shift`] = null
+        update[`${col}_pharm`] = null
+      } else {
+        update[col] = true
+        update[`${col}_shift`] = next
+      }
       await dbUpsert('driver_schedule', update, 'driver_name')
       setSchedule(prev => ({
         ...prev,
@@ -376,23 +398,34 @@ export default function Schedule() {
                       </td>
                       {DAY_COLS.map((col, i) => {
                         const sched = schedule[driver.driver_name] || {}
-                        const isOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
+                        const shiftState = getCurrentShiftState(sched, col)
+                        const isOn = shiftState !== false
                         const isSaving = saving === `${driver.driver_name}|${col}`
                         const pharmVal = sched[`${col}_pharm`] || 'SHSP'
-                        // Effective pharmacy: Aultman drivers always Aultman, Both uses per-day selection
                         const effectivePharm = pharm === 'Aultman' ? 'Aultman' : (isBoth ? pharmVal : pharm)
                         const isAultman = isOn && effectivePharm === 'Aultman'
-                        // PM + SHSP = blue/orange split, PM + Aultman = green/orange split, pure PM only if no pharmacy
-                        const btnShiftClass = isOn && isPM ? 'sched__btoggle-btn--ampm' : isOn && isBothShift ? 'sched__btoggle-btn--ampm' : isAultman ? 'sched__btoggle-btn--aultman' : ''
+
+                        // Button color based on shift state + pharmacy
+                        let btnClass = ''
+                        if (isOn) {
+                          if (shiftState === 'PM') btnClass = 'sched__btoggle-btn--pm'
+                          else if (shiftState === 'BOTH') btnClass = 'sched__btoggle-btn--ampm'
+                          else if (isAultman) btnClass = 'sched__btoggle-btn--aultman'
+                        }
+
+                        // Label inside button
+                        const btnLabel = !isOn ? '—' : shiftState === 'PM' ? 'PM' : shiftState === 'BOTH' ? 'A+P' : '✓'
+
                         return (
                           <td key={col} className="sched__bcell-day">
                             <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
                               <button
-                                className={`sched__btoggle-btn ${btnShiftClass}`}
+                                className={`sched__btoggle-btn ${btnClass}`}
                                 onClick={() => handleBuilderToggle(driver.driver_name, i)}
                                 disabled={isSaving}
+                                title={!isOn ? 'Off — click for AM' : shiftState === 'AM' ? 'AM — click for PM' : shiftState === 'PM' ? 'PM — click for AM+PM' : 'AM+PM — click for Off'}
                               >
-                                {isOn ? '✓' : '—'}
+                                {btnLabel}
                               </button>
                               {isOn && isBoth && (
                                 <select
