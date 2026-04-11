@@ -228,12 +228,6 @@ export default function Schedule() {
   }, [stops, weekDateStrs])
 
   // ── Schedule Builder logic ─────────────────────────────────
-  function isDefaultWorking(driverName, dayIdx) {
-    const sched = schedule[driverName]
-    if (!sched) return true // no schedule = working by default
-    return sched[DAY_COLS[dayIdx]] !== false
-  }
-
   function getPharmLabel(driver) {
     const p = driver.pharmacy || 'SHSP'
     if (p === 'Both') return 'Both'
