@@ -292,16 +292,16 @@ export default function Payroll() {
         const actual = actualStops[d.driver_name]
         const recon = reconMap[d.driver_name] || {}
         // Priority: approved reconciliation > daily_stops packages > payroll table
-        const pickDay = (day, pVal) => {
-          if (recon[day]?.approved && recon[day]?.actual != null) return recon[day].actual
-          if (actual !== undefined) return actual[day.toLowerCase().slice(0, 3)] || 0
+        const pickDay = (dayShort, pVal) => {
+          if (recon[dayShort]?.approved && recon[dayShort]?.actual != null) return recon[dayShort].actual
+          if (actual !== undefined) return actual[dayShort.toLowerCase()] || 0
           return pVal || 0
         }
-        const mon = pickDay('Monday', p.mon)
-        const tue = pickDay('Tuesday', p.tue)
-        const wed = pickDay('Wednesday', p.wed)
-        const thu = pickDay('Thursday', p.thu)
-        const fri = pickDay('Friday', p.fri)
+        const mon = pickDay('Mon', p.mon)
+        const tue = pickDay('Tue', p.tue)
+        const wed = pickDay('Wed', p.wed)
+        const thu = pickDay('Thu', p.thu)
+        const fri = pickDay('Fri', p.fri)
         const weekTotal = mon + tue + wed + thu + fri
         const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[d.driver_name] || 0)
         const officeFee = parseFloat(d.office_fee) || 0
