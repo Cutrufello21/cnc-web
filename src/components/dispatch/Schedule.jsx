@@ -79,6 +79,13 @@ export default function Schedule() {
         .gte('date', windowStart).lte('date', windowEnd),
     ])
 
+    // Also fetch ALL pending requests (not just in window)
+    const { data: allPending } = await supabase.from('time_off_requests').select('*')
+      .eq('status', 'pending').gte('date_off', new Date().toISOString().split('T')[0])
+    // Merge pending into timeOff (deduped)
+    const pendingIds = new Set((toRes.data || []).map(r => r.id))
+    const extraPending = (allPending || []).filter(r => !pendingIds.has(r.id))
+
     // Fetch daily_stops per day (each under 1000)
     const stopResults = await Promise.all(
       allDates.map(d =>
@@ -128,7 +135,7 @@ export default function Schedule() {
     setStops(stopMap)
     setSchedule(schedMap)
     setOverrides(overMap)
-    setTimeOff(toRes.data || [])
+    setTimeOff([...(toRes.data || []), ...extraPending])
     setLoading(false)
   }
 
@@ -358,6 +365,52 @@ export default function Schedule() {
               <span>{a.msg}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pending Time Off Requests */}
+      {timeOff.filter(r => r.status === 'pending').length > 0 && (
+        <div className="ops__pending">
+          <div className="ops__pending-header">
+            <h3>Pending Time Off Requests</h3>
+            <span className="ops__pending-count">{timeOff.filter(r => r.status === 'pending').length}</span>
+          </div>
+          <div className="ops__pending-list">
+            {timeOff.filter(r => r.status === 'pending').map(r => {
+              const d = new Date(r.date_off + 'T12:00:00')
+              const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
+              return (
+                <div key={r.id} className="ops__pending-row">
+                  <div className="ops__pending-info">
+                    <span className="ops__pending-name">{r.driver_name}</span>
+                    <span className="ops__pending-date">{dayLabel}</span>
+                    {r.reason && <span className="ops__pending-reason">{r.reason}</span>}
+                  </div>
+                  <div className="ops__pending-actions">
+                    <button className="ops__pending-approve" onClick={async () => {
+                      await dbUpdate('time_off_requests', { status: 'approved', reviewed_by: 'Dispatch' }, { id: r.id })
+                      // Push notify driver
+                      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'push_notify', driverNames: [r.driver_name],
+                          title: 'Time Off Approved', body: `Your request for ${dayLabel} has been approved.` })
+                      }).catch(() => {})
+                      showToastMsg(`${r.driver_name} — ${dayLabel} approved`)
+                      loadData()
+                    }}>Approve</button>
+                    <button className="ops__pending-deny" onClick={async () => {
+                      await dbUpdate('time_off_requests', { status: 'denied', reviewed_by: 'Dispatch' }, { id: r.id })
+                      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'push_notify', driverNames: [r.driver_name],
+                          title: 'Time Off Denied', body: `Your request for ${dayLabel} has been denied.` })
+                      }).catch(() => {})
+                      showToastMsg(`${r.driver_name} — ${dayLabel} denied`)
+                      loadData()
+                    }}>Deny</button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
