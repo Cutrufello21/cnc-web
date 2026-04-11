@@ -291,10 +291,13 @@ export default function Payroll() {
         const p = payrollByName[d.driver_name] || {}
         const actual = actualStops[d.driver_name]
         const recon = reconMap[d.driver_name] || {}
-        // Priority: approved reconciliation > daily_stops packages > payroll table
+        // Priority: approved reconciliation > manual payroll override > daily_stops > fallback
         const pickDay = (dayShort, pVal) => {
           if (recon[dayShort]?.approved && recon[dayShort]?.actual != null) return recon[dayShort].actual
-          if (actual !== undefined) return actual[dayShort.toLowerCase()] || 0
+          const autoVal = actual ? (actual[dayShort.toLowerCase()] || 0) : 0
+          // If payroll table has a value that differs from auto-count, someone edited it — keep it
+          if (pVal != null && pVal > 0 && pVal !== autoVal) return pVal
+          if (actual !== undefined) return autoVal
           return pVal || 0
         }
         const mon = pickDay('Mon', p.mon)
