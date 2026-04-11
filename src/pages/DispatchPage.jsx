@@ -109,10 +109,30 @@ export default function DispatchPage() {
       const assignedZips = new Set(routingRules.map(r => r.zip_code).filter(Boolean))
       const stops = stopsRes.data || []
 
-      // Check for drivers off today
-      const { data: timeOffData } = await supabase.from('time_off_requests')
-        .select('driver_name').eq('date_off', dateStr).in('status', ['approved', 'pending'])
-      const driversOff = new Set((timeOffData || []).map(r => r.driver_name))
+      // Check schedule, time off, and overrides for today
+      const [timeOffRes2, schedRes2, overRes2] = await Promise.all([
+        supabase.from('time_off_requests').select('driver_name').eq('date_off', dateStr).in('status', ['approved', 'pending']),
+        supabase.from('driver_schedule').select('*'),
+        supabase.from('schedule_overrides').select('*').eq('date', dateStr),
+      ])
+      const driversOff = new Set((timeOffRes2.data || []).map(r => r.driver_name))
+      const schedMap = {}
+      ;(schedRes2.data || []).forEach(r => { schedMap[r.driver_name] = r })
+      const overMap = {}
+      ;(overRes2.data || []).forEach(r => { overMap[r.driver_name] = r })
+      const dayCol = deliveryDay.slice(0, 3).toLowerCase()
+
+      // Determine which drivers are scheduled to work today
+      const scheduledToWork = new Set()
+      drivers.forEach(d => {
+        if (driversOff.has(d.driver_name)) return
+        const override = overMap[d.driver_name]
+        if (override) { if (override.status === 'working') scheduledToWork.add(d.driver_name); return }
+        const sched = schedMap[d.driver_name]
+        if (!sched || (sched[dayCol] !== false && sched[dayCol] !== 'false' && sched[dayCol] !== 0)) {
+          scheduledToWork.add(d.driver_name)
+        }
+      })
 
       // Group stops by driver
       const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
@@ -206,6 +226,7 @@ export default function DispatchPage() {
         deliveryDay,
         deliveryDateObj: deliveryDate,
         weekMonday: monday,
+        scheduledToWork,
         allDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
         drivers: drivers.map(d => ({
           'Driver Name': d.driver_name,
@@ -928,8 +949,10 @@ export default function DispatchPage() {
 
   const totalStops = data?.drivers?.reduce((sum, d) => sum + (d.stops || 0), 0) ?? 0
   const totalColdChain = data?.drivers?.reduce((sum, d) => sum + (d.coldChain || 0), 0) ?? 0
-  const allActiveDrivers = data?.drivers?.filter((d) => d.stops > 0) ?? []
-  const allInactiveDrivers = data?.drivers?.filter((d) => d.stops === 0) ?? []
+  // Active = has stops OR is scheduled to work today
+  const scheduled = data?.scheduledToWork || new Set()
+  const allActiveDrivers = data?.drivers?.filter((d) => d.stops > 0 || scheduled.has(d['Driver Name'])) ?? []
+  const allInactiveDrivers = data?.drivers?.filter((d) => d.stops === 0 && !scheduled.has(d['Driver Name'])) ?? []
 
   // Filter by ZIP search
   const driverHasZip = (d) => {
