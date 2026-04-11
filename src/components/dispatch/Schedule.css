@@ -123,6 +123,13 @@
 .sched__cell--scheduled { background: #E6F1FB; }
 .sched__cell--scheduled .sched__cell-count { font-size: 18px; font-weight: 700; color: #0C447C; }
 .sched__cell--scheduled .sched__cell-pharm { font-size: 11px; font-weight: 600; color: #3B82A0; text-transform: uppercase; }
+.sched__cell--scheduled-aultman { background: #ECFDF5; }
+.sched__cell--scheduled-aultman .sched__cell-count { color: #166534; }
+.sched__cell--scheduled-aultman .sched__cell-pharm { color: #22C55E; }
+.sched__cell--scheduled-pm { background: linear-gradient(135deg, #E6F1FB 50%, #FFF7ED 50%); }
+.sched__cell--scheduled-pm .sched__cell-pharm { color: #EA580C; }
+.sched__cell--scheduled-ampm { background: linear-gradient(135deg, #E6F1FB 50%, #FFF7ED 50%); }
+.sched__cell--scheduled-ampm .sched__cell-pharm { color: #EA580C; }
 
 .sched__cell--timeoff { background: #FAEEDA; cursor: pointer; }
 .sched__cell--timeoff .sched__cell-label { font-size: 13px; font-weight: 600; color: #854F0B; }

@@ -187,7 +187,14 @@ export default function Schedule() {
     }
 
     if (pkgCount > 0) {
-      return { type: 'scheduled', pkgCount }
+      const pharm = getDefaultPharmacy(driverName, dateStr)
+      const d = new Date(dateStr + 'T12:00:00')
+      const dayIdx = d.getDay() - 1
+      const sched = schedule[driverName] || {}
+      const dayShift = (dayIdx >= 0 && dayIdx <= 4) ? (sched[`${DAY_COLS[dayIdx]}_shift`] || null) : null
+      const driver = drivers.find(dr => dr.driver_name === driverName)
+      const shift = dayShift || driver?.shift || 'AM'
+      return { type: 'scheduled', pkgCount, pharmacy: pharm, shift }
     }
 
     // For dates without stop data, check the default schedule
@@ -549,9 +556,11 @@ export default function Schedule() {
                       return (
                         <td key={dateStr} className={`sched__cell ${isToday ? 'sched__cell--today' : ''}`}>
                           {cell.type === 'scheduled' && (
-                            <div className="sched__cell-inner sched__cell--scheduled">
+                            <div className={`sched__cell-inner sched__cell--scheduled ${cell.shift === 'PM' ? 'sched__cell--scheduled-pm' : ''} ${cell.shift === 'BOTH' ? 'sched__cell--scheduled-ampm' : ''} ${cell.pharmacy === 'Aultman' ? 'sched__cell--scheduled-aultman' : ''}`}>
                               <span className="sched__cell-count">{cell.pkgCount}</span>
-                              <span className="sched__cell-pharm">{driver.pharmacy || 'SHSP'}</span>
+                              <span className="sched__cell-pharm">
+                                {cell.shift === 'PM' ? 'PM' : cell.shift === 'BOTH' ? 'AM+PM' : ''} {cell.pharmacy || 'SHSP'}
+                              </span>
                             </div>
                           )}
                           {cell.type === 'timeoff' && (
