@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     // ── 2. Fetch all context in parallel ────────────────────────
     const cutoff90 = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
-    const [stopsRes, rulesRes, driversRes, historyRes, decisionsRes, snapshotsRes] = await Promise.all([
+    const [stopsRes, rulesRes, driversRes, historyRes, decisionsRes, snapshotsRes, schedRes, timeOffRes] = await Promise.all([
       supabase
         .from('daily_stops')
         .select('id, order_id, driver_name, driver_number, zip, city, address, pharmacy, cold_chain, assigned_driver_number, dispatch_driver_number')
@@ -64,6 +64,18 @@ export default async function handler(req, res) {
         .gte('delivery_date', cutoff90)
         .order('delivery_date', { ascending: false })
         .limit(5000),
+
+      // Driver schedule — who works which days, which pharmacy
+      supabase
+        .from('driver_schedule')
+        .select('*'),
+
+      // Time off for this date
+      supabase
+        .from('time_off_requests')
+        .select('driver_name, status')
+        .eq('date_off', dateStr)
+        .in('status', ['approved', 'pending']),
     ])
 
     const stops = stopsRes.data || []
@@ -72,6 +84,13 @@ export default async function handler(req, res) {
     const history = historyRes.data || []
     const decisions = decisionsRes.data || []
     const snapshots = snapshotsRes.data || []
+    const schedules = schedRes.data || []
+    const timeOffToday = timeOffRes.data || []
+
+    // Build schedule lookup
+    const schedMap = {}
+    schedules.forEach(s => { schedMap[s.driver_name] = s })
+    const driversOff = new Set(timeOffToday.map(r => r.driver_name))
 
     if (stops.length === 0) {
       return res.status(200).json({
@@ -102,12 +121,35 @@ export default async function handler(req, res) {
       .filter(r => r[dayShort])
       .map(r => ({ zip: r.zip, driver: r[dayShort] }))
 
-    // Active drivers
-    const driverList = drivers.map(d => ({
-      name: d.driver_name,
-      number: d.driver_number,
-      pharmacy: d.pharmacy || 'SHSP',
-    }))
+    // Active drivers — filtered by schedule and time off
+    const dayCol = dayOfWeek.slice(0, 3).toLowerCase() // 'mon', 'tue', etc.
+    const driverList = drivers
+      .filter(d => {
+        // Exclude drivers on time off
+        if (driversOff.has(d.driver_name)) return false
+        // Check schedule — if they have a schedule row, respect it
+        const sched = schedMap[d.driver_name]
+        if (sched && (sched[dayCol] === false || sched[dayCol] === 'false' || sched[dayCol] === 0)) return false
+        return true
+      })
+      .map(d => {
+        // Use per-day pharmacy from schedule if available
+        const sched = schedMap[d.driver_name]
+        const schedPharm = sched?.[`${dayCol}_pharm`]
+        const schedShift = sched?.[`${dayCol}_shift`] || 'AM'
+        const pharmacy = schedPharm || d.pharmacy || 'SHSP'
+        return {
+          name: d.driver_name,
+          number: d.driver_number,
+          pharmacy: pharmacy === 'Both' ? 'SHSP' : pharmacy,
+          shift: schedShift,
+        }
+      })
+
+    // Also note who's off for the prompt
+    const offToday = drivers
+      .filter(d => driversOff.has(d.driver_name) || (schedMap[d.driver_name] && (schedMap[d.driver_name][dayCol] === false || schedMap[d.driver_name][dayCol] === 'false')))
+      .map(d => d.driver_name)
 
     // Historical patterns for this day of week
     // Match by deriving day from delivery_date AND by stored day_of_week column (handles both formats)
@@ -183,7 +225,14 @@ export default async function handler(req, res) {
     // ── 4. Call Claude ──────────────────────────────────────────
     const systemPrompt = `You are Dom's dispatch assistant at CNC Delivery Service in Northeast Ohio. Dom has 7 years of dispatch experience. Your #1 goal is to assign stops EXACTLY the way Dom would.
 
-LEARNING FROM DOM'S DECISIONS (highest priority):
+SCHEDULE-DRIVEN DISPATCH:
+- ONLY assign stops to drivers in the ACTIVE DRIVERS list — they are confirmed working today
+- NEVER assign stops to drivers in the DRIVERS OFF TODAY list
+- Each driver's pharmacy field shows where they are working TODAY (from the schedule)
+- Match SHSP stops to SHSP drivers, Aultman stops to Aultman drivers
+- PM drivers handle afternoon/evening deliveries — assign them last-mile or late stops
+
+LEARNING FROM DOM'S DECISIONS:
 - DOM'S MANUAL DECISIONS show corrections he made — these reveal his true preferences
 - DOM'S FINAL ASSIGNMENTS show how he actually dispatched — this is ground truth
 - When Dom consistently moves a ZIP to a specific driver, ALWAYS assign that ZIP to that driver
@@ -225,8 +274,11 @@ Return valid JSON only. No explanation outside the JSON.`
 TODAY'S STOPS BY ZIP (${stops.length} total):
 ${JSON.stringify(zipRows, null, 2)}
 
-ACTIVE DRIVERS:
+ACTIVE DRIVERS (${driverList.length} working today, per schedule):
 ${JSON.stringify(driverList, null, 2)}
+
+DRIVERS OFF TODAY (${offToday.length}): ${offToday.length > 0 ? offToday.join(', ') : 'None'}
+DO NOT assign any stops to drivers in the off list.
 
 ROUTING RULES FOR ${dayOfWeek.toUpperCase()}:
 ${JSON.stringify(dayRules, null, 2)}
