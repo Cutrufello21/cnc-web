@@ -13,9 +13,11 @@ export default function Schedule() {
   const [histStops, setHistStops] = useState({}) // "dayOfWeek" → avg count (for estimates)
   const [timeOff, setTimeOff] = useState([])
   const [schedule, setSchedule] = useState({})
+  const [overrides, setOverrides] = useState({}) // "name|dateStr" → { status, pharmacy, shift }
   const [loading, setLoading] = useState(true)
   const [windowOffset, setWindowOffset] = useState(0) // weeks to shift
   const [showBuilder, setShowBuilder] = useState(false)
+  const [editDay, setEditDay] = useState(null) // dateStr of day card being edited
   const [saving, setSaving] = useState(null)
   const [toast, setToast] = useState(null)
 
@@ -61,13 +63,15 @@ export default function Schedule() {
   async function loadData() {
     setLoading(true)
 
-    // Fetch drivers, schedule, time off
-    const [drvRes, schedRes, toRes] = await Promise.all([
+    // Fetch drivers, schedule, time off, overrides
+    const [drvRes, schedRes, toRes, overRes] = await Promise.all([
       supabase.from('drivers').select('driver_name, driver_number, pharmacy, shift, active').eq('active', true).order('driver_name'),
       supabase.from('driver_schedule').select('*'),
       supabase.from('time_off_requests').select('*')
         .gte('date_off', windowStart).lte('date_off', windowEnd)
         .in('status', ['approved', 'pending']),
+      supabase.from('schedule_overrides').select('*')
+        .gte('date', windowStart).lte('date', windowEnd),
     ])
 
     // Fetch daily_stops per day (each under 1000)
@@ -111,9 +115,14 @@ export default function Schedule() {
     const schedMap = {}
     ;(schedRes.data || []).forEach(r => { schedMap[r.driver_name] = r })
 
+    // Build override map: "name|date" → { status, pharmacy, shift }
+    const overMap = {}
+    ;(overRes.data || []).forEach(r => { overMap[`${r.driver_name}|${r.date}`] = r })
+
     setDrivers((drvRes.data || []).filter(d => d.driver_name !== 'Demo Driver'))
     setStops(stopMap)
     setSchedule(schedMap)
+    setOverrides(overMap)
     setTimeOff(toRes.data || [])
     setLoading(false)
   }
@@ -151,32 +160,42 @@ export default function Schedule() {
       }
     }
 
-    // Working/off drivers
+    // Working/off drivers — check: override → time off → actual stops → default schedule
     const working = []
     const off = []
     drivers.forEach(d => {
+      const overKey = `${d.driver_name}|${dateStr}`
+      const override = overrides[overKey]
       const to = timeOff.find(r => r.driver_name === d.driver_name && r.date_off === dateStr)
       const sched = schedule[d.driver_name] || {}
       const col = DAY_COLS[dayIdx]
-      const isScheduled = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
-      const pharm = sched[`${col}_pharm`] || d.pharmacy || 'SHSP'
-      const shift = sched[`${col}_shift`] || d.shift || 'AM'
 
+      // Override takes priority (except time off which is separate)
       if (to && (to.status === 'approved' || to.status === 'pending')) {
         const hasStops = !!driverStops[d.driver_name]
         off.push({ name: d.driver_name, type: 'timeoff', status: to.status, hasStops })
+      } else if (override) {
+        // Explicit override for this specific date
+        if (override.status === 'off') {
+          off.push({ name: d.driver_name, type: 'off' })
+        } else {
+          const pharm = override.pharmacy || d.pharmacy || 'SHSP'
+          const shift = override.shift || 'AM'
+          working.push({ name: d.driver_name, pharm, shift, stops: driverStops[d.driver_name] || 0 })
+        }
       } else if (driverStops[d.driver_name]) {
+        const pharm = sched[`${col}_pharm`] || d.pharmacy || 'SHSP'
+        const shift = sched[`${col}_shift`] || d.shift || 'AM'
         working.push({ name: d.driver_name, pharm, shift, stops: driverStops[d.driver_name] })
-      } else if (isScheduled || (!sched.driver_name && !isFuture)) {
+      } else {
+        const isScheduled = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
         if (isScheduled) {
+          const pharm = sched[`${col}_pharm`] || d.pharmacy || 'SHSP'
+          const shift = sched[`${col}_shift`] || d.shift || 'AM'
           working.push({ name: d.driver_name, pharm, shift, stops: 0 })
         } else {
           off.push({ name: d.driver_name, type: 'off' })
         }
-      } else if (isScheduled) {
-        working.push({ name: d.driver_name, pharm, shift, stops: 0 })
-      } else {
-        off.push({ name: d.driver_name, type: 'off' })
       }
     })
 
@@ -352,7 +371,7 @@ export default function Schedule() {
 
               return (
                 <div key={d.dateStr} className={`ops__day ${borderClass}`}>
-                  <div className={`ops__day-head ${headerBg}`}>
+                  <div className={`ops__day-head ${headerBg}`} onClick={() => setEditDay(editDay === d.dateStr ? null : d.dateStr)} style={{ cursor: 'pointer' }}>
                     <div className="ops__day-top">
                       <span className="ops__day-name">{DAY_LABELS[d.dayIdx]}</span>
                       <span className="ops__day-date">{d.date.getDate()}</span>
@@ -399,6 +418,100 @@ export default function Schedule() {
                       <div className="ops__off-count">{data.off.filter(o => o.type === 'off').length} off</div>
                     )}
                   </div>
+
+                  {/* Day Edit Panel */}
+                  {editDay === d.dateStr && (
+                    <div className="ops__day-edit">
+                      <div className="ops__day-edit-header">
+                        <span>Edit {DAY_LABELS[d.dayIdx]} {d.date.getMonth() + 1}/{d.date.getDate()}</span>
+                        <button className="ops__day-edit-close" onClick={e => { e.stopPropagation(); setEditDay(null) }}>✕</button>
+                      </div>
+                      <div className="ops__day-edit-list">
+                        {drivers.map(driver => {
+                          const overKey = `${driver.driver_name}|${d.dateStr}`
+                          const override = overrides[overKey]
+                          const sched = schedule[driver.driver_name] || {}
+                          const col = DAY_COLS[d.dayIdx]
+                          const to = timeOff.find(r => r.driver_name === driver.driver_name && r.date_off === d.dateStr)
+
+                          // Current effective state
+                          let currentStatus = 'off'
+                          let currentPharm = sched[`${col}_pharm`] || driver.pharmacy || 'SHSP'
+                          let currentShift = sched[`${col}_shift`] || driver.shift || 'AM'
+                          if (override) {
+                            currentStatus = override.status
+                            if (override.pharmacy) currentPharm = override.pharmacy
+                            if (override.shift) currentShift = override.shift
+                          } else {
+                            const isScheduled = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
+                            currentStatus = isScheduled ? 'working' : 'off'
+                          }
+                          if (to) currentStatus = 'timeoff'
+
+                          const isWorking = currentStatus === 'working'
+                          const isTimeOff = currentStatus === 'timeoff'
+
+                          // Cycle states for this override
+                          const OVER_STATES = [
+                            { status: 'off', pharm: null, shift: null, label: '—', cls: '' },
+                            { status: 'working', pharm: 'SHSP', shift: 'AM', label: 'SHSP', cls: 'ops__obtn--shsp' },
+                            { status: 'working', pharm: 'Aultman', shift: 'AM', label: 'ALT', cls: 'ops__obtn--alt' },
+                            { status: 'working', pharm: currentPharm, shift: 'PM', label: 'PM', cls: 'ops__obtn--pm' },
+                          ]
+                          const curIdx = isTimeOff ? -1 : OVER_STATES.findIndex(s =>
+                            s.status === currentStatus &&
+                            (s.status === 'off' || (s.pharm === currentPharm && s.shift === currentShift))
+                          )
+
+                          async function cycleOverride() {
+                            if (isTimeOff) return // can't override time off from here
+                            const nextIdx = (curIdx + 1) % OVER_STATES.length
+                            const next = OVER_STATES[nextIdx]
+                            setSaving(overKey)
+                            try {
+                              if (next.status === 'off' && !override) {
+                                // Setting to off when default is off — remove override if exists
+                                await dbUpsert('schedule_overrides', {
+                                  driver_name: driver.driver_name, date: d.dateStr,
+                                  status: 'off', pharmacy: null, shift: null,
+                                }, 'driver_name,date')
+                              } else {
+                                await dbUpsert('schedule_overrides', {
+                                  driver_name: driver.driver_name, date: d.dateStr,
+                                  status: next.status, pharmacy: next.pharm, shift: next.shift,
+                                }, 'driver_name,date')
+                              }
+                              setOverrides(prev => ({
+                                ...prev,
+                                [overKey]: { status: next.status, pharmacy: next.pharm, shift: next.shift },
+                              }))
+                            } catch (err) { showToastMsg(`Error: ${err.message}`, true) }
+                            finally { setSaving(null) }
+                          }
+
+                          const btnCls = isTimeOff ? 'ops__obtn--to' : isWorking ?
+                            (currentShift === 'PM' ? 'ops__obtn--pm' : currentPharm === 'Aultman' ? 'ops__obtn--alt' : 'ops__obtn--shsp') : ''
+                          const btnLabel = isTimeOff ? 'TO' : isWorking ?
+                            (currentShift === 'PM' ? 'PM' : currentPharm === 'Aultman' ? 'ALT' : 'SHSP') : '—'
+
+                          return (
+                            <div key={driver.driver_name} className="ops__day-edit-row">
+                              <span className="ops__day-edit-name">{driver.driver_name}</span>
+                              <button
+                                className={`ops__obtn ${btnCls} ${saving === overKey ? 'ops__obtn--saving' : ''}`}
+                                onClick={cycleOverride}
+                                disabled={saving === overKey || isTimeOff}
+                                title={isTimeOff ? 'Has time off — manage in Time Off' : 'Click to cycle'}
+                              >
+                                {btnLabel}
+                              </button>
+                              {override && <span className="ops__override-dot" title="Override active">●</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}

@@ -38,6 +38,11 @@ export default async function handler(req, res) {
       supabase.from('routing_rules').select('*').limit(500),
     ])
 
+    // Fetch overrides separately
+    const { data: overData } = await supabase.from('schedule_overrides').select('*').eq('date', deliveryDate)
+    const overrideMap = {}
+    ;(overData || []).forEach(r => { overrideMap[r.driver_name] = r })
+
     const stops = stopsRes.data || []
     if (stops.length === 0) return res.status(200).json({ success: true, message: 'No stops for this date' })
 
@@ -46,19 +51,24 @@ export default async function handler(req, res) {
     ;(schedRes.data || []).forEach(s => { schedMap[s.driver_name] = s })
     const driversOff = new Set((timeOffRes.data || []).map(r => r.driver_name))
 
-    // Determine available drivers
+    // Determine available drivers — override → time off → default schedule
     const available = (driversRes.data || [])
       .filter(d => {
         if (d.driver_name === 'Demo Driver') return false
         if (driversOff.has(d.driver_name)) return false
+        // Check override first
+        const override = overrideMap[d.driver_name]
+        if (override) return override.status === 'working'
+        // Check default schedule
         const sched = schedMap[d.driver_name]
         if (sched && (sched[dayCol] === false || sched[dayCol] === 'false' || sched[dayCol] === 0)) return false
         return true
       })
       .map(d => {
+        const override = overrideMap[d.driver_name]
         const sched = schedMap[d.driver_name]
-        const pharmacy = sched?.[`${dayCol}_pharm`] || d.pharmacy || 'SHSP'
-        const shift = sched?.[`${dayCol}_shift`] || d.shift || 'AM'
+        const pharmacy = override?.pharmacy || sched?.[`${dayCol}_pharm`] || d.pharmacy || 'SHSP'
+        const shift = override?.shift || sched?.[`${dayCol}_shift`] || d.shift || 'AM'
         return { ...d, todayPharmacy: pharmacy === 'Both' ? 'SHSP' : pharmacy, todayShift: shift }
       })
 
