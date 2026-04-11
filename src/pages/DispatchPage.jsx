@@ -14,6 +14,7 @@ import Analytics from '../components/dispatch/Analytics'
 import Orders from '../components/dispatch/Orders'
 import Drivers from '../components/dispatch/Drivers'
 import TimeOff from '../components/dispatch/TimeOff'
+import Schedule from '../components/dispatch/Schedule'
 import SortList from '../components/dispatch/SortList'
 import WeatherWidget from '../components/dispatch/WeatherWidget'
 import StopDistribution from '../components/dispatch/StopDistribution'
@@ -990,7 +991,7 @@ export default function DispatchPage() {
         {view === 'analytics' && <Analytics />}
         {view === 'orders' && <Orders />}
         {view === 'drivers' && <Drivers />}
-        {view === 'timeoff' && <TimeOff />}
+        {view === 'timeoff' && <Schedule />}
 
         {view === 'routes' && loading && (
           <div className="dispatch__loading">

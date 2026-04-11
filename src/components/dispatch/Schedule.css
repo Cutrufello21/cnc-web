@@ -1,0 +1,145 @@
+.sched { padding: 0; }
+.sched__loading { display: flex; align-items: center; gap: 12px; padding: 40px; color: var(--gray-500); }
+
+.sched__toast {
+  position: fixed; top: 16px; right: 16px; z-index: 999;
+  padding: 12px 20px; border-radius: 10px;
+  background: #0A2463; color: #fff; font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.sched__toast--err { background: #dc2626; }
+
+/* Header */
+.sched__header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px;
+}
+.sched__nav { display: flex; align-items: center; gap: 8px; }
+.sched__nav-btn {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--color-border);
+  background: var(--color-background); color: var(--color-text-primary);
+  font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.sched__nav-btn:hover { background: var(--color-background-secondary); }
+.sched__title { font-size: 20px; font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.sched__today-btn {
+  padding: 6px 14px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: var(--color-background); color: var(--color-text-secondary);
+  cursor: pointer; margin-left: 8px;
+}
+.sched__add-btn {
+  padding: 10px 20px; font-size: 13px; font-weight: 600;
+  background: #0A2463; color: #fff; border: none; border-radius: 10px; cursor: pointer;
+}
+.sched__add-btn:hover { background: #0d2d7a; }
+
+/* Add form */
+.sched__add-form {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 14px 16px; margin-bottom: 16px;
+  background: var(--color-background-secondary); border-radius: 12px;
+}
+.sched__add-form select, .sched__add-form input {
+  padding: 8px 12px; border-radius: 8px; border: 1px solid var(--color-border);
+  font-size: 13px; background: var(--color-background); color: var(--color-text-primary);
+}
+.sched__add-submit {
+  padding: 8px 16px; font-size: 13px; font-weight: 600;
+  background: #0A2463; color: #fff; border: none; border-radius: 8px; cursor: pointer;
+}
+.sched__add-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.sched__add-cancel {
+  padding: 8px 14px; font-size: 13px; background: none; border: 1px solid var(--color-border);
+  border-radius: 8px; cursor: pointer; color: var(--color-text-secondary);
+}
+
+/* Stats */
+.sched__stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px;
+}
+.sched__stat {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px; border-radius: 12px; border: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+.sched__stat-val { font-size: 28px; font-weight: 700; color: var(--color-text-primary); }
+.sched__stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Grid */
+.sched__grid-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--color-border); }
+.sched__grid { width: 100%; border-collapse: collapse; }
+.sched__grid th, .sched__grid td { border: 1px solid var(--color-border); }
+
+.sched__th-driver {
+  padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
+  color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+  background: var(--color-background-secondary); min-width: 160px;
+}
+.sched__th-day {
+  padding: 10px 8px; text-align: center; background: var(--color-background-secondary);
+  min-width: 120px; vertical-align: middle;
+}
+.sched__th-day--today { background: #0A2463; }
+.sched__th-day--today .sched__day-name,
+.sched__th-day--today .sched__day-date,
+.sched__th-day--today .sched__day-total { color: #fff; }
+.sched__day-name { display: block; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.sched__day-date { display: block; font-size: 18px; font-weight: 700; color: var(--color-text-primary); margin: 2px 0; }
+.sched__day-total { display: block; font-size: 11px; color: var(--color-text-secondary); }
+
+/* Driver cell */
+.sched__cell-driver {
+  padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+  background: var(--color-background);
+}
+.sched__driver-info { display: flex; flex-direction: column; }
+.sched__driver-name { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.sched__driver-id { font-size: 11px; color: var(--color-text-secondary); }
+.sched__to-badge {
+  padding: 2px 8px; font-size: 10px; font-weight: 700;
+  background: #FAEEDA; color: #854F0B; border-radius: 4px; text-transform: uppercase;
+}
+
+/* Day cells */
+.sched__cell { padding: 0; background: var(--color-background); vertical-align: top; }
+.sched__cell--today { background: rgba(10, 36, 99, 0.03); }
+.sched__cell-inner {
+  padding: 10px 12px; min-height: 56px;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+}
+
+.sched__cell--scheduled { background: #E6F1FB; }
+.sched__cell--scheduled .sched__cell-count { font-size: 18px; font-weight: 700; color: #0C447C; }
+.sched__cell--scheduled .sched__cell-pharm { font-size: 11px; font-weight: 600; color: #3B82A0; text-transform: uppercase; }
+
+.sched__cell--timeoff { background: #FAEEDA; cursor: pointer; }
+.sched__cell--timeoff .sched__cell-label { font-size: 13px; font-weight: 600; color: #854F0B; }
+.sched__cell--timeoff .sched__cell-sub { font-size: 11px; color: #A16B1A; }
+
+.sched__cell--gap { background: #FCEBEB; }
+.sched__cell--gap .sched__cell-label { font-size: 13px; font-weight: 600; color: #A32D2D; }
+.sched__cell--gap .sched__cell-sub { font-size: 11px; color: #C94444; }
+
+.sched__cell--off { background: var(--color-background-secondary); }
+.sched__cell--off .sched__cell-label { font-size: 13px; color: var(--color-text-secondary); }
+
+/* Approve/deny inline */
+.sched__cell-actions { display: flex; gap: 6px; }
+.sched__approve-btn, .sched__deny-btn {
+  width: 22px; height: 22px; border-radius: 4px; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.sched__approve-btn { background: #16a34a; color: #fff; }
+.sched__deny-btn { background: #dc2626; color: #fff; }
+
+/* Legend */
+.sched__legend {
+  display: flex; gap: 20px; padding: 16px 0; margin-top: 16px;
+}
+.sched__legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-secondary); }
+.sched__legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+.sched__legend-dot--scheduled { background: #E6F1FB; border: 1px solid #93C5FD; }
+.sched__legend-dot--timeoff { background: #FAEEDA; border: 1px solid #F3D59B; }
+.sched__legend-dot--gap { background: #FCEBEB; border: 1px solid #F5A3A3; }
+.sched__legend-dot--off { background: var(--color-background-secondary); border: 1px solid var(--color-border); }
