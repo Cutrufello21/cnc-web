@@ -262,27 +262,20 @@ export default function Payroll() {
         supabase.from('drivers').select('*'),
         supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf).then(r => r).catch(() => ({ data: [] })),
         ...weekDates.map(date =>
-          supabase.from('daily_stops').select('driver_name, address')
+          supabase.from('daily_stops').select('driver_name')
             .eq('delivery_date', date)
             .not('status', 'eq', 'DELETED')
             .limit(1000)
         ),
       ])
 
-      // Count actual STOPS per driver per day from daily_stops
-      // Consolidate by address to match dispatch page (stops, not packages)
-      const normalizeAddr = (a) => (a || '').toLowerCase().replace(/[.,#]/g, '').replace(/\s+/g, ' ')
-        .replace(/\b(ste|suite|unit|apt)\b\s*/g, '').trim()
+      // Count PACKAGES per driver per day (total rows, not unique addresses)
+      // Drivers get paid per package delivered
       const actualStops = {}
       dailyResults.forEach((res, dayIdx) => {
         const dayKey = dayKeys[dayIdx]
-        const seen = new Set()
         ;(res.data || []).forEach(s => {
           if (!s.driver_name) return
-          const addr = normalizeAddr(s.address)
-          const dedupKey = `${s.driver_name}|${addr}`
-          if (seen.has(dedupKey)) return
-          seen.add(dedupKey)
           if (!actualStops[s.driver_name]) actualStops[s.driver_name] = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0 }
           actualStops[s.driver_name][dayKey]++
         })
