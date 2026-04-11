@@ -106,6 +106,13 @@ export default async function handler(req, res) {
         }
 
         const total = Object.values(patterns).reduce((s, v) => s + v, 0)
+
+        // Need at least 8 data points (~4 weeks) to make recommendations
+        if (total < 8) {
+          noData.push({ zip: zip, day: dayFull[day], ruleDriver: ruleName, reason: `Only ${total} deliveries — need 4+ weeks of data` })
+          continue
+        }
+
         const sorted = Object.entries(patterns).sort((a, b) => b[1] - a[1])
         const topDriver = sorted[0][0]
         const topCount = sorted[0][1]
