@@ -28,7 +28,6 @@ export default async function handler(req, res) {
         .from('daily_stops')
         .select('id, order_id, driver_name, driver_number, zip, city, address, pharmacy, cold_chain, assigned_driver_number, dispatch_driver_number')
         .eq('delivery_date', dateStr)
-        .eq('status', 'dispatched')
         .limit(1000),
 
       supabase
@@ -58,7 +57,7 @@ export default async function handler(req, res) {
       return res.status(200).json({
         assignments: [],
         flags: [],
-        summary: `No dispatched stops found for ${dateStr}.`,
+        summary: `No stops found for ${dateStr}.`,
         stats: { total_stops: 0, assigned: 0, flagged: 0, high_confidence: 0 },
       })
     }
@@ -91,7 +90,20 @@ export default async function handler(req, res) {
     }))
 
     // Historical patterns for this day of week
-    const histForDay = history.filter(h => h.day_of_week === dayOfWeek)
+    // Match by deriving day from delivery_date AND by stored day_of_week column (handles both formats)
+    const histForDay = history.filter(h => {
+      // Check stored day_of_week (could be "Monday", "Mon", etc.)
+      if (h.day_of_week) {
+        const stored = h.day_of_week.trim()
+        if (stored === dayOfWeek || stored === dayOfWeek.slice(0, 3)) return true
+      }
+      // Fallback: derive day from delivery_date
+      if (h.delivery_date) {
+        const d = new Date(h.delivery_date + 'T12:00:00')
+        return d.toLocaleDateString('en-US', { weekday: 'long' }) === dayOfWeek
+      }
+      return false
+    })
     const zipDriverFreq = {}
     for (const h of histForDay) {
       if (!h.zip || !h.driver_name) continue
