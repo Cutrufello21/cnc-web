@@ -54,7 +54,7 @@ export default function Schedule() {
   async function loadData() {
     setLoading(true)
     const [drvRes, ...stopResults] = await Promise.all([
-      supabase.from('drivers').select('driver_name, driver_number, pharmacy, active').eq('active', true).order('driver_name'),
+      supabase.from('drivers').select('driver_name, driver_number, pharmacy, shift, active').eq('active', true).order('driver_name'),
       ...weekDateStrs.map(date =>
         supabase.from('daily_stops').select('driver_name')
           .eq('delivery_date', date)
@@ -189,7 +189,9 @@ export default function Schedule() {
     const working = isDefaultWorking(driverName, dateStr)
     if (working) {
       const pharm = getDefaultPharmacy(driverName, dateStr)
-      return { type: 'default_on', pharmacy: pharm }
+      const driver = drivers.find(dr => dr.driver_name === driverName)
+      const shift = driver?.shift || 'AM'
+      return { type: 'default_on', pharmacy: pharm, shift }
     }
 
     return { type: 'off' }
@@ -357,13 +359,20 @@ export default function Schedule() {
               <tbody>
                 {drivers.sort((a, b) => a.driver_name.localeCompare(b.driver_name)).map(driver => {
                   const pharm = driver.pharmacy || 'SHSP'
+                  const shift = driver.shift || 'AM'
                   const isBoth = pharm === 'Both'
                   const isFloat = pharm === 'Float'
+                  const isPM = shift === 'PM'
+                  const isBothShift = shift === 'BOTH'
                   return (
                     <tr key={driver.driver_name}>
                       <td className="sched__bcell-driver">{driver.driver_name}</td>
                       <td className="sched__bcell-type">
-                        <span className={`sched__type-badge sched__type-badge--${pharm.toLowerCase()}`}>{isFloat ? 'Float' : pharm}</span>
+                        <div className="sched__type-badges">
+                          <span className={`sched__type-badge sched__type-badge--${pharm.toLowerCase()}`}>{isFloat ? 'Float' : pharm}</span>
+                          {isPM && <span className="sched__type-badge sched__type-badge--pm">PM</span>}
+                          {isBothShift && <span className="sched__type-badge sched__type-badge--bothshift">AM+PM</span>}
+                        </div>
                       </td>
                       {DAY_COLS.map((col, i) => {
                         const sched = schedule[driver.driver_name] || {}
@@ -373,11 +382,12 @@ export default function Schedule() {
                         // Effective pharmacy: Aultman drivers always Aultman, Both uses per-day selection
                         const effectivePharm = pharm === 'Aultman' ? 'Aultman' : (isBoth ? pharmVal : pharm)
                         const isAultman = isOn && effectivePharm === 'Aultman'
+                        const btnShiftClass = isOn && isPM ? 'sched__btoggle-btn--pm' : isOn && isBothShift ? 'sched__btoggle-btn--bothshift' : isAultman ? 'sched__btoggle-btn--aultman' : ''
                         return (
                           <td key={col} className="sched__bcell-day">
-                            <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isAultman ? 'sched__btoggle--aultman' : ''} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
+                            <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
                               <button
-                                className={`sched__btoggle-btn ${isAultman ? 'sched__btoggle-btn--aultman' : ''}`}
+                                className={`sched__btoggle-btn ${btnShiftClass}`}
                                 onClick={() => handleBuilderToggle(driver.driver_name, i)}
                                 disabled={isSaving}
                               >
@@ -485,8 +495,8 @@ export default function Schedule() {
                             </div>
                           )}
                           {cell.type === 'default_on' && (
-                            <div className={`sched__cell-inner sched__cell--default ${cell.pharmacy === 'Aultman' ? 'sched__cell--default-aultman' : ''}`}>
-                              <span className="sched__cell-label">Working</span>
+                            <div className={`sched__cell-inner sched__cell--default ${cell.pharmacy === 'Aultman' ? 'sched__cell--default-aultman' : ''} ${cell.shift === 'PM' ? 'sched__cell--default-pm' : ''} ${cell.shift === 'BOTH' ? 'sched__cell--default-both' : ''}`}>
+                              <span className="sched__cell-label">{cell.shift === 'PM' ? 'PM' : cell.shift === 'BOTH' ? 'AM + PM' : 'Working'}</span>
                               <span className="sched__cell-pharm">{cell.pharmacy}</span>
                             </div>
                           )}
