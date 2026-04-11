@@ -46,6 +46,10 @@ export default function DispatchPage() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [optimizing, setOptimizing] = useState(false)
   const [optimizePreview, setOptimizePreview] = useState(null)
+  // AI Dispatch Suggestions
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiResult, setAiResult] = useState(null)
+  const [aiApplying, setAiApplying] = useState(false)
 
   useEffect(() => {
     fetchDispatchData()
@@ -867,6 +871,100 @@ export default function DispatchPage() {
     }
   }
 
+  // ── AI Dispatch Suggestions ────────────────────────────────────
+  async function handleAiSuggest() {
+    if (aiLoading) return
+    setAiLoading(true)
+    setAiResult(null)
+    try {
+      const dateStr = data?.deliveryDateObj
+        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+        : ''
+      if (!dateStr) throw new Error('No delivery date')
+      const res = await fetch(`/api/ai-dispatch?date=${dateStr}`)
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+      setAiResult(json)
+    } catch (err) {
+      setMoveToast(`AI error: ${err.message}`)
+      setAiLoading(false)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  async function handleAiApply() {
+    if (aiApplying || !aiResult?.assignments?.length) return
+    setAiApplying(true)
+    try {
+      const dateStr = data?.deliveryDateObj
+        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+        : ''
+      let totalMoved = 0
+      for (const a of aiResult.assignments) {
+        if (!a.zips?.length || !a.driver_name) continue
+        // Find driver_number from drivers in data
+        const driverInfo = data?.drivers?.find(d => d.name === a.driver_name)
+        const driverNumber = a.driver_number || driverInfo?.number || ''
+        // Update all stops matching these ZIPs to this driver
+        for (const zip of a.zips) {
+          await fetch('/api/db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              table: 'daily_stops',
+              operation: 'update',
+              data: {
+                driver_name: a.driver_name,
+                driver_number: driverNumber,
+                assigned_driver_number: driverNumber,
+              },
+              match: { delivery_date: dateStr, zip },
+            }),
+          })
+          // Also sync orders table
+          await fetch('/api/db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              table: 'orders',
+              operation: 'update',
+              data: { driver_name: a.driver_name },
+              match: { date_delivered: dateStr, zip },
+            }),
+          })
+        }
+        // Log as AI suggestion in dispatch_decisions
+        for (const zip of a.zips) {
+          await fetch('/api/db', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              table: 'dispatch_decisions',
+              operation: 'insert',
+              data: {
+                delivery_date: dateStr,
+                delivery_day: data?.deliveryDay || '',
+                zip,
+                to_driver: a.driver_name,
+                decision_type: 'ai_suggested',
+                context: a.reasoning || '',
+              },
+            }),
+          })
+        }
+        totalMoved += a.stop_count || 0
+      }
+      setMoveToast(`AI applied ${totalMoved} assignments across ${aiResult.assignments.filter(a => a.stop_count > 0).length} drivers`)
+      setAiResult(null)
+      fetchDispatchData(selectedDay)
+    } catch (err) {
+      setMoveToast(`AI apply error: ${err.message}`)
+    } finally {
+      setAiApplying(false)
+    }
+  }
+
   const totalStops = data?.drivers?.reduce((sum, d) => sum + (d.stops || 0), 0) ?? 0
   const totalColdChain = data?.drivers?.reduce((sum, d) => sum + (d.coldChain || 0), 0) ?? 0
   const allActiveDrivers = data?.drivers?.filter((d) => d.stops > 0) ?? []
@@ -1157,6 +1255,14 @@ export default function DispatchPage() {
                   {sendingCallIns ? 'Sending...' : callInsSent ? 'Sent' : 'SICI'}
                 </button>
                 <button
+                  className="dispatch__send-btn dispatch__send-btn--ai"
+                  onClick={handleAiSuggest}
+                  disabled={aiLoading || totalStops === 0}
+                  title="Get AI-powered driver assignment suggestions"
+                >
+                  {aiLoading ? 'Analyzing...' : '✦ AI Suggest'}
+                </button>
+                <button
                   className={`dispatch__send-btn ${routesSent ? 'dispatch__send-btn--done' : ''}`}
                   onClick={handleSendRoutes}
                   disabled={sendingRoutes || totalStops === 0}
@@ -1312,6 +1418,81 @@ export default function DispatchPage() {
           </>
         )}
       </main>
+
+      {/* AI Dispatch Suggestions Modal */}
+      {aiResult && (
+        <div className="dispatch__ai-overlay" onClick={() => setAiResult(null)}>
+          <div className="dispatch__ai-modal" onClick={e => e.stopPropagation()}>
+            <div className="dispatch__ai-header">
+              <h3 className="dispatch__ai-title">✦ AI Dispatch Suggestions</h3>
+              <button className="dispatch__ai-close" onClick={() => setAiResult(null)}>✕</button>
+            </div>
+            {aiResult.summary && (
+              <p className="dispatch__ai-summary">{aiResult.summary}</p>
+            )}
+            <div className="dispatch__ai-table-wrap">
+              <table className="dispatch__ai-table">
+                <thead>
+                  <tr>
+                    <th>Driver</th>
+                    <th>Stops</th>
+                    <th>Cold</th>
+                    <th>ZIPs</th>
+                    <th>Confidence</th>
+                    <th>Reasoning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(aiResult.assignments || [])
+                    .filter(a => a.stop_count > 0)
+                    .sort((a, b) => b.stop_count - a.stop_count)
+                    .map((a, i) => (
+                    <tr key={i}>
+                      <td style={{ fontWeight: 700 }}>{a.driver_name}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 700 }}>{a.stop_count}</td>
+                      <td style={{ textAlign: 'center', color: '#2563eb', fontWeight: 600 }}>{a.cold_chain_count || 0}</td>
+                      <td style={{ fontSize: 12, fontFamily: 'ui-monospace, monospace', maxWidth: 200 }}>
+                        {(a.zips || []).join(', ')}
+                      </td>
+                      <td>
+                        <span className={`dispatch__ai-badge dispatch__ai-badge--${a.confidence}`}>
+                          {a.confidence}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 12, color: '#64748b', maxWidth: 250 }}>{a.reasoning}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {aiResult.flags?.length > 0 && (
+              <div className="dispatch__ai-flags">
+                <h4>⚠ Flags</h4>
+                {aiResult.flags.map((f, i) => (
+                  <p key={i} className="dispatch__ai-flag">{f.reason}</p>
+                ))}
+              </div>
+            )}
+            {aiResult.stats && (
+              <div className="dispatch__ai-stats">
+                {aiResult.stats.total_stops && <span>{aiResult.stats.total_stops} stops</span>}
+                {aiResult.stats.total_drivers && <span>{aiResult.stats.total_drivers} drivers</span>}
+                {aiResult.stats.flagged > 0 && <span>{aiResult.stats.flagged} flagged</span>}
+              </div>
+            )}
+            <div className="dispatch__ai-actions">
+              <button
+                className="dispatch__ai-apply"
+                onClick={handleAiApply}
+                disabled={aiApplying}
+              >
+                {aiApplying ? 'Applying...' : `Apply All (${aiResult.assignments?.filter(a => a.stop_count > 0).length} drivers)`}
+              </button>
+              <button className="dispatch__ai-cancel" onClick={() => setAiResult(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
