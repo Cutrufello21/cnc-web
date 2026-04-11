@@ -107,19 +107,40 @@ export default async function handler(req, res) {
     // ── 4. Call Claude ──────────────────────────────────────────
     const systemPrompt = `You are Dom's dispatch assistant at CNC Delivery Service in Northeast Ohio. Dom has 7 years of dispatch experience. Analyze his historical patterns and assign today's stops exactly the way Dom would.
 Rules:
-- Keep ZIP codes in geographic clusters together
-- Balance cold chain stops across drivers appropriately
-- Match historical day-of-week patterns
-- Never overload one driver significantly vs others
-- SHSP stops stay with SHSP drivers
-- Aultman stops stay with Aultman drivers
-- Flag anything unusual or uncertain
+- Assign ZIP codes to drivers, not individual stops
+- Keep geographically close ZIPs clustered on the same driver
+- Balance cold chain stops across drivers — no driver should have a disproportionate cold load
+- Match historical day-of-week patterns — if Mike always gets 44270 on Fridays, give it to Mike
+- Never overload one driver significantly vs others (target 35-50 stops each)
+- SHSP stops stay with SHSP pharmacy drivers
+- Aultman stops stay with Aultman pharmacy drivers
+- Drivers marked "Both" can take either pharmacy
+- Flag anything unusual: unbalanced loads, ZIPs with no historical precedent, cold chain concentration
+- Every ZIP in the input MUST appear in exactly one driver's assignment
 Return valid JSON only. No explanation outside the JSON.`
 
-    const userPrompt = `Analyze and suggest assignments for ${dayOfWeek}, ${dateStr}.
+    // Summarize stops by ZIP for a compact prompt
+    const zipSummary = {}
+    for (const s of stopsContext) {
+      if (!zipSummary[s.zip]) zipSummary[s.zip] = { count: 0, cold: 0, pharmacy: s.pharmacy, cities: new Set() }
+      zipSummary[s.zip].count++
+      if (s.cold_chain) zipSummary[s.zip].cold++
+      if (s.city) zipSummary[s.zip].cities.add(s.city)
+    }
+    const zipRows = Object.entries(zipSummary)
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([zip, d]) => ({
+        zip,
+        stops: d.count,
+        cold_chain: d.cold,
+        pharmacy: d.pharmacy,
+        cities: [...d.cities].join(', '),
+      }))
 
-TODAY'S STOPS (${stops.length} total):
-${JSON.stringify(stopsContext, null, 2)}
+    const userPrompt = `Assign drivers for ${dayOfWeek}, ${dateStr}.
+
+TODAY'S STOPS BY ZIP (${stops.length} total):
+${JSON.stringify(zipRows, null, 2)}
 
 ACTIVE DRIVERS:
 ${JSON.stringify(driverList, null, 2)}
@@ -130,31 +151,34 @@ ${JSON.stringify(dayRules, null, 2)}
 HISTORICAL ${dayOfWeek.toUpperCase()} PATTERNS (last 90 days, ZIP → top drivers):
 ${JSON.stringify(histPatterns, null, 2)}
 
-Return this exact JSON format:
+Return ONE object per driver (not per stop). Each driver gets a list of ZIPs they should cover. Return this exact JSON format:
 {
   "assignments": [
     {
-      "stop_id": <number from stop_id above>,
-      "suggested_driver": "<driver_name>",
-      "driver_number": "<driver_number>",
+      "driver_name": "<name>",
+      "driver_number": "<number>",
+      "zips": ["44203", "44270"],
+      "stop_count": <total stops across those ZIPs>,
+      "cold_chain_count": <cold chain stops across those ZIPs>,
       "confidence": "high" | "medium" | "low",
-      "reason": "<one-line explanation>"
+      "reasoning": "<one-line explanation>"
     }
   ],
   "flags": [
     {
-      "stop_id": <number or null>,
+      "zip": "<ZIP or null>",
       "reason": "<description of issue>"
     }
   ],
-  "summary": "<2-3 sentence overview>",
+  "summary": "<2-3 sentence overview of assignments and any concerns>",
   "stats": {
     "total_stops": ${stops.length},
-    "assigned": <count of assignments>,
-    "flagged": <count of flags>,
-    "high_confidence": <count where confidence is high>
+    "total_drivers": <count of drivers assigned>,
+    "flagged": <count of flags>
   }
-}`
+}
+
+Every ZIP must be assigned to exactly one driver. Every stop must be covered. Do not leave any ZIP unassigned.`
 
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
