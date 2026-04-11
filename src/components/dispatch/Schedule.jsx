@@ -231,7 +231,7 @@ export default function Schedule() {
       {/* Stats */}
       <div className="sched__stats">
         <div className="sched__stat">
-          <span className="sched__stat-val">{stats.weekStops}</span>
+          <span className="sched__stat-val">{stats.weekStops.toLocaleString()}</span>
           <span className="sched__stat-label">This week stops</span>
         </div>
         <div className="sched__stat">

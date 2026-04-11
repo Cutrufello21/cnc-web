@@ -67,9 +67,16 @@
 .sched__stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* Grid */
-.sched__grid-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--color-border); }
+.sched__grid-wrap {
+  overflow-x: auto; overflow-y: auto; max-height: 70vh;
+  border-radius: 12px; border: 1px solid var(--color-border);
+}
 .sched__grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .sched__grid th, .sched__grid td { border: 1px solid var(--color-border); }
+
+/* Sticky header */
+.sched__grid thead { position: sticky; top: 0; z-index: 2; }
+.sched__grid thead th { position: sticky; top: 0; z-index: 2; }
 
 .sched__th-driver {
   padding: 12px 16px; text-align: left; font-size: 12px; font-weight: 600;
@@ -80,10 +87,10 @@
   padding: 10px 8px; text-align: center; background: var(--color-background-secondary);
   vertical-align: middle;
 }
-.sched__th-day--today { background: #0A2463; }
-.sched__th-day--today .sched__day-name,
-.sched__th-day--today .sched__day-date,
-.sched__th-day--today .sched__day-total { color: #fff; }
+.sched__th-day--today { background: var(--color-background-secondary); }
+.sched__th-day--today .sched__day-name { color: #0A2463; }
+.sched__th-day--today .sched__day-date { color: #0A2463; }
+.sched__th-day--today .sched__day-total { color: #0A2463; }
 .sched__day-name { display: block; font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .sched__day-date { display: block; font-size: 18px; font-weight: 700; color: var(--color-text-primary); margin: 2px 0; }
 .sched__day-total { display: block; font-size: 11px; color: var(--color-text-secondary); }
@@ -101,9 +108,13 @@
   background: #FAEEDA; color: #854F0B; border-radius: 4px; text-transform: uppercase;
 }
 
+/* Row hover — no alternating bg, hover only */
+.sched__grid tbody tr:hover td { background: rgba(10, 36, 99, 0.02); }
+.sched__grid tbody tr:hover .sched__cell-inner { opacity: 0.92; }
+
 /* Day cells */
 .sched__cell { padding: 0; background: var(--color-background); vertical-align: top; }
-.sched__cell--today { background: rgba(10, 36, 99, 0.03); }
+.sched__cell--today { border-left: 2px solid #0A2463; }
 .sched__cell-inner {
   padding: 10px 12px; min-height: 56px;
   display: flex; flex-direction: column; justify-content: center; gap: 2px;
@@ -121,10 +132,10 @@
 .sched__cell--gap .sched__cell-label { font-size: 13px; font-weight: 600; color: #A32D2D; }
 .sched__cell--gap .sched__cell-sub { font-size: 11px; color: #C94444; }
 
-.sched__cell--off { background: var(--color-background-secondary); }
-.sched__cell--off .sched__cell-label { font-size: 13px; color: var(--color-text-secondary); }
+.sched__cell--off { }
+.sched__cell--off .sched__cell-label { font-size: 13px; color: var(--color-border); }
 
-.sched__cell--nodata { background: var(--color-background); }
+.sched__cell--nodata { }
 .sched__cell--nodata .sched__cell-label { font-size: 12px; color: var(--color-border); font-style: italic; }
 
 /* Approve/deny inline */
