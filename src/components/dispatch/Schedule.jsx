@@ -367,14 +367,25 @@ export default function Schedule() {
                     )}
                   </div>
                   <div className="ops__day-body">
-                    {data.working.map(w => (
-                      <div key={w.name} className="ops__driver-row">
-                        <span className="ops__driver-name">{w.name}</span>
-                        <span className={`ops__pharm-badge ops__pharm-badge--${(w.pharm || 'shsp').toLowerCase()}`}>
-                          {w.shift === 'PM' ? 'PM' : w.shift === 'BOTH' ? 'A+P' : w.pharm === 'Aultman' ? 'ALT' : 'SHSP'}
-                        </span>
-                      </div>
-                    ))}
+                    {(() => {
+                      const shsp = data.working.filter(w => w.shift === 'AM' && w.pharm !== 'Aultman')
+                      const alt = data.working.filter(w => w.shift === 'AM' && w.pharm === 'Aultman')
+                      const pm = data.working.filter(w => w.shift === 'PM' || w.shift === 'BOTH')
+                      return <>
+                        {shsp.length > 0 && <>
+                          <div className="ops__group-label ops__group-label--shsp">SHSP ({shsp.length})</div>
+                          {shsp.map(w => <div key={w.name} className="ops__driver-row"><span className="ops__driver-name">{w.name}</span></div>)}
+                        </>}
+                        {alt.length > 0 && <>
+                          <div className="ops__group-label ops__group-label--alt">Aultman ({alt.length})</div>
+                          {alt.map(w => <div key={w.name} className="ops__driver-row"><span className="ops__driver-name">{w.name}</span></div>)}
+                        </>}
+                        {pm.length > 0 && <>
+                          <div className="ops__group-label ops__group-label--pm">PM ({pm.length})</div>
+                          {pm.map(w => <div key={w.name} className="ops__driver-row"><span className="ops__driver-name">{w.name}</span><span className="ops__pharm-badge ops__pharm-badge--shsp">{w.shift === 'BOTH' ? 'A+P' : 'PM'}</span></div>)}
+                        </>}
+                      </>
+                    })()}
                     {(data.working.length > 0 && data.off.length > 0) && <div className="ops__divider" />}
                     {data.off.filter(o => o.type !== 'off').map(o => (
                       <div key={o.name} className="ops__driver-row">

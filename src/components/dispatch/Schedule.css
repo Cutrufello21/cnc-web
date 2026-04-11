@@ -89,6 +89,10 @@
 .ops__badge--gap { background: #FEE2E2; color: #991B1B; }
 .ops__badge--timeoff { background: #FEF3C7; color: #92400E; }
 .ops__badge--pending { background: #FEF3C7; color: #D97706; }
-.ops__more { font-size: 11px; color: var(--color-text-secondary); padding: 4px 0; }
+.ops__group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 0 3px; margin-top: 4px; }
+.ops__group-label:first-child { margin-top: 0; }
+.ops__group-label--shsp { color: #0C447C; }
+.ops__group-label--alt { color: #166534; }
+.ops__group-label--pm { color: #EA580C; }
 .ops__divider { height: 1px; background: var(--color-border); margin: 4px 0; }
 .ops__off-count { font-size: 11px; color: var(--color-text-secondary); padding: 2px 0; }
