@@ -312,10 +312,13 @@ export default function Payroll() {
         const p = payrollByName[d.driver_name] || {}
         const actual = actualStops[d.driver_name]
         const recon = reconMap[d.driver_name] || {}
-        // Priority: approved reconciliation > daily_stops auto-count (source of truth)
+        // Priority: approved reconciliation > daily_stops auto-count
+        // Manual edits are handled via getAdjustedPay/getDayValue (edits state)
+        // and persist to payroll table via saveEdit
+        const autoVal = (dayShort) => actual ? (actual[dayShort.toLowerCase()] || 0) : 0
         const pickDay = (dayShort) => {
           if (recon[dayShort]?.approved && recon[dayShort]?.actual != null) return recon[dayShort].actual
-          return actual ? (actual[dayShort.toLowerCase()] || 0) : 0
+          return autoVal(dayShort)
         }
         const mon = pickDay('Mon')
         const tue = pickDay('Tue')
@@ -358,19 +361,10 @@ export default function Payroll() {
 
       const grandTotal = drivers.reduce((sum, d) => sum + d.calculatedPay, 0)
 
-      // Ensure all non-flat drivers have a payroll row (seed new rows, don't overwrite existing)
+      // Ensure all non-flat drivers have a payroll row (for will_calls, edits, etc.)
       const newDriverRows = drivers
         .filter(d => !d.isFlat && !payrollByName[d.name])
-        .map(d => ({
-          week_of: weekOf,
-          driver_name: d.name,
-          mon: d.mon,
-          tue: d.tue,
-          wed: d.wed,
-          thu: d.thu,
-          fri: d.fri,
-          week_total: d.weekTotal,
-        }))
+        .map(d => ({ week_of: weekOf, driver_name: d.name }))
       if (newDriverRows.length > 0) {
         await supabase.from('payroll').insert(newDriverRows)
       }
@@ -380,6 +374,39 @@ export default function Payroll() {
         const idMap = {}
         freshRows.forEach(r => { idMap[r.driver_name] = r.id })
         drivers.forEach(d => { if (idMap[d.name]) d.rowIndex = idMap[d.name] })
+      }
+
+      // Reset stale payroll day values to 0 so they don't interfere
+      // Then load genuine manual overrides from payroll into edits state
+      const PAYROLL_RESET_KEY = 'payroll_reset_v2'
+      const resetDone = localStorage.getItem(PAYROLL_RESET_KEY)
+      if (!resetDone) {
+        // One-time: clear all day values in payroll table for this week
+        for (const d of drivers) {
+          const p = payrollByName[d.name]
+          if (p?.id) {
+            await supabase.from('payroll').update({ mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, week_total: 0 }).eq('id', p.id)
+          }
+        }
+        localStorage.setItem(PAYROLL_RESET_KEY, Date.now().toString())
+      } else {
+        // Load manual overrides — if saved value differs from auto-count, it's a manual edit
+        const savedEdits = {}
+        for (const d of drivers) {
+          const p = payrollByName[d.name]
+          if (!p) continue
+          for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) {
+            const dk = day.toLowerCase()
+            const saved = p[dk]
+            const auto = d[dk]
+            if (saved != null && saved > 0 && saved !== auto) {
+              savedEdits[`${d.name}:${day}`] = saved
+            }
+          }
+        }
+        if (Object.keys(savedEdits).length > 0) {
+          setEdits(prev => ({ ...savedEdits, ...prev }))
+        }
       }
 
       setData({
