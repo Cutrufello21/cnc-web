@@ -79,7 +79,7 @@ export default function Payroll() {
       const of_ = parseFloat(d.office_fee) || 0
       let pay = 0
       if (flat) { pay = flat }
-      else if (rm || rw) { const wcr = parseFloat(d.will_call_rate) || 9; pay = (mon + tue + thu) * rm + (wed + fri) * rw + wc * wcr; if (mon + tue + wed + thu + fri > 0) pay += of_ }
+      else if (rm || rw) { const wcr = parseFloat(d.will_call_rate) || 9; pay = (mon + tue + thu) * rm + (wed + fri) * rw + wc * wcr; if (mon + tue + wed + thu + fri > 0 || wc > 0) pay += of_ }
       return { driver_name: p.driver_name, week_of: p.week_of, pay: Math.round(pay * 100) / 100 }
     })
     setAllPayroll(payRows)
@@ -301,14 +301,12 @@ export default function Payroll() {
         const p = payrollByName[d.driver_name] || {}
         const actual = actualStops[d.driver_name]
         const recon = reconMap[d.driver_name] || {}
-        // Priority: approved reconciliation > manual payroll override > daily_stops > fallback
+        // Priority: approved reconciliation > payroll table (if set) > daily_stops auto-count
         const pickDay = (dayShort, pVal) => {
           if (recon[dayShort]?.approved && recon[dayShort]?.actual != null) return recon[dayShort].actual
+          if (pVal != null && pVal > 0) return pVal
           const autoVal = actual ? (actual[dayShort.toLowerCase()] || 0) : 0
-          // If payroll table has a value that differs from auto-count, someone edited it — keep it
-          if (pVal != null && pVal > 0 && pVal !== autoVal) return pVal
-          if (actual !== undefined) return autoVal
-          return pVal || 0
+          return autoVal
         }
         const mon = pickDay('Mon', p.mon)
         const tue = pickDay('Tue', p.tue)
@@ -343,7 +341,6 @@ export default function Payroll() {
           flatSalary,
           calculatedPay: Math.round(calculatedPay * 100) / 100,
           sheetPay: parseFloat(p.weekly_pay) || 0,
-          isBrad: false,
           isFlat: !!flatSalary,
           rowIndex: p.id || null,
           recon: reconMap[d.driver_name] || null,
@@ -352,9 +349,9 @@ export default function Payroll() {
 
       const grandTotal = drivers.reduce((sum, d) => sum + d.calculatedPay, 0)
 
-      // Auto-sync stop counts back to payroll table and ensure all drivers have rows
-      const upsertRows = drivers
-        .filter(d => !d.isFlat)
+      // Ensure all non-flat drivers have a payroll row (seed new rows, don't overwrite existing)
+      const newDriverRows = drivers
+        .filter(d => !d.isFlat && !payrollByName[d.name])
         .map(d => ({
           week_of: weekOf,
           driver_name: d.name,
@@ -365,15 +362,15 @@ export default function Payroll() {
           fri: d.fri,
           week_total: d.weekTotal,
         }))
-      if (upsertRows.length > 0) {
-        await supabase.from('payroll').upsert(upsertRows, { onConflict: 'week_of,driver_name' })
-        // Re-fetch IDs so edits work for all drivers
-        const { data: freshRows } = await supabase.from('payroll').select('id, driver_name').eq('week_of', weekOf)
-        if (freshRows) {
-          const idMap = {}
-          freshRows.forEach(r => { idMap[r.driver_name] = r.id })
-          drivers.forEach(d => { if (idMap[d.name]) d.rowIndex = idMap[d.name] })
-        }
+      if (newDriverRows.length > 0) {
+        await supabase.from('payroll').insert(newDriverRows)
+      }
+      // Re-fetch IDs so edits work for all drivers
+      const { data: freshRows } = await supabase.from('payroll').select('id, driver_name').eq('week_of', weekOf)
+      if (freshRows) {
+        const idMap = {}
+        freshRows.forEach(r => { idMap[r.driver_name] = r.id })
+        drivers.forEach(d => { if (idMap[d.name]) d.rowIndex = idMap[d.name] })
       }
 
       setData({
@@ -586,10 +583,6 @@ export default function Payroll() {
   // Calculate adjusted pay for edited values
   function getAdjustedPay(driver) {
     if (driver.isFlat) return driver.flatSalary
-    if (driver.isBrad) {
-      const edited = getEditedValue(driver.name, 'Weekly Pay', driver.sheetPay)
-      return parseFloat(edited) || 0
-    }
     const willCalls = parseInt(getEditedValue(driver.name, 'Will Calls', driver.willCalls)) || 0
     const rate = driver.rate
     if (!rate) return driver.calculatedPay
@@ -718,7 +711,7 @@ export default function Payroll() {
                   })}
                   <td className="pay__cell-num pay__cell-total">{getAdjustedTotal(d)}</td>
                   <td className="pay__cell-rate">
-                    {d.isFlat ? 'Flat' : d.isBrad ? 'Manual' : d.rate ? `$${d.rate.mth}/${d.rate.wf}` : '—'}
+                    {d.isFlat ? 'Flat' : d.rate ? `$${d.rate.mth}/${d.rate.wf}` : '—'}
                   </td>
 
                   {/* Editable Will Calls */}
@@ -744,27 +737,10 @@ export default function Payroll() {
                     {d.officeFee ? `$${d.officeFee}` : '—'}
                   </td>
 
-                  {/* Editable Weekly Pay (Brad only, or override) */}
                   <td className="pay__cell-pay">
-                    {d.isBrad ? (
-                      <div className="pay__edit-wrap">
-                        <span className="pay__dollar">$</span>
-                        <input
-                          type="number"
-                          className="pay__edit-input pay__edit-input--pay"
-                          value={getEditedValue(d.name, 'Weekly Pay', d.sheetPay || '')}
-                          onChange={(e) => handleEdit(d.name, 'Weekly Pay', e.target.value)}
-                          onBlur={() => hasEdits(d.name, 'Weekly Pay') && saveEdit(d, 'Weekly Pay')}
-                          onKeyDown={(e) => e.key === 'Enter' && hasEdits(d.name, 'Weekly Pay') && saveEdit(d, 'Weekly Pay')}
-                          placeholder="0"
-                        />
-                        {saving === `${d.name}:Weekly Pay` && <span className="pay__saving">...</span>}
-                      </div>
-                    ) : (
-                      <span className={payDiffers ? 'pay__adjusted' : ''}>
-                        ${adjustedPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </span>
-                    )}
+                    <span className={payDiffers ? 'pay__adjusted' : ''}>
+                      ${adjustedPay.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </span>
                   </td>
                 </tr>
               )

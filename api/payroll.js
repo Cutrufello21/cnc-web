@@ -66,7 +66,6 @@ async function handleGet(req, res) {
         flatSalary,
         calculatedPay: Math.round(calculatedPay * 100) / 100,
         sheetPay,
-        isBrad: false,
         isFlat: !!flatSalary,
         rowIndex: p.id,
       }
