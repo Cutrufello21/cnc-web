@@ -242,32 +242,40 @@ export default function Schedule() {
     return p
   }
 
-  // Cycle: Off → AM → PM → AM+PM → Off
-  const SHIFT_CYCLE = [false, 'AM', 'PM', 'BOTH']
+  // Cycle: Off → SHSP (blue) → Aultman (green) → PM (orange) → AM+PM (split) → Off
+  // Each state stores both shift and pharmacy in one click
+  const STATES = [
+    { key: 'off',     on: false, shift: null,   pharm: null },
+    { key: 'shsp',    on: true,  shift: 'AM',   pharm: 'SHSP' },
+    { key: 'aultman', on: true,  shift: 'AM',   pharm: 'Aultman' },
+    { key: 'pm',      on: true,  shift: 'PM',   pharm: 'SHSP' },
+    { key: 'ampm',    on: true,  shift: 'BOTH', pharm: 'SHSP' },
+  ]
 
-  function getCurrentShiftState(sched, col) {
+  function getCurrentStateIdx(sched, col) {
     const isOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
-    if (!isOn) return false
-    return sched[`${col}_shift`] || 'AM'
+    if (!isOn) return 0 // off
+    const shift = sched[`${col}_shift`] || 'AM'
+    const pharm = sched[`${col}_pharm`] || 'SHSP'
+    if (shift === 'PM') return 3
+    if (shift === 'BOTH') return 4
+    if (pharm === 'Aultman') return 2
+    return 1 // SHSP AM
   }
 
   async function handleBuilderToggle(driverName, dayIdx) {
     const col = DAY_COLS[dayIdx]
     const sched = schedule[driverName] || {}
-    const current = getCurrentShiftState(sched, col)
-    const currentIdx = SHIFT_CYCLE.indexOf(current)
-    const next = SHIFT_CYCLE[(currentIdx + 1) % SHIFT_CYCLE.length]
+    const currentIdx = getCurrentStateIdx(sched, col)
+    const next = STATES[(currentIdx + 1) % STATES.length]
 
     setSaving(`${driverName}|${col}`)
     try {
-      const update = { driver_name: driverName }
-      if (next === false) {
-        update[col] = false
-        update[`${col}_shift`] = null
-        update[`${col}_pharm`] = null
-      } else {
-        update[col] = true
-        update[`${col}_shift`] = next
+      const update = {
+        driver_name: driverName,
+        [col]: next.on,
+        [`${col}_shift`]: next.shift,
+        [`${col}_pharm`]: next.pharm,
       }
       await dbUpsert('driver_schedule', update, 'driver_name')
       setSchedule(prev => ({
@@ -281,22 +289,6 @@ export default function Schedule() {
     }
   }
 
-  async function handlePharmChange(driverName, dayIdx, pharm) {
-    const col = DAY_COLS[dayIdx]
-    setSaving(`${driverName}|${col}`)
-    try {
-      const update = { driver_name: driverName, [`${col}_pharm`]: pharm }
-      await dbUpsert('driver_schedule', update, 'driver_name')
-      setSchedule(prev => ({
-        ...prev,
-        [driverName]: { ...(prev[driverName] || {}), ...update },
-      }))
-    } catch (err) {
-      showToastMsg(`Error: ${err.message}`, true)
-    } finally {
-      setSaving(null)
-    }
-  }
 
   if (loading) return <div className="sched__loading"><div className="dispatch__spinner" />Loading schedule...</div>
 
@@ -398,49 +390,33 @@ export default function Schedule() {
                       </td>
                       {DAY_COLS.map((col, i) => {
                         const sched = schedule[driver.driver_name] || {}
-                        const shiftState = getCurrentShiftState(sched, col)
-                        const isOn = shiftState !== false
+                        const stateIdx = getCurrentStateIdx(sched, col)
+                        const state = STATES[stateIdx]
                         const isSaving = saving === `${driver.driver_name}|${col}`
-                        const pharmVal = sched[`${col}_pharm`] || (pharm === 'Aultman' ? 'Aultman' : 'SHSP')
-                        const isAultman = isOn && pharmVal === 'Aultman'
 
-                        // Button color based on shift state + pharmacy
-                        let btnClass = ''
-                        if (isOn) {
-                          if (shiftState === 'PM') btnClass = 'sched__btoggle-btn--pm'
-                          else if (shiftState === 'BOTH') btnClass = 'sched__btoggle-btn--ampm'
-                          else if (isAultman) btnClass = 'sched__btoggle-btn--aultman'
-                        }
+                        const btnClass = !state.on ? '' :
+                          state.shift === 'PM' ? 'sched__btoggle-btn--pm' :
+                          state.shift === 'BOTH' ? 'sched__btoggle-btn--ampm' :
+                          state.pharm === 'Aultman' ? 'sched__btoggle-btn--aultman' : ''
 
-                        // Label inside button
-                        const btnLabel = !isOn ? '—' : shiftState === 'PM' ? 'PM' : shiftState === 'BOTH' ? 'A+P' : '✓'
+                        const btnLabel = !state.on ? '—' :
+                          state.pharm === 'Aultman' && state.shift === 'AM' ? 'ALT' :
+                          state.shift === 'PM' ? 'PM' :
+                          state.shift === 'BOTH' ? 'A+P' : '✓'
+
+                        const titles = ['Off → SHSP', 'SHSP → Aultman', 'Aultman → PM', 'PM → AM+PM', 'AM+PM → Off']
 
                         return (
                           <td key={col} className="sched__bcell-day">
-                            <div className={`sched__btoggle ${isOn ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
+                            <div className={`sched__btoggle ${state.on ? 'sched__btoggle--on' : 'sched__btoggle--off'} ${isSaving ? 'sched__btoggle--saving' : ''}`}>
                               <button
                                 className={`sched__btoggle-btn ${btnClass}`}
                                 onClick={() => handleBuilderToggle(driver.driver_name, i)}
                                 disabled={isSaving}
-                                title={!isOn ? 'Off — click for AM' : shiftState === 'AM' ? 'AM — click for PM' : shiftState === 'PM' ? 'PM — click for AM+PM' : 'AM+PM — click for Off'}
+                                title={titles[stateIdx]}
                               >
                                 {btnLabel}
                               </button>
-                              {isOn && !isFloat && (
-                                <select
-                                  className="sched__bpharm-select"
-                                  value={pharmVal}
-                                  onChange={e => { e.stopPropagation(); handlePharmChange(driver.driver_name, i, e.target.value) }}
-                                  onClick={e => e.stopPropagation()}
-                                  onMouseDown={e => e.stopPropagation()}
-                                >
-                                  <option value="SHSP">SHSP</option>
-                                  <option value="Aultman">Aultman</option>
-                                </select>
-                              )}
-                              {isOn && isFloat && (
-                                <span className="sched__bfloat-label">Float</span>
-                              )}
                             </div>
                           </td>
                         )
