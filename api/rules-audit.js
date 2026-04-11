@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   try {
     const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0]
 
-    const [rulesRes, histRes, stopsRes, schedRes] = await Promise.all([
+    const [rulesRes, histRes, stopsRes, schedRes, driversRes] = await Promise.all([
       supabase.from('routing_rules').select('*').limit(500),
       supabase.from('dispatch_history_import')
         .select('delivery_date, day_of_week, driver_name, zip, pharmacy')
@@ -24,6 +24,7 @@ export default async function handler(req, res) {
         .not('status', 'eq', 'DELETED')
         .limit(8000),
       supabase.from('driver_schedule').select('*'),
+      supabase.from('drivers').select('driver_name, pharmacy').eq('active', true),
     ])
 
     const rules = rulesRes.data || []
@@ -55,6 +56,19 @@ export default async function handler(req, res) {
       actual[key][h.driver_name] = (actual[key][h.driver_name] || 0) + 1
     }
 
+    // Build driver → pharmacy lookup
+    const driverPharm = {}
+    ;(driversRes.data || []).forEach(d => { driverPharm[d.driver_name] = d.pharmacy || 'SHSP' })
+
+    // Helper: check if a driver can work a pharmacy
+    function pharmMatch(driverName, rulePharmacy) {
+      const dp = driverPharm[driverName] || 'SHSP'
+      if (dp === 'Both') return true
+      if (!rulePharmacy) return true
+      const rp = rulePharmacy.toUpperCase().includes('AULT') ? 'Aultman' : 'SHSP'
+      return dp === rp
+    }
+
     // Analyze each rule
     const mismatches = []
     const correct = []
@@ -72,9 +86,21 @@ export default async function handler(req, res) {
         const ruleName = ruleDriver.includes('/') ? ruleDriver.split('/')[0].trim() : ruleDriver
 
         const key = `${zip}|${day}`
-        const patterns = actual[key]
+        const rawPatterns = actual[key]
+        const rulePharmacy = rule.pharmacy || ''
 
-        if (!patterns || Object.keys(patterns).length === 0) {
+        if (!rawPatterns || Object.keys(rawPatterns).length === 0) {
+          noData.push({ zip: zip, day: dayFull[day], ruleDriver: ruleName })
+          continue
+        }
+
+        // Filter patterns to only drivers from the matching pharmacy
+        const patterns = {}
+        for (const [dName, count] of Object.entries(rawPatterns)) {
+          if (pharmMatch(dName, rulePharmacy)) patterns[dName] = count
+        }
+
+        if (Object.keys(patterns).length === 0) {
           noData.push({ zip: zip, day: dayFull[day], ruleDriver: ruleName })
           continue
         }
