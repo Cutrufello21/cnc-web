@@ -247,43 +247,45 @@ export default function Payroll() {
       friday.setDate(monday.getDate() + 4)
       const fridayStr = `${friday.getFullYear()}-${String(friday.getMonth() + 1).padStart(2, '0')}-${String(friday.getDate()).padStart(2, '0')}`
 
-      const [payrollRes, driversRes, reconRes, stopsRes] = await Promise.all([
+      // Build date strings for each day Mon-Fri
+      const weekDates = []
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(monday)
+        d.setDate(monday.getDate() + i)
+        weekDates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
+      }
+      const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri']
+
+      // Fetch each day separately to avoid Supabase 1000-row cap
+      const [payrollRes, driversRes, reconRes, ...dailyResults] = await Promise.all([
         supabase.from('payroll').select('*').eq('week_of', weekOf),
         supabase.from('drivers').select('*'),
         supabase.from('stop_reconciliation').select('*').eq('week_of', weekOf).then(r => r).catch(() => ({ data: [] })),
-        supabase.from('daily_stops').select('driver_name, delivery_date, delivery_day, address')
-          .gte('delivery_date', weekOf).lte('delivery_date', fridayStr)
-          .not('status', 'eq', 'DELETED')
-          .limit(5000),
+        ...weekDates.map(date =>
+          supabase.from('daily_stops').select('driver_name, address')
+            .eq('delivery_date', date)
+            .not('status', 'eq', 'DELETED')
+            .limit(1000)
+        ),
       ])
 
       // Count actual STOPS per driver per day from daily_stops
       // Consolidate by address to match dispatch page (stops, not packages)
-      const dayNameMap = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
       const normalizeAddr = (a) => (a || '').toLowerCase().replace(/[.,#]/g, '').replace(/\s+/g, ' ')
         .replace(/\b(ste|suite|unit|apt)\b\s*/g, '').trim()
-      // Group by driver+day+address to get unique stops
-      const stopKeys = new Set()
       const actualStops = {}
-      ;(stopsRes.data || []).forEach(s => {
-        if (!s.driver_name) return
-        let dayKey
-        if (s.delivery_date) {
-          const d = new Date(s.delivery_date + 'T12:00:00')
-          dayKey = dayNameMap[d.getDay()]
-        } else if (s.delivery_day) {
-          dayKey = s.delivery_day.slice(0, 3).toLowerCase()
-        }
-        if (!dayKey) return
-        // Deduplicate by driver + day + normalized address
-        const addr = normalizeAddr(s.address)
-        const key = `${s.driver_name}|${dayKey}|${addr}`
-        if (stopKeys.has(key)) return
-        stopKeys.add(key)
-        if (!actualStops[s.driver_name]) actualStops[s.driver_name] = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0 }
-        if (actualStops[s.driver_name][dayKey] !== undefined) {
+      dailyResults.forEach((res, dayIdx) => {
+        const dayKey = dayKeys[dayIdx]
+        const seen = new Set()
+        ;(res.data || []).forEach(s => {
+          if (!s.driver_name) return
+          const addr = normalizeAddr(s.address)
+          const dedupKey = `${s.driver_name}|${addr}`
+          if (seen.has(dedupKey)) return
+          seen.add(dedupKey)
+          if (!actualStops[s.driver_name]) actualStops[s.driver_name] = { mon: 0, tue: 0, wed: 0, thu: 0, fri: 0 }
           actualStops[s.driver_name][dayKey]++
-        }
+        })
       })
 
       const reconMap = {}
