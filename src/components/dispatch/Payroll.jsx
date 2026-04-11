@@ -376,44 +376,20 @@ export default function Payroll() {
         drivers.forEach(d => { if (idMap[d.name]) d.rowIndex = idMap[d.name] })
       }
 
-      // Reset stale payroll day values to 0 so they don't interfere
-      // Then load genuine manual overrides from payroll into edits state
-      const PAYROLL_RESET_KEY = 'payroll_reset_v2'
-      const resetDone = localStorage.getItem(PAYROLL_RESET_KEY)
-      if (!resetDone) {
-        // One-time: clear all day values in payroll table for this week
-        for (const d of drivers) {
-          const p = payrollByName[d.name]
-          if (p?.id) {
-            await supabase.from('payroll').update({ mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, week_total: 0 }).eq('id', p.id)
-          }
+      // Load manual overrides from localStorage (keyed by week)
+      try {
+        const saved = JSON.parse(localStorage.getItem(`payroll_edits_${weekOf}`) || '{}')
+        if (Object.keys(saved).length > 0) {
+          setEdits(prev => ({ ...saved, ...prev }))
         }
-        localStorage.setItem(PAYROLL_RESET_KEY, Date.now().toString())
-      } else {
-        // Load manual overrides — if saved value differs from auto-count, it's a manual edit
-        const savedEdits = {}
-        for (const d of drivers) {
-          const p = payrollByName[d.name]
-          if (!p) continue
-          for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) {
-            const dk = day.toLowerCase()
-            const saved = p[dk]
-            const auto = d[dk]
-            if (saved != null && saved > 0 && saved !== auto) {
-              savedEdits[`${d.name}:${day}`] = saved
-            }
-          }
-        }
-        if (Object.keys(savedEdits).length > 0) {
-          setEdits(prev => ({ ...savedEdits, ...prev }))
-        }
-      }
+      } catch {}
 
       setData({
         drivers,
         grandTotal: Math.round(grandTotal * 100) / 100,
         sheetTotal: drivers.reduce((sum, d) => sum + d.sheetPay, 0),
         weekOf: `${monday.getMonth() + 1}/${monday.getDate()}/${monday.getFullYear()}`,
+        _weekOfDate: weekOf,
         weekEnding: (() => {
           const sat = new Date(monday)
           sat.setDate(sat.getDate() + 5)
@@ -457,6 +433,14 @@ export default function Payroll() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ driverRow: driver.rowIndex, field, value }),
       })
+
+      // Persist day overrides to localStorage so they survive page reloads
+      if (['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].includes(field) && data?.weekOf) {
+        const weekKey = `payroll_edits_${data._weekOfDate}`
+        const saved = JSON.parse(localStorage.getItem(weekKey) || '{}')
+        saved[`${driver.name}:${field}`] = parseInt(value) || 0
+        localStorage.setItem(weekKey, JSON.stringify(saved))
+      }
       const d = await res.json()
       if (!res.ok) throw new Error(d.error)
 
