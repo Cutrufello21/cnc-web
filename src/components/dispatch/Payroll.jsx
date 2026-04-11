@@ -310,19 +310,16 @@ export default function Payroll() {
         const p = payrollByName[d.driver_name] || {}
         const actual = actualStops[d.driver_name]
         const recon = reconMap[d.driver_name] || {}
-        // Priority: approved reconciliation > higher of (payroll table, daily_stops auto-count)
-        // Manual edits are corrections upward; if auto-count is higher, payroll value is stale
-        // To correct downward, use driver reconciliation (which takes top priority when approved)
-        const pickDay = (dayShort, pVal) => {
+        // Priority: approved reconciliation > daily_stops auto-count (source of truth)
+        const pickDay = (dayShort) => {
           if (recon[dayShort]?.approved && recon[dayShort]?.actual != null) return recon[dayShort].actual
-          const autoVal = actual ? (actual[dayShort.toLowerCase()] || 0) : 0
-          return Math.max(pVal || 0, autoVal)
+          return actual ? (actual[dayShort.toLowerCase()] || 0) : 0
         }
-        const mon = pickDay('Mon', p.mon)
-        const tue = pickDay('Tue', p.tue)
-        const wed = pickDay('Wed', p.wed)
-        const thu = pickDay('Thu', p.thu)
-        const fri = pickDay('Fri', p.fri)
+        const mon = pickDay('Mon')
+        const tue = pickDay('Tue')
+        const wed = pickDay('Wed')
+        const thu = pickDay('Thu')
+        const fri = pickDay('Fri')
         const weekTotal = mon + tue + wed + thu + fri
         const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[d.driver_name] || 0)
         const officeFee = parseFloat(d.office_fee) || 0
