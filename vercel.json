@@ -20,6 +20,10 @@
     {
       "path": "/api/advance-day",
       "schedule": "0 9 * * 6"
+    },
+    {
+      "path": "/api/release-schedule",
+      "schedule": "0 16 * * 0"
     }
   ]
 }
