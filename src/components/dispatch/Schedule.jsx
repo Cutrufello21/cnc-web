@@ -367,7 +367,7 @@ export default function Schedule() {
                     )}
                   </div>
                   <div className="ops__day-body">
-                    {data.working.slice(0, 5).map(w => (
+                    {data.working.map(w => (
                       <div key={w.name} className="ops__driver-row">
                         <span className="ops__driver-name">{w.name}</span>
                         <span className={`ops__pharm-badge ops__pharm-badge--${(w.pharm || 'shsp').toLowerCase()}`}>
@@ -375,9 +375,6 @@ export default function Schedule() {
                         </span>
                       </div>
                     ))}
-                    {data.working.length > 5 && (
-                      <div className="ops__more">+{data.working.length - 5} more working</div>
-                    )}
                     {(data.working.length > 0 && data.off.length > 0) && <div className="ops__divider" />}
                     {data.off.filter(o => o.type !== 'off').map(o => (
                       <div key={o.name} className="ops__driver-row">
