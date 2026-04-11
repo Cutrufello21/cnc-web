@@ -166,9 +166,11 @@ export default function Schedule() {
     const sched = schedule[driverName]
     const driver = drivers.find(dr => dr.driver_name === driverName)
     const basePharm = driver?.pharmacy || 'SHSP'
-    if (basePharm === 'Both') {
-      return sched?.[`${DAY_COLS[dayIdx]}_pharm`] || 'SHSP'
-    }
+    // Per-day pharmacy override from builder (any driver can work either store)
+    const dayPharm = sched?.[`${DAY_COLS[dayIdx]}_pharm`]
+    if (dayPharm) return dayPharm
+    // Fallback to driver's base pharmacy
+    if (basePharm === 'Both') return 'SHSP'
     return basePharm
   }
 
@@ -578,8 +580,8 @@ export default function Schedule() {
                           )}
                           {cell.type === 'default_on' && (
                             <div className={`sched__cell-inner sched__cell--default ${cell.pharmacy === 'Aultman' ? 'sched__cell--default-aultman' : ''} ${cell.shift === 'PM' ? 'sched__cell--default-pm' : ''} ${cell.shift === 'BOTH' ? 'sched__cell--default-both' : ''}`}>
-                              <span className="sched__cell-label">{cell.shift === 'PM' || cell.shift === 'BOTH' ? `${cell.pharmacy} + PM` : 'Working'}</span>
-                              <span className="sched__cell-pharm">{cell.shift === 'PM' || cell.shift === 'BOTH' ? 'AM + PM' : cell.pharmacy}</span>
+                              <span className="sched__cell-label">{cell.shift === 'PM' ? 'PM' : cell.shift === 'BOTH' ? 'AM + PM' : 'Working'}</span>
+                              <span className="sched__cell-pharm">{cell.pharmacy}</span>
                             </div>
                           )}
                         </td>
