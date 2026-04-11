@@ -18,6 +18,8 @@ export default function Schedule() {
   const [newReq, setNewReq] = useState({ driver_name: '', date_from: '', date_to: '', reason: '' })
   const [adding, setAdding] = useState(false)
   const [saving, setSaving] = useState(null)
+  const [releasing, setReleasing] = useState(false)
+  const [released, setReleased] = useState(false)
   const [toast, setToast] = useState(null)
 
   // Compute week dates
@@ -49,7 +51,7 @@ export default function Schedule() {
     return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
   }, [])
 
-  useEffect(() => { loadData() }, [weekOffset])
+  useEffect(() => { loadData(); setReleased(false) }, [weekOffset])
 
   async function loadData() {
     setLoading(true)
@@ -242,6 +244,57 @@ export default function Schedule() {
     return p
   }
 
+  // Release schedule — notify all working drivers
+  async function handleRelease() {
+    if (!confirm(`Release schedule for ${weekDateStrs[0]} – ${weekDateStrs[4]}?\n\nThis will push-notify all scheduled drivers with their shifts.`)) return
+    setReleasing(true)
+    try {
+      // Build summary per driver
+      const notifications = []
+      for (const driver of drivers) {
+        const days = []
+        for (let i = 0; i < 5; i++) {
+          const sched = schedule[driver.driver_name] || {}
+          const stateIdx = getCurrentStateIdx(sched, DAY_COLS[i])
+          const state = STATES[stateIdx]
+          if (state.on) {
+            const label = state.shift === 'PM' ? 'PM' : state.shift === 'BOTH' ? 'AM+PM' : state.pharm
+            days.push(`${DAY_LABELS[i]} (${label})`)
+          }
+        }
+        if (days.length > 0) {
+          notifications.push({ name: driver.driver_name, days })
+        }
+      }
+
+      // Send push notifications
+      const driverNames = notifications.map(n => n.name)
+      if (driverNames.length > 0) {
+        const weekLabel = `${weekDates[0].getMonth() + 1}/${weekDates[0].getDate()} – ${weekDates[4].getMonth() + 1}/${weekDates[4].getDate()}`
+        // Notify each driver with their personal schedule
+        for (const n of notifications) {
+          await fetch('/api/actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'push_notify',
+              driverNames: [n.name],
+              title: `Schedule Released — ${weekLabel}`,
+              body: `Your shifts: ${n.days.join(', ')}`,
+            }),
+          }).catch(() => {})
+        }
+      }
+
+      setReleased(true)
+      showToastMsg(`Schedule released — ${driverNames.length} drivers notified`)
+    } catch (err) {
+      showToastMsg(`Error: ${err.message}`, true)
+    } finally {
+      setReleasing(false)
+    }
+  }
+
   // Cycle: Off → SHSP (blue) → Aultman (green) → PM (orange) → AM+PM (split) → Off
   // Each state stores both shift and pharmacy in one click
   const STATES = [
@@ -358,8 +411,17 @@ export default function Schedule() {
       {showBuilder && (
         <div className="sched__builder">
           <div className="sched__builder-header">
-            <h3 className="sched__builder-title">Default Weekly Schedule</h3>
-            <span className="sched__builder-hint">Toggle days on/off. "Both" drivers select pharmacy per night.</span>
+            <div>
+              <h3 className="sched__builder-title">Weekly Schedule — {weekDates[0].getMonth() + 1}/{weekDates[0].getDate()} – {weekDates[4].getMonth() + 1}/{weekDates[4].getDate()}</h3>
+              <span className="sched__builder-hint">Click to cycle: Off → SHSP → Aultman → PM → AM+PM → Off</span>
+            </div>
+            <button
+              className={`sched__release-btn ${released ? 'sched__release-btn--done' : ''}`}
+              onClick={handleRelease}
+              disabled={releasing || released}
+            >
+              {released ? 'Released ✓' : releasing ? 'Releasing...' : 'Release Schedule'}
+            </button>
           </div>
           <div className="sched__builder-grid-wrap">
             <table className="sched__builder-grid">

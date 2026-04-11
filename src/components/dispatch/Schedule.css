@@ -176,7 +176,15 @@
   display: flex; align-items: center; justify-content: space-between;
 }
 .sched__builder-title { font-size: 16px; font-weight: 700; color: var(--color-text-primary); margin: 0; }
-.sched__builder-hint { font-size: 12px; color: var(--color-text-secondary); }
+.sched__builder-hint { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+.sched__release-btn {
+  padding: 10px 24px; font-size: 13px; font-weight: 700;
+  background: #0A2463; color: #fff; border: none; border-radius: 10px;
+  cursor: pointer; white-space: nowrap;
+}
+.sched__release-btn:hover { background: #0d2d7a; }
+.sched__release-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.sched__release-btn--done { background: #16a34a; }
 .sched__builder-grid-wrap { overflow-x: auto; }
 .sched__builder-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .sched__builder-grid th, .sched__builder-grid td { border-bottom: 1px solid var(--color-border); }
