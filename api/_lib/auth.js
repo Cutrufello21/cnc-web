@@ -51,8 +51,10 @@ export async function requireAuth(req, res, options = {}) {
 
   // No valid auth
   if (options.allowAnon) return null
-  res.status(401).json({ error: 'Unauthorized — valid authentication required' })
-  return null
+  // TEMPORARY: Allow unauthenticated requests during transition period
+  // TODO: Remove this block once all driver apps are updated to send auth tokens (build #69+)
+  console.warn(`[auth] Unauthenticated request to ${req.url} — allowing during transition`)
+  return { id: 'anonymous', email: null, role: 'driver', isAnonymous: true }
 }
 
 // Require that the authenticated user matches the driver name
