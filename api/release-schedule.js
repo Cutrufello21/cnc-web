@@ -94,10 +94,9 @@ export default async function handler(req, res) {
       // Skip drivers with no working days
       if (week1Days.length === 0 && week2Days.length === 0) continue
 
-      const title = `Schedule — ${week1Label}`
-      let body = ''
-      if (week1Days.length > 0) body += `Week 1: ${week1Days.join(', ')}`
-      if (week2Days.length > 0) body += `${body ? '\n' : ''}Week 2: ${week2Days.join(', ')}`
+      const firstName = driver.driver_name.split(' ')[0]
+      const title = `${firstName}, your work schedule has been posted`
+      const body = `${week1Mon.getMonth() + 1}/${week1Mon.getDate()} – ${week2Fri.getMonth() + 1}/${week2Fri.getDate()}`
 
       try {
         await fetch(`https://cncdelivery.com/api/actions`, {

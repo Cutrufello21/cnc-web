@@ -57,7 +57,7 @@
 .ops__week-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 
 /* Day Cards */
-.ops__day { border-radius: 12px; border: 0.5px solid var(--color-border); background: var(--color-background); overflow: hidden; display: flex; flex-direction: column; }
+.ops__day { border-radius: 12px; border: 1.5px solid #b0b8c4; background: var(--color-background); overflow: hidden; display: flex; flex-direction: column; }
 .ops__day--critical { border: 1.5px solid #E24B4A; }
 .ops__day--watch { border: 1.5px solid #EF9F27; }
 .ops__day--today { border: 1.5px solid #0A2463; }
