@@ -4,8 +4,9 @@
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
+import { requireAuth } from './_lib/auth.js'
 
-const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY || 'AIzaSyBiQLZq4iSLhq8qR3D_TzGAgSqZwLh5k_M'
+const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY
 
 function toRad(deg) { return deg * Math.PI / 180 }
 function haversine(lat1, lon1, lat2, lon2) {
@@ -22,6 +23,9 @@ const PHARMACY_ORIGINS = {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
+
+  const user = await requireAuth(req, res, { allowApiSecret: true })
+  if (!user) return
 
   try {
     const { stops, pharmacy, startLat, startLng, endLat, endLng, driverName, deliveryDay } = req.body

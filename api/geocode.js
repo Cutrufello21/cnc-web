@@ -1,12 +1,16 @@
 import { supabase } from './_lib/supabase.js'
+import { requireAuth } from './_lib/auth.js'
 
 // POST /api/geocode
 // Body: { addresses: [{ address, city, zip }, ...] }
 // Returns: { results: [{ address, city, zip, lat, lng, source }, ...] }
 
 export default async function handler(req, res) {
-  if (req.method === 'HEAD') return res.status(200).end()
+  if (req.method === 'HEAD') return res.status(200).end() // Health check for offline detection
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  const user = await requireAuth(req, res, { allowApiSecret: true })
+  if (!user) return
 
   let body
   try {

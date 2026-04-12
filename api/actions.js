@@ -2,6 +2,7 @@ import { writeFileSync } from 'fs'
 import nodemailer from 'nodemailer'
 import { parseBody } from './_lib/sheets.js'
 import { supabase } from './_lib/supabase.js'
+import { requireAuth } from './_lib/auth.js'
 
 // Push notification helper — sends push + saves to DB
 async function notifyDriver(driverName, title, body, type = 'general') {
@@ -24,6 +25,10 @@ async function notifyDriver(driverName, title, body, type = 'general') {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+
+  // Auth check — require valid JWT or API secret
+  const user = await requireAuth(req, res, { allowApiSecret: true })
+  if (!user) return
 
   const data = await parseBody(req)
 

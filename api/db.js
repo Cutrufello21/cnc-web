@@ -1,15 +1,42 @@
 import { supabase } from './_lib/supabase.js'
 import { parseBody } from './_lib/sheets.js'
+import { requireAuth } from './_lib/auth.js'
+
+// Allowed tables and operations — everything else is blocked
+const ALLOWED = {
+  time_off_requests: ['insert', 'update'],
+  delivery_confirmations: ['insert'],
+  driver_routes: ['upsert'],
+  daily_stops: ['update'],
+  driver_notifications: ['update'],
+  stop_reconciliation: ['insert', 'update', 'upsert'],
+  driver_favorites: ['insert', 'delete'],
+  mileage_log: ['upsert'],
+  address_notes: ['upsert'],
+}
 
 // Generic DB write proxy — all client-side writes route through here
 // Uses service role key, bypasses RLS
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
+  // Auth check — require valid Supabase JWT or API secret
+  const user = await requireAuth(req, res, { allowApiSecret: true })
+  if (!user) return
+
   const { table, operation, data, match, onConflict } = await parseBody(req)
 
   if (!table || !operation) {
     return res.status(400).json({ error: 'Missing table or operation' })
+  }
+
+  // Validate against allowed tables and operations
+  const allowed = ALLOWED[table]
+  if (!allowed) {
+    return res.status(403).json({ error: `Table "${table}" is not accessible via this endpoint` })
+  }
+  if (!allowed.includes(operation)) {
+    return res.status(403).json({ error: `Operation "${operation}" is not allowed on table "${table}"` })
   }
 
   try {

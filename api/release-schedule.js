@@ -101,7 +101,7 @@ export default async function handler(req, res) {
       try {
         await fetch(`https://cncdelivery.com/api/actions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.API_SECRET}` },
           body: JSON.stringify({
             action: 'push_notify',
             driverNames: [driver.driver_name],
