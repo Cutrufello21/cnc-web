@@ -122,6 +122,7 @@ export default async function handler(req, res) {
     console.log(`[optimize] ${withCoords.length} stops | pharmacy=${pharmacy} | oneWay=${isOneWay} | roundTrip=${isRoundTrip} | hasEnd=${hasEnd}`)
 
     let optimizedAll, method, totalDistMeters = null, totalDurSeconds = null
+    const errors = []
 
     // ── 1. Try Route Optimization API ──
     try {
@@ -130,9 +131,10 @@ export default async function handler(req, res) {
       totalDistMeters = result.distanceMeters
       totalDurSeconds = result.durationSeconds
       method = 'route-optimization-api'
-      console.log(`[optimize] ✓ Route Optimization API: ${Math.round((totalDistMeters || 0) / 1609)} mi, ${Math.round((totalDurSeconds || 0) / 60)} min`)
+      console.log(`[optimize] ✓ Route Optimization API: ${Math.round((totalDistMeters || 0) / 1609)} mi`)
     } catch (err) {
-      console.error(`[optimize] ✗ Route Optimization API failed: ${err.message}`)
+      errors.push(`RouteOpt: ${err.message}`)
+      console.error(`[optimize] ✗ Route Optimization API: ${err.message}`)
 
       // ── 2. Fallback: Routes API ──
       try {
@@ -144,14 +146,15 @@ export default async function handler(req, res) {
         method = 'google-routes-fallback'
         console.log(`[optimize] ✓ Routes API fallback: ${Math.round((totalDistMeters || 0) / 1609)} mi`)
       } catch (err2) {
-        console.error(`[optimize] ✗ Routes API failed: ${err2.message}`)
+        errors.push(`RoutesAPI: ${err2.message}`)
+        console.error(`[optimize] ✗ Routes API: ${err2.message}`)
 
         // ── 3. Fallback: OSRM ──
         try {
           optimizedAll = await osrmFallback(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
           method = 'osrm-fallback'
-        } catch {
-          // ── 4. Last resort: nearest neighbor ──
+        } catch (err3) {
+          errors.push(`OSRM: ${err3.message}`)
           optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1])
           method = 'nearest-neighbor'
         }
@@ -194,6 +197,13 @@ export default async function handler(req, res) {
       reasons,
       method,
       summary: `${optimizedAll.length} stops via ${method}`,
+      _debug: {
+        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
+        hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+        hasServiceJSON: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
+        hasRoutesKey: !!process.env.GOOGLE_ROUTES_API_KEY,
+        errors,
+      },
     })
   } catch (err) {
     console.error('[optimize] Fatal:', err)
