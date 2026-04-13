@@ -782,3 +782,86 @@
 .portal-th-sort:hover {
   color: #10B981;
 }
+
+/* ===== ETA Tooltip on Pending Badge ===== */
+.portal-badge--hoverable {
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.portal-badge--hoverable:hover {
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+}
+
+.portal-eta-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1C1C1E;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 12px 14px;
+  min-width: 220px;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: portal-tooltip-in 0.15s ease;
+  pointer-events: none;
+}
+
+.portal-eta-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+@keyframes portal-tooltip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.portal-eta-tooltip-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.portal-eta-tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  padding: 3px 0;
+}
+
+.portal-eta-tooltip-row span:last-child {
+  color: #fff;
+  font-weight: 600;
+}
+
+.portal-eta-tooltip-highlight {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.portal-eta-tooltip-highlight span:last-child {
+  color: #F59E0B;
+  font-weight: 700;
+}
+
+.portal-eta-tooltip-note {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+  margin-top: 6px;
+}

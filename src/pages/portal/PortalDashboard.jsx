@@ -1,7 +1,119 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import PortalShell from '../../components/portal/PortalShell'
+
+/* ── ETA helpers ─────────────────────────────────── */
+
+// Calculate average minutes between deliveries for a driver
+function calcDriverPace(driverAllStops) {
+  const delivered = driverAllStops
+    .filter(s => s.status === 'delivered' && s.delivered_at)
+    .sort((a, b) => new Date(a.delivered_at) - new Date(b.delivered_at))
+  if (delivered.length < 2) return null
+  const first = new Date(delivered[0].delivered_at).getTime()
+  const last = new Date(delivered[delivered.length - 1].delivered_at).getTime()
+  return Math.round((last - first) / (delivered.length - 1) / 60000)
+}
+
+// Build a map: stopId → { stopsAway, etaMinutes, driverProgress }
+function buildETAMap(pharmacyStops, allDriverStops) {
+  const etaMap = {}
+
+  // Group all driver stops by driver
+  const byDriver = {}
+  allDriverStops.forEach(s => {
+    const d = s.driver_name || ''
+    if (!byDriver[d]) byDriver[d] = []
+    byDriver[d].push(s)
+  })
+
+  // For each driver, figure out where they are in their route
+  for (const [driver, dStops] of Object.entries(byDriver)) {
+    const sorted = [...dStops].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+    const pace = calcDriverPace(sorted)
+    const doneCount = sorted.filter(s => s.status === 'delivered').length
+    const totalCount = sorted.length
+
+    // Find current position: first non-delivered/non-failed stop
+    const currentIdx = sorted.findIndex(s => s.status !== 'delivered' && s.status !== 'failed' && s.status !== 'attempted')
+
+    // For each pharmacy stop on this driver's route
+    pharmacyStops
+      .filter(ps => ps.driver_name === driver && getStatusClass(ps.status) === 'pending')
+      .forEach(ps => {
+        const stopIdx = sorted.findIndex(s => s.id === ps.id)
+        if (stopIdx < 0 || currentIdx < 0) return
+
+        const stopsAway = stopIdx - currentIdx
+        if (stopsAway < 0) return // already passed
+
+        const etaMinutes = pace ? pace * (stopsAway + 1) : null
+
+        etaMap[ps.id] = { stopsAway, etaMinutes, pace, doneCount, totalCount, driver }
+      })
+  }
+
+  return etaMap
+}
+
+function formatETA(min) {
+  if (!min || min <= 0) return null
+  if (min < 60) return `~${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m > 0 ? `~${h}h ${m}m` : `~${h}h`
+}
+
+/* ── Pending badge with hover tooltip ─────────── */
+
+function PendingBadge({ stop, etaInfo }) {
+  const [hover, setHover] = useState(false)
+
+  if (!etaInfo) {
+    return (
+      <span className="portal-badge pending">Pending</span>
+    )
+  }
+
+  return (
+    <span
+      className="portal-badge pending portal-badge--hoverable"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      Pending
+      {hover && (
+        <div className="portal-eta-tooltip">
+          <div className="portal-eta-tooltip-title">{etaInfo.driver}</div>
+          <div className="portal-eta-tooltip-row">
+            <span>Driver progress</span>
+            <span>{etaInfo.doneCount}/{etaInfo.totalCount} stops</span>
+          </div>
+          <div className="portal-eta-tooltip-row">
+            <span>Stops away</span>
+            <span>{etaInfo.stopsAway === 0 ? 'Next up' : etaInfo.stopsAway}</span>
+          </div>
+          {etaInfo.pace && (
+            <div className="portal-eta-tooltip-row">
+              <span>Avg pace</span>
+              <span>{etaInfo.pace} min/stop</span>
+            </div>
+          )}
+          {etaInfo.etaMinutes && (
+            <div className="portal-eta-tooltip-row portal-eta-tooltip-highlight">
+              <span>Est. delivery</span>
+              <span>{formatETA(etaInfo.etaMinutes)}</span>
+            </div>
+          )}
+          {!etaInfo.pace && (
+            <div className="portal-eta-tooltip-note">Driver hasn't started — no ETA yet</div>
+          )}
+        </div>
+      )}
+    </span>
+  )
+}
 
 function getStatusClass(status) {
   if (status === 'delivered') return 'delivered'
@@ -127,6 +239,7 @@ function TrendIndicator({ current, previous }) {
 export default function PortalDashboard() {
   const { profile } = useAuth()
   const [stops, setStops] = useState([])
+  const [allDriverStops, setAllDriverStops] = useState([])
   const [lastWeekStops, setLastWeekStops] = useState(null)
   const [loading, setLoading] = useState(true)
   const [podStop, setPodStop] = useState(null)
@@ -144,28 +257,52 @@ export default function PortalDashboard() {
   const today = new Date().toLocaleDateString('en-CA')
   const lastWeekDate = new Date(Date.now() - 7 * 86400000).toLocaleDateString('en-CA')
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      const [todayRes, lastWeekRes] = await Promise.all([
-        supabase
-          .from('daily_stops')
-          .select('*')
-          .eq('pharmacy', pharmacyName)
-          .eq('delivery_date', today),
-        supabase
-          .from('daily_stops')
-          .select('*')
-          .eq('pharmacy', pharmacyName)
-          .eq('delivery_date', lastWeekDate),
-      ])
+  const loadData = useCallback(async () => {
+    const [todayRes, lastWeekRes] = await Promise.all([
+      supabase
+        .from('daily_stops')
+        .select('*')
+        .eq('pharmacy', pharmacyName)
+        .eq('delivery_date', today),
+      supabase
+        .from('daily_stops')
+        .select('*')
+        .eq('pharmacy', pharmacyName)
+        .eq('delivery_date', lastWeekDate),
+    ])
 
-      if (!todayRes.error && todayRes.data) setStops(todayRes.data)
-      if (!lastWeekRes.error && lastWeekRes.data) setLastWeekStops(lastWeekRes.data)
-      setLoading(false)
+    const pharmacyStops = todayRes.data || []
+    if (!todayRes.error) setStops(pharmacyStops)
+    if (!lastWeekRes.error && lastWeekRes.data) setLastWeekStops(lastWeekRes.data)
+
+    // Fetch full routes for each driver assigned to this pharmacy today
+    const driverNames = [...new Set(pharmacyStops.map(s => s.driver_name).filter(Boolean))]
+    if (driverNames.length > 0) {
+      const { data: allStops } = await supabase
+        .from('daily_stops')
+        .select('id, driver_name, sort_order, status, delivered_at')
+        .eq('delivery_date', today)
+        .in('driver_name', driverNames)
+        .order('sort_order', { ascending: true, nullsFirst: false })
+      setAllDriverStops(allStops || [])
     }
-    load()
+
+    setLoading(false)
   }, [pharmacyName, today, lastWeekDate])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  // Auto-refresh every 30s for live ETA updates
+  useEffect(() => {
+    const interval = setInterval(loadData, 30000)
+    return () => clearInterval(interval)
+  }, [loadData])
+
+  // Build ETA map for pending stops
+  const etaMap = useMemo(
+    () => buildETAMap(stops, allDriverStops),
+    [stops, allDriverStops]
+  )
 
   const total = stops.length
   const delivered = stops.filter(s => s.status === 'delivered').length
@@ -325,9 +462,13 @@ export default function PortalDashboard() {
                       <td>{stop.zip || '-'}</td>
                       <td>{stop.driver_name || '-'}</td>
                       <td>
-                        <span className={`portal-badge ${getStatusClass(stop.status)}`}>
-                          {getStatusLabel(stop.status)}
-                        </span>
+                        {getStatusClass(stop.status) === 'pending' ? (
+                          <PendingBadge stop={stop} etaInfo={etaMap[stop.id]} />
+                        ) : (
+                          <span className={`portal-badge ${getStatusClass(stop.status)}`}>
+                            {getStatusLabel(stop.status)}
+                          </span>
+                        )}
                       </td>
                       <td>{formatTime(stop.delivered_at)}</td>
                       <td>
