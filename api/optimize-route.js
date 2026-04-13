@@ -100,6 +100,8 @@ export default async function handler(req, res) {
     const isOneWay = !hasEnd && (oneWay === true || endLat === undefined)
     const endPoint = hasEnd ? [endLat, endLng] : null
 
+    console.log(`[optimize] ${withCoords.length} stops, oneWay=${oneWay}, hasEnd=${hasEnd}, isOneWay=${isOneWay}, endLat=${endLat}, endLng=${endLng}`)
+
     let optimizedAll, method, totalDistMeters = null, totalDurSeconds = null
 
     // Try Route Optimization API first (best quality)
@@ -109,8 +111,9 @@ export default async function handler(req, res) {
       totalDistMeters = result.distanceMeters
       totalDurSeconds = result.durationSeconds
       method = 'route-optimization-api'
+      console.log(`[optimize] Route Optimization API succeeded: ${totalDistMeters}m, ${totalDurSeconds}s`)
     } catch (err) {
-      console.warn('Route Optimization API failed:', err.message, '— falling back to Routes API')
+      console.warn('[optimize] Route Optimization API failed:', err.message, '— falling back to Routes API')
 
       // Fallback to Routes API computeRoutes
       try {
