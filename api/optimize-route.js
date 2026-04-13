@@ -1,6 +1,6 @@
-// Route optimization engine v4 — Clean Google Routes API
-// Lets Google solve the full TSP with precise geocoding on every stop
-// No pre-sorting, no ZIP-center approximations, real road distances
+// Route optimization engine v5 — Best-of-N endpoint selection
+// For one-way routes: tries multiple endpoint candidates, picks shortest
+// Clean Google TSP with precise geocoding, real road distances
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
@@ -43,37 +43,45 @@ export default async function handler(req, res) {
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
-    // One-way mode: no fixed endpoint, don't round-trip back to pharmacy
     const isOneWay = !hasEnd && (oneWay === true || endLat === undefined)
     const endPoint = hasEnd ? [endLat, endLng] : null
 
-    // Send stops directly to Google — no pre-sorting, let Google solve the full TSP
     let optimizedAll, method, googleDistance = null, googleDuration = null
 
     try {
-      const result = await googleOptimize(withCoords, origin, endPoint, isOneWay)
-      optimizedAll = result.stops
-      googleDistance = result.distanceMeters
-      googleDuration = result.durationSeconds
-      method = 'google-routes'
+      if (isOneWay && withCoords.length > 2) {
+        // Best-of-N: try multiple endpoint candidates, pick shortest route
+        const result = await googleOptimizeBestEndpoint(withCoords, origin)
+        optimizedAll = result.stops
+        googleDistance = result.distanceMeters
+        googleDuration = result.durationSeconds
+        method = `google-routes-best-of-${result.candidatesTried}`
+      } else {
+        const dest = endPoint || origin // round trip if not one-way and no endpoint
+        const result = await googleOptimizeBatch(withCoords, origin, dest)
+        optimizedAll = result.stops
+        googleDistance = result.distanceMeters
+        googleDuration = result.durationSeconds
+        method = 'google-routes'
+      }
     } catch (err) {
       console.warn('Google Routes failed:', err.message, '— falling back to OSRM')
       try {
         optimizedAll = await osrmFallback(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
         method = 'osrm-fallback'
       } catch {
-        optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
+        optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1])
         method = 'nearest-neighbor'
       }
     }
 
     const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
-    // Use Google's real road distance if available, otherwise calculate haversine
+    // Use Google's real road distance if available
     let totalDistance, totalDuration
     if (googleDistance != null) {
-      totalDistance = Math.round((googleDistance / 1609.34) * 10) / 10 // meters → miles
-      totalDuration = googleDuration ? Math.round(googleDuration / 60) : null // seconds → minutes
+      totalDistance = Math.round((googleDistance / 1609.34) * 10) / 10
+      totalDuration = googleDuration ? Math.round(googleDuration / 60) : null
     } else {
       totalDistance = 0
       let curLat = origin[0], curLng = origin[1]
@@ -114,75 +122,105 @@ export default async function handler(req, res) {
   }
 }
 
-// ═══ GOOGLE ROUTES API OPTIMIZER ═══
+// ═══ BEST-OF-N ENDPOINT SELECTION ═══
+// For one-way routes, the choice of destination stop heavily affects the TSP solution.
+// We pick 3-4 geographic extreme candidates, run Google on each in parallel,
+// and return the shortest route.
 
-async function googleOptimize(stops, origin, endPoint, isOneWay = false) {
-  if (stops.length <= 98) {
-    return googleOptimizeBatch(stops, origin, endPoint, isOneWay)
+function pickEndpointCandidates(stops, origin) {
+  if (stops.length <= 3) return [0] // too few to bother
+
+  const candidates = new Set()
+
+  // 1) Farthest from origin
+  let farthestIdx = 0, farthestDist = 0
+  for (let i = 0; i < stops.length; i++) {
+    const d = haversine(origin[0], origin[1], stops[i].lat, stops[i].lng)
+    if (d > farthestDist) { farthestDist = d; farthestIdx = i }
+  }
+  candidates.add(farthestIdx)
+
+  // 2) Farthest from centroid (most isolated stop)
+  const cLat = stops.reduce((a, s) => a + s.lat, 0) / stops.length
+  const cLng = stops.reduce((a, s) => a + s.lng, 0) / stops.length
+  let isolatedIdx = 0, isolatedDist = 0
+  for (let i = 0; i < stops.length; i++) {
+    const d = haversine(cLat, cLng, stops[i].lat, stops[i].lng)
+    if (d > isolatedDist) { isolatedDist = d; isolatedIdx = i }
+  }
+  candidates.add(isolatedIdx)
+
+  // 3) Geographic extremes: most north, most south, most east, most west
+  let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity
+  let southIdx = 0, northIdx = 0, westIdx = 0, eastIdx = 0
+  for (let i = 0; i < stops.length; i++) {
+    if (stops[i].lat < minLat) { minLat = stops[i].lat; southIdx = i }
+    if (stops[i].lat > maxLat) { maxLat = stops[i].lat; northIdx = i }
+    if (stops[i].lng < minLng) { minLng = stops[i].lng; westIdx = i }
+    if (stops[i].lng > maxLng) { maxLng = stops[i].lng; eastIdx = i }
   }
 
-  // For routes > 98 stops, split and chain
-  const chunks = []
-  for (let i = 0; i < stops.length; i += 98) {
-    chunks.push(stops.slice(i, i + 98))
-  }
+  // Pick the 2 extremes farthest from origin (avoid redundant candidates near origin)
+  const extremes = [
+    { idx: southIdx, dist: haversine(origin[0], origin[1], stops[southIdx].lat, stops[southIdx].lng) },
+    { idx: northIdx, dist: haversine(origin[0], origin[1], stops[northIdx].lat, stops[northIdx].lng) },
+    { idx: westIdx, dist: haversine(origin[0], origin[1], stops[westIdx].lat, stops[westIdx].lng) },
+    { idx: eastIdx, dist: haversine(origin[0], origin[1], stops[eastIdx].lat, stops[eastIdx].lng) },
+  ].sort((a, b) => b.dist - a.dist)
 
-  let allOptimized = []
-  let currentOrigin = origin
-  let totalDist = 0, totalDur = 0
+  candidates.add(extremes[0].idx)
+  if (extremes[1].idx !== extremes[0].idx) candidates.add(extremes[1].idx)
 
-  for (const chunk of chunks) {
-    const isLast = chunk === chunks[chunks.length - 1]
-    const chunkEnd = isLast ? endPoint : null
-    const chunkOneWay = isLast ? isOneWay : false
-
-    const result = await googleOptimizeBatch(chunk, currentOrigin, chunkEnd, chunkOneWay)
-    allOptimized.push(...result.stops)
-    if (result.distanceMeters) totalDist += result.distanceMeters
-    if (result.durationSeconds) totalDur += result.durationSeconds
-
-    if (result.stops.length > 0) {
-      const last = result.stops[result.stops.length - 1]
-      currentOrigin = [last.lat, last.lng]
-    }
-  }
-
-  return { stops: allOptimized, distanceMeters: totalDist, durationSeconds: totalDur }
+  return [...candidates].slice(0, 4) // max 4 candidates
 }
 
-async function googleOptimizeBatch(stops, origin, endPoint, isOneWay = false) {
-  // For one-way routes with no fixed endpoint, use the farthest stop as destination
-  // This tells Google to optimize start→stops without forcing a return trip
-  let destination, destinationStop = null
-  if (endPoint) {
-    destination = { location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } } }
-  } else if (isOneWay && stops.length > 0) {
-    // Pick the farthest stop from origin as destination, rest become intermediates
-    let farthestIdx = 0, farthestDist = 0
-    for (let i = 0; i < stops.length; i++) {
-      const d = haversine(origin[0], origin[1], stops[i].lat, stops[i].lng)
-      if (d > farthestDist) { farthestDist = d; farthestIdx = i }
+async function googleOptimizeBestEndpoint(stops, origin) {
+  const candidateIdxs = pickEndpointCandidates(stops, origin)
+
+  // Run Google Routes in parallel for each candidate endpoint
+  const results = await Promise.allSettled(
+    candidateIdxs.map(async (destIdx) => {
+      const destStop = stops[destIdx]
+      const intermediates = stops.filter((_, i) => i !== destIdx)
+      const dest = [destStop.lat, destStop.lng]
+
+      const result = await googleOptimizeBatch(intermediates, origin, dest)
+      // Append destination stop at the end
+      result.stops.push(destStop)
+      return result
+    })
+  )
+
+  // Pick the result with the shortest distance
+  let best = null
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue
+    const result = r.value
+    if (!best || (result.distanceMeters && result.distanceMeters < best.distanceMeters)) {
+      best = result
     }
-    destinationStop = stops[farthestIdx]
-    destination = { location: { latLng: { latitude: destinationStop.lat, longitude: destinationStop.lng } } }
-    // Remove farthest from intermediates — it's now the destination
-    stops = stops.filter((_, i) => i !== farthestIdx)
-  } else {
-    // Fallback: round trip to origin
-    destination = { location: { latLng: { latitude: origin[0], longitude: origin[1] } } }
   }
 
+  if (!best) throw new Error('All endpoint candidates failed')
+
+  best.candidatesTried = candidateIdxs.length
+  return best
+}
+
+// ═══ GOOGLE ROUTES API ═══
+
+async function googleOptimizeBatch(stops, origin, endPoint) {
   const body = {
     origin: {
       location: { latLng: { latitude: origin[0], longitude: origin[1] } }
     },
-    destination,
+    destination: {
+      location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } }
+    },
     intermediates: stops.map(s => {
-      // Always prefer precise coordinates
       if (s.lat && s.lng && s.geocodeMethod !== 'zip-center') {
         return { location: { latLng: { latitude: s.lat, longitude: s.lng } } }
       }
-      // For ZIP-center fallbacks, send the address string so Google geocodes it precisely
       if (s.address && s.city) {
         return { address: `${s.address}, ${s.city}, OH ${s.zip || ''}`.trim() }
       }
@@ -217,19 +255,14 @@ async function googleOptimizeBatch(stops, origin, endPoint, isOneWay = false) {
   const route = data.routes[0]
   const order = route.optimizedIntermediateWaypointIndex
   const distanceMeters = route.distanceMeters || null
-  // duration comes as "123s" string
   let durationSeconds = null
   if (route.duration) {
     const match = String(route.duration).match(/(\d+)/)
     if (match) durationSeconds = parseInt(match[1], 10)
   }
 
-  // Append the destination stop back at the end (it was the farthest stop pulled out for one-way)
-  const optimizedStops = order.map(i => stops[i])
-  if (destinationStop) optimizedStops.push(destinationStop)
-
   return {
-    stops: optimizedStops,
+    stops: order.map(i => stops[i]),
     distanceMeters,
     durationSeconds,
   }
@@ -263,7 +296,7 @@ async function osrmFallback(stops, startLat, startLng, endLat, endLng) {
 
 // ═══ NEAREST NEIGHBOR FALLBACK ═══
 
-function nearestNeighbor(stops, startLat, startLng, endLat, endLng) {
+function nearestNeighbor(stops, startLat, startLng) {
   const visited = new Set()
   const result = []
   let curLat = startLat, curLng = startLng
@@ -313,7 +346,6 @@ async function geocodeStops(stops) {
   const misses = results.filter(r => r._needsGeocode)
 
   if (misses.length > 0) {
-    // Try Google Geocoding first (most accurate), then Census, then ZIP center
     await Promise.all(misses.map(async (m) => {
       const s = m._stop
       const r = results[m.index]
@@ -337,7 +369,7 @@ async function geocodeStops(stops) {
         } catch {}
       }
 
-      // 2) Census Bureau (free fallback)
+      // 2) Census Bureau
       try {
         const resp = await fetch(
           `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(addr)}&benchmark=Public_AR_Current&format=json`,
