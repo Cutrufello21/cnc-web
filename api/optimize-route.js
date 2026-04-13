@@ -7,7 +7,8 @@ import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
 import { requireAuth } from './_lib/auth.js'
 
-const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY
+// Try all possible env var names for the API key
+const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY
 const GOOGLE_GEOCODE_KEY = process.env.GOOGLE_GEOCODE_API_KEY || GOOGLE_API_KEY
 const GOOGLE_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'cnc-dispatch'
 const TOKEN_URI = 'https://oauth2.googleapis.com/token'
@@ -198,10 +199,9 @@ export default async function handler(req, res) {
       method,
       summary: `${optimizedAll.length} stops via ${method}`,
       _debug: {
-        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
-        hasPrivateKey: !!process.env.GOOGLE_PRIVATE_KEY,
+        apiKeySource: process.env.GOOGLE_ROUTES_API_KEY ? 'ROUTES' : process.env.VITE_GOOGLE_MAPS_API_KEY ? 'VITE_MAPS' : process.env.GOOGLE_MAPS_API_KEY ? 'MAPS' : 'NONE',
         hasServiceJSON: !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON,
-        hasRoutesKey: !!process.env.GOOGLE_ROUTES_API_KEY,
+        hasClientEmail: !!process.env.GOOGLE_CLIENT_EMAIL,
         errors,
       },
     })
