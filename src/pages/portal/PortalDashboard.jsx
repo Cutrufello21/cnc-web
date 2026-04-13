@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import PortalShell from '../../components/portal/PortalShell'
@@ -131,6 +131,15 @@ export default function PortalDashboard() {
   const [loading, setLoading] = useState(true)
   const [podStop, setPodStop] = useState(null)
 
+  // Search & filters
+  const [search, setSearch] = useState('')
+  const [filterDriver, setFilterDriver] = useState('')
+  const [filterCity, setFilterCity] = useState('')
+  const [filterZip, setFilterZip] = useState('')
+  const [filterStatus, setFilterStatus] = useState('')
+  const [sortCol, setSortCol] = useState(null)
+  const [sortAsc, setSortAsc] = useState(true)
+
   const pharmacyName = profile?.pharmacy_name || profile?.pharmacy || 'SHSP'
   const today = new Date().toLocaleDateString('en-CA')
   const lastWeekDate = new Date(Date.now() - 7 * 86400000).toLocaleDateString('en-CA')
@@ -202,52 +211,150 @@ export default function PortalDashboard() {
         {pct}% Complete &middot; {delivered} of {total} delivered today
       </div>
 
-      {loading ? (
-        <div className="portal-loading">Loading deliveries...</div>
-      ) : stops.length === 0 ? (
-        <div className="portal-empty">No deliveries found for today.</div>
-      ) : (
-        <div className="portal-table-wrap">
-          <table className="portal-table">
-            <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Address</th>
-                <th>City</th>
-                <th>Zip</th>
-                <th>Driver</th>
-                <th>Status</th>
-                <th>Time</th>
-                <th>POD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stops.map(stop => (
-                <tr key={stop.id}>
-                  <td>{stop.patient_name || '-'}</td>
-                  <td>{stop.address || '-'}</td>
-                  <td>{stop.city || '-'}</td>
-                  <td>{stop.zip || '-'}</td>
-                  <td>{stop.driver_name || '-'}</td>
-                  <td>
-                    <span className={`portal-badge ${getStatusClass(stop.status)}`}>
-                      {getStatusLabel(stop.status)}
-                    </span>
-                  </td>
-                  <td>{formatTime(stop.delivered_at)}</td>
-                  <td>
-                    {hasPodEvidence(stop) ? (
-                      <button className="portal-pod-btn" onClick={() => setPodStop(stop)}>
-                        POD
-                      </button>
-                    ) : <span style={{ color: 'rgba(255,255,255,0.25)' }}>-</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {/* Search & Filters */}
+      {!loading && stops.length > 0 && (() => {
+        const drivers = [...new Set(stops.map(s => s.driver_name).filter(Boolean))].sort()
+        const cities = [...new Set(stops.map(s => s.city).filter(Boolean))].sort()
+        const zips = [...new Set(stops.map(s => s.zip).filter(Boolean))].sort()
+        const hasFilters = search || filterDriver || filterCity || filterZip || filterStatus
+
+        const filtered = stops.filter(s => {
+          if (search) {
+            const q = search.toLowerCase()
+            if (!`${s.patient_name || ''} ${s.address || ''} ${s.order_id || ''} ${s.city || ''} ${s.zip || ''}`.toLowerCase().includes(q)) return false
+          }
+          if (filterDriver && (s.driver_name || '') !== filterDriver) return false
+          if (filterCity && (s.city || '') !== filterCity) return false
+          if (filterZip && (s.zip || '') !== filterZip) return false
+          if (filterStatus) {
+            const sc = getStatusClass(s.status)
+            if (sc !== filterStatus) return false
+          }
+          return true
+        }).sort((a, b) => {
+          if (!sortCol) return (a.sort_order ?? 999) - (b.sort_order ?? 999)
+          const dir = sortAsc ? 1 : -1
+          let va, vb
+          if (sortCol === 'time') {
+            va = a.delivered_at || ''; vb = b.delivered_at || ''
+          } else if (sortCol === 'status') {
+            va = getStatusLabel(a.status); vb = getStatusLabel(b.status)
+          } else {
+            va = (a[sortCol] || '').toString().toLowerCase()
+            vb = (b[sortCol] || '').toString().toLowerCase()
+          }
+          return va < vb ? -dir : va > vb ? dir : 0
+        })
+
+        function toggleSort(col) {
+          if (sortCol === col) setSortAsc(!sortAsc)
+          else { setSortCol(col); setSortAsc(true) }
+        }
+
+        function SortIcon({ col }) {
+          if (sortCol !== col) return <span style={{ opacity: 0.3, marginLeft: 4, fontSize: '0.65rem' }}>⇅</span>
+          return <span style={{ color: '#10B981', marginLeft: 4, fontSize: '0.65rem' }}>{sortAsc ? '▲' : '▼'}</span>
+        }
+
+        return (
+          <>
+            <div className="portal-filters">
+              <div className="portal-search-wrap">
+                <svg className="portal-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input
+                  type="text"
+                  className="portal-search-input"
+                  placeholder="Search order #, patient, address..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+                {search && <button className="portal-search-clear" onClick={() => setSearch('')}>&times;</button>}
+              </div>
+              <div className="portal-filter-row">
+                <select className="portal-filter-select" value={filterDriver} onChange={e => setFilterDriver(e.target.value)}>
+                  <option value="">All Drivers</option>
+                  {drivers.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <select className="portal-filter-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                  <option value="">All Statuses</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="pending">Pending</option>
+                  <option value="failed">Failed</option>
+                </select>
+                <select className="portal-filter-select" value={filterCity} onChange={e => setFilterCity(e.target.value)}>
+                  <option value="">All Cities</option>
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select className="portal-filter-select" value={filterZip} onChange={e => setFilterZip(e.target.value)}>
+                  <option value="">All ZIPs</option>
+                  {zips.map(z => <option key={z} value={z}>{z}</option>)}
+                </select>
+                {hasFilters && (
+                  <button className="portal-clear-btn" onClick={() => { setSearch(''); setFilterDriver(''); setFilterCity(''); setFilterZip(''); setFilterStatus(''); setSortCol(null); setSortAsc(true) }}>
+                    Clear All
+                  </button>
+                )}
+              </div>
+              {hasFilters && (
+                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>
+                  Showing {filtered.length} of {stops.length} orders
+                </div>
+              )}
+            </div>
+
+            <div className="portal-table-wrap">
+              <table className="portal-table">
+                <thead>
+                  <tr>
+                    <th className="portal-th-sort" onClick={() => toggleSort('patient_name')}>Patient<SortIcon col="patient_name" /></th>
+                    <th className="portal-th-sort" onClick={() => toggleSort('address')}>Address<SortIcon col="address" /></th>
+                    <th className="portal-th-sort" onClick={() => toggleSort('city')}>City<SortIcon col="city" /></th>
+                    <th className="portal-th-sort" onClick={() => toggleSort('zip')}>Zip<SortIcon col="zip" /></th>
+                    <th className="portal-th-sort" onClick={() => toggleSort('driver_name')}>Driver<SortIcon col="driver_name" /></th>
+                    <th className="portal-th-sort" onClick={() => toggleSort('status')}>Status<SortIcon col="status" /></th>
+                    <th className="portal-th-sort" onClick={() => toggleSort('time')}>Time<SortIcon col="time" /></th>
+                    <th>POD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(stop => (
+                    <tr key={stop.id}>
+                      <td>{stop.patient_name || '-'}</td>
+                      <td>{stop.address || '-'}</td>
+                      <td>{stop.city || '-'}</td>
+                      <td>{stop.zip || '-'}</td>
+                      <td>{stop.driver_name || '-'}</td>
+                      <td>
+                        <span className={`portal-badge ${getStatusClass(stop.status)}`}>
+                          {getStatusLabel(stop.status)}
+                        </span>
+                      </td>
+                      <td>{formatTime(stop.delivered_at)}</td>
+                      <td>
+                        {hasPodEvidence(stop) ? (
+                          <button className="portal-pod-btn" onClick={() => setPodStop(stop)}>
+                            POD
+                          </button>
+                        ) : <span style={{ color: 'rgba(255,255,255,0.25)' }}>-</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '40px 0' }}>
+                        No orders match your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )
+      })()}
+
+      {loading && <div className="portal-loading">Loading deliveries...</div>}
+      {!loading && stops.length === 0 && <div className="portal-empty">No deliveries found for today.</div>}
 
       {podStop && <PODModal stop={podStop} onClose={() => setPodStop(null)} />}
     </PortalShell>
