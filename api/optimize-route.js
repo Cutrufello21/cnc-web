@@ -1,12 +1,13 @@
-// Route optimization engine v3 — Google Routes API
-// Uses Google's production-grade route optimizer for perfect stop ordering
-// Handles up to 98 waypoints per request with real traffic data
+// Route optimization engine v4 — Clean Google Routes API
+// Lets Google solve the full TSP with precise geocoding on every stop
+// No pre-sorting, no ZIP-center approximations, real road distances
 
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
 import { requireAuth } from './_lib/auth.js'
 
 const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY
+const GOOGLE_GEOCODE_KEY = process.env.GOOGLE_GEOCODE_API_KEY || GOOGLE_API_KEY
 
 function toRad(deg) { return deg * Math.PI / 180 }
 function haversine(lat1, lon1, lat2, lon2) {
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
   if (!user) return
 
   try {
-    const { stops, pharmacy, startLat, startLng, endLat, endLng, driverName, deliveryDay } = req.body
+    const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
     const coords = await geocodeStops(stops)
@@ -36,77 +37,59 @@ export default async function handler(req, res) {
     const withoutCoords = coords.filter(c => c.lat === null)
 
     if (withCoords.length === 0) {
-      return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0 })
-    }
-
-    // Fetch driver's historical ZIP ordering pattern
-    let learnedPattern = null
-    if (driverName) {
-      try {
-        const { data: patternStops } = await supabase
-          .from('daily_stops')
-          .select('zip, delivery_date, id, delivered_at')
-          .eq('driver_name', driverName)
-          .eq('status', 'delivered')
-          .gte('delivery_date', new Date(Date.now() - 90 * 86400000).toISOString().split('T')[0])
-          .order('delivery_date', { ascending: false })
-          .order('id', { ascending: true })
-          .limit(2000)
-
-        if (patternStops?.length > 20) {
-          learnedPattern = buildZipOrder(patternStops)
-        }
-      } catch (e) { console.warn('Pattern fetch failed:', e.message) }
+      return res.json({ optimizedOrder: stops.map((_, i) => i), totalDistance: 0, totalDuration: 0 })
     }
 
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
-    const endPoint = hasEnd ? [endLat, endLng] : origin // default round-trip back to origin
+    const endPoint = hasEnd ? [endLat, endLng] : origin
 
-    // Pre-sort stops by learned ZIP pattern before sending to Google
-    // This gives Google a better starting arrangement to optimize from
-    let stopsToOptimize = withCoords
-    if (learnedPattern?.length > 0) {
-      const zipRank = {}
-      learnedPattern.forEach((zip, i) => { zipRank[zip] = i })
-      stopsToOptimize = [...withCoords].sort((a, b) => {
-        const ra = zipRank[a.zip] ?? 999
-        const rb = zipRank[b.zip] ?? 999
-        if (ra !== rb) return ra - rb
-        // Within same ZIP, sort by proximity to previous stop
-        return 0
-      })
-    }
-
-    // Use Google Routes API for optimization
-    let optimizedAll, method
+    // Send stops directly to Google — no pre-sorting, let Google solve the full TSP
+    let optimizedAll, method, googleDistance = null, googleDuration = null
 
     try {
-      optimizedAll = await googleOptimize(stopsToOptimize, origin, endPoint)
+      const result = await googleOptimize(withCoords, origin, endPoint)
+      optimizedAll = result.stops
+      googleDistance = result.distanceMeters
+      googleDuration = result.durationSeconds
       method = 'google-routes'
-      if (learnedPattern) method += '+learned'
     } catch (err) {
       console.warn('Google Routes failed:', err.message, '— falling back to OSRM')
       try {
-        optimizedAll = await osrmFallback(stopsToOptimize, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
+        optimizedAll = await osrmFallback(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
         method = 'osrm-fallback'
       } catch {
-        // Last resort: nearest neighbor by haversine
-        optimizedAll = nearestNeighbor(stopsToOptimize, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
+        optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
         method = 'nearest-neighbor'
       }
     }
 
     const optimizedOrder = [...optimizedAll.map(s => s.index), ...withoutCoords.map(c => c.index)]
 
-    let totalDistance = 0
+    // Use Google's real road distance if available, otherwise calculate haversine
+    let totalDistance, totalDuration
+    if (googleDistance != null) {
+      totalDistance = Math.round((googleDistance / 1609.34) * 10) / 10 // meters → miles
+      totalDuration = googleDuration ? Math.round(googleDuration / 60) : null // seconds → minutes
+    } else {
+      totalDistance = 0
+      let curLat = origin[0], curLng = origin[1]
+      for (const s of optimizedAll) {
+        totalDistance += haversine(curLat, curLng, s.lat, s.lng)
+        curLat = s.lat; curLng = s.lng
+      }
+      if (hasEnd) totalDistance += haversine(curLat, curLng, endLat, endLng)
+      totalDistance = Math.round(totalDistance * 10) / 10
+      totalDuration = null
+    }
+
+    // Build per-stop reasons
     let curLat = origin[0], curLng = origin[1]
     const reasons = []
     for (let i = 0; i < optimizedAll.length; i++) {
       const s = optimizedAll[i]
       const legDist = haversine(curLat, curLng, s.lat, s.lng)
-      totalDistance += legDist
       let reason = `${Math.round(legDist * 10) / 10} mi from ${i === 0 ? 'start' : 'previous'}`
       if (s.geocodeMethod === 'zip-center') reason += ' · ZIP estimate'
       if (s.coldChain) reason += ' · Cold chain'
@@ -114,11 +97,11 @@ export default async function handler(req, res) {
       curLat = s.lat; curLng = s.lng
     }
     for (const c of withoutCoords) reasons.push('No geocode — placed at end')
-    if (hasEnd) totalDistance += haversine(curLat, curLng, endLat, endLng)
 
     return res.json({
       optimizedOrder,
-      totalDistance: Math.round(totalDistance * 10) / 10,
+      totalDistance,
+      totalDuration,
       reasons,
       method,
       summary: `${optimizedAll.length} stops optimized via ${method}`,
@@ -130,16 +113,13 @@ export default async function handler(req, res) {
 }
 
 // ═══ GOOGLE ROUTES API OPTIMIZER ═══
-// Google handles up to 98 intermediates per request
-// For larger routes, we chunk into batches
 
 async function googleOptimize(stops, origin, endPoint) {
-  // Google Routes supports up to 98 intermediate waypoints
   if (stops.length <= 98) {
     return googleOptimizeBatch(stops, origin, endPoint)
   }
 
-  // For routes > 98 stops, split geographically and chain
+  // For routes > 98 stops, split and chain
   const chunks = []
   for (let i = 0; i < stops.length; i += 98) {
     chunks.push(stops.slice(i, i + 98))
@@ -147,22 +127,24 @@ async function googleOptimize(stops, origin, endPoint) {
 
   let allOptimized = []
   let currentOrigin = origin
+  let totalDist = 0, totalDur = 0
 
   for (const chunk of chunks) {
     const isLast = chunk === chunks[chunks.length - 1]
     const chunkEnd = isLast ? endPoint : null
 
-    const optimized = await googleOptimizeBatch(chunk, currentOrigin, chunkEnd)
-    allOptimized.push(...optimized)
+    const result = await googleOptimizeBatch(chunk, currentOrigin, chunkEnd)
+    allOptimized.push(...result.stops)
+    if (result.distanceMeters) totalDist += result.distanceMeters
+    if (result.durationSeconds) totalDur += result.durationSeconds
 
-    // Next chunk starts from where this one ended
-    if (optimized.length > 0) {
-      const last = optimized[optimized.length - 1]
+    if (result.stops.length > 0) {
+      const last = result.stops[result.stops.length - 1]
       currentOrigin = [last.lat, last.lng]
     }
   }
 
-  return allOptimized
+  return { stops: allOptimized, distanceMeters: totalDist, durationSeconds: totalDur }
 }
 
 async function googleOptimizeBatch(stops, origin, endPoint) {
@@ -174,10 +156,11 @@ async function googleOptimizeBatch(stops, origin, endPoint) {
       location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } }
     },
     intermediates: stops.map(s => {
-      // Use precise coordinates when available (cache/app), address string only as fallback
+      // Always prefer precise coordinates
       if (s.lat && s.lng && s.geocodeMethod !== 'zip-center') {
         return { location: { latLng: { latitude: s.lat, longitude: s.lng } } }
       }
+      // For ZIP-center fallbacks, send the address string so Google geocodes it precisely
       if (s.address && s.city) {
         return { address: `${s.address}, ${s.city}, OH ${s.zip || ''}`.trim() }
       }
@@ -209,8 +192,21 @@ async function googleOptimizeBatch(stops, origin, endPoint) {
     throw new Error('Google Routes returned no optimized order')
   }
 
-  const order = data.routes[0].optimizedIntermediateWaypointIndex
-  return order.map(i => stops[i])
+  const route = data.routes[0]
+  const order = route.optimizedIntermediateWaypointIndex
+  const distanceMeters = route.distanceMeters || null
+  // duration comes as "123s" string
+  let durationSeconds = null
+  if (route.duration) {
+    const match = String(route.duration).match(/(\d+)/)
+    if (match) durationSeconds = parseInt(match[1], 10)
+  }
+
+  return {
+    stops: order.map(i => stops[i]),
+    distanceMeters,
+    durationSeconds,
+  }
 }
 
 // ═══ OSRM FALLBACK ═══
@@ -262,6 +258,7 @@ function nearestNeighbor(stops, startLat, startLng, endLat, endLng) {
 }
 
 // ═══ GEOCODING ═══
+// Priority: app-supplied coords → cache → Google Geocoding → Census → ZIP center (last resort)
 
 async function geocodeStops(stops) {
   const cacheKeys = stops.map(s =>
@@ -279,115 +276,68 @@ async function geocodeStops(stops) {
   const results = stops.map((s, i) => {
     const base = { index: i, address: s.address || '', city: s.city || '', zip: s.zip || '', coldChain: !!s.coldChain, sigRequired: !!s.sigRequired }
 
-    // Use pre-supplied coordinates from the app first
     if (s.lat && s.lng) return { ...base, lat: s.lat, lng: s.lng, geocodeMethod: 'app' }
 
     const c = cacheMap.get(cacheKeys[i])
     if (c) return { ...base, lat: c[0], lng: c[1], geocodeMethod: 'precise' }
 
-    const zip = String(s.zip || '').trim()
-    const zc = ZIP_COORDS[zip] || ZIP_COORDS[zip.padStart(5, '0')]
-    if (zc) {
-      const jitter = () => (Math.random() - 0.5) * 0.002
-      return { ...base, lat: zc[0] + jitter(), lng: zc[1] + jitter(), geocodeMethod: 'zip-center' }
-    }
     return { ...base, lat: null, lng: null, _needsGeocode: true, _stop: s }
   })
 
   const misses = results.filter(r => r._needsGeocode)
+
   if (misses.length > 0) {
-    const geocodeOne = async (m) => {
+    // Try Google Geocoding first (most accurate), then Census, then ZIP center
+    await Promise.all(misses.map(async (m) => {
       const s = m._stop
-      const addr = encodeURIComponent(`${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`)
+      const r = results[m.index]
+      const addr = `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
+      const key = cacheKeys[m.index]
+
+      // 1) Google Geocoding API
+      if (GOOGLE_GEOCODE_KEY) {
+        try {
+          const resp = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${GOOGLE_GEOCODE_KEY}`,
+            { signal: AbortSignal.timeout(5000) }
+          )
+          const data = await resp.json()
+          const loc = data.results?.[0]?.geometry?.location
+          if (loc) {
+            r.lat = loc.lat; r.lng = loc.lng; r.geocodeMethod = 'google'; r._needsGeocode = false
+            supabase.from('geocode_cache').upsert({ cache_key: key, lat: loc.lat, lng: loc.lng }, { onConflict: 'cache_key' }).then(() => {})
+            return
+          }
+        } catch {}
+      }
+
+      // 2) Census Bureau (free fallback)
       try {
         const resp = await fetch(
-          `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${addr}&benchmark=Public_AR_Current&format=json`,
-          { signal: AbortSignal.timeout(10000) }
+          `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(addr)}&benchmark=Public_AR_Current&format=json`,
+          { signal: AbortSignal.timeout(8000) }
         )
         const data = await resp.json()
         const match = data?.result?.addressMatches?.[0]
         if (match?.coordinates) {
-          const lat = match.coordinates.y
-          const lng = match.coordinates.x
-          const r = results[m.index]
-          r.lat = lat; r.lng = lng; r.geocodeMethod = 'census'; r._needsGeocode = false
-          const key = `${(s.address || '').toLowerCase().trim()}|${(s.city || '').toLowerCase().trim()}|${(s.zip || '').trim()}`
-          supabase.from('geocode_cache').upsert({ cache_key: key, lat, lng }, { onConflict: 'cache_key' }).then(() => {})
+          r.lat = match.coordinates.y; r.lng = match.coordinates.x; r.geocodeMethod = 'census'; r._needsGeocode = false
+          supabase.from('geocode_cache').upsert({ cache_key: key, lat: r.lat, lng: r.lng }, { onConflict: 'cache_key' }).then(() => {})
+          return
         }
       } catch {}
-    }
-    await Promise.all(misses.map(geocodeOne))
+
+      // 3) ZIP center — last resort
+      const zip = String(s.zip || '').trim()
+      const zc = ZIP_COORDS[zip] || ZIP_COORDS[zip.padStart(5, '0')]
+      if (zc) {
+        const jitter = () => (Math.random() - 0.5) * 0.002
+        r.lat = zc[0] + jitter(); r.lng = zc[1] + jitter(); r.geocodeMethod = 'zip-center'; r._needsGeocode = false
+      }
+    }))
   }
 
   return results.map(r => {
     const { _needsGeocode, _stop, ...clean } = r
     return clean
   })
-}
-
-// ═══ LEARNED PATTERN ENGINE ═══
-// Builds a preferred ZIP ordering from historical delivery data
-
-function buildZipOrder(stops) {
-  const days = {}
-  stops.forEach(s => {
-    if (!days[s.delivery_date]) days[s.delivery_date] = []
-    days[s.delivery_date].push(s)
-  })
-
-  // Sort each day by delivered_at or id
-  Object.values(days).forEach(dayStops => {
-    dayStops.sort((a, b) => {
-      if (a.delivered_at && b.delivered_at) return a.delivered_at.localeCompare(b.delivered_at)
-      return a.id - b.id
-    })
-  })
-
-  const transitions = {}
-  const zipFirst = {}
-  const zipFreq = {}
-
-  Object.values(days).forEach(dayStops => {
-    if (dayStops.length < 2) return
-    const zipSeq = []
-    let prev = null
-    for (const s of dayStops) {
-      zipFreq[s.zip] = (zipFreq[s.zip] || 0) + 1
-      if (s.zip !== prev) { zipSeq.push(s.zip); prev = s.zip }
-    }
-    if (zipSeq.length === 0) return
-    zipFirst[zipSeq[0]] = (zipFirst[zipSeq[0]] || 0) + 1
-    for (let i = 0; i < zipSeq.length - 1; i++) {
-      const pair = `${zipSeq[i]}→${zipSeq[i + 1]}`
-      transitions[pair] = (transitions[pair] || 0) + 1
-    }
-  })
-
-  const startZip = Object.entries(zipFirst).sort((a, b) => b[1] - a[1])[0]?.[0]
-  if (!startZip) return []
-
-  const allZips = new Set(Object.keys(zipFreq))
-  const order = [startZip]
-  const visited = new Set([startZip])
-
-  while (visited.size < allZips.size) {
-    const current = order[order.length - 1]
-    let bestNext = null, bestCount = 0
-    for (const [pair, count] of Object.entries(transitions)) {
-      const [from, to] = pair.split('→')
-      if (from === current && !visited.has(to) && count > bestCount) {
-        bestNext = to; bestCount = count
-      }
-    }
-    if (bestNext) {
-      order.push(bestNext); visited.add(bestNext)
-    } else {
-      const remaining = [...allZips].filter(z => !visited.has(z))
-        .sort((a, b) => (zipFreq[b] || 0) - (zipFreq[a] || 0))
-      if (remaining.length === 0) break
-      order.push(remaining[0]); visited.add(remaining[0])
-    }
-  }
-
-  return order
 }
