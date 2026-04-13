@@ -13,6 +13,7 @@ const ALLOWED = {
   driver_favorites: ['insert', 'delete'],
   mileage_log: ['upsert'],
   address_notes: ['upsert'],
+  order_deletions: ['insert'],
 }
 
 // Generic DB write proxy — all client-side writes route through here
