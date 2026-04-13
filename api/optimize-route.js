@@ -29,7 +29,7 @@ export default async function handler(req, res) {
   if (!user) return
 
   try {
-    const { stops, pharmacy, startLat, startLng, endLat, endLng } = req.body
+    const { stops, pharmacy, startLat, startLng, endLat, endLng, oneWay } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
     const coords = await geocodeStops(stops)
@@ -43,13 +43,15 @@ export default async function handler(req, res) {
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
     const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
     const hasEnd = endLat != null && endLng != null
-    const endPoint = hasEnd ? [endLat, endLng] : origin
+    // One-way mode: no fixed endpoint, don't round-trip back to pharmacy
+    const isOneWay = !hasEnd && (oneWay === true || endLat === undefined)
+    const endPoint = hasEnd ? [endLat, endLng] : null
 
     // Send stops directly to Google — no pre-sorting, let Google solve the full TSP
     let optimizedAll, method, googleDistance = null, googleDuration = null
 
     try {
-      const result = await googleOptimize(withCoords, origin, endPoint)
+      const result = await googleOptimize(withCoords, origin, endPoint, isOneWay)
       optimizedAll = result.stops
       googleDistance = result.distanceMeters
       googleDuration = result.durationSeconds
@@ -114,9 +116,9 @@ export default async function handler(req, res) {
 
 // ═══ GOOGLE ROUTES API OPTIMIZER ═══
 
-async function googleOptimize(stops, origin, endPoint) {
+async function googleOptimize(stops, origin, endPoint, isOneWay = false) {
   if (stops.length <= 98) {
-    return googleOptimizeBatch(stops, origin, endPoint)
+    return googleOptimizeBatch(stops, origin, endPoint, isOneWay)
   }
 
   // For routes > 98 stops, split and chain
@@ -132,8 +134,9 @@ async function googleOptimize(stops, origin, endPoint) {
   for (const chunk of chunks) {
     const isLast = chunk === chunks[chunks.length - 1]
     const chunkEnd = isLast ? endPoint : null
+    const chunkOneWay = isLast ? isOneWay : false
 
-    const result = await googleOptimizeBatch(chunk, currentOrigin, chunkEnd)
+    const result = await googleOptimizeBatch(chunk, currentOrigin, chunkEnd, chunkOneWay)
     allOptimized.push(...result.stops)
     if (result.distanceMeters) totalDist += result.distanceMeters
     if (result.durationSeconds) totalDur += result.durationSeconds
@@ -147,14 +150,33 @@ async function googleOptimize(stops, origin, endPoint) {
   return { stops: allOptimized, distanceMeters: totalDist, durationSeconds: totalDur }
 }
 
-async function googleOptimizeBatch(stops, origin, endPoint) {
+async function googleOptimizeBatch(stops, origin, endPoint, isOneWay = false) {
+  // For one-way routes with no fixed endpoint, use the farthest stop as destination
+  // This tells Google to optimize start→stops without forcing a return trip
+  let destination, destinationStop = null
+  if (endPoint) {
+    destination = { location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } } }
+  } else if (isOneWay && stops.length > 0) {
+    // Pick the farthest stop from origin as destination, rest become intermediates
+    let farthestIdx = 0, farthestDist = 0
+    for (let i = 0; i < stops.length; i++) {
+      const d = haversine(origin[0], origin[1], stops[i].lat, stops[i].lng)
+      if (d > farthestDist) { farthestDist = d; farthestIdx = i }
+    }
+    destinationStop = stops[farthestIdx]
+    destination = { location: { latLng: { latitude: destinationStop.lat, longitude: destinationStop.lng } } }
+    // Remove farthest from intermediates — it's now the destination
+    stops = stops.filter((_, i) => i !== farthestIdx)
+  } else {
+    // Fallback: round trip to origin
+    destination = { location: { latLng: { latitude: origin[0], longitude: origin[1] } } }
+  }
+
   const body = {
     origin: {
       location: { latLng: { latitude: origin[0], longitude: origin[1] } }
     },
-    destination: {
-      location: { latLng: { latitude: endPoint[0], longitude: endPoint[1] } }
-    },
+    destination,
     intermediates: stops.map(s => {
       // Always prefer precise coordinates
       if (s.lat && s.lng && s.geocodeMethod !== 'zip-center') {
@@ -202,8 +224,12 @@ async function googleOptimizeBatch(stops, origin, endPoint) {
     if (match) durationSeconds = parseInt(match[1], 10)
   }
 
+  // Append the destination stop back at the end (it was the farthest stop pulled out for one-way)
+  const optimizedStops = order.map(i => stops[i])
+  if (destinationStop) optimizedStops.push(destinationStop)
+
   return {
-    stops: order.map(i => stops[i]),
+    stops: optimizedStops,
     distanceMeters,
     durationSeconds,
   }
