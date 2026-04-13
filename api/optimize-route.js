@@ -2,6 +2,8 @@
 // Uses Google's dedicated logistics-grade TSP solver (formerly Fleet Routing)
 // Supports true open-ended routes, no destination hacks needed
 
+import { createSign } from 'crypto'
+import { readFileSync } from 'fs'
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
 import { requireAuth } from './_lib/auth.js'
@@ -9,6 +11,57 @@ import { requireAuth } from './_lib/auth.js'
 const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY
 const GOOGLE_GEOCODE_KEY = process.env.GOOGLE_GEOCODE_API_KEY || GOOGLE_API_KEY
 const GOOGLE_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'cnc-dispatch'
+
+// ═══ OAuth for Route Optimization API ═══
+const TOKEN_URI = 'https://oauth2.googleapis.com/token'
+const RO_SCOPE = 'https://www.googleapis.com/auth/cloud-platform'
+
+function getCredentials() {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    let raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.trim()
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      raw = raw.slice(1, -1)
+    }
+    raw = raw.replace(/\\"/g, '"')
+    const creds = JSON.parse(raw)
+    if (typeof creds.private_key === 'string') creds.private_key = creds.private_key.replace(/\\n/g, '\n')
+    return creds
+  }
+  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    return { client_email: process.env.GOOGLE_CLIENT_EMAIL, private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n') }
+  }
+  return null
+}
+
+let cachedROToken = null, roTokenExpiry = 0
+
+async function getRouteOptToken() {
+  if (cachedROToken && Date.now() < roTokenExpiry) return cachedROToken
+  const creds = getCredentials()
+  if (!creds) throw new Error('No Google service account credentials configured')
+
+  const now = Math.floor(Date.now() / 1000)
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify({
+    iss: creds.client_email, scope: RO_SCOPE, aud: TOKEN_URI, iat: now, exp: now + 3600,
+  })).toString('base64url')
+  const unsigned = `${header}.${payload}`
+  const sign = createSign('RSA-SHA256')
+  sign.update(unsigned)
+  const signature = sign.sign(creds.private_key, 'base64url')
+  const jwt = `${unsigned}.${signature}`
+
+  const res = await fetch(TOKEN_URI, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  })
+  if (!res.ok) throw new Error(`OAuth token exchange failed: ${await res.text()}`)
+  const data = await res.json()
+  cachedROToken = data.access_token
+  roTokenExpiry = Date.now() + (data.expires_in - 60) * 1000
+  return cachedROToken
+}
 
 function toRad(deg) { return deg * Math.PI / 180 }
 function haversine(lat1, lon1, lat2, lon2) {
@@ -187,12 +240,13 @@ async function routeOptimizationAPI(stops, origin, endPoint, isOneWay) {
   }
 
   const url = `https://routeoptimization.googleapis.com/v1/projects/${GOOGLE_PROJECT}:optimizeTours`
+  const token = await getRouteOptToken()
 
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Goog-Api-Key': GOOGLE_API_KEY,
+      'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(30000),
