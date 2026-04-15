@@ -55,16 +55,21 @@ export default async function handler(req, res) {
     }
   }
 
-  // Step 2: Batch geocode uncached via Census Bureau
+  // Step 2: Batch geocode uncached — Google first, Census fallback
   if (toGeocode.length > 0) {
-    const censusResults = await batchGeocodeCensus(toGeocode)
+    const googleResults = await batchGeocodeGoogle(toGeocode)
+
+    // Collect any that Google missed for Census fallback
+    const googleMissed = toGeocode.filter(a => !googleResults.has(a._key))
+    const censusResults = googleMissed.length > 0 ? await batchGeocodeCensus(googleMissed) : new Map()
 
     // Step 3: Save new results to Supabase cache
     const toInsert = []
     for (const g of toGeocode) {
-      const result = censusResults.get(g._key)
+      const result = googleResults.get(g._key) || censusResults.get(g._key)
+      const source = googleResults.has(g._key) ? 'google' : censusResults.has(g._key) ? 'census' : 'none'
       if (result) {
-        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: result.lat, lng: result.lng, source: 'census' }
+        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: result.lat, lng: result.lng, source }
         toInsert.push({
           cache_key: g._key,
           address: g.address,
@@ -74,7 +79,6 @@ export default async function handler(req, res) {
           lng: result.lng,
         })
       } else {
-        // No result — still null
         results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: null, lng: null, source: 'none' }
       }
     }
@@ -92,6 +96,41 @@ export default async function handler(req, res) {
 
 function buildCacheKey(address, city, zip) {
   return `${(address || '').toLowerCase().trim()}|${(city || '').toLowerCase().trim()}|${(zip || '').trim()}`
+}
+
+async function batchGeocodeGoogle(addresses) {
+  const results = new Map()
+  const apiKey = process.env.GOOGLE_ROUTES_API_KEY
+  if (!apiKey) return results
+
+  const CONCURRENCY = 10
+  const chunks = []
+  for (let i = 0; i < addresses.length; i += CONCURRENCY) {
+    chunks.push(addresses.slice(i, i + CONCURRENCY))
+  }
+
+  for (const chunk of chunks) {
+    const promises = chunk.map(async (a) => {
+      try {
+        const addr = `${a.address}, ${a.city}, OH ${a.zip}`
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${apiKey}`
+        const resp = await fetch(url, { signal: AbortSignal.timeout(5000) })
+        const data = await resp.json()
+        const match = data?.results?.[0]
+        if (match?.geometry?.location) {
+          results.set(a._key, {
+            lat: match.geometry.location.lat,
+            lng: match.geometry.location.lng,
+          })
+        }
+      } catch (err) {
+        console.warn('Google geocode failed for:', a.address, err.message)
+      }
+    })
+    await Promise.all(promises)
+  }
+
+  return results
 }
 
 async function batchGeocodeCensus(addresses) {
