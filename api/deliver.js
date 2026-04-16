@@ -15,6 +15,28 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {})
+
+    // Batch mode — process multiple deliveries in one request (offline queue flush)
+    if (body.batch && Array.isArray(body.batch)) {
+      const results = []
+      for (const item of body.batch) {
+        const ids = item.orderIds || (item.orderId ? [item.orderId] : [])
+        if (!ids.length || !item.deliveryDate || !item.driverName) continue
+        const now = item.deliveredAt || new Date().toISOString()
+        if (item.failed) {
+          const { data, error } = await supabase.from('daily_stops').update({ status: 'failed', failure_reason: item.failureReason || 'Unknown', delivered_at: now }).in('order_id', ids).eq('delivery_date', item.deliveryDate).select()
+          if (!error) results.push({ ids, status: 'failed', count: data?.length || 0 })
+        } else {
+          const updatePayload = { status: 'delivered', delivered_at: now }
+          if (item.gpsLat != null) updatePayload.gps_lat = item.gpsLat
+          if (item.gpsLng != null) updatePayload.gps_lng = item.gpsLng
+          const { data, error } = await supabase.from('daily_stops').update(updatePayload).in('order_id', ids).eq('delivery_date', item.deliveryDate).select()
+          if (!error) results.push({ ids, status: 'delivered', count: data?.length || 0 })
+        }
+      }
+      return res.status(200).json({ success: true, batch: true, results })
+    }
+
     const { orderId, orderIds: rawOrderIds, deliveryDate, driverName, photoUrls, photoUrl, barcode, undo, signatureUrl, failed, failureReason, deliveryNote } = body
 
     // Support both single orderId and orderIds array
