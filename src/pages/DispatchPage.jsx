@@ -8,6 +8,7 @@ import Analytics from '../components/dispatch/Analytics'
 import Orders from '../components/dispatch/Orders'
 import Drivers from '../components/dispatch/Drivers'
 import Schedule from '../components/dispatch/Schedule'
+import Communications from '../components/dispatch/Communications'
 import RoutesView from '../components/dispatch/RoutesView'
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
@@ -438,6 +439,7 @@ export default function DispatchPage() {
             ['orders', 'Orders', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>],
             ['drivers', 'Drivers', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>],
             ['timeoff', 'Schedule', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>],
+            ['comms', 'Comms', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>],
           ].map(([key, label, icon]) => (
             <button
               key={key}
@@ -470,6 +472,7 @@ export default function DispatchPage() {
         {view === 'orders' && <Orders />}
         {view === 'drivers' && <Drivers />}
         {view === 'timeoff' && <Schedule />}
+        {view === 'comms' && <Communications />}
 
         {view === 'routes' && <RoutesView data={data} loading={loading} error={error} selectedDay={selectedDay} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showRouting={showRouting} setShowRouting={setShowRouting} showSortList={showSortList} setShowSortList={setShowSortList} showUnassigned={showUnassigned} setShowUnassigned={setShowUnassigned} zipSearch={zipSearch} setZipSearch={setZipSearch} handleDayChange={handleDayChange} fetchDispatchData={fetchDispatchData} handleMoveComplete={handleMoveComplete} handleUndo={handleUndo} moveToast={moveToast} setMoveToast={setMoveToast} lastMove={lastMove} undoing={undoing} dismissedWarnings={dismissedWarnings} setDismissedWarnings={setDismissedWarnings} totalStops={totalStops} totalColdChain={totalColdChain} allActiveDrivers={allActiveDrivers} activeDrivers={activeDrivers} inactiveDrivers={inactiveDrivers} sendingRoutes={sendingRoutes} routesSent={routesSent} handleSendRoutes={handleSendRoutes} sentSnapshot={sentSnapshot} resending={resending} handleResendChanges={handleResendChanges} sendingCorrections={sendingCorrections} correctionsSent={correctionsSent} handleSendCorrections={handleSendCorrections} sendingResendCorrections={sendingResendCorrections} handleResendCorrections={handleResendCorrections} sendingForceAll={sendingForceAll} forceAllSent={forceAllSent} handleForceSendAll={handleForceSendAll} sendingCallIns={sendingCallIns} callInsSent={callInsSent} callInPreview={callInPreview} handlePreviewCallIns={handlePreviewCallIns} handleConfirmCallIns={handleConfirmCallIns} aiLoading={aiLoading} aiResult={aiResult} setAiResult={setAiResult} aiApplying={aiApplying} handleAiSuggest={handleAiSuggest} handleAiApply={handleAiApply}/>}
       </main>

@@ -14,6 +14,12 @@ const ALLOWED = {
   mileage_log: ['upsert'],
   address_notes: ['upsert'],
   order_deletions: ['insert'],
+  drivers: ['update'],
+  routing_rules: ['insert', 'update', 'upsert', 'delete'],
+  schedule_overrides: ['insert', 'update', 'upsert'],
+  driver_schedule: ['insert', 'update', 'upsert'],
+  announcements: ['insert', 'update', 'delete'],
+  poll_responses: ['insert', 'delete'],
 }
 
 // Generic DB write proxy — all client-side writes route through here
