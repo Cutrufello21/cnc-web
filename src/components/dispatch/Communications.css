@@ -56,6 +56,37 @@
 .comms-action-delete { color: #dc2626; border-color: #fecaca; }
 .comms-action-delete:hover { background: #fef2f2; }
 
+/* New badges */
+.comms-badge-pinned { background: #d97706; }
+.comms-badge-targeted { background: #7c3aed; }
+.comms-badge-scheduled { background: #2563eb; }
+
+/* Checkbox row */
+.comms-checkbox-row label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--color-text-primary); cursor: pointer; margin-top: 20px; }
+.comms-checkbox-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0A2463; }
+.comms-label-hint { font-weight: 400; color: var(--color-text-secondary); font-size: 10px; }
+
+/* Driver chips */
+.comms-driver-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.comms-driver-chip { padding: 5px 12px; font-size: 12px; font-weight: 600; border: 1px solid var(--color-border); border-radius: 20px; background: var(--color-background); color: var(--color-text-secondary); cursor: pointer; }
+.comms-driver-chip.selected { background: #0A2463; color: #fff; border-color: #0A2463; }
+.comms-driver-chip:hover { opacity: 0.85; }
+
+/* Read receipts */
+.comms-reads { margin-top: 6px; }
+.comms-reads-btn { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); background: none; border: none; cursor: pointer; padding: 2px 0; text-decoration: underline; text-decoration-style: dotted; }
+.comms-reads-btn:hover { color: #0A2463; }
+.comms-reads-detail { margin-top: 8px; padding: 10px; background: var(--color-background-secondary, #f8fafc); border-radius: 8px; font-size: 12px; }
+.comms-reads-group { margin-bottom: 6px; }
+.comms-reads-group:last-child { margin-bottom: 0; }
+.comms-reads-label { font-weight: 700; display: block; margin-bottom: 2px; }
+.comms-reads-yes { color: #16a34a; }
+.comms-reads-no { color: #dc2626; }
+.comms-reads-names { color: var(--color-text-secondary); line-height: 1.4; }
+
+/* Sign-up names */
+.comms-signup-names { font-size: 11px; color: var(--color-text-secondary); margin-top: 3px; padding-left: 2px; line-height: 1.4; }
+
 /* Poll Results */
 .comms-poll-results { width: 100%; padding: 12px 0 0; border-top: 1px solid var(--color-border); margin-top: 8px; }
 .comms-poll-total { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 10px; }

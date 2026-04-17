@@ -20,6 +20,7 @@ const ALLOWED = {
   driver_schedule: ['insert', 'update', 'upsert'],
   announcements: ['insert', 'update', 'delete'],
   poll_responses: ['insert', 'delete'],
+  announcement_reads: ['insert'],
 }
 
 // Generic DB write proxy — all client-side writes route through here

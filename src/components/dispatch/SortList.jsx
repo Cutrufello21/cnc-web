@@ -87,8 +87,10 @@ export default function SortList({ deliveryDate }) {
 
         // Update display_text for existing drivers — only Aultman auto-syncs cities
         // SHSP display_text is manually editable and never overwritten
+        // Rows with manual_override=true are never auto-updated
         if (pharmacy === 'Aultman') {
           for (const row of currentRows) {
+            if (row.manual_override) continue
             const cities = cityMap[row.driver_name]
             if (!cities) continue
             const cityList = [...cities].sort().join(', ')
@@ -152,7 +154,7 @@ export default function SortList({ deliveryDate }) {
   async function handleSave(id) {
     setSaving(true)
     const line = [...lines.SHSP, ...lines.Aultman].find(l => l.id === id)
-    await apiPost({ action: 'update', id, display_text: editVal })
+    await apiPost({ action: 'update', id, display_text: editVal, manual_override: true })
     logDecision({ action: 'log_sort_list', deliveryDate: dateStr, pharmacy: line?.pharmacy, driverName: line?.driver_name, sortAction: 'edit', detail: editVal })
     setEditKey(null)
     setSaving(false)

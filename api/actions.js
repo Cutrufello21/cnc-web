@@ -415,6 +415,45 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, sent: tokens.length, pushData })
     }
 
+    if (data.action === 'announce') {
+      // Send push notifications for a new announcement
+      const { announcementId, title, body, pharmacy, priority, targetDrivers } = data
+      if (!title) return res.status(400).json({ error: 'Missing title' })
+
+      // Build driver query based on targeting
+      let driversQuery = supabase.from('drivers').select('driver_name, push_token, pharmacy').eq('active', true)
+      if (targetDrivers?.length > 0) {
+        driversQuery = driversQuery.in('id', targetDrivers)
+      } else if (pharmacy && pharmacy !== 'all') {
+        driversQuery = driversQuery.eq('pharmacy', pharmacy)
+      }
+
+      const { data: drivers } = await driversQuery
+      const tokens = (drivers || []).filter(d => d.push_token).map(d => d.push_token)
+
+      if (tokens.length > 0) {
+        const messages = tokens.map(token => ({
+          to: token,
+          sound: 'default',
+          title: priority === 'urgent' ? `URGENT: ${title}` : title,
+          body: body || '',
+          data: { type: 'announcement', announcementId },
+        }))
+
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(messages),
+        })
+      }
+
+      // Save to notification history
+      const notifRows = (drivers || []).map(d => ({ driver_name: d.driver_name, title, body: body || '', type: 'announcement' }))
+      if (notifRows.length > 0) await supabase.from('driver_notifications').insert(notifRows).catch(() => {})
+
+      return res.status(200).json({ success: true, sent: tokens.length })
+    }
+
     if (data.action === 'push_routes') {
       // Send push to all active drivers with stops for a given date
       const dateStr = data.date

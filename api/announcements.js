@@ -9,9 +9,10 @@ export default async function handler(req, res) {
 
   try {
     const pharmacy = req.query.pharmacy || 'all'
+    const driverId = req.query.driver_id || null
+    const includeReads = req.query.reads === 'true'
     const now = new Date().toISOString()
 
-    // Fetch active announcements for this pharmacy (or 'all')
     let query = supabase
       .from('announcements')
       .select('*')
@@ -22,12 +23,18 @@ export default async function handler(req, res) {
     const { data: announcements, error } = await query
     if (error) throw new Error(error.message)
 
-    // Filter expired on server side (or.is.null handles no expiry)
-    const active = (announcements || []).filter(
-      a => !a.expires_at || new Date(a.expires_at) > new Date(now)
-    )
+    // Filter: expired, not yet scheduled, not targeted at this driver
+    const active = (announcements || []).filter(a => {
+      if (a.expires_at && new Date(a.expires_at) < new Date(now)) return false
+      if (a.scheduled_for && new Date(a.scheduled_for) > new Date(now)) return false
+      if (a.target_drivers && Array.isArray(a.target_drivers) && a.target_drivers.length > 0) {
+        if (driverId && !a.target_drivers.includes(Number(driverId)) && !a.target_drivers.includes(String(driverId))) return false
+        if (!driverId) return true // web portal sees all
+      }
+      return true
+    })
 
-    // For polls, fetch response counts
+    // Poll response counts
     const polls = active.filter(a => a.type === 'poll')
     if (polls.length > 0) {
       const pollIds = polls.map(p => p.id)
@@ -35,16 +42,26 @@ export default async function handler(req, res) {
         .from('poll_responses')
         .select('announcement_id,response')
         .in('announcement_id', pollIds)
-
-      // Attach response counts to each poll
       for (const poll of polls) {
         const pollResponses = (responses || []).filter(r => r.announcement_id === poll.id)
         const counts = {}
-        for (const r of pollResponses) {
-          counts[r.response] = (counts[r.response] || 0) + 1
-        }
+        for (const r of pollResponses) { counts[r.response] = (counts[r.response] || 0) + 1 }
         poll.response_counts = counts
         poll.total_responses = pollResponses.length
+      }
+    }
+
+    // Read receipts — attach counts (always) and full list (if requested from web)
+    const allIds = active.map(a => a.id)
+    if (allIds.length > 0) {
+      const { data: reads } = await supabase
+        .from('announcement_reads')
+        .select('announcement_id,driver_id')
+        .in('announcement_id', allIds)
+      for (const a of active) {
+        const r = (reads || []).filter(x => x.announcement_id === a.id)
+        a.read_count = r.length
+        if (includeReads) a.read_by = r.map(x => x.driver_id)
       }
     }
 
