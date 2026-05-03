@@ -7,6 +7,7 @@ const team = [
     initials: 'PC',
     name: 'Paul Cutrufello',
     title: 'Founder & Owner',
+    photo: '/team/paul.jpg',
     desc: 'Founded CNC Delivery in 2007 with a standard that has never wavered: if it helps the patient, do it. If we can, we will. That principle has guided every leader of this operation since — and it hasn\'t changed.',
   },
   {
@@ -57,6 +58,7 @@ export default function Team() {
               transition={{ duration: 0.5, delay: 0.1 * i }}>
               <div className="team__avatar">
                 <span className="team__initials">{member.initials}</span>
+                {member.photo && <img src={member.photo} alt={member.name} className="team__photo" />}
               </div>
               <h3 className="team__name">{member.name}</h3>
               <p className="team__role">{member.title}</p>

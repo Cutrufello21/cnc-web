@@ -13,7 +13,7 @@ const CALL_IN_ZIPS = new Set([
   '44645','44651','44659','44662','44672','44675','44678','44681','44683','44691','44695','44697',
 ])
 
-export default function useDispatchActions({ data, activeDrivers, setMoveToast, fetchDispatchData, selectedDay }) {
+export default function useDispatchActions({ data, activeDrivers, setMoveToast, fetchDispatchData, selectedDay, sessionCorrections, sessionStartTime, setSessionFinalMinutes }) {
   const [sendingRoutes, setSendingRoutes] = useState(false)
   const [routesSent, setRoutesSent] = useState(false)
   const [sendingCorrections, setSendingCorrections] = useState(false)
@@ -26,6 +26,10 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
   const [sendingCallIns, setSendingCallIns] = useState(false)
   const [callInsSent, setCallInsSent] = useState(false)
   const [callInPreview, setCallInPreview] = useState(null)
+  const [correctionPreview, setCorrectionPreview] = useState(null)
+  const [combinedPreview, setCombinedPreview] = useState(null)
+  const [resendAllPreview, setResendAllPreview] = useState(null)
+  const [forceDriverSelection, setForceDriverSelection] = useState(null)
 
   function buildDriverEmail(name, stops, cc, dayStr) {
     const ccLine = cc > 0 ? ` — ${cc} are cold chain.` : '.'
@@ -69,13 +73,14 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     })))
   }
 
-  async function handleConfirmCallIns() {
-    if (!callInPreview?.length) return
+  async function handleConfirmCallIns(passedCallIns) {
+    const items = passedCallIns || callInPreview
+    if (!items?.length) return
     setSendingCallIns(true)
     try {
       const html = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
         <tr style="background:#0A2463;color:white"><th>Order #</th><th>Address</th><th>City</th><th>Patient Name</th><th>ZIP</th></tr>
-        ${callInPreview.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.city}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
+        ${items.map(r => `<tr><td>${r.orderId}</td><td>${r.address}</td><td>${r.city}</td><td>${r.name}</td><td>${r.zip}</td></tr>`).join('')}
       </table>`
       await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
@@ -88,7 +93,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
       })
       setCallInsSent(true)
       setCallInPreview(null)
-      alert(`${callInPreview.length} call-in orders sent to BioTouch.`)
+      alert(`${items.length} call-in orders sent to BioTouch.`)
     } catch (err) {
       alert('Failed to send call-ins: ' + err.message)
     } finally {
@@ -97,9 +102,13 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
   }
 
   async function handleSendRoutes() {
+    const dateStr0 = data.deliveryDateObj
+      ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+      : null
+    const dayLabel = data.deliveryDay || dateStr0
     const msg = TEST_MODE
       ? `TEST MODE — Send all route emails to ${TEST_EMAIL} instead of drivers?`
-      : 'Send route emails to all active drivers?'
+      : `Send route emails to all active drivers for ${dayLabel}?`
     if (!confirm(msg)) return
     setSendingRoutes(true)
     try {
@@ -117,49 +126,40 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
         })
         sent++
       }
-      const rwDrivers = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom']
-      const rwPayload = activeDrivers
-        .filter(d => rwDrivers.includes(d['Driver Name']) && d.stopDetails?.length > 0)
-        .map(d => ({
-          name: d['Driver Name'],
-          routeName: `${d['Driver Name']} - ${data.deliveryDay}`,
-          stops: d.stopDetails.map(s => ({
-            order_id: s['Order ID'] || '', address: s.Address || '',
-            city: s.City || '', zip: s.ZIP || '',
-            cold_chain: s._coldChain || false, pharmacy: s.Pharmacy || '',
-          })),
-        }))
-
-      let rwCount = 0
-      if (rwPayload.length > 0) {
-        try {
-          const rwRes = await fetch('/api/actions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'roadwarrior', drivers: rwPayload }),
-          })
-          const rwData = await rwRes.json()
-          rwCount = rwData.results?.filter(r => r.success).length || 0
-        } catch {}
-      }
-
       setSentSnapshot(takeSnapshot())
       setRoutesSent(true)
-      setMoveToast(`Routes sent to ${sent} drivers${rwCount > 0 ? `, Road Warrior pushed to ${rwCount}` : ''}`)
+      setMoveToast(`Routes sent to ${sent} drivers`)
 
       const dateStr = data.deliveryDateObj
         ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
         : null
       if (dateStr) {
+        // Mark all stops for this date as dispatched so drivers can see them
+        // Also populate driver numbers for correction emails
+        // Update status to dispatched and set assigned_driver_number
+        // NEVER overwrite dispatch_driver_number — that's the BioTouch original assignment from Gmail import
+        const { data: dateStops } = await supabase.from('daily_stops').select('id, driver_name, dispatch_driver_number, assigned_driver_number').eq('delivery_date', dateStr)
+        const driverNumMap = {}
+        activeDrivers.forEach(d => { if (d['Driver Name'] && d['Driver #']) driverNumMap[d['Driver Name']] = String(d['Driver #']) })
+        for (const s of (dateStops || [])) {
+          if (!s.driver_name || !driverNumMap[s.driver_name]) continue
+          const num = driverNumMap[s.driver_name]
+          const update = { status: 'dispatched', assigned_driver_number: num, driver_number: num }
+          // Only set dispatch_driver_number if it's null (wasn't set by Gmail import)
+          if (!s.dispatch_driver_number) update.dispatch_driver_number = num
+          supabase.from('daily_stops').update(update).eq('id', s.id).then(() => {})
+        }
         fetch('/api/dispatch-log-decision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'snapshot', deliveryDate: dateStr, deliveryDay: data.deliveryDay }),
         }).catch(() => {})
+        const sessionMinutes = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 60000) : null
+        if (setSessionFinalMinutes && sessionMinutes != null) setSessionFinalMinutes(sessionMinutes)
         fetch('/api/dispatch-log-decision', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'auto_log', deliveryDate: dateStr, deliveryDay: data.deliveryDay }),
+          body: JSON.stringify({ action: 'auto_log', deliveryDate: dateStr, deliveryDay: data.deliveryDay, session_corrections: sessionCorrections || 0, session_duration_minutes: sessionMinutes }),
         }).catch(() => {})
         fetch('/api/actions', {
           method: 'POST',
@@ -246,39 +246,117 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     }
   }
 
-  async function handleSendCorrections() {
-    if (!confirm('Send correction emails for reassigned stops?')) return
+  // Shared: calculate corrections for a given date, optionally skip already-sent
+  async function calcCorrections(skipAlreadySent) {
+    const dateStr = data.deliveryDateObj
+      ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+      : ''
+    if (!dateStr) return { corrections: {}, alreadySent: 0, stops: [], dateStr }
+
+    const { data: stops } = await supabase
+      .from('daily_stops')
+      .select('*')
+      .eq('delivery_date', dateStr)
+      .limit(10000)
+
+    // Build driver number → name map
+    const numToName = {}
+    activeDrivers.forEach(d => { if (d['Driver #']) numToName[String(d['Driver #'])] = d['Driver Name'] })
+
+    const corrections = {}
+    let alreadySent = 0
+    for (const s of (stops || [])) {
+      if (!s.assigned_driver_number) continue
+      const needsCorrection =
+        !s.dispatch_driver_number ||
+        String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
+      if (!needsCorrection) continue
+      if (skipAlreadySent &&
+        s.last_correction_driver &&
+        String(s.last_correction_driver) === String(s.assigned_driver_number)
+      ) {
+        alreadySent++
+        continue
+      }
+      const did = s.assigned_driver_number
+      const driverName = numToName[did] || `Driver #${did}`
+      if (!corrections[did]) corrections[did] = { name: driverName, orderIds: [] }
+      corrections[did].orderIds.push(s.order_id)
+    }
+    return { corrections, alreadySent, stops, dateStr }
+  }
+
+  async function handlePreviewCorrections(forceAll) {
+    const { corrections, alreadySent } = await calcCorrections(!forceAll)
+    if (Object.keys(corrections).length === 0) {
+      setMoveToast(alreadySent > 0 ? `No new corrections — ${alreadySent} already sent` : 'No corrections needed — all assignments match')
+      return
+    }
+    if (forceAll) {
+      setResendAllPreview({ corrections, alreadySent })
+    } else {
+      setCorrectionPreview({ corrections, alreadySent, forceAll })
+    }
+  }
+
+  async function handleConfirmResendAll() {
+    if (!resendAllPreview) return
+    setResendAllPreview(null)
+    await handleResendCorrections(true)
+  }
+
+  async function handlePreviewAndReview() {
+    // Load both corrections and call-ins at once
+    const { corrections, alreadySent } = await calcCorrections(true)
+
+    // Call-ins
+    let callIns = []
+    if (data?.drivers) {
+      const allStops = data.drivers.flatMap(d => (d.stopDetails || []))
+      callIns = allStops.filter(s => {
+        const zip = s.zip || s.ZIP || s['Zip Code']
+        const pharma = (s.pharmacy || s.Pharmacy || '').toLowerCase()
+        return CALL_IN_ZIPS.has(zip) && pharma !== 'shsp'
+      }).map(s => ({
+        orderId: s.order_id || s['Order ID'],
+        address: s.address || s.Address,
+        city: s.city || s.City || '',
+        name: s.patient_name || s.Name,
+        zip: s.zip || s.ZIP || s['Zip Code'],
+      }))
+    }
+
+    if (Object.keys(corrections).length === 0 && callIns.length === 0) {
+      setMoveToast('No corrections or call-in orders found')
+      return
+    }
+
+    setCombinedPreview({ corrections, alreadySent, callIns })
+  }
+
+  async function handleConfirmCorrections() {
+    if (!correctionPreview) return
+    const { forceAll } = correctionPreview
+    setCorrectionPreview(null)
+    if (forceAll) {
+      await handleResendCorrections(true)
+    } else {
+      await handleSendCorrections(true)
+    }
+  }
+
+  async function handleSendCorrections(confirmed, passedCorrections) {
+    if (!confirmed && !confirm('Send correction emails for reassigned stops?')) return
     setSendingCorrections(true)
     try {
-      const dateStr = data.deliveryDateObj
-        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
-        : ''
-      if (!dateStr) throw new Error('No delivery date')
-
-      const { data: stops } = await supabase
-        .from('daily_stops')
-        .select('*')
-        .eq('delivery_date', dateStr)
-        .limit(10000)
-
-      const corrections = {}
-      let alreadySent = 0
-      for (const s of (stops || [])) {
-        if (!s.assigned_driver_number) continue
-        const needsCorrection =
-          !s.dispatch_driver_number ||
-          String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
-        if (!needsCorrection) continue
-        if (
-          s.last_correction_driver &&
-          String(s.last_correction_driver) === String(s.assigned_driver_number)
-        ) {
-          alreadySent++
-          continue
-        }
-        const did = s.assigned_driver_number
-        if (!corrections[did]) corrections[did] = []
-        corrections[did].push(s.order_id)
+      let corrections, alreadySent, stops, dateStr
+      if (passedCorrections) {
+        corrections = passedCorrections
+        alreadySent = 0
+        const dd = data.deliveryDateObj
+        dateStr = dd ? `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}` : ''
+      } else {
+        ({ corrections, alreadySent, stops, dateStr } = await calcCorrections(true))
       }
 
       if (Object.keys(corrections).length === 0) {
@@ -293,7 +371,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
 
       let sent = 0
       let markErrors = []
-      for (const [driverId, orderIds] of Object.entries(corrections)) {
+      for (const [driverId, { orderIds }] of Object.entries(corrections)) {
         try {
           await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -355,47 +433,26 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     }
   }
 
-  async function handleResendCorrections() {
+  async function handleResendCorrections(confirmed) {
     setSendingResendCorrections(true)
     try {
-      const dateStr = data.deliveryDateObj
-        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
-        : ''
-      if (!dateStr) throw new Error('No delivery date')
-
-      const { data: stops } = await supabase
-        .from('daily_stops')
-        .select('*')
-        .eq('delivery_date', dateStr)
-        .limit(10000)
-
-      const corrections = {}
-      for (const s of (stops || [])) {
-        if (!s.assigned_driver_number) continue
-        const needsCorrection =
-          !s.dispatch_driver_number ||
-          String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
-        if (!needsCorrection) continue
-        const did = s.assigned_driver_number
-        if (!corrections[did]) corrections[did] = []
-        corrections[did].push(s.order_id)
-      }
+      const { corrections, alreadySent, stops, dateStr } = await calcCorrections(false)
 
       const driverCount = Object.keys(corrections).length
-      const totalOrders = Object.values(corrections).reduce((n, arr) => n + arr.length, 0)
+      const totalOrders = Object.values(corrections).reduce((n, arr) => n + arr.orderIds.length, 0)
       if (driverCount === 0) {
         setMoveToast('No reassigned stops to resend — every stop matches its original dispatch')
         setSendingResendCorrections(false)
         return
       }
-      if (!confirm(`Resend ${totalOrders} reassigned orders across ${driverCount} drivers to BioTouch?\n\n(Ignores already-sent tracking. Does NOT send the ${(stops || []).length - totalOrders} stops that match their original dispatch.)`)) {
+      if (!confirmed && !confirm(`Resend ${totalOrders} reassigned orders across ${driverCount} drivers to BioTouch?`)) {
         setSendingResendCorrections(false)
         return
       }
 
       let sent = 0
       const markErrors = []
-      for (const [driverId, orderIds] of Object.entries(corrections)) {
+      for (const [driverId, { orderIds }] of Object.entries(corrections)) {
         try {
           await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -439,43 +496,56 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
   }
 
   async function handleForceSendAll() {
-    if (!confirm('FORCE SEND ALL: email WFL the full order list for every driver (ignores already-sent tracking). Continue?')) return
+    const dateStr = data.deliveryDateObj
+      ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+      : ''
+    if (!dateStr) { setMoveToast('No delivery date'); return }
+
+    const { data: stops } = await supabase
+      .from('daily_stops')
+      .select('*')
+      .eq('delivery_date', dateStr)
+      .limit(10000)
+
+    // Build driver number → name map
+    const numToName = {}
+    activeDrivers.forEach(d => { if (d['Driver #']) numToName[String(d['Driver #'])] = d['Driver Name'] })
+
+    const byDriver = {}
+    for (const s of (stops || [])) {
+      if (!s.assigned_driver_number || !s.order_id) continue
+      const did = String(s.assigned_driver_number)
+      const driverName = numToName[did] || `Driver #${did}`
+      if (!byDriver[did]) byDriver[did] = { name: driverName, orderIds: [] }
+      byDriver[did].orderIds.push(s.order_id)
+    }
+
+    if (Object.keys(byDriver).length === 0) {
+      setMoveToast('No assigned stops found')
+      return
+    }
+
+    // Open driver selection UI — all selected by default
+    const selected = {}
+    Object.keys(byDriver).forEach(id => { selected[id] = true })
+    setForceDriverSelection({ byDriver, selected })
+  }
+
+  async function handleForceSendSelected() {
+    if (!forceDriverSelection) return
+    const { byDriver, selected } = forceDriverSelection
+    const selectedDrivers = Object.entries(selected).filter(([, v]) => v).map(([id]) => id)
+    if (selectedDrivers.length === 0) return
+
+    setForceDriverSelection(null)
     setSendingForceAll(true)
     try {
-      const dateStr = data.deliveryDateObj
-        ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
-        : ''
-      if (!dateStr) throw new Error('No delivery date')
-
-      const { data: stops } = await supabase
-        .from('daily_stops')
-        .select('*')
-        .eq('delivery_date', dateStr)
-        .limit(10000)
-
-      const byDriver = {}
-      for (const s of (stops || [])) {
-        if (!s.assigned_driver_number || !s.order_id) continue
-        const did = String(s.assigned_driver_number)
-        if (!byDriver[did]) byDriver[did] = []
-        byDriver[did].push(s.order_id)
-      }
-
-      if (Object.keys(byDriver).length === 0) {
-        setMoveToast('No assigned stops found')
-        setSendingForceAll(false)
-        return
-      }
-
-      const totalToSend = Object.values(byDriver).reduce((n, arr) => n + arr.length, 0)
-      if (!confirm(`Send ${totalToSend} order IDs across ${Object.keys(byDriver).length} drivers to WFL?`)) {
-        setSendingForceAll(false)
-        return
-      }
-
       let sent = 0
+      let totalOrders = 0
       const markErrors = []
-      for (const [driverId, orderIds] of Object.entries(byDriver)) {
+      for (const driverId of selectedDrivers) {
+        const { orderIds } = byDriver[driverId]
+        totalOrders += orderIds.length
         try {
           await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -511,7 +581,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
         console.error('[force send all] mark errors:', markErrors)
         setMoveToast(`Force-sent ${sent} drivers, but ${markErrors.length} failed to mark — check console`)
       } else {
-        setMoveToast(`Force-sent full order list for ${sent} drivers (${totalToSend} stops)`)
+        setMoveToast(`Force-sent full order list for ${sent} drivers (${totalOrders} stops)`)
       }
     } catch (err) {
       setMoveToast(`Error: ${err.message}`)
@@ -530,6 +600,10 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     handlePreviewCallIns, handleConfirmCallIns,
     handleSendRoutes, handleResendChanges,
     handleSendCorrections, handleResendCorrections,
-    handleForceSendAll,
+    handlePreviewCorrections, handleConfirmCorrections, correctionPreview, setCorrectionPreview,
+    handlePreviewAndReview, combinedPreview, setCombinedPreview,
+    handleForceSendAll, handleForceSendSelected,
+    resendAllPreview, setResendAllPreview, handleConfirmResendAll,
+    forceDriverSelection, setForceDriverSelection,
   }
 }

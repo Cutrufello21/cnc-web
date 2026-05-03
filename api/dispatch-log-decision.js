@@ -256,7 +256,7 @@ export default async function handler(req, res) {
       })
       const topDriver = Object.entries(driverCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null
 
-      await supabase.from('dispatch_logs').upsert({
+      const logEntry = {
         date: data.deliveryDate,
         delivery_day: data.deliveryDay,
         status: 'routes_sent',
@@ -267,7 +267,10 @@ export default async function handler(req, res) {
         shsp_orders: shspOrders,
         aultman_orders: aultmanOrders,
         top_driver: topDriver,
-      }, { onConflict: 'date' })
+      }
+      if (data.session_corrections != null) logEntry.session_corrections = data.session_corrections
+      if (data.session_duration_minutes != null) logEntry.session_duration_minutes = data.session_duration_minutes
+      await supabase.from('dispatch_logs').upsert(logEntry, { onConflict: 'date' })
 
       return res.status(200).json({ success: true, totalOrders, topDriver })
     }

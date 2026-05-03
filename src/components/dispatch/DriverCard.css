@@ -2,7 +2,7 @@
 .dcard {
   background: #ffffff;
   border: 1px solid #F0F2F7;
-  border-radius: 16px;
+  border-radius: 10px;
   transition: border-color 0.15s;
   overflow: hidden;
 }
@@ -27,7 +27,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 16px 0;
+  padding: 10px 12px 0;
   cursor: pointer;
 }
 
@@ -61,14 +61,14 @@
 }
 
 .dcard__name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: #0B1E3D;
   letter-spacing: -0.2px;
 }
 
 .dcard__id {
-  font-size: 12px;
+  font-size: 11px;
   color: #9BA5B4;
   font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums;
 }
@@ -99,8 +99,8 @@
 /* ── Stats ───────────────────────────────────────── */
 .dcard__stats {
   display: flex;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 8px 12px 10px;
 }
 
 .dcard__stat {
@@ -109,10 +109,10 @@
 }
 
 .dcard__stat-value {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   color: #0B1E3D;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   line-height: 1;
 }
 
@@ -135,12 +135,12 @@
 }
 
 .dcard__stat-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   color: #9BA5B4;
-  margin-top: 4px;
+  margin-top: 2px;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
 }
 
 /* ── Stop Table ──────────────────────────────────── */

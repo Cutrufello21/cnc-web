@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
-import { dbInsert, dbUpdate, dbDelete, dbUpsert } from '../../lib/db'
+import { dbUpsert } from '../../lib/db'
+import ScheduleBuilder, { STATES, getCurrentStateIdx } from './ScheduleBuilder'
+import ScheduleAudit from './ScheduleAudit'
+import ScheduleWeekGrid from './ScheduleWeekGrid'
+import { PendingPanel, PendingRequestsList } from './SchedulePending'
 import './Schedule.css'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
@@ -14,10 +18,10 @@ export default function Schedule() {
   const [timeOff, setTimeOff] = useState([])
   const [schedule, setSchedule] = useState({})
   const [overrides, setOverrides] = useState({}) // "name|dateStr" → { status, pharmacy, shift }
+  const [shiftOffers, setShiftOffers] = useState({}) // "name|dateStr" → offer
   const [loading, setLoading] = useState(true)
   const [windowOffset, setWindowOffset] = useState(0) // weeks to shift
   const [showBuilder, setShowBuilder] = useState(false)
-  const [editDay, setEditDay] = useState(null) // dateStr of day card being edited
   const [saving, setSaving] = useState(null)
   const [toast, setToast] = useState(null)
   const [showAudit, setShowAudit] = useState(false)
@@ -25,12 +29,14 @@ export default function Schedule() {
   const [auditLoading, setAuditLoading] = useState(false)
   const [applying, setApplying] = useState(false)
   const [selectedRecs, setSelectedRecs] = useState(new Set())
+  const [showPendingPanel, setShowPendingPanel] = useState(false)
 
   // ── Compute 14-day window (2 full Mon-Fri weeks) ──
   const { weeks, allDates, dateRange, windowStart, windowEnd } = useMemo(() => {
     const now = new Date()
     const dow = now.getDay()
-    const mondayOffset = dow === 0 ? -6 : 1 - dow
+    // Advance to next week on Saturday (6) and Sunday (0)
+    const mondayOffset = dow === 6 ? 2 : dow === 0 ? 1 : 1 - dow
     const startMon = new Date(now)
     startMon.setDate(now.getDate() + mondayOffset + windowOffset * 7)
 
@@ -68,8 +74,7 @@ export default function Schedule() {
   async function loadData() {
     setLoading(true)
 
-    // Fetch drivers, schedule, time off, overrides
-    const [drvRes, schedRes, toRes, overRes] = await Promise.all([
+    const [drvRes, schedRes, toRes, overRes, offersRes] = await Promise.all([
       supabase.from('drivers').select('driver_name, driver_number, pharmacy, shift, active').eq('active', true).order('driver_name'),
       supabase.from('driver_schedule').select('*'),
       supabase.from('time_off_requests').select('*')
@@ -77,16 +82,16 @@ export default function Schedule() {
         .in('status', ['approved', 'pending']),
       supabase.from('schedule_overrides').select('*')
         .gte('date', windowStart).lte('date', windowEnd),
+      supabase.from('shift_offers').select('*')
+        .gte('date', windowStart).lte('date', windowEnd)
+        .in('status', ['pending', 'accepted', 'declined']),
     ])
 
-    // Also fetch ALL pending requests (not just in window)
     const { data: allPending } = await supabase.from('time_off_requests').select('*')
       .eq('status', 'pending').gte('date_off', new Date().toISOString().split('T')[0])
-    // Merge pending into timeOff (deduped)
     const pendingIds = new Set((toRes.data || []).map(r => r.id))
     const extraPending = (allPending || []).filter(r => !pendingIds.has(r.id))
 
-    // Fetch daily_stops per day (each under 1000)
     const stopResults = await Promise.all(
       allDates.map(d =>
         supabase.from('daily_stops').select('driver_name')
@@ -96,7 +101,6 @@ export default function Schedule() {
       )
     )
 
-    // Historical averages for estimates (same weekday 4 weeks ago)
     const fourWeeksAgo = allDates.map(d => {
       const past = new Date(d.date)
       past.setDate(past.getDate() - 28)
@@ -113,7 +117,6 @@ export default function Schedule() {
     uniqueHistDates.forEach((ds, i) => { hist[ds] = histResults[i].count || 0 })
     setHistStops(hist)
 
-    // Build stop map
     const stopMap = {}
     stopResults.forEach((res, idx) => {
       const dateStr = allDates[idx].dateStr
@@ -127,14 +130,17 @@ export default function Schedule() {
     const schedMap = {}
     ;(schedRes.data || []).forEach(r => { schedMap[r.driver_name] = r })
 
-    // Build override map: "name|date" → { status, pharmacy, shift }
     const overMap = {}
     ;(overRes.data || []).forEach(r => { overMap[`${r.driver_name}|${r.date}`] = r })
+
+    const offerMap = {}
+    ;(offersRes.data || []).forEach(r => { offerMap[`${r.driver_name}|${r.date}`] = r })
 
     setDrivers((drvRes.data || []).filter(d => d.driver_name !== 'Demo Driver'))
     setStops(stopMap)
     setSchedule(schedMap)
     setOverrides(overMap)
+    setShiftOffers(offerMap)
     setTimeOff([...(toRes.data || []), ...extraPending])
     setLoading(false)
   }
@@ -149,7 +155,6 @@ export default function Schedule() {
     const isToday = dateStr === todayStr
     const isFuture = dateStr > todayStr
 
-    // Stop counts
     let totalStops = 0
     const driverStops = {}
     Object.entries(stops).forEach(([key, count]) => {
@@ -160,19 +165,14 @@ export default function Schedule() {
       }
     })
 
-    // Estimate for future dates
     let estimated = false
     if (totalStops === 0 && isFuture) {
       const past = new Date(dateStr + 'T12:00:00')
       past.setDate(past.getDate() - 28)
       const pastStr = `${past.getFullYear()}-${String(past.getMonth() + 1).padStart(2, '0')}-${String(past.getDate()).padStart(2, '0')}`
-      if (histStops[pastStr]) {
-        totalStops = histStops[pastStr]
-        estimated = true
-      }
+      if (histStops[pastStr]) { totalStops = histStops[pastStr]; estimated = true }
     }
 
-    // Working/off drivers — check: override → time off → actual stops → default schedule
     const working = []
     const off = []
     drivers.forEach(d => {
@@ -182,12 +182,10 @@ export default function Schedule() {
       const sched = schedule[d.driver_name] || {}
       const col = DAY_COLS[dayIdx]
 
-      // Override takes priority (except time off which is separate)
       if (to && (to.status === 'approved' || to.status === 'pending')) {
         const hasStops = !!driverStops[d.driver_name]
         off.push({ name: d.driver_name, type: 'timeoff', status: to.status, hasStops })
       } else if (override) {
-        // Explicit override for this specific date
         if (override.status === 'off') {
           off.push({ name: d.driver_name, type: 'off' })
         } else {
@@ -219,19 +217,15 @@ export default function Schedule() {
     return { dateStr, dayIdx, isToday, isFuture, totalStops, estimated, working, off, activeDrivers, stopsPerDriver, severity, hasGap }
   }
 
-  // ── Risk stats ──
-  const riskStats = useMemo(() => {
-    let flagged = 0, pending = 0, gaps = 0, totalStops = 0, totalDrivers = 0
-    allDates.forEach(d => {
-      const data = getDayData(d.dateStr, d.dayIdx)
-      if (data.severity === 'critical' || data.hasGap) flagged++
-      if (data.hasGap) gaps++
-      totalStops += data.totalStops
-      totalDrivers += data.activeDrivers
-    })
-    pending = timeOff.filter(r => r.status === 'pending').length
-    const avgStops = totalDrivers > 0 ? Math.round(totalStops / totalDrivers) : 0
-    return { flagged, pending, gaps, avgStops }
+  // ── Today's stats for metric cards ──
+  const todayStats = useMemo(() => {
+    const dow = new Date().getDay() // 0=Sun ... 6=Sat
+    const dayIdx = dow >= 1 && dow <= 5 ? dow - 1 : 0 // Mon=0 ... Fri=4
+    const data = getDayData(todayStr, dayIdx)
+    const shspCount = data.working.filter(w => w.pharm !== 'Aultman' && (w.shift === 'AM' || w.shift === 'BOTH')).length
+    const aultCount = data.working.filter(w => w.pharm === 'Aultman' && (w.shift === 'AM' || w.shift === 'BOTH')).length
+    const pending = timeOff.filter(r => r.status === 'pending').length
+    return { activeDrivers: data.activeDrivers, shspCount, aultCount, totalStops: data.totalStops, estimated: data.estimated, pending }
   }, [stops, timeOff, drivers, schedule, allDates, histStops])
 
   // ── Alerts ──
@@ -250,33 +244,11 @@ export default function Schedule() {
       if (data.severity === 'critical' && !data.hasGap) {
         list.push({ type: 'red', msg: `${dayLabel}: ${data.stopsPerDriver} stops/driver — consider adding coverage`, sort: 0 })
       }
-      if (data.estimated && data.totalStops > 350) {
-        list.push({ type: 'blue', msg: `${dayLabel}: ~${data.totalStops} stops expected (historically high)`, sort: 2 })
-      }
     })
     return list.sort((a, b) => a.sort - b.sort).slice(0, 8)
   }, [stops, timeOff, drivers, schedule, allDates, histStops])
 
-  // ── Builder logic ──
-  const STATES = [
-    { key: 'off', on: false, shift: null, pharm: null },
-    { key: 'shsp', on: true, shift: 'AM', pharm: 'SHSP' },
-    { key: 'aultman', on: true, shift: 'AM', pharm: 'Aultman' },
-    { key: 'pm', on: true, shift: 'PM', pharm: 'SHSP' },
-    { key: 'ampm', on: true, shift: 'BOTH', pharm: 'SHSP' },
-  ]
-
-  function getCurrentStateIdx(sched, col) {
-    const isOn = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
-    if (!isOn) return 0
-    const shift = sched[`${col}_shift`] || 'AM'
-    const pharm = sched[`${col}_pharm`] || 'SHSP'
-    if (shift === 'PM') return 3
-    if (shift === 'BOTH') return 4
-    if (pharm === 'Aultman') return 2
-    return 1
-  }
-
+  // ── Builder toggle handler ──
   async function handleBuilderToggle(driverName, dayIdx) {
     const col = DAY_COLS[dayIdx]
     const sched = schedule[driverName] || {}
@@ -291,6 +263,7 @@ export default function Schedule() {
     finally { setSaving(null) }
   }
 
+  // ── Audit logic ──
   async function loadAudit() {
     setAuditLoading(true)
     try {
@@ -318,12 +291,14 @@ export default function Schedule() {
       })
       const data = await res.json()
       showToastMsg(`Applied ${data.applied} rule changes`)
-      loadAudit() // refresh
+      loadAudit()
     } catch (err) { showToastMsg(`Error: ${err.message}`, true) }
     finally { setApplying(false) }
   }
 
   if (loading) return <div className="ops__loading"><div className="dispatch__spinner" />Loading operations view...</div>
+
+  const pendingRequests = timeOff.filter(r => r.status === 'pending')
 
   return (
     <div className="ops">
@@ -332,29 +307,53 @@ export default function Schedule() {
       {/* Header */}
       <div className="ops__header">
         <div>
-          <h2 className="ops__title">14-Day Operations View</h2>
+          <h2 className="ops__title">Schedule</h2>
           <p className="ops__subtitle">{dateRange}</p>
         </div>
         <div className="ops__header-actions">
-          <button className="ops__nav-btn" onClick={() => setWindowOffset(w => w - 1)}>‹ Prev Week</button>
+          <button className="ops__nav-btn" onClick={() => setWindowOffset(w => w - 1)}>&#8249; Prev</button>
           {windowOffset !== 0 && <button className="ops__nav-btn ops__nav-btn--today" onClick={() => setWindowOffset(0)}>Today</button>}
-          <button className="ops__nav-btn" onClick={() => setWindowOffset(w => w + 1)}>Next Week ›</button>
+          <button className="ops__nav-btn" onClick={() => setWindowOffset(w => w + 1)}>Next &#8250;</button>
           <button className="ops__builder-btn" onClick={() => { setShowAudit(!showAudit); if (!audit && !showAudit) loadAudit() }}>
             {showAudit ? 'Close Audit' : 'Rules Audit'}
-          </button>
-          <button className={`ops__builder-btn ${showBuilder ? 'ops__builder-btn--active' : ''}`} onClick={() => setShowBuilder(!showBuilder)}>
-            {showBuilder ? 'Close Builder' : 'Edit Schedule'}
           </button>
         </div>
       </div>
 
-      {/* Risk Summary */}
+      {/* Metric Cards */}
       <div className="ops__risk-row">
-        <div className="ops__risk-card"><span className="ops__risk-val" style={riskStats.flagged > 0 ? { color: '#dc2626' } : {}}>{riskStats.flagged}</span><span className="ops__risk-label">Nights Flagged</span></div>
-        <div className="ops__risk-card"><span className="ops__risk-val" style={riskStats.pending > 0 ? { color: '#d97706' } : {}}>{riskStats.pending}</span><span className="ops__risk-label">Time Off Pending</span></div>
-        <div className="ops__risk-card"><span className="ops__risk-val" style={riskStats.gaps > 0 ? { color: '#dc2626' } : {}}>{riskStats.gaps}</span><span className="ops__risk-label">Coverage Gaps</span></div>
-        <div className="ops__risk-card"><span className="ops__risk-val">{riskStats.avgStops}</span><span className="ops__risk-label">Avg Stops/Driver</span></div>
+        <div className="ops__risk-card">
+          <span className="ops__risk-val">{todayStats.activeDrivers}</span>
+          <span className="ops__risk-label">Active Today</span>
+        </div>
+        <div className="ops__risk-card">
+          <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#0A2463' }}>{todayStats.shspCount}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#9ca3af' }}>/</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: '#16a34a' }}>{todayStats.aultCount}</span>
+          </div>
+          <span className="ops__risk-label">SHSP / Aultman</span>
+        </div>
+        <div className="ops__risk-card">
+          <span className="ops__risk-val">{todayStats.estimated ? `~${todayStats.totalStops}` : todayStats.totalStops}</span>
+          <span className="ops__risk-label">Stops Today</span>
+        </div>
+        <div className="ops__risk-card ops__risk-card--clickable" onClick={() => setShowPendingPanel(!showPendingPanel)}>
+          <span className="ops__risk-val" style={todayStats.pending > 0 ? { color: '#d97706' } : {}}>{todayStats.pending}</span>
+          <span className="ops__risk-label">Time Off Pending</span>
+        </div>
       </div>
+
+      {/* Pending Time Off Panel */}
+      {showPendingPanel && (
+        <PendingPanel
+          pendingRequests={pendingRequests}
+          allTimeOff={timeOff}
+          onClose={() => setShowPendingPanel(false)}
+          showToastMsg={showToastMsg}
+          loadData={loadData}
+        />
+      )}
 
       {/* Alerts */}
       {alerts.length > 0 && (
@@ -368,360 +367,44 @@ export default function Schedule() {
         </div>
       )}
 
-      {/* Pending Time Off Requests */}
-      {timeOff.filter(r => r.status === 'pending').length > 0 && (
-        <div className="ops__pending">
-          <div className="ops__pending-header">
-            <h3>Pending Time Off Requests</h3>
-            <span className="ops__pending-count">{timeOff.filter(r => r.status === 'pending').length}</span>
-          </div>
-          <div className="ops__pending-list">
-            {timeOff.filter(r => r.status === 'pending').map(r => {
-              const d = new Date(r.date_off + 'T12:00:00')
-              const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-              return (
-                <div key={r.id} className="ops__pending-row">
-                  <div className="ops__pending-info">
-                    <span className="ops__pending-name">{r.driver_name}</span>
-                    <span className="ops__pending-date">{dayLabel}</span>
-                    {r.reason && <span className="ops__pending-reason">{r.reason}</span>}
-                  </div>
-                  <div className="ops__pending-actions">
-                    <button className="ops__pending-approve" onClick={async () => {
-                      await dbUpdate('time_off_requests', { status: 'approved', reviewed_by: 'Dispatch' }, { id: r.id })
-                      // Push notify driver
-                      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'push_notify', driverNames: [r.driver_name],
-                          title: 'Time Off Approved', body: `Your request for ${dayLabel} has been approved.` })
-                      }).catch(() => {})
-                      showToastMsg(`${r.driver_name} — ${dayLabel} approved`)
-                      loadData()
-                    }}>Approve</button>
-                    <button className="ops__pending-deny" onClick={async () => {
-                      await dbUpdate('time_off_requests', { status: 'denied', reviewed_by: 'Dispatch' }, { id: r.id })
-                      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'push_notify', driverNames: [r.driver_name],
-                          title: 'Time Off Denied', body: `Your request for ${dayLabel} has been denied.` })
-                      }).catch(() => {})
-                      showToastMsg(`${r.driver_name} — ${dayLabel} denied`)
-                      loadData()
-                    }}>Deny</button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Builder Panel */}
-      {showBuilder && (
-        <div className="ops__builder">
-          <div className="ops__builder-header">
-            <h3>Default Weekly Schedule</h3>
-            <span className="ops__builder-hint">Click to cycle: Off → SHSP → Aultman → PM → AM+PM → Off</span>
-          </div>
-          <div className="ops__builder-grid-wrap">
-            <table className="ops__builder-grid">
-              <thead><tr>
-                <th className="ops__bth">Driver</th>
-                {DAY_LABELS.map(d => <th key={d} className="ops__bth-day">{d}</th>)}
-              </tr></thead>
-              <tbody>
-                {drivers.sort((a, b) => a.driver_name.localeCompare(b.driver_name)).map(driver => (
-                  <tr key={driver.driver_name}>
-                    <td className="ops__bcell-name">{driver.driver_name}</td>
-                    {DAY_COLS.map((col, i) => {
-                      const sched = schedule[driver.driver_name] || {}
-                      const stateIdx = getCurrentStateIdx(sched, col)
-                      const state = STATES[stateIdx]
-                      const isSav = saving === `${driver.driver_name}|${col}`
-                      let cls = !state.on ? '' : state.shift === 'PM' ? 'ops__btn--pm' : state.shift === 'BOTH' ? 'ops__btn--ampm' : state.pharm === 'Aultman' ? 'ops__btn--alt' : 'ops__btn--shsp'
-                      const lbl = !state.on ? '—' : state.pharm === 'Aultman' ? 'ALT' : state.shift === 'PM' ? 'PM' : state.shift === 'BOTH' ? 'A+P' : 'SHSP'
-                      return <td key={col} className="ops__bcell"><button className={`ops__btn ${cls} ${isSav ? 'ops__btn--saving' : ''}`} onClick={() => handleBuilderToggle(driver.driver_name, i)} disabled={isSav}>{lbl}</button></td>
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Rules Audit Panel */}
       {showAudit && (
-        <div className="ops__audit">
-          <div className="ops__audit-header">
-            <h3>Routing Rules Audit</h3>
-            {auditLoading && <span className="ops__audit-loading">Analyzing 90 days of dispatch data...</span>}
-          </div>
-
-          {audit && !auditLoading && <>
-            {/* Summary cards */}
-            <div className="ops__audit-summary">
-              <div className="ops__audit-stat">
-                <span className="ops__audit-stat-val">{audit.summary.totalRuleEntries}</span>
-                <span className="ops__audit-stat-label">Total Rules</span>
-              </div>
-              <div className="ops__audit-stat">
-                <span className="ops__audit-stat-val" style={{ color: '#16a34a' }}>{audit.summary.correct}</span>
-                <span className="ops__audit-stat-label">Correct</span>
-              </div>
-              <div className="ops__audit-stat">
-                <span className="ops__audit-stat-val" style={{ color: '#dc2626' }}>{audit.summary.critical}</span>
-                <span className="ops__audit-stat-label">Critical</span>
-              </div>
-              <div className="ops__audit-stat">
-                <span className="ops__audit-stat-val" style={{ color: '#d97706' }}>{audit.summary.high}</span>
-                <span className="ops__audit-stat-label">High</span>
-              </div>
-              <div className="ops__audit-stat">
-                <span className="ops__audit-stat-val">{audit.summary.recommendations}</span>
-                <span className="ops__audit-stat-label">Fixes Available</span>
-              </div>
-            </div>
-
-            {/* Recommendations */}
-            {audit.recommendations?.length > 0 && <>
-              <div className="ops__audit-recs-header">
-                <h4>Recommended Changes ({audit.recommendations.length})</h4>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="ops__audit-select-all" onClick={() => setSelectedRecs(new Set(audit.recommendations.map((_, i) => i)))}>Select All</button>
-                  <button className="ops__audit-select-all" onClick={() => setSelectedRecs(new Set())}>Clear</button>
-                  <button className="ops__audit-apply" onClick={applySelected} disabled={applying || selectedRecs.size === 0}>
-                    {applying ? 'Applying...' : `Apply ${selectedRecs.size} Selected`}
-                  </button>
-                </div>
-              </div>
-              <div className="ops__audit-table-wrap">
-                <table className="ops__audit-table">
-                  <thead><tr>
-                    <th></th>
-                    <th>ZIP</th>
-                    <th>Day</th>
-                    <th>Current Rule</th>
-                    <th></th>
-                    <th>Should Be</th>
-                    <th>Confidence</th>
-                    <th>Reason</th>
-                  </tr></thead>
-                  <tbody>
-                    {audit.recommendations.map((r, i) => (
-                      <tr key={i} className={`ops__audit-row ops__audit-row--${r.severity}`}>
-                        <td><input type="checkbox" checked={selectedRecs.has(i)} onChange={() => {
-                          setSelectedRecs(prev => {
-                            const next = new Set(prev)
-                            next.has(i) ? next.delete(i) : next.add(i)
-                            return next
-                          })
-                        }} /></td>
-                        <td className="ops__audit-zip">{r.zip}</td>
-                        <td>{r.dayFull}</td>
-                        <td className="ops__audit-from">{r.from}</td>
-                        <td className="ops__audit-arrow">→</td>
-                        <td className="ops__audit-to">{r.to}</td>
-                        <td><span className={`ops__audit-conf ops__audit-conf--${r.confidence >= 80 ? 'high' : r.confidence >= 60 ? 'med' : 'low'}`}>{r.confidence}%</span></td>
-                        <td className="ops__audit-reason">{r.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>}
-
-            {/* Mismatches without clear recommendation */}
-            {audit.mismatches?.filter(m => !audit.recommendations.find(r => r.zip === m.zip && r.dayFull === m.day)).length > 0 && <>
-              <h4 style={{ marginTop: 20, fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                Other Mismatches ({audit.mismatches.filter(m => !audit.recommendations.find(r => r.zip === m.zip && r.dayFull === m.day)).length})
-              </h4>
-              <div className="ops__audit-table-wrap">
-                <table className="ops__audit-table">
-                  <thead><tr><th>ZIP</th><th>Day</th><th>Rule</th><th>Actual Top</th><th>Details</th></tr></thead>
-                  <tbody>
-                    {audit.mismatches.filter(m => !audit.recommendations.find(r => r.zip === m.zip && r.dayFull === m.day)).slice(0, 20).map((m, i) => (
-                      <tr key={i} className={`ops__audit-row ops__audit-row--${m.severity}`}>
-                        <td className="ops__audit-zip">{m.zip}</td>
-                        <td>{m.day}</td>
-                        <td>{m.currentRule} ({m.currentRulePct}%)</td>
-                        <td>{m.actualTop} ({m.actualTopPct}%)</td>
-                        <td className="ops__audit-reason">{m.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>}
-          </>}
-        </div>
+        <ScheduleAudit
+          audit={audit}
+          auditLoading={auditLoading}
+          selectedRecs={selectedRecs}
+          setSelectedRecs={setSelectedRecs}
+          applying={applying}
+          onApply={applySelected}
+        />
       )}
 
       {/* Week Grids */}
-      {weeks.map((week, wi) => (
-        <div key={wi} className="ops__week">
-          <h3 className="ops__week-label">Week {wi + 1} — {week.label}</h3>
-          <div className="ops__week-grid">
-            {week.days.map((d) => {
-              const data = getDayData(d.dateStr, d.dayIdx)
-              const headerBg = data.hasGap || data.severity === 'critical' ? 'ops__day-head--critical' :
-                data.severity === 'watch' ? 'ops__day-head--watch' :
-                data.isToday ? 'ops__day-head--today' : ''
-              const borderClass = data.hasGap || data.severity === 'critical' ? 'ops__day--critical' :
-                data.severity === 'watch' ? 'ops__day--watch' :
-                data.isToday ? 'ops__day--today' : ''
-
-              return (
-                <div key={d.dateStr} className={`ops__day ${borderClass}`}>
-                  <div className={`ops__day-head ${headerBg}`} onClick={() => setEditDay(editDay === d.dateStr ? null : d.dateStr)} style={{ cursor: 'pointer' }}>
-                    <div className="ops__day-top">
-                      <span className="ops__day-name">{DAY_LABELS[d.dayIdx]}</span>
-                      <span className="ops__day-date">{d.date.getDate()}</span>
-                    </div>
-                    <div className="ops__day-stops">
-                      {data.estimated ? `~${data.totalStops} est.` : `${data.totalStops} stops`}
-                    </div>
-                    {data.activeDrivers > 0 && (
-                      <div className={`ops__day-ratio ops__day-ratio--${data.severity}`}>
-                        {data.stopsPerDriver} stops/driver
-                      </div>
-                    )}
-                  </div>
-                  <div className="ops__day-body">
-                    {(() => {
-                      // BOTH shift drivers appear in their pharmacy group AND PM group
-                      const shsp = data.working.filter(w => (w.shift === 'AM' || w.shift === 'BOTH') && w.pharm !== 'Aultman')
-                      const alt = data.working.filter(w => (w.shift === 'AM' || w.shift === 'BOTH') && w.pharm === 'Aultman')
-                      const pm = data.working.filter(w => w.shift === 'PM' || w.shift === 'BOTH')
-                      return <>
-                        {shsp.length > 0 && <>
-                          <div className="ops__group-label ops__group-label--shsp">SHSP ({shsp.length})</div>
-                          {shsp.map(w => <div key={w.name} className="ops__driver-row"><span className="ops__driver-name">{w.name}</span></div>)}
-                        </>}
-                        {alt.length > 0 && <>
-                          <div className="ops__group-label ops__group-label--alt">Aultman ({alt.length})</div>
-                          {alt.map(w => <div key={w.name} className="ops__driver-row"><span className="ops__driver-name">{w.name}</span></div>)}
-                        </>}
-                        {pm.length > 0 && <>
-                          <div className="ops__group-label ops__group-label--pm">PM ({pm.length})</div>
-                          {pm.map(w => <div key={w.name} className="ops__driver-row"><span className="ops__driver-name">{w.name}</span><span className="ops__pharm-badge ops__pharm-badge--shsp">{w.shift === 'BOTH' ? 'A+P' : 'PM'}</span></div>)}
-                        </>}
-                      </>
-                    })()}
-                    {(data.working.length > 0 && data.off.length > 0) && <div className="ops__divider" />}
-                    {data.off.filter(o => o.type !== 'off').map(o => (
-                      <div key={o.name} className="ops__driver-row">
-                        <span className="ops__driver-name ops__driver-name--off">{o.name}</span>
-                        {o.type === 'timeoff' && o.hasStops && <span className="ops__badge ops__badge--gap">No coverage</span>}
-                        {o.type === 'timeoff' && !o.hasStops && o.status === 'approved' && <span className="ops__badge ops__badge--timeoff">Time off</span>}
-                        {o.type === 'timeoff' && !o.hasStops && o.status === 'pending' && <span className="ops__badge ops__badge--pending">Requested</span>}
-                      </div>
-                    ))}
-                    {data.off.filter(o => o.type === 'off').length > 0 && data.working.length > 0 && (
-                      <div className="ops__off-count">{data.off.filter(o => o.type === 'off').length} off</div>
-                    )}
-                  </div>
-
-                  {/* Day Edit Panel */}
-                  {editDay === d.dateStr && (
-                    <div className="ops__day-edit">
-                      <div className="ops__day-edit-header">
-                        <span>Edit {DAY_LABELS[d.dayIdx]} {d.date.getMonth() + 1}/{d.date.getDate()}</span>
-                        <button className="ops__day-edit-close" onClick={e => { e.stopPropagation(); setEditDay(null) }}>✕</button>
-                      </div>
-                      <div className="ops__day-edit-list">
-                        {drivers.map(driver => {
-                          const overKey = `${driver.driver_name}|${d.dateStr}`
-                          const override = overrides[overKey]
-                          const sched = schedule[driver.driver_name] || {}
-                          const col = DAY_COLS[d.dayIdx]
-                          const to = timeOff.find(r => r.driver_name === driver.driver_name && r.date_off === d.dateStr)
-
-                          // Current effective state
-                          let currentStatus = 'off'
-                          let currentPharm = sched[`${col}_pharm`] || driver.pharmacy || 'SHSP'
-                          let currentShift = sched[`${col}_shift`] || driver.shift || 'AM'
-                          if (override) {
-                            currentStatus = override.status
-                            if (override.pharmacy) currentPharm = override.pharmacy
-                            if (override.shift) currentShift = override.shift
-                          } else {
-                            const isScheduled = sched[col] !== false && sched[col] !== 'false' && sched[col] !== 0
-                            currentStatus = isScheduled ? 'working' : 'off'
-                          }
-                          if (to) currentStatus = 'timeoff'
-
-                          const isWorking = currentStatus === 'working'
-                          const isTimeOff = currentStatus === 'timeoff'
-
-                          // Cycle states for this override
-                          const OVER_STATES = [
-                            { status: 'off', pharm: null, shift: null, label: '—', cls: '' },
-                            { status: 'working', pharm: 'SHSP', shift: 'AM', label: 'SHSP', cls: 'ops__obtn--shsp' },
-                            { status: 'working', pharm: 'Aultman', shift: 'AM', label: 'ALT', cls: 'ops__obtn--alt' },
-                            { status: 'working', pharm: currentPharm, shift: 'PM', label: 'PM', cls: 'ops__obtn--pm' },
-                          ]
-                          const curIdx = isTimeOff ? -1 : OVER_STATES.findIndex(s =>
-                            s.status === currentStatus &&
-                            (s.status === 'off' || (s.pharm === currentPharm && s.shift === currentShift))
-                          )
-
-                          async function cycleOverride() {
-                            if (isTimeOff) return // can't override time off from here
-                            const nextIdx = (curIdx + 1) % OVER_STATES.length
-                            const next = OVER_STATES[nextIdx]
-                            setSaving(overKey)
-                            try {
-                              if (next.status === 'off' && !override) {
-                                // Setting to off when default is off — remove override if exists
-                                await dbUpsert('schedule_overrides', {
-                                  driver_name: driver.driver_name, date: d.dateStr,
-                                  status: 'off', pharmacy: null, shift: null,
-                                }, 'driver_name,date')
-                              } else {
-                                await dbUpsert('schedule_overrides', {
-                                  driver_name: driver.driver_name, date: d.dateStr,
-                                  status: next.status, pharmacy: next.pharm, shift: next.shift,
-                                }, 'driver_name,date')
-                              }
-                              setOverrides(prev => ({
-                                ...prev,
-                                [overKey]: { status: next.status, pharmacy: next.pharm, shift: next.shift },
-                              }))
-                              const dayLabel = `${DAY_LABELS[d.dayIdx]} ${d.date.getMonth()+1}/${d.date.getDate()}`
-                              const statusLabel = next.status === 'off' ? 'Off' : next.pharm === 'Aultman' ? 'Aultman' : next.shift === 'PM' ? 'PM' : 'SHSP'
-                              showToastMsg(`${driver.driver_name} → ${statusLabel} on ${dayLabel}`)
-                            } catch (err) { showToastMsg(`Error: ${err.message}`, true) }
-                            finally { setSaving(null) }
-                          }
-
-                          const btnCls = isTimeOff ? 'ops__obtn--to' : isWorking ?
-                            (currentShift === 'PM' ? 'ops__obtn--pm' : currentPharm === 'Aultman' ? 'ops__obtn--alt' : 'ops__obtn--shsp') : ''
-                          const btnLabel = isTimeOff ? 'TO' : isWorking ?
-                            (currentShift === 'PM' ? 'PM' : currentPharm === 'Aultman' ? 'ALT' : 'SHSP') : '—'
-
-                          return (
-                            <div key={driver.driver_name} className="ops__day-edit-row">
-                              <span className="ops__day-edit-name">{driver.driver_name}</span>
-                              <button
-                                className={`ops__obtn ${btnCls} ${saving === overKey ? 'ops__obtn--saving' : ''}`}
-                                onClick={cycleOverride}
-                                disabled={saving === overKey || isTimeOff}
-                                title={isTimeOff ? 'Has time off — manage in Time Off' : 'Click to cycle'}
-                              >
-                                {btnLabel}
-                              </button>
-                              {override && <span className="ops__override-dot" title="Override active">●</span>}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      ))}
+      <ScheduleWeekGrid
+        weeks={weeks}
+        drivers={drivers}
+        schedule={schedule}
+        overrides={overrides}
+        timeOff={timeOff}
+        saving={saving}
+        setSaving={setSaving}
+        setOverrides={setOverrides}
+        showToastMsg={showToastMsg}
+        getDayData={getDayData}
+        shiftOffers={shiftOffers}
+        loadData={loadData}
+        onSendOffer={async (driverName, dateStr, pharmacy, shift) => {
+          setSaving(`offer-${driverName}|${dateStr}`)
+          try {
+            await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table: 'shift_offers', operation: 'upsert', data: { driver_name: driverName, date: dateStr, pharmacy, shift, status: 'pending', offered_by: 'Dom' }, onConflict: 'driver_name,date' }) })
+            await fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'push_notify', driverNames: [driverName], title: 'Shift Offered', body: `Dom is offering you a shift on ${new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} — ${pharmacy} ${shift}. Open the app to respond.` }) })
+            showToastMsg(`Shift offered to ${driverName}`)
+            loadData()
+          } catch (err) { showToastMsg(`Error: ${err.message}`, true) }
+          finally { setSaving(null) }
+        }}
+      />
     </div>
   )
 }

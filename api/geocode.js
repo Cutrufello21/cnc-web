@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid JSON' })
   }
 
-  const { addresses } = body
+  const { addresses, force } = body
   if (!addresses || !Array.isArray(addresses) || addresses.length === 0) {
     return res.status(400).json({ error: 'addresses array required' })
   }
@@ -29,17 +29,19 @@ export default async function handler(req, res) {
   const results = []
   const toGeocode = []
 
-  // Step 1: Check Supabase cache
+  // Step 1: Check Supabase cache (skip if force=true to re-geocode with Google)
   const cacheKeys = batch.map(a => buildCacheKey(a.address, a.city, a.zip))
 
-  const { data: cached } = await supabase
-    .from('geocode_cache')
-    .select('cache_key, lat, lng')
-    .in('cache_key', cacheKeys)
-
   const cacheMap = new Map()
-  for (const row of (cached || [])) {
-    cacheMap.set(row.cache_key, { lat: row.lat, lng: row.lng })
+  if (!force) {
+    const { data: cached } = await supabase
+      .from('geocode_cache')
+      .select('cache_key, lat, lng')
+      .in('cache_key', cacheKeys)
+
+    for (const row of (cached || [])) {
+      cacheMap.set(row.cache_key, { lat: row.lat, lng: row.lng })
+    }
   }
 
   // Sort into cached vs uncached

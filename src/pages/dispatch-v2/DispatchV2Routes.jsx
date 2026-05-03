@@ -83,6 +83,7 @@ export default function DispatchV2Routes() {
   const [showSendModal, setShowSendModal] = useState(false)
   const [toast, setToast] = useState('')
   const [allDrivers, setAllDrivers] = useState([])
+  const [siciPreview, setSiciPreview] = useState(null)
 
   const weekDates = useMemo(() => getWeekDates(selectedDate), [selectedDate])
   const grouped = useMemo(() => groupByDriver(allStops), [allStops])

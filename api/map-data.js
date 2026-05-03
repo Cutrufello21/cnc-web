@@ -48,8 +48,8 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    const { data: orders, error } = await supabase.from('orders')
-      .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, date_delivered, cold_chain')
+    const { data: orders, error } = await supabase.from('daily_stops')
+      .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, delivery_date, cold_chain')
       .not('address', 'is', null)
       .not('address', 'eq', '')
 
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
       loc.totalDeliveries++
       if (row.cold_chain) loc.coldChainCount++
 
-      const date = row.date_delivered || ''
+      const date = row.delivery_date || ''
       if (date > loc.lastDate) loc.lastDate = date
 
       if (loc.orders.length < 20) {

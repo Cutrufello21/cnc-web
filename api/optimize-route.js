@@ -100,7 +100,10 @@ export default async function handler(req, res) {
   if (!user) return
 
   try {
-    const { stops, pharmacy, startLat, startLng, endLat, endLng, oneWay } = req.body
+    // originChain is an optional ordered list of pickup waypoints visited BEFORE deliveries.
+    // Used when a driver runs both pharmacies — e.g. [SHSP, Aultman]. The LAST item is
+    // the effective optimization origin (deliveries start from the last pickup).
+    const { stops, pharmacy, startLat, startLng, endLat, endLng, oneWay, originChain } = req.body
     if (!stops?.length) return res.status(400).json({ error: 'stops array required' })
 
     const coords = await geocodeStops(stops)
@@ -112,7 +115,18 @@ export default async function handler(req, res) {
     }
 
     const phOrigin = PHARMACY_ORIGINS[pharmacy] || PHARMACY_ORIGINS.SHSP
-    const origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
+    let origin
+    let chainLegMiles = 0
+    if (Array.isArray(originChain) && originChain.length > 0) {
+      const last = originChain[originChain.length - 1]
+      origin = [last.lat, last.lng]
+      // Sum the chain legs (e.g. SHSP→Aultman ≈ 21mi) so totalDistance reflects the full day.
+      for (let i = 1; i < originChain.length; i++) {
+        chainLegMiles += haversine(originChain[i - 1].lat, originChain[i - 1].lng, originChain[i].lat, originChain[i].lng)
+      }
+    } else {
+      origin = (startLat != null && startLng != null) ? [startLat, startLng] : phOrigin
+    }
     const hasEnd = endLat != null && endLng != null
     const isOneWay = !hasEnd && oneWay === true
     const endPoint = hasEnd ? [endLat, endLng] : null
@@ -137,28 +151,22 @@ export default async function handler(req, res) {
       errors.push(`RouteOpt: ${err.message}`)
       console.error(`[optimize] ✗ Route Optimization API: ${err.message}`)
 
-      // ── 2. Fallback: Routes API ──
+      // ── 2. Fallback: Routes API (batched for >25 stops) ──
       try {
         const dest = endPoint || (isRoundTrip ? origin : null)
-        const result = await routesApiFallback(withCoords, origin, dest, isOneWay)
+        const result = await batchedRoutesOptimize(withCoords, origin, dest, isOneWay)
         optimizedAll = result.stops
         totalDistMeters = result.distanceMeters
         totalDurSeconds = result.durationSeconds
-        method = 'google-routes-fallback'
-        console.log(`[optimize] ✓ Routes API fallback: ${Math.round((totalDistMeters || 0) / 1609)} mi`)
+        method = result.batches > 1 ? `google-routes-batched-${result.batches}` : 'google-routes-fallback'
+        console.log(`[optimize] ✓ Routes API (${result.batches} batch${result.batches > 1 ? 'es' : ''}): ${Math.round((totalDistMeters || 0) / 1609)} mi`)
       } catch (err2) {
         errors.push(`RoutesAPI: ${err2.message}`)
         console.error(`[optimize] ✗ Routes API: ${err2.message}`)
 
-        // ── 3. Fallback: OSRM ──
-        try {
-          optimizedAll = await osrmFallback(withCoords, origin[0], origin[1], hasEnd ? endLat : null, hasEnd ? endLng : null)
-          method = 'osrm-fallback'
-        } catch (err3) {
-          errors.push(`OSRM: ${err3.message}`)
-          optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1])
-          method = 'nearest-neighbor'
-        }
+        // ── 3. Fallback: nearest-neighbor ──
+        optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1])
+        method = 'nearest-neighbor'
       }
     }
 
@@ -179,6 +187,8 @@ export default async function handler(req, res) {
       totalDistance = Math.round(totalDistance * 10) / 10
       totalDuration = null
     }
+    // Add the pickup-chain leg (e.g. SHSP→Aultman) so the reported distance reflects the full day.
+    if (chainLegMiles > 0) totalDistance = Math.round((totalDistance + chainLegMiles) * 10) / 10
 
     // Per-stop reasons
     let cLat = origin[0], cLng = origin[1]
@@ -217,6 +227,8 @@ async function routeOptimizationSolve(stops, origin, endPoint, isOneWay, isRound
   const token = await getOAuthToken()
 
   const now = new Date()
+  // Truncate to whole seconds — Route Optimization API rejects nanos
+  now.setMilliseconds(0)
   const globalStart = now.toISOString()
   const globalEnd = new Date(now.getTime() + 12 * 3600000).toISOString()
 
@@ -251,23 +263,34 @@ async function routeOptimizationSolve(stops, origin, endPoint, isOneWay, isRound
       globalEndTime: globalEnd,
     },
     searchMode: 'CONSUME_ALL_AVAILABLE_TIME',
-    considerRoadTraffic: true,
-    timeout: '5s',
+    timeout: '15s',
   }
 
-  const resp = await fetch(
-    `https://routeoptimization.googleapis.com/v1/projects/${GOOGLE_PROJECT}:optimizeTours`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30000),
+  // Try with traffic first, fall back without if it errors
+  let data = null
+  for (const useTraffic of [true, false]) {
+    body.considerRoadTraffic = useTraffic
+    const resp = await fetch(
+      `https://routeoptimization.googleapis.com/v1/projects/${GOOGLE_PROJECT}:optimizeTours`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30000),
+      }
+    )
+
+    data = await resp.json()
+
+    if (data.error) {
+      console.error(`[optimize] RouteOpt ${useTraffic ? 'with' : 'without'} traffic failed: ${data.error.message || JSON.stringify(data.error)}`)
+      if (!useTraffic) throw new Error(data.error.message || JSON.stringify(data.error))
+      continue // retry without traffic
     }
-  )
 
-  const data = await resp.json()
-
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error))
+    console.log(`[optimize] RouteOpt succeeded (traffic=${useTraffic}, ${stops.length} stops)`)
+    break
+  }
   if (!data.routes?.[0]?.visits?.length) throw new Error('No visits in response')
 
   const visits = data.routes[0].visits
@@ -283,6 +306,86 @@ async function routeOptimizationSolve(stops, origin, endPoint, isOneWay, isRound
   }
 
   return { stops: optimized, distanceMeters: distMeters || null, durationSeconds: durSeconds || null }
+}
+
+// ═══ BATCHED ROUTES OPTIMIZATION ═══
+// Splits large routes into geographic clusters of ≤24 stops,
+// optimizes each batch with Routes API, stitches together
+
+async function batchedRoutesOptimize(stops, origin, dest, isOneWay) {
+  const MAX_WAYPOINTS = 24 // Routes API limit is 25 intermediates
+
+  // If ≤24 stops, just use single call
+  if (stops.length <= MAX_WAYPOINTS) {
+    const result = await routesApiFallback(stops, origin, dest, isOneWay)
+    return { ...result, batches: 1 }
+  }
+
+  console.log(`[optimize] Batching ${stops.length} stops into clusters of ${MAX_WAYPOINTS}`)
+
+  // K-means-style geographic clustering using nearest-neighbor chains
+  // Start from origin, greedily build clusters of MAX_WAYPOINTS
+  const remaining = [...stops]
+  const clusters = []
+  let currentPos = { lat: origin[0], lng: origin[1] }
+
+  while (remaining.length > 0) {
+    const cluster = []
+    const batchSize = Math.min(MAX_WAYPOINTS, remaining.length)
+
+    // Greedy: pick nearest unassigned stop until cluster is full
+    for (let i = 0; i < batchSize; i++) {
+      let bestIdx = 0, bestDist = Infinity
+      for (let j = 0; j < remaining.length; j++) {
+        const d = haversine(currentPos.lat, currentPos.lng, remaining[j].lat, remaining[j].lng)
+        if (d < bestDist) { bestDist = d; bestIdx = j }
+      }
+      const picked = remaining.splice(bestIdx, 1)[0]
+      cluster.push(picked)
+      currentPos = { lat: picked.lat, lng: picked.lng }
+    }
+    clusters.push(cluster)
+  }
+
+  console.log(`[optimize] Created ${clusters.length} clusters: ${clusters.map(c => c.length).join(', ')} stops`)
+
+  // Optimize each cluster with Routes API
+  let allOptimized = []
+  let totalDist = 0, totalDur = 0
+  let batchOrigin = origin
+
+  for (let ci = 0; ci < clusters.length; ci++) {
+    const cluster = clusters[ci]
+    const isLast = ci === clusters.length - 1
+    // Last cluster gets the real destination; others end open (one-way)
+    const batchDest = isLast ? dest : null
+    const batchOneWay = isLast ? isOneWay : true
+
+    try {
+      const result = await routesApiFallback(cluster, batchOrigin, batchDest, batchOneWay)
+      allOptimized.push(...result.stops)
+      if (result.distanceMeters) totalDist += result.distanceMeters
+      if (result.durationSeconds) totalDur += result.durationSeconds
+
+      // Next batch starts from where this one ended
+      const lastStop = result.stops[result.stops.length - 1]
+      batchOrigin = [lastStop.lat, lastStop.lng]
+    } catch (err) {
+      console.error(`[optimize] Batch ${ci + 1} failed: ${err.message}, using nearest-neighbor`)
+      // Fallback: nearest-neighbor for this cluster
+      const nn = nearestNeighbor(cluster, batchOrigin[0], batchOrigin[1])
+      allOptimized.push(...nn)
+      const lastStop = nn[nn.length - 1]
+      batchOrigin = [lastStop.lat, lastStop.lng]
+    }
+  }
+
+  return {
+    stops: allOptimized,
+    distanceMeters: totalDist || null,
+    durationSeconds: totalDur || null,
+    batches: clusters.length,
+  }
 }
 
 // ═══ ROUTES API FALLBACK ═══
@@ -320,7 +423,7 @@ async function routesApiFallback(stops, origin, dest, isOneWay) {
     }),
     optimizeWaypointOrder: true,
     travelMode: 'DRIVE',
-    routingPreference: 'TRAFFIC_AWARE_OPTIMAL',
+    routingPreference: 'TRAFFIC_AWARE',
   }
 
   const resp = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {

@@ -47,7 +47,7 @@ export default function Orders() {
     setLoading(true)
     try {
       const pageSize = 100
-      let query = supabase.from('orders').select('*', { count: 'exact' })
+      let query = supabase.from('daily_stops').select('*', { count: 'exact' })
 
       if (search) {
         query = query.or(`patient_name.ilike.%${search}%,address.ilike.%${search}%,order_id.ilike.%${search}%,zip.ilike.%${search}%,driver_name.ilike.%${search}%,city.ilike.%${search}%`)
@@ -60,19 +60,19 @@ export default function Orders() {
       if (source) query = query.eq('source', source)
       if (city) query = query.ilike('city', city)
 
-      if (dateFrom) query = query.gte('date_delivered', dateFrom)
-      if (dateTo) query = query.lte('date_delivered', dateTo)
+      if (dateFrom) query = query.gte('delivery_date', dateFrom)
+      if (dateTo) query = query.lte('delivery_date', dateTo)
 
       if (year && month) {
         const startDate = `${year}-${month}-01`
         const endMonth = parseInt(month) === 12 ? '01' : String(parseInt(month) + 1).padStart(2, '0')
         const endYear = parseInt(month) === 12 ? String(parseInt(year) + 1) : year
-        query = query.gte('date_delivered', startDate).lt('date_delivered', `${endYear}-${endMonth}-01`)
+        query = query.gte('delivery_date', startDate).lt('delivery_date', `${endYear}-${endMonth}-01`)
       } else if (year) {
-        query = query.gte('date_delivered', `${year}-01-01`).lt('date_delivered', `${parseInt(year) + 1}-01-01`)
+        query = query.gte('delivery_date', `${year}-01-01`).lt('delivery_date', `${parseInt(year) + 1}-01-01`)
       }
 
-      query = query.order('date_delivered', { ascending: false })
+      query = query.order('delivery_date', { ascending: false })
         .range((page - 1) * pageSize, page * pageSize - 1)
 
       const { data: orders, count, error } = await query
@@ -150,7 +150,7 @@ export default function Orders() {
     { key: 'zip', label: 'ZIP', cls: 'ord__cell-zip' },
     { key: 'pharmacy', label: 'Pharmacy' },
     { key: 'driver_name', label: 'Driver', cls: 'ord__cell-driver' },
-    { key: 'date_delivered', label: 'Date', cls: 'ord__cell-date' },
+    { key: 'delivery_date', label: 'Date', cls: 'ord__cell-date' },
     { key: 'cold_chain', label: 'CC' },
     { key: 'source', label: 'Source' },
   ]
@@ -281,7 +281,7 @@ export default function Orders() {
                         {o.pharmacy && <span className={`ord__pharma-badge ${o.pharmacy === 'SHSP' ? 'ord__pharma-badge--shsp' : 'ord__pharma-badge--aultman'}`}>{o.pharmacy}</span>}
                       </td>
                       <td className="ord__cell-driver">{o.driver_name}</td>
-                      <td className="ord__cell-date">{fmtDate(o.date_delivered)}</td>
+                      <td className="ord__cell-date">{fmtDate(o.delivery_date)}</td>
                       <td>{cc ? '❄️' : ''}</td>
                       <td>
                         <span className={`ord__source ${o.source === 'Live' ? 'ord__source--live' : 'ord__source--hist'}`}>{o.source}</span>

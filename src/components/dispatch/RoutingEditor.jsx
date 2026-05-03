@@ -24,6 +24,10 @@ export default function RoutingEditor() {
   const [editRow, setEditRow] = useState(null) // zip code being edited
   const [editData, setEditData] = useState({})
   const [deleting, setDeleting] = useState(null)
+  const [editCities, setEditCities] = useState(false)
+  const [cityEdits, setCityEdits] = useState({})
+  const [editRoutes, setEditRoutes] = useState(false)
+  const [routeEdits, setRouteEdits] = useState({})
 
   useEffect(() => {
     loadData()
@@ -32,17 +36,23 @@ export default function RoutingEditor() {
   async function loadData() {
     setLoading(true)
     try {
-      const { data: rulesData } = await supabase.from('routing_rules').select('*')
+      const [{ data: rulesData }, { data: driversData }] = await Promise.all([
+        supabase.from('routing_rules').select('*'),
+        supabase.from('drivers').select('driver_name, driver_number').eq('active', true),
+      ])
 
       // Map to expected format
       const mapped = (rulesData || []).map(r => ({
-        'ZIP Code': r.zip_code, Mon: r.mon, Tue: r.tue, Wed: r.wed,
+        'ZIP Code': r.zip_code, City: r.city || '', Mon: r.mon, Tue: r.tue, Wed: r.wed,
         Thu: r.thu, Fri: r.fri, Route: r.route, Pharmacy: r.pharmacy,
       }))
-      setRules({ headers: ['ZIP Code', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Route', 'Pharmacy'], data: mapped })
+      setRules({ headers: ['ZIP Code', 'City', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Route', 'Pharmacy'], data: mapped })
 
-      // Build driver list from routing rules values
+      // Build driver list from drivers table + any in routing rules
       const driverSet = new Set()
+      ;(driversData || []).filter(d => d.driver_name !== 'Demo Driver').forEach(d => {
+        driverSet.add(d.driver_number ? `${d.driver_name}/${d.driver_number}` : d.driver_name)
+      })
       mapped.forEach(row => {
         DAYS.forEach(d => { if (row[d]) driverSet.add(row[d]) })
       })
@@ -89,6 +99,7 @@ export default function RoutingEditor() {
     try {
       await dbUpsert('routing_rules', {
         zip_code: newZip.zip,
+        city: newZip.city || '',
         mon: newZip.mon || '', tue: newZip.tue || '', wed: newZip.wed || '',
         thu: newZip.thu || '', fri: newZip.fri || '',
         route: newZip.route || '', pharmacy: newZip.pharmacy || '',
@@ -110,6 +121,7 @@ export default function RoutingEditor() {
   function startEditRow(row) {
     setEditRow(`${row['ZIP Code']}|${row['Pharmacy']}`)
     setEditData({
+      city: row['City'] || '',
       mon: row['Mon'] || '', tue: row['Tue'] || '', wed: row['Wed'] || '',
       thu: row['Thu'] || '', fri: row['Fri'] || '',
       route: row['Route'] || '', pharmacy: row['Pharmacy'] || '',
@@ -123,6 +135,7 @@ export default function RoutingEditor() {
     setSaving(true)
     try {
       await dbUpdate('routing_rules', {
+          city: editData.city,
           mon: editData.mon, tue: editData.tue, wed: editData.wed,
           thu: editData.thu, fri: editData.fri,
           route: editData.route, pharmacy: editData.pharmacy,
@@ -162,8 +175,9 @@ export default function RoutingEditor() {
       if (search) {
         const q = search.toLowerCase()
         const matchesZip = (row['ZIP Code'] || '').toLowerCase().includes(q)
+        const matchesCity = (row['City'] || '').toLowerCase().includes(q)
         const matchesRoute = (row['Route'] || '').toLowerCase().includes(q)
-        if (!matchesZip && !matchesRoute) return false
+        if (!matchesZip && !matchesCity && !matchesRoute) return false
       }
       if (filterDriver) {
         const hasDriver = DAYS.some(d => (row[d] || '').includes(filterDriver))
@@ -218,12 +232,58 @@ export default function RoutingEditor() {
         <div className="re__toolbar-left">
           <h3 className="re__title">Routing Rules</h3>
           <span className="re__count">{filtered.length} ZIPs</span>
+          {!editCities ? (
+            <button className="re__edit-cities-btn" onClick={() => { setEditCities(true); setCityEdits({}); setEditRoutes(false) }}>Edit Cities</button>
+          ) : (
+            <button className="re__edit-cities-btn re__edit-cities-btn--save" onClick={async () => {
+              const entries = Object.entries(cityEdits)
+              if (entries.length === 0) { setEditCities(false); return }
+              setSaving(true)
+              let saved = 0
+              for (const [key, city] of entries) {
+                const [zip, pharmacy] = key.split('|')
+                try { await dbUpdate('routing_rules', { city }, { zip_code: zip, pharmacy }); saved++ } catch {}
+              }
+              setRules(prev => ({ ...prev, data: prev.data.map(r => {
+                const k = r['ZIP Code'] + '|' + r['Pharmacy']
+                return cityEdits[k] !== undefined ? { ...r, City: cityEdits[k] } : r
+              })}))
+              setToast(`${saved} cities updated`)
+              setTimeout(() => setToast(null), 3000)
+              setCityEdits({})
+              setEditCities(false)
+              setSaving(false)
+            }}>Save Cities ({Object.keys(cityEdits).length})</button>
+          )}
+          {!editRoutes ? (
+            <button className="re__edit-cities-btn" onClick={() => { setEditRoutes(true); setRouteEdits({}); setEditCities(false) }}>Edit Routes</button>
+          ) : (
+            <button className="re__edit-cities-btn re__edit-cities-btn--save" onClick={async () => {
+              const entries = Object.entries(routeEdits)
+              if (entries.length === 0) { setEditRoutes(false); return }
+              setSaving(true)
+              let saved = 0
+              for (const [key, route] of entries) {
+                const [zip, pharmacy] = key.split('|')
+                try { await dbUpdate('routing_rules', { route }, { zip_code: zip, pharmacy }); saved++ } catch {}
+              }
+              setRules(prev => ({ ...prev, data: prev.data.map(r => {
+                const k = r['ZIP Code'] + '|' + r['Pharmacy']
+                return routeEdits[k] !== undefined ? { ...r, Route: routeEdits[k] } : r
+              })}))
+              setToast(`${saved} routes updated`)
+              setTimeout(() => setToast(null), 3000)
+              setRouteEdits({})
+              setEditRoutes(false)
+              setSaving(false)
+            }}>Save Routes ({Object.keys(routeEdits).length})</button>
+          )}
         </div>
         <div className="re__toolbar-right">
           <input
             className="re__search"
             type="text"
-            placeholder="Search ZIP or route..."
+            placeholder="Search ZIP, city, or route..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -259,6 +319,9 @@ export default function RoutingEditor() {
               <th className="re__th-sortable" onClick={() => handleSort('ZIP Code')}>
                 ZIP {sortCol === 'ZIP Code' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
               </th>
+              <th className="re__th-sortable" onClick={() => handleSort('City')}>
+                City {sortCol === 'City' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+              </th>
               {DAYS.map(d => (
                 <th key={d} className={filterDay === d ? 're__th--active' : ''} onClick={() => setFilterDay(filterDay === d ? '' : d)}>
                   {d}
@@ -284,6 +347,7 @@ export default function RoutingEditor() {
                 return (
                   <tr key={rowKey} className="re__row--editing">
                     <td className="re__cell-zip">{zip}</td>
+                    <td><input className="re__edit-input" value={editData.city} onChange={(e) => setEditData({ ...editData, city: e.target.value })} placeholder="City" style={{ width: 100 }} /></td>
                     {DAYS.map(day => (
                       <td key={day} className="re__cell-editing">
                         <select
@@ -317,6 +381,13 @@ export default function RoutingEditor() {
               return (
                 <tr key={rowKey}>
                   <td className="re__cell-zip">{zip}</td>
+                  <td className="re__cell-city">
+                    {editCities ? (
+                      <input className="re__city-input" value={cityEdits[`${zip}|${pharmacy}`] !== undefined ? cityEdits[`${zip}|${pharmacy}`] : (row['City'] || '')} onChange={(e) => setCityEdits(prev => ({ ...prev, [`${zip}|${pharmacy}`]: e.target.value }))} />
+                    ) : (
+                      row['City'] || <span style={{ color: '#d1d5db' }}>—</span>
+                    )}
+                  </td>
                   {DAYS.map(day => {
                     const val = row[day] || ''
                     const driverName = val.split('/')[0]
@@ -357,7 +428,13 @@ export default function RoutingEditor() {
                       </td>
                     )
                   })}
-                  <td className="re__cell-route">{row['Route'] || ''}</td>
+                  <td className="re__cell-route">
+                    {editRoutes ? (
+                      <input className="re__city-input" value={routeEdits[`${zip}|${pharmacy}`] !== undefined ? routeEdits[`${zip}|${pharmacy}`] : (row['Route'] || '')} onChange={(e) => setRouteEdits(prev => ({ ...prev, [`${zip}|${pharmacy}`]: e.target.value }))} />
+                    ) : (
+                      row['Route'] || ''
+                    )}
+                  </td>
                   <td className="re__cell-pharma">{row['Pharmacy'] || ''}</td>
                   <td className="re__cell-actions">
                     <button className="re__action-btn re__action-btn--edit" onClick={() => startEditRow(row)} title="Edit row">&#9998;</button>
@@ -387,6 +464,15 @@ export default function RoutingEditor() {
                 onChange={(e) => setNewZip({ ...newZip, zip: e.target.value })}
                 placeholder="44XXX"
                 autoFocus
+              />
+            </div>
+            <div className="re__add-field">
+              <label>City</label>
+              <input
+                type="text"
+                value={newZip.city || ''}
+                onChange={(e) => setNewZip({ ...newZip, city: e.target.value })}
+                placeholder="e.g. Wadsworth"
               />
             </div>
             <div className="re__add-field">

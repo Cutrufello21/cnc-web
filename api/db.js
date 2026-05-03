@@ -7,7 +7,7 @@ const ALLOWED = {
   time_off_requests: ['insert', 'update'],
   delivery_confirmations: ['insert'],
   driver_routes: ['upsert'],
-  daily_stops: ['update'],
+  daily_stops: ['update', 'delete'],
   driver_notifications: ['update'],
   stop_reconciliation: ['insert', 'update', 'upsert'],
   driver_favorites: ['insert', 'delete'],
@@ -17,10 +17,14 @@ const ALLOWED = {
   drivers: ['update'],
   routing_rules: ['insert', 'update', 'upsert', 'delete'],
   schedule_overrides: ['insert', 'update', 'upsert'],
+  shift_offers: ['insert', 'update', 'upsert'],
   driver_schedule: ['insert', 'update', 'upsert'],
   announcements: ['insert', 'update', 'delete'],
   poll_responses: ['insert', 'delete'],
   announcement_reads: ['insert'],
+  geocode_cache: ['upsert'],
+  address_corrections: ['insert'],
+  pickup_requests: ['insert', 'update', 'upsert', 'delete'],
 }
 
 // Generic DB write proxy — all client-side writes route through here

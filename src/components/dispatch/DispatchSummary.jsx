@@ -6,14 +6,11 @@ export default function DispatchSummary({
   activeDriverCount,
   totalDriverCount,
   unassignedCount,
-  routingRuleCount,
 }) {
   const cards = [
     { label: 'Total Stops', value: totalStops, accent: false },
     { label: 'Cold Chain', value: totalColdChain, accent: true },
     { label: 'Active Drivers', value: `${activeDriverCount}/${totalDriverCount}`, accent: false },
-    { label: 'Unassigned', value: unassignedCount, accent: false, warn: unassignedCount > 0 },
-    { label: 'Routing Rules', value: routingRuleCount, accent: false },
   ]
 
   return (

@@ -64,6 +64,16 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
               const stop = driverStops[origIdx]
               return stop?.id ? supabase.from('daily_stops').update({ sort_order: newIdx }).eq('id', stop.id) : null
             }).filter(Boolean))
+            // Save route distance
+            if (result.totalDistance) {
+              await supabase.from('driver_routes').upsert({
+                driver_name: driverName, date: selectedDate,
+                stop_sequence: result.optimizedOrder.map(i => String(driverStops[i]?.id || driverStops[i]?.order_id)),
+                origin_hospital: driverStops[0]?.pharmacy || 'SHSP',
+                optimized_at: new Date().toISOString(),
+                route_miles: result.totalDistance,
+              }, { onConflict: 'driver_name,date' })
+            }
           }
         } catch (e) { console.error(`Auto-optimize ${driverName} failed:`, e) }
       }

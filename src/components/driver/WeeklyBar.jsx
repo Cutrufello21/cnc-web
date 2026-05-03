@@ -5,8 +5,7 @@ import './WeeklyBar.css'
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
-const MTH_DAYS = new Set(['Mon', 'Tue', 'Thu'])
-const WF_DAYS = new Set(['Wed', 'Fri'])
+const DAY_TO_COL = { Mon: 'rate_mon', Tue: 'rate_tue', Wed: 'rate_wed', Thu: 'rate_thu', Fri: 'rate_fri' }
 
 export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }) {
   const maxStops = Math.max(...DAY_LABELS.map((d) => dailyStops[d] || 0), 1)
@@ -30,7 +29,7 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
         ;(data || []).forEach(r => { map[r.day] = { actual: r.actual_stops, afternoon: r.afternoon_stops, locked: r.locked || false, id: r.id } })
         setRecon(map)
       })
-    supabase.from('drivers').select('rate_mth, rate_wf, office_fee, flat_salary')
+    supabase.from('drivers').select('rate_mon, rate_tue, rate_wed, rate_thu, rate_fri, office_fee, flat_salary')
       .eq('driver_name', driverName).single()
       .then(({ data }) => { if (data) setDriverRates(data) })
   }, [driverName, weekOf])
@@ -38,7 +37,7 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
   function calcDayPay(day, stops) {
     if (!driverRates || !stops) return null
     if (driverRates.flat_salary) return null // flat salary drivers don't get per-stop
-    const rate = MTH_DAYS.has(day) ? parseFloat(driverRates.rate_mth) || 0 : parseFloat(driverRates.rate_wf) || 0
+    const rate = parseFloat(driverRates[DAY_TO_COL[day]]) || 0
     return Math.round(stops * rate * 100) / 100
   }
 
@@ -50,7 +49,7 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
     DAY_LABELS.forEach(day => {
       const stops = dailyStops[day] || 0
       if (stops > 0) hasStops = true
-      const rate = MTH_DAYS.has(day) ? parseFloat(driverRates.rate_mth) || 0 : parseFloat(driverRates.rate_wf) || 0
+      const rate = parseFloat(driverRates[DAY_TO_COL[day]]) || 0
       total += stops * rate
     })
     if (hasStops) total += parseFloat(driverRates.office_fee) || 0
@@ -131,7 +130,13 @@ export default function WeeklyBar({ dailyStops = {}, weekTotal = 0, driverName }
       })
       if (data?.[0]) r.id = data[0].id
     }
-    setRecon(prev => ({ ...prev, [day]: { ...prev[day], locked: true, id: r.id || prev[day]?.id } }))
+    setRecon(prev => {
+      const updated = { ...prev, [day]: { ...prev[day], locked: true, id: r.id || prev[day]?.id } }
+      // Sync total afternoon stops to payroll will_calls
+      const totalAfternoon = DAY_LABELS.reduce((s, d) => s + (parseInt(updated[d]?.afternoon) || 0), 0)
+      dbUpdate('payroll', { will_calls: totalAfternoon }, { driver_name: driverName, week_of: weekOf })
+      return updated
+    })
   }
 
   async function handleUnlock(day) {

@@ -1,11 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import './DriverCard.css'
 
 const PHARMACY_COLORS = {
   SHSP: { bg: '#eef4ff', text: '#3b82f6', label: 'SHSP' },
   Aultman: { bg: '#dcfce7', text: '#16a34a', label: 'Aultman' },
-  Both: { bg: '#f0fdf4', text: '#16a34a', label: 'Both' },
+  Both: { bg: '#f0fdf4', text: '#16a34a', label: 'BOTH' },
+  ADMIN: { bg: '#0A2463', text: '#ffffff', label: 'ADMIN' },
+  PM: { bg: '#FEE2E2', text: '#EF4444', label: 'PM' },
 }
 
 const COLUMNS = [
@@ -18,7 +20,7 @@ const COLUMNS = [
   { key: 'Pharmacy', label: 'Pharmacy' },
 ]
 
-export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, deliveryDate, onRefresh, onMoveComplete }) {
+export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, deliveryDate, onRefresh, onMoveComplete, swapSelected, onSwapToggle, batchSelected, onSelectByZip, onSelectByCity }) {
   const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [reassignTo, setReassignTo] = useState('')
@@ -29,18 +31,53 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const [filters, setFilters] = useState({})
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
-  const [reviewed, setReviewed] = useState(false)
+  const dateStr = deliveryDate
+    ? `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth()+1).padStart(2,'0')}-${String(deliveryDate.getDate()).padStart(2,'0')}`
+    : (selectedDay || '')
+  const reviewKey = 'reviewed-' + (driver['Driver Name'] || '') + '-' + dateStr
+  // One-time cleanup: remove legacy day-of-week keys (e.g. "reviewed-Adam-Wed") that
+  // caused stale checkmarks to carry across weeks. Safe to remove this block after a few weeks.
+  useEffect(() => {
+    try {
+      const dows = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+      for (const d of dows) localStorage.removeItem('reviewed-' + (driver['Driver Name'] || '') + '-' + d)
+    } catch(e) {}
+  }, [])
+  const [reviewed, setReviewedRaw] = useState(() => {
+    try { return localStorage.getItem(reviewKey) === '1' } catch(e) { return false }
+  })
+  function setReviewed(v) {
+    setReviewedRaw(v)
+    try { if (v) localStorage.setItem(reviewKey, '1'); else localStorage.removeItem(reviewKey) } catch(e) {}
+  }
   const [optimizing, setOptimizing] = useState(false)
   const [optimized, setOptimized] = useState(false)
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
-  const pharmacy = driver['Pharmacy'] || driver.pharmacy || ''
-  const pharma = PHARMACY_COLORS[pharmacy] || PHARMACY_COLORS.SHSP
   const stops = driver.stops || 0
   const totalPackages = driver.totalPackages || stops
   const coldChain = driver.coldChain || 0
   const rawDetails = driver.stopDetails || []
+
+  // Compute pharmacy badge from actual orders
+  const pharma = useMemo(() => {
+    if (driver.is_admin) return PHARMACY_COLORS.ADMIN
+    const shift = driver.shift || 'AM'
+    const orderPharmas = new Set()
+    for (const s of rawDetails) {
+      const p = s.Pharmacy || s.pharmacy || ''
+      if (p) orderPharmas.add(p)
+    }
+    if (orderPharmas.has('SHSP') && orderPharmas.has('Aultman')) return PHARMACY_COLORS.Both
+    if (orderPharmas.has('Aultman')) return PHARMACY_COLORS.Aultman
+    if (orderPharmas.has('SHSP')) return PHARMACY_COLORS.SHSP
+    // PM-only driver with no orders
+    if (shift === 'PM' && orderPharmas.size === 0) return PHARMACY_COLORS.PM
+    // Fallback to driver's static pharmacy field
+    const fallback = driver['Pharmacy'] || driver.pharmacy || ''
+    return PHARMACY_COLORS[fallback] || PHARMACY_COLORS.SHSP
+  }, [driver, rawDetails])
   const tabName = driver.tabName || ''
 
   const otherDrivers = allDrivers.filter((d) =>
@@ -55,7 +92,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       ...stop,
       _hasColdChain: hasColdChain,
       _hasSigRequired: (stop.Notes || stop.notes || '').toLowerCase().includes('signature'),
-      _flagsDisplay: [hasColdChain ? '❄️' : '', (stop.Notes || stop.notes || '').toLowerCase().includes('signature') ? '✍️' : ''].filter(Boolean).join(' '),
+      _ccEdited: stop._ccEdited || false,
+      _flagsDisplay: [hasColdChain ? '❄️' : '', (stop.Notes || stop.notes || '').toLowerCase().includes('signature') ? '✍️' : '', stop._ccEdited ? '✏️' : ''].filter(Boolean).join(' '),
     }
   }), [rawDetails])
 
@@ -163,6 +201,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           toDriverName,
           toDriverNumber,
           fromDriverName: name,
+          source: 'dispatch',
           deliveryDate: dd,
         }),
       })
@@ -206,9 +245,11 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     if (optimizing || enriched.length < 2) return
     setOptimizing(true)
     try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           stops: enriched.map(s => ({
             address: s.Address || s.address || '',
@@ -350,10 +391,11 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           <input
             type="checkbox"
             className="dcard__review-check"
-            checked={reviewed}
+            checked={swapSelected?.has(name) || reviewed}
             onClick={(e) => e.stopPropagation()}
-            onChange={(e) => { e.stopPropagation(); setReviewed(e.target.checked) }}
-            title="Mark as reviewed"
+            onChange={(e) => { e.stopPropagation(); if (onSwapToggle) onSwapToggle(name); else setReviewed(e.target.checked) }}
+            title={swapSelected?.size > 0 ? 'Select for swap' : 'Mark as reviewed'}
+            style={swapSelected?.has(name) ? { accentColor: '#7c3aed' } : {}}
           />
           <h3 className={`dcard__name ${reviewed ? 'dcard__name--reviewed' : ''}`}>{name}</h3>
           <span className="dcard__id">#{id}</span>
@@ -387,15 +429,6 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
             <span className="dcard__stat-value">{coldChain}{coldChain > 26 ? ' \u{1F6A9}' : ''}</span>
             <span className="dcard__stat-label">Cold Chain{coldChain > 26 ? ' — Over Limit!' : ''}</span>
           </div>
-        )}
-        {stops > 0 && (
-          <button
-            className={`dcard__send ${sent ? 'dcard__send--done' : ''}`}
-            onClick={handleSendOne}
-            disabled={sending || sent}
-          >
-            {sent ? 'Sent' : sending ? '...' : 'Send'}
-          </button>
         )}
       </div>
 
@@ -511,7 +544,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                 return (
                   <tr
                     key={i}
-                    className={`${stop._hasColdChain ? 'dcard__row--cold' : ''} ${isSelected ? 'dcard__row--selected' : ''} ${stop._status === 'delivered' ? 'dcard__row--delivered' : ''} ${stop._status === 'failed' ? 'dcard__row--failed' : ''}`}
+                    className={`${stop._hasColdChain ? 'dcard__row--cold' : ''} ${isSelected || batchSelected?.has(orderId) ? 'dcard__row--selected' : ''} ${stop._status === 'delivered' ? 'dcard__row--delivered' : ''} ${stop._status === 'failed' ? 'dcard__row--failed' : ''}`}
                   >
                     <td className="dcard__cell-check">
                       <input
@@ -538,8 +571,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                       ) : (stop['Name'] || '—')}
                     </td>
                     <td className="dcard__cell-addr">{stop['Address'] || '—'}</td>
-                    <td>{stop['City'] || '—'}</td>
-                    <td className="dcard__cell-zip">{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
+                    <td style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByCity?.(stop['City']) }} title={`Select all ${stop['City']} stops`}>{stop['City'] || '—'}</td>
+                    <td className="dcard__cell-zip" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByZip?.(stop['Zip Code'] || stop['ZIP']) }} title={`Select all ${stop['Zip Code'] || stop['ZIP']} stops`}>{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td className="dcard__cell-notes">{stop._flagsDisplay}</td>
                     <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
                     <td className="dcard__cell-status">

@@ -227,6 +227,27 @@
   align-items: center;
 }
 
+/* ── Session Stats ────────────────────────────────── */
+.dispatch__session-stats {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 6px;
+}
+.dispatch__session-pill {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B7280;
+  background: #F3F4F6;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+.dispatch__session-label {
+  font-weight: 700;
+  color: #0B1E3D;
+  letter-spacing: 0.03em;
+}
+
 /* ── Alert / Call-in Buttons ───────────────────────── */
 .dispatch__alert-btn {
   display: inline-flex;
@@ -320,6 +341,41 @@
 .dispatch__send-btn--corrections:hover:not(:disabled) { background: #0B1E3D; color: #ffffff; }
 .dispatch__send-btn--resend { background: #B07D00; }
 .dispatch__send-btn--resend:hover:not(:disabled) { background: #92400e; }
+.dispatch__send-btn--more { background: transparent; color: #0B1E3D; border: 1px solid #D1D5DB; padding: 8px 12px; font-size: 16px; letter-spacing: 2px; line-height: 1; }
+.dispatch__send-btn--more:hover { background: #F3F4F6; border-color: #0B1E3D; }
+
+/* ── More Overflow Menu ──────────────────────────── */
+.dispatch__more-wrap { position: relative; }
+.dispatch__more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  min-width: 260px;
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 4px;
+}
+.dispatch__more-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0B1E3D;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+}
+.dispatch__more-item:hover:not(:disabled) { background: #F3F4F6; }
+.dispatch__more-item:disabled { opacity: 0.5; cursor: not-allowed; }
+.dispatch__more-desc { font-size: 11px; font-weight: 400; color: #9BA5B4; margin-top: 2px; }
 
 /* ── Toast ─────────────────────────────────────────── */
 .dispatch__move-toast {
@@ -370,10 +426,91 @@
 /* ── Driver Grid ───────────────────────────────────── */
 .dispatch__drivers {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
 }
 .dispatch__drivers--inactive { opacity: 0.5; }
+
+/* ── Batch Action Bar ────────────────────────────── */
+.dispatch__batch-bar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0B1E3D;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  z-index: 100;
+  animation: batchSlideUp 0.2s ease;
+}
+@keyframes batchSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.dispatch__batch-count { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.dispatch__batch-select {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+  color: #fff;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 140px;
+}
+.dispatch__batch-select option { background: #0B1E3D; color: #fff; }
+.dispatch__batch-btn {
+  background: #60A5FA;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dispatch__batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.dispatch__batch-btn:hover:not(:disabled) { background: #3b82f6; }
+.dispatch__batch-clear {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.7);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dispatch__batch-clear:hover { color: #fff; border-color: rgba(255,255,255,0.5); }
+
+/* ── Inactive Drivers Compact Line ───────────────── */
+.dispatch__inactive-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.dispatch__inactive-label {
+  font-weight: 700;
+  color: #9BA5B4;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.dispatch__inactive-list {
+  color: #6B7280;
+  font-weight: 500;
+}
 
 /* ── Tables ────────────────────────────────────────── */
 .dispatch__table-wrap {

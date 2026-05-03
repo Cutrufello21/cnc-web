@@ -48,6 +48,8 @@ export default function ProtectedRoute({ children, role }) {
   }
 
   if (role && activeProfile.role !== role) {
+    // Dispatchers can access pharmacy portal too
+    if (role === 'pharmacy' && activeProfile.role === 'dispatcher') return children
     if (activeProfile.role === 'dispatcher') return <Navigate to="/dispatch" replace />
     if (activeProfile.role === 'driver') return <Navigate to="/driver" replace />
     if (activeProfile.role === 'pharmacy') return <Navigate to="/portal/dashboard" replace />

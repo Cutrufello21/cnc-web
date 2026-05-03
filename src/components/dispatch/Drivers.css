@@ -53,6 +53,8 @@
 .drv__pod-toggle:hover { border-color: #9BA5B4; }
 .drv__pod-toggle--on { background: #0B1E3D; color: #fff; border-color: #0B1E3D; }
 .drv__pod-toggle--on:hover { background: #1a2d4d; }
+.drv__pod-toggle--admin { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+.drv__pod-toggle--admin:hover { background: #6D28D9; }
 
 .drv__input { width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #E0E4ED; border-radius: 10px; background: #ffffff; }
 .drv__input--sm { width: 72px; text-align: center; }

@@ -13,9 +13,9 @@ const QUICK_TABS = [
 
 const TABLE_MAP = {
   'Routing Rules': { table: 'routing_rules', cols: { zip_code: 'ZIP Code', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', route: 'Route', pharmacy: 'Pharmacy' } },
-  'Drivers': { table: 'drivers', cols: { driver_name: 'Driver Name', driver_number: 'Driver #', email: 'Email', pharmacy: 'Pharmacy', rate_mth: 'Rate MTH', rate_wf: 'Rate WF', office_fee: 'Office Fee', flat_salary: 'Flat Salary', active: 'Active' } },
+  'Drivers': { table: 'drivers', cols: { driver_name: 'Driver Name', driver_number: 'Driver #', email: 'Email', pharmacy: 'Pharmacy', rate_mon: 'Rate Mon', rate_tue: 'Rate Tue', rate_wed: 'Rate Wed', rate_thu: 'Rate Thu', rate_fri: 'Rate Fri', office_fee: 'Office Fee', flat_salary: 'Flat Salary', active: 'Active' } },
   'Weekly Stops': { table: 'payroll', cols: { driver_name: 'Driver Name', driver_number: 'Driver #', mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', week_total: 'Week Total', will_calls: 'Will Calls', weekly_pay: 'Weekly Pay', week_of: 'Week Of' } },
-  'Orders': { table: 'orders', cols: { order_id: 'Order ID', patient_name: 'Name', address: 'Address', city: 'City', zip: 'ZIP', pharmacy: 'Pharmacy', driver_name: 'Driver Name', date_delivered: 'Date Delivered', cold_chain: 'Cold Chain', source: 'Source' } },
+  'Orders': { table: 'daily_stops', cols: { order_id: 'Order ID', patient_name: 'Name', address: 'Address', city: 'City', zip: 'ZIP', pharmacy: 'Pharmacy', driver_name: 'Driver Name', delivery_date: 'Date Delivered', cold_chain: 'Cold Chain' } },
   'Log': { table: 'dispatch_logs', cols: { date: 'Date', delivery_day: 'Delivery Day', status: 'Status', orders_processed: 'Orders Processed', cold_chain: 'Cold Chain', unassigned_count: 'Unassigned Count', corrections: 'Corrections', shsp_orders: 'SHSP Orders', aultman_orders: 'Aultman Orders', top_driver: 'Top Driver' } },
   'Unassigned History': { table: 'unassigned_orders', cols: { date: 'Date', delivery_day: 'Delivery Day', zip: 'ZIP', address: 'Address', pharmacy: 'Pharmacy', patient_name: 'Name', resolved: 'Resolved' } },
 }

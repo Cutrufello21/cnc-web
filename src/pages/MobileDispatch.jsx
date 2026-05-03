@@ -59,7 +59,15 @@ export function initials(name) {
 /* ── Helpers ────────────────────────────────────── */
 
 function todayStr() {
-  return new Date().toLocaleDateString('en-CA')
+  // Advance to next business day at 6 PM ET — matches driver app
+  const n = new Date()
+  const et = new Date(n.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const d = et.getDay()
+  const h = et.getHours()
+  if (d === 6) et.setDate(et.getDate() + 2)
+  else if (d === 0) et.setDate(et.getDate() + 1)
+  else if (h >= 18) et.setDate(et.getDate() + (d === 5 ? 3 : 1))
+  return `${et.getFullYear()}-${String(et.getMonth() + 1).padStart(2, '0')}-${String(et.getDate()).padStart(2, '0')}`
 }
 
 function greeting() {

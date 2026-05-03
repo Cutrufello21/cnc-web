@@ -127,15 +127,8 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: `Transfer update failed: ${moveError}` })
       }
 
-      // Sync orders table so historical records reflect the final
-      // driver, not the original import-time assignment.
-      try {
-        await supabase.from('orders')
-          .update({ driver_name: toDriverName })
-          .in('order_id', orderIds)
-      } catch (ordSyncErr) {
-        console.error('[transfer orders sync]', ordSyncErr.message)
-      }
+      // Sync was previously needed to keep orders table in sync —
+      // now daily_stops is the single source of truth (already updated above)
 
       // Keep driver_routes.stop_sequence in sync for both drivers so
       // the sender doesn't see a ghost stop and the receiver gets the
@@ -220,26 +213,26 @@ export default async function handler(req, res) {
         }
       }
 
-      // Push notify both drivers ONLY between 6 AM and 6 PM ET.
-      // Night-time transfers (Dom building routes) should NOT buzz
-      // drivers' phones. The only notification they get overnight is
-      // route_ready (with stop + cold chain counts) when Send Routes
-      // fires. Transfer-in/out are daytime-only.
+      // Push notify both drivers ONLY for driver-initiated transfers
+      // during 6 AM – 6 PM ET. Dispatch transfers (source !== 'driver')
+      // never notify — drivers get route_ready when routes are sent.
       const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
       const etHour = etNow.getHours()
-      if (etHour >= 6 && etHour < 18) {
+      const etDay = etNow.getDay() // 0=Sun, 6=Sat
+      if (source === 'driver' && etDay >= 1 && etDay <= 5 && etHour >= 6 && etHour < 18) {
         try {
+          const addrLines = stopDetails.map(s => `${s.address || ''}${s.city ? ', ' + s.city : ''}${s.zip ? ' ' + s.zip : ''}`).filter(Boolean).join('\n')
           await notifyDriver(
             toDriverName,
-            'Stops Added',
-            `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName || 'dispatch'}.`,
+            `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to you from ${fromDriverName || 'dispatch'}`,
+            addrLines,
             'transfer_in'
           )
           if (fromDriverName && fromDriverName !== toDriverName) {
             await notifyDriver(
               fromDriverName,
-              'Stops Transferred',
-              `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}.`,
+              `${orderIds.length} stop${orderIds.length > 1 ? 's' : ''} transferred to ${toDriverName}`,
+              addrLines,
               'transfer_out'
             )
           }
@@ -415,6 +408,32 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, sent: tokens.length, pushData })
     }
 
+    if (data.action === 'notify_delete') {
+      const { driverName, orderIds, deliveryDate } = data
+      if (!driverName || !orderIds?.length) return res.status(400).json({ error: 'Missing data' })
+      const dateStr = deliveryDate || new Date().toISOString().split('T')[0]
+
+      // Fetch deleted stop details
+      const { data: deletedStops } = await supabase.from('daily_stops').select('order_id,address,city,zip').in('order_id', orderIds).eq('delivery_date', dateStr)
+
+      // Fetch ALL stops for this driver today to detect duplicates at same address
+      const { data: allStops } = await supabase.from('daily_stops').select('order_id,address,status').eq('driver_name', driverName).eq('delivery_date', dateStr).neq('status', 'DELETED')
+
+      const addrLines = (deletedStops || []).map(s => {
+        const addr = `${s.address || ''}${s.city ? ', ' + s.city : ''}${s.zip ? ' ' + s.zip : ''}`
+        const normalAddr = (s.address || '').toLowerCase().trim()
+        const totalAtAddr = (allStops || []).filter(a => (a.address || '').toLowerCase().trim() === normalAddr).length
+        const deletedAtAddr = (deletedStops || []).filter(d => (d.address || '').toLowerCase().trim() === normalAddr).length
+        const remainingAtAddr = totalAtAddr - deletedAtAddr
+        if (remainingAtAddr > 0) return `${addr} (${deletedAtAddr} of ${deletedAtAddr + remainingAtAddr} removed — ${remainingAtAddr} still on your route)`
+        return addr
+      }).filter(Boolean).join('\n')
+
+      const title = `${orderIds.length} order${orderIds.length > 1 ? 's' : ''} deleted from your route`
+      await notifyDriver(driverName, title, addrLines, 'order_deleted')
+      return res.status(200).json({ success: true })
+    }
+
     if (data.action === 'announce') {
       // Send push notifications for a new announcement
       const { announcementId, title, body, pharmacy, priority, targetDrivers } = data
@@ -436,7 +455,7 @@ export default async function handler(req, res) {
           to: token,
           sound: 'default',
           title: priority === 'urgent' ? `URGENT: ${title}` : title,
-          body: body || '',
+          body: '',
           data: { type: 'announcement', announcementId },
         }))
 
@@ -452,6 +471,18 @@ export default async function handler(req, res) {
       if (notifRows.length > 0) await supabase.from('driver_notifications').insert(notifRows).catch(() => {})
 
       return res.status(200).json({ success: true, sent: tokens.length })
+    }
+
+    if (data.action === 'list_announcements') {
+      const { data: items } = await supabase.from('announcements').select('*').order('created_at', { ascending: false })
+      return res.status(200).json({ data: items || [] })
+    }
+
+    if (data.action === 'list_announcement_reads') {
+      const { ids } = data
+      if (!ids?.length) return res.status(200).json({ data: [] })
+      const { data: reads } = await supabase.from('announcement_reads').select('announcement_id,driver_id').in('announcement_id', ids)
+      return res.status(200).json({ data: reads || [] })
     }
 
     if (data.action === 'push_routes') {
@@ -471,8 +502,8 @@ export default async function handler(req, res) {
         return {
           to: d.push_token,
           sound: 'default',
-          title: 'Route Ready',
-          body: `You have ${stopCount} stops${coldStr} assigned. Open the app to view your route.`,
+          title: `Route Ready — ${stopCount} stops${coldStr}`,
+          body: '',
           data: { type: 'route_ready', date: dateStr },
         }
       })

@@ -51,10 +51,14 @@ export async function requireAuth(req, res, options = {}) {
 
   // No valid auth
   if (options.allowAnon) return null
-  // TEMPORARY: Allow unauthenticated requests during transition period
-  // TODO: Remove this block once all driver apps are updated to send auth tokens (build #69+)
-  console.warn(`[auth] Unauthenticated request to ${req.url} — allowing during transition`)
-  return { id: 'anonymous', email: null, role: 'driver', isAnonymous: true }
+  // Allow unauthenticated until all driver apps are on build #78+
+  // TODO: Remove after 2026-04-21 once all drivers have updated
+  if (options.allowApiSecret) {
+    console.warn(`[auth] Unauthenticated request to ${req.url} — allowing until build #78 rollout`)
+    return { id: 'anonymous', email: null, role: 'driver', isAnonymous: true }
+  }
+  res.status(401).json({ error: 'Unauthorized' })
+  return null
 }
 
 // Require that the authenticated user matches the driver name

@@ -21,22 +21,6 @@ export default function StopDistribution({ drivers }) {
         <span className="sd__title">Stop Distribution</span>
         <span className="sd__avg">{totalStops} total — avg {avg}/driver</span>
       </div>
-      <div className="sd__bar">
-        {sorted.map(d => {
-          const pct = (d.stops / totalStops) * 100
-          return (
-            <div
-              key={d['Driver Name']}
-              className={`sd__seg ${getColor(d.stops)}`}
-              style={{ width: `${pct}%` }}
-              title={`${d['Driver Name']}: ${d.stops} stops`}
-            >
-              {pct > 4 && <span className="sd__seg-name">{d['Driver Name']}</span>}
-              <span className="sd__seg-count">{d.stops}</span>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }

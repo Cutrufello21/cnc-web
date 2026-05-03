@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
   const [loading] = useState(false)
 
   async function signOut() {
-    const isPharm = profile?.role === 'pharmacy'
+    const isPharm = profile?.role === 'pharmacy' || window.location.pathname.startsWith('/portal')
     try { await supabase.auth.signOut() } catch {}
     localStorage.removeItem('cnc-user')
     localStorage.removeItem('cnc-profile')

@@ -15,7 +15,7 @@ export default function Drivers() {
   const [rulesSaving, setRulesSaving] = useState(false)
   const [newDriver, setNewDriver] = useState({
     driver_name: '', driver_number: '', email: '', pharmacy: 'SHSP',
-    rate_mth: '', rate_wf: '', office_fee: '', flat_salary: '', password: '',
+    rate_mon: '', rate_tue: '', rate_wed: '', rate_thu: '', rate_fri: '', office_fee: '', flat_salary: '', password: '',
   })
 
   useEffect(() => { loadDrivers() }, [])
@@ -32,7 +32,7 @@ export default function Drivers() {
     setEditData({
       driver_name: d.driver_name, driver_number: d.driver_number,
       email: d.email || '', pharmacy: d.pharmacy || 'SHSP',
-      rate_mth: d.rate_mth || 0, rate_wf: d.rate_wf || 0,
+      rate_mon: d.rate_mon || 0, rate_tue: d.rate_tue || 0, rate_wed: d.rate_wed || 0, rate_thu: d.rate_thu || 0, rate_fri: d.rate_fri || 0,
       office_fee: d.office_fee || 0, flat_salary: d.flat_salary || '',
       active: d.active,
     })
@@ -43,8 +43,11 @@ export default function Drivers() {
     try {
       const update = { ...editData }
       update.flat_salary = update.flat_salary === '' ? null : parseFloat(update.flat_salary)
-      update.rate_mth = parseFloat(update.rate_mth) || 0
-      update.rate_wf = parseFloat(update.rate_wf) || 0
+      update.rate_mon = parseFloat(update.rate_mon) || 0
+      update.rate_tue = parseFloat(update.rate_tue) || 0
+      update.rate_wed = parseFloat(update.rate_wed) || 0
+      update.rate_thu = parseFloat(update.rate_thu) || 0
+      update.rate_fri = parseFloat(update.rate_fri) || 0
       update.office_fee = parseFloat(update.office_fee) || 0
 
       await dbUpdate('drivers', update, { id: editId })
@@ -75,8 +78,11 @@ export default function Drivers() {
         driver_number: newDriver.driver_number,
         email: newDriver.email || null,
         pharmacy: newDriver.pharmacy,
-        rate_mth: parseFloat(newDriver.rate_mth) || 0,
-        rate_wf: parseFloat(newDriver.rate_wf) || 0,
+        rate_mon: parseFloat(newDriver.rate_mon) || 0,
+        rate_tue: parseFloat(newDriver.rate_tue) || 0,
+        rate_wed: parseFloat(newDriver.rate_wed) || 0,
+        rate_thu: parseFloat(newDriver.rate_thu) || 0,
+        rate_fri: parseFloat(newDriver.rate_fri) || 0,
         office_fee: parseFloat(newDriver.office_fee) || 0,
         flat_salary: newDriver.flat_salary ? parseFloat(newDriver.flat_salary) : null,
         active: true,
@@ -124,7 +130,7 @@ export default function Drivers() {
 
       setToast(`${newDriver.driver_name} added${newDriver.email ? ' — login account created' : ''}`)
       setTimeout(() => setToast(null), 4000)
-      setNewDriver({ driver_name: '', driver_number: '', email: '', pharmacy: 'SHSP', rate_mth: '', rate_wf: '', office_fee: '', flat_salary: '', password: '' })
+      setNewDriver({ driver_name: '', driver_number: '', email: '', pharmacy: 'SHSP', rate_mon: '', rate_tue: '', rate_wed: '', rate_thu: '', rate_fri: '', office_fee: '', flat_salary: '', password: '' })
       setShowAdd(false)
       loadDrivers()
     } catch (err) {
@@ -178,14 +184,14 @@ export default function Drivers() {
             </div>
           </div>
           <div className="drv__add-row">
-            <div className="drv__add-field">
-              <label>Rate M/T/Th</label>
-              <input type="number" step="0.01" value={newDriver.rate_mth} onChange={e => setNewDriver({ ...newDriver, rate_mth: e.target.value })} placeholder="7.00" />
-            </div>
-            <div className="drv__add-field">
-              <label>Rate W/F</label>
-              <input type="number" step="0.01" value={newDriver.rate_wf} onChange={e => setNewDriver({ ...newDriver, rate_wf: e.target.value })} placeholder="7.00" />
-            </div>
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(day => (
+              <div className="drv__add-field" key={day}>
+                <label>Rate {day}</label>
+                <input type="number" step="0.01" value={newDriver[`rate_${day.toLowerCase()}`]} onChange={e => setNewDriver({ ...newDriver, [`rate_${day.toLowerCase()}`]: e.target.value })} placeholder="7.00" />
+              </div>
+            ))}
+          </div>
+          <div className="drv__add-row">
             <div className="drv__add-field">
               <label>Office Fee</label>
               <input type="number" value={newDriver.office_fee} onChange={e => setNewDriver({ ...newDriver, office_fee: e.target.value })} placeholder="-35" />
@@ -221,12 +227,16 @@ export default function Drivers() {
               <th>Name</th>
               <th>ID</th>
               <th>Email</th>
-              <th>Rate M/T/Th</th>
-              <th>Rate W/F</th>
+              <th>Mon</th>
+              <th>Tue</th>
+              <th>Wed</th>
+              <th>Thu</th>
+              <th>Fri</th>
               <th>Office Fee</th>
               <th>Flat Salary</th>
               <th>Active</th>
               <th>PRO</th>
+              <th>Admin</th>
               <th></th>
             </tr>
           </thead>
@@ -238,8 +248,9 @@ export default function Drivers() {
                     <td><input className="drv__input" value={editData.driver_name} onChange={e => setEditData({ ...editData, driver_name: e.target.value })} /></td>
                     <td><input className="drv__input drv__input--sm" value={editData.driver_number} onChange={e => setEditData({ ...editData, driver_number: e.target.value })} /></td>
                     <td><input className="drv__input" value={editData.email} onChange={e => setEditData({ ...editData, email: e.target.value })} /></td>
-                    <td><input className="drv__input drv__input--sm" type="number" step="0.01" value={editData.rate_mth} onChange={e => setEditData({ ...editData, rate_mth: e.target.value })} /></td>
-                    <td><input className="drv__input drv__input--sm" type="number" step="0.01" value={editData.rate_wf} onChange={e => setEditData({ ...editData, rate_wf: e.target.value })} /></td>
+                    {['mon', 'tue', 'wed', 'thu', 'fri'].map(day => (
+                      <td key={day}><input className="drv__input drv__input--sm" type="number" step="0.01" value={editData[`rate_${day}`]} onChange={e => setEditData({ ...editData, [`rate_${day}`]: e.target.value })} /></td>
+                    ))}
                     <td><input className="drv__input drv__input--sm" type="number" value={editData.office_fee} onChange={e => setEditData({ ...editData, office_fee: e.target.value })} /></td>
                     <td><input className="drv__input drv__input--sm" type="number" value={editData.flat_salary} onChange={e => setEditData({ ...editData, flat_salary: e.target.value })} placeholder="—" /></td>
                     <td>
@@ -267,8 +278,9 @@ export default function Drivers() {
                     </td>
                     <td className="drv__cell-id">{d.driver_number}</td>
                     <td className="drv__cell-email">{d.email || '—'}</td>
-                    <td className="drv__cell-num">${parseFloat(d.rate_mth || 0).toFixed(2)}</td>
-                    <td className="drv__cell-num">${parseFloat(d.rate_wf || 0).toFixed(2)}</td>
+                    {['rate_mon', 'rate_tue', 'rate_wed', 'rate_thu', 'rate_fri'].map(col => (
+                      <td key={col} className="drv__cell-num">${parseFloat(d[col] || 0).toFixed(2)}</td>
+                    ))}
                     <td className="drv__cell-num">{d.office_fee ? `$${d.office_fee}` : '—'}</td>
                     <td className="drv__cell-num">{d.flat_salary ? `$${parseFloat(d.flat_salary).toLocaleString()}` : '—'}</td>
                     <td>{d.active ? '✓' : '—'}</td>
@@ -284,6 +296,18 @@ export default function Drivers() {
                         {d.pod_enabled ? 'ON' : 'OFF'}
                       </button>
                     </td>
+                    <td>
+                      <button
+                        className={`drv__pod-toggle ${d.is_admin ? 'drv__pod-toggle--admin' : ''}`}
+                        onClick={async () => {
+                          await dbUpdate('drivers', { is_admin: !d.is_admin }, { id: d.id })
+                          loadDrivers()
+                        }}
+                        title={d.is_admin ? 'Admin (lead) — click to demote' : 'Standard driver — click to make admin'}
+                      >
+                        {d.is_admin ? 'ON' : 'OFF'}
+                      </button>
+                    </td>
                     <td className="drv__actions">
                       <button className="drv__btn drv__btn--rules" onClick={() => setRulesOpen(isRulesOpen ? null : d.id)} title="Dispatch rules">
                         ⚙
@@ -293,7 +317,7 @@ export default function Drivers() {
                   </tr>
                   {isRulesOpen && (
                     <tr key={`${d.id}-rules`} className="drv__rules-row">
-                      <td colSpan={11}>
+                      <td colSpan={14}>
                         <DriverRules driver={d} onSave={async (updates) => {
                           setRulesSaving(true)
                           try {

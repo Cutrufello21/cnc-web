@@ -123,6 +123,7 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
 
   async function loadPayroll() {
     setLoading(true)
+    setEdits({}) // Clear edits when switching weeks
     try {
       // Get target week's Monday (use local date, not UTC)
       const now = new Date()
@@ -176,7 +177,7 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
       ;(reconRes.data || []).forEach(r => {
         if (!reconMap[r.driver_name]) reconMap[r.driver_name] = {}
         reconMap[r.driver_name][r.day] = { actual: r.actual_stops, locked: !!r.locked, approved: !!r.approved, id: r.id }
-        if (r.locked && r.afternoon_stops) {
+        if (r.afternoon_stops) {
           afternoonTotals[r.driver_name] = (afternoonTotals[r.driver_name] || 0) + r.afternoon_stops
         }
       })
@@ -209,30 +210,45 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
         const thu = pickDay('Thu')
         const fri = pickDay('Fri')
         const weekTotal = mon + tue + wed + thu + fri
-        const willCalls = p.will_calls != null ? p.will_calls : (afternoonTotals[d.driver_name] || 0)
+        // Locked reconciliation afternoon totals are authoritative; payroll.will_calls is fallback
+        const willCalls = afternoonTotals[d.driver_name] != null ? afternoonTotals[d.driver_name] : (p.will_calls || 0)
         const officeFee = parseFloat(d.office_fee) || 0
         const flatSalary = d.flat_salary ? parseFloat(d.flat_salary) : null
-        const rateMth = parseFloat(d.rate_mth) || 0
-        const rateWf = parseFloat(d.rate_wf) || 0
+        const rates = {
+          mon: parseFloat(d.rate_mon) || 0,
+          tue: parseFloat(d.rate_tue) || 0,
+          wed: parseFloat(d.rate_wed) || 0,
+          thu: parseFloat(d.rate_thu) || 0,
+          fri: parseFloat(d.rate_fri) || 0,
+        }
+        const hasRates = Object.values(rates).some(r => r > 0)
         const wcRate = parseFloat(d.will_call_rate) || 9
 
         let calculatedPay = 0
         if (flatSalary) {
           calculatedPay = flatSalary
-        } else if (rateMth || rateWf) {
-          const mthStops = mon + tue + thu
-          const wfStops = wed + fri
-          calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * wcRate)
+        } else if (hasRates) {
+          calculatedPay = (mon * rates.mon) + (tue * rates.tue) + (wed * rates.wed) + (thu * rates.thu) + (fri * rates.fri) + (willCalls * wcRate)
           if (weekTotal > 0 || willCalls > 0) calculatedPay += officeFee
           else calculatedPay = 0
         } else if (willCalls > 0) {
           calculatedPay = willCalls * wcRate + officeFee
         }
 
+        // Shadow per-stop rate for flat drivers — what they'd earn if paid per stop.
+        // Mark/Dom: $9/stop + $10/will-call. Others: stored rates if any, else $7/$9.
+        const isOperator = d.driver_name === 'Mark' || d.driver_name === 'Dom'
+        const shadowStopRate = isOperator ? 9 : 7
+        const shadowWcRate = isOperator ? 10 : (wcRate || 9)
+        const shadowRates = (!isOperator && hasRates)
+          ? rates
+          : { mon: shadowStopRate, tue: shadowStopRate, wed: shadowStopRate, thu: shadowStopRate, fri: shadowStopRate }
+
         return {
           name: d.driver_name, id: d.driver_number,
           mon, tue, wed, thu, fri, weekTotal, willCalls, officeFee,
-          rate: (rateMth || rateWf) ? { mth: rateMth, wf: rateWf } : null, wcRate,
+          rates: hasRates ? rates : null, wcRate,
+          shadowRates, shadowWcRate,
           flatSalary,
           calculatedPay: Math.round(calculatedPay * 100) / 100,
           sheetPay: parseFloat(p.weekly_pay) || 0,
@@ -486,19 +502,17 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
   function getAdjustedPay(driver) {
     if (driver.isFlat) return driver.flatSalary
     const willCalls = parseInt(getEditedValue(driver.name, 'Will Calls', driver.willCalls)) || 0
-    const rate = driver.rate
-    if (!rate) return driver.calculatedPay
+    const rates = driver.rates
+    if (!rates) return driver.calculatedPay
 
     const mon = getDayValue(driver, 'Mon')
     const tue = getDayValue(driver, 'Tue')
     const wed = getDayValue(driver, 'Wed')
     const thu = getDayValue(driver, 'Thu')
     const fri = getDayValue(driver, 'Fri')
-    const mthStops = mon + tue + thu
-    const wfStops = wed + fri
     const total = mon + tue + wed + thu + fri
 
-    let pay = (mthStops * rate.mth) + (wfStops * rate.wf) + (willCalls * (driver.wcRate || 9))
+    let pay = (mon * rates.mon) + (tue * rates.tue) + (wed * rates.wed) + (thu * rates.thu) + (fri * rates.fri) + (willCalls * (driver.wcRate || 9))
     if (total > 0 || willCalls > 0) {
       pay += driver.officeFee
     } else {
@@ -507,11 +521,28 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
     return Math.round(pay * 100) / 100
   }
 
+  // Shadow per-stop pay for flat drivers — what they'd earn if paid per stop.
+  // Returns null for non-flat drivers (their actual pay is already per-stop).
+  function getPerStopShadow(driver) {
+    if (!driver.isFlat) return null
+    const rates = driver.shadowRates
+    if (!rates) return null
+    const mon = getDayValue(driver, 'Mon')
+    const tue = getDayValue(driver, 'Tue')
+    const wed = getDayValue(driver, 'Wed')
+    const thu = getDayValue(driver, 'Thu')
+    const fri = getDayValue(driver, 'Fri')
+    const willCalls = parseInt(getEditedValue(driver.name, 'Will Calls', driver.willCalls)) || 0
+    const wcRate = driver.shadowWcRate || 9
+    const pay = (mon * rates.mon) + (tue * rates.tue) + (wed * rates.wed) + (thu * rates.thu) + (fri * rates.fri) + (willCalls * wcRate)
+    return Math.round(pay * 100) / 100
+  }
+
   return {
     data, loading, reconApproved, edits, saving, approved, approving,
     toast, insights, loadingInsights, expandedDriver, setExpandedDriver,
     loadPayroll, loadInsights, showToast, handleEdit, getEditedValue,
     hasEdits, saveEdit, buildPayrollHtml, handleApprove,
-    getDayValue, getAdjustedTotal, getAdjustedPay,
+    getDayValue, getAdjustedTotal, getAdjustedPay, getPerStopShadow,
   }
 }

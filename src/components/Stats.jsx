@@ -56,10 +56,10 @@ export default function Stats() {
     <section className="stats" ref={ref}>
       <div className="container">
         <div className="stats__grid">
-          <CountingStat target={215000} suffix="+" label="Verified Deliveries" sub="Since 2023" inView={inView} delay={0} />
-          <TextStat value="Since 2007" label="Years in Operation" inView={inView} delay={0.1} />
-          <CountingStat target={100} suffix="%" label="Owner-Operated" sub="Direct accountability" inView={inView} delay={0.2} />
-          <TextStat value="8AM–6PM" label="Delivery Window" sub="Never missed" inView={inView} delay={0.3} />
+          <CountingStat target={20} suffix="+" label="Independent Drivers" sub="Northeast Ohio locals" inView={inView} delay={0} />
+          <TextStat value="8AM–6PM" label="Delivery Window" sub="Consistent, every day" inView={inView} delay={0.1} />
+          <CountingStat target={200} suffix="+" label="ZIP Codes Covered" sub="Summit, Stark, Portage & Tuscarawas" inView={inView} delay={0.2} />
+          <TextStat value="1.3M+" label="Total Deliveries" sub="Since 2007" inView={inView} delay={0.3} />
         </div>
       </div>
     </section>

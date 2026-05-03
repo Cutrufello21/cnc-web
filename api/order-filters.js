@@ -6,8 +6,8 @@ export default async function handler(req, res) {
   try {
     const [driversRes, sourcesRes, citiesRes, datesRes] = await Promise.all([
       supabase.from('drivers').select('driver_name').eq('active', true).order('driver_name'),
-      supabase.from('orders').select('source').not('source', 'is', null).not('source', 'eq', '').limit(1000),
-      supabase.from('orders').select('city').not('city', 'is', null).not('city', 'eq', '').limit(10000),
+      supabase.from('daily_stops').select('source').not('source', 'is', null).not('source', 'eq', '').limit(1000),
+      supabase.from('daily_stops').select('city').not('city', 'is', null).not('city', 'eq', '').limit(10000),
       supabase.from('dispatch_logs').select('date').order('date', { ascending: false }),
     ])
 

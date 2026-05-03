@@ -5,18 +5,18 @@ import './HowItWorks.css'
 const steps = [
   {
     number: '01',
-    title: 'Orders In',
-    desc: 'Orders transmit from your pharmacy system each evening. Automatically imported, verified, and ready for routing before the next business day.',
+    title: 'You Close. We Start.',
+    desc: 'Orders land in our system the moment your pharmacy sends them. No manual uploads, no phone calls, no faxes. Automated and verified before midnight.',
   },
   {
     number: '02',
-    title: 'Dispatch',
-    desc: 'Every order matched to a driver using 156 routing rules built from years on these roads — the night before delivery. Drivers wake up with a complete, verified route already waiting.',
+    title: 'Routed Before Sunrise.',
+    desc: 'Every order matched to a local driver using custom routing rules built over seventeen years. Your drivers wake up with a verified route — ready to go.',
   },
   {
     number: '03',
-    title: 'Delivery',
-    desc: 'Cold chain packages flagged and prioritized. Routes executed start to finish. Every delivery completed by 6 PM — every single day.',
+    title: 'Delivered. Verified. Done.',
+    desc: 'Photo, GPS, and timestamp on every stop. Cold chain tracked. You see it in your portal the second it happens — confirmed by 6 PM.',
   },
 ]
 

@@ -24,19 +24,21 @@ export default function Communications() {
 
   async function load() {
     setLoading(true)
-    const [annRes, drvRes] = await Promise.all([
-      supabase.from('announcements').select('*').order('created_at', { ascending: false }),
+    // Use service-role fetch for announcements (RLS blocks authenticated dispatcher reads)
+    const [annJson, drvRes] = await Promise.all([
+      fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list_announcements' }) }).then(r => r.json()).catch(() => ({ data: [] })),
       supabase.from('drivers').select('id,driver_name,pharmacy,active').eq('active', true).order('driver_name')
     ])
-    setItems(annRes.data || [])
+    const annData = annJson.data || []
+    setItems(annData)
     setDrivers(drvRes.data || [])
 
-    // Load read counts for all announcements
-    const ids = (annRes.data || []).map(a => a.id)
+    // Load read counts
+    const ids = annData.map(a => a.id)
     if (ids.length > 0) {
-      const { data: reads } = await supabase.from('announcement_reads').select('announcement_id,driver_id').in('announcement_id', ids)
+      const readsJson = await fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list_announcement_reads', ids }) }).then(r => r.json()).catch(() => ({ data: [] }))
       const countMap = {}
-      for (const r of (reads || [])) {
+      for (const r of (readsJson.data || [])) {
         countMap[r.announcement_id] = countMap[r.announcement_id] || []
         countMap[r.announcement_id].push(r.driver_id)
       }

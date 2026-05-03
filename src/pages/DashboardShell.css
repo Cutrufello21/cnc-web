@@ -7,7 +7,7 @@
 
 /* ── Sidebar ─────────────────────────────────────── */
 .shell__sidebar {
-  width: 64px;
+  width: 220px;
   background: #ffffff;
   border-right: 1px solid #F0F2F7;
   display: flex;
@@ -19,24 +19,15 @@
   z-index: 50;
   overflow-y: auto;
   overflow-x: hidden;
-  transition: width 0.2s ease;
-}
-.shell__sidebar:hover {
-  width: 220px;
 }
 
 .shell__sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 16px 12px 20px;
+  padding: 16px 16px 20px;
   white-space: nowrap;
   overflow: hidden;
-  justify-content: center;
-  transition: padding 0.2s ease;
-}
-.shell__sidebar:hover .shell__sidebar-brand {
-  padding: 16px 16px 20px;
   justify-content: flex-start;
 }
 
@@ -44,24 +35,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  padding: 0;
+  width: auto;
+  padding: 6px 14px;
   background: #0B1E3D;
   border-radius: 10px;
   color: #fff;
   font-family: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
   font-weight: 700;
-  font-size: 11px;
-  letter-spacing: 2px;
-  user-select: none;
-  flex-shrink: 0;
-}
-.shell__sidebar:hover .shell__pill {
-  width: auto;
-  padding: 6px 14px;
   font-size: 13px;
   letter-spacing: 2.5px;
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .shell__title {
@@ -71,22 +55,16 @@
   letter-spacing: -0.3px;
   white-space: nowrap;
   overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  opacity: 1;
 }
-.shell__sidebar:hover .shell__title { opacity: 1; }
 
 /* ── Navigation ──────────────────────────────────── */
 .shell__nav {
   flex: 1;
-  padding: 0;
+  padding: 0 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  align-items: center;
-}
-.shell__sidebar:hover .shell__nav {
-  padding: 0 12px;
   align-items: stretch;
 }
 
@@ -100,10 +78,12 @@
   margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  opacity: 1;
 }
-.shell__sidebar:hover .shell__nav-section { opacity: 1; }
+
+.shell__nav-section--mt {
+  margin-top: 14px;
+}
 
 .shell__nav-btn {
   display: flex;
@@ -118,18 +98,13 @@
   transition: all 0.15s ease;
   text-align: left;
   position: relative;
-  width: 40px;
-  height: 40px;
-}
-.shell__sidebar:hover .shell__nav-btn {
-  justify-content: flex-start;
-  padding: 9px 12px;
   width: 100%;
   height: auto;
+  justify-content: flex-start;
+  padding: 9px 12px;
 }
 .shell__nav-btn svg { flex-shrink: 0; }
-.shell__nav-btn span { display: none; white-space: nowrap; overflow: hidden; }
-.shell__sidebar:hover .shell__nav-btn span { display: inline; }
+.shell__nav-btn span { display: inline; white-space: nowrap; overflow: hidden; }
 .shell__nav-btn:hover { color: #0B1E3D; background: #F7F8FB; }
 
 .shell__nav-btn--active {
@@ -147,41 +122,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 4px;
-  font-size: 8px;
-  font-weight: 700;
-  color: white;
-  background: #E74C3C;
-  border-radius: 9px;
-  position: absolute;
-  top: 2px;
-  right: 2px;
-}
-.shell__sidebar:hover .shell__view-badge {
-  position: static;
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
   font-size: 10px;
+  font-weight: 700;
+  color: white;
+  background: #E74C3C;
+  border-radius: 9px;
+  position: static;
   margin-left: auto;
 }
 
 /* ── Sidebar Footer ──────────────────────────────── */
 .shell__sidebar-footer {
-  padding: 12px 8px 16px;
+  padding: 16px 16px 20px;
   border-top: 1px solid #F0F2F7;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  align-items: center;
-  overflow: hidden;
-  transition: padding 0.2s ease;
-}
-.shell__sidebar:hover .shell__sidebar-footer {
-  padding: 16px 16px 20px;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .shell__sidebar-user {
@@ -196,10 +157,8 @@
   color: #9BA5B4;
   white-space: nowrap;
   overflow: hidden;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  opacity: 1;
 }
-.shell__sidebar:hover .shell__name { opacity: 1; }
 
 .shell__signout {
   font-size: 12px;
@@ -218,7 +177,7 @@
 /* ── Main Content ────────────────────────────────── */
 .shell__main {
   flex: 1;
-  margin-left: 64px;
+  margin-left: 220px;
   padding: 28px 32px 40px;
   min-height: 100vh;
   max-width: 100%;

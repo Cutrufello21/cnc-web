@@ -13,7 +13,7 @@ export default async function handler(req, res) {
       supabase.from('payroll').select('*').order('week_of', { ascending: false }).limit(25),
       supabase.from('drivers').select('*').eq('active', true),
       supabase.from('unassigned_orders').select('*').order('date', { ascending: false }).limit(10),
-      supabase.from('orders').select('zip').not('zip', 'is', null).not('zip', 'eq', ''),
+      supabase.from('daily_stops').select('zip').not('zip', 'is', null).not('zip', 'eq', ''),
     ])
 
     // Parse logs — weekdays only

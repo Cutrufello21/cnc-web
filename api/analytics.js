@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     let topLocations = locationRes.data || []
 
     if (zipRes.error) {
-      const { data } = await supabase.from('orders').select('zip')
+      const { data } = await supabase.from('daily_stops').select('zip')
         .not('zip', 'is', null).not('zip', 'eq', '')
       const zipCounts = {}
       ;(data || []).forEach(r => { zipCounts[r.zip] = (zipCounts[r.zip] || 0) + 1 })
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
         .map(([zip, count]) => ({ ZIP: zip, 'Total Deliveries': count }))
     }
     if (patientRes.error) {
-      const { data } = await supabase.from('orders').select('patient_name')
+      const { data } = await supabase.from('daily_stops').select('patient_name')
         .not('patient_name', 'is', null).not('patient_name', 'eq', '')
       const patCounts = {}
       ;(data || []).forEach(r => { patCounts[r.patient_name] = (patCounts[r.patient_name] || 0) + 1 })
@@ -40,7 +40,7 @@ export default async function handler(req, res) {
         .map(([name, count]) => ({ Name: name, 'Total Deliveries': count }))
     }
     if (locationRes.error) {
-      const { data } = await supabase.from('orders').select('address, city, zip')
+      const { data } = await supabase.from('daily_stops').select('address, city, zip')
         .not('address', 'is', null).not('address', 'eq', '')
       const locCounts = {}
       ;(data || []).forEach(r => {
@@ -366,11 +366,14 @@ export default async function handler(req, res) {
       .sort((a, b) => b.pct - a.pct)
 
     // Driver rate data for pay simulator
-    const { data: driversForRates } = await supabase.from('drivers').select('driver_name, rate_mth, rate_wf, office_fee, flat_salary').eq('active', true)
+    const { data: driversForRates } = await supabase.from('drivers').select('driver_name, rate_mon, rate_tue, rate_wed, rate_thu, rate_fri, office_fee, flat_salary').eq('active', true)
     const driverRates = (driversForRates || []).filter(d => d.driver_name !== 'Paul').map(d => ({
       name: d.driver_name,
-      rateMth: parseFloat(d.rate_mth) || 0,
-      rateWf: parseFloat(d.rate_wf) || 0,
+      rates: {
+        mon: parseFloat(d.rate_mon) || 0, tue: parseFloat(d.rate_tue) || 0,
+        wed: parseFloat(d.rate_wed) || 0, thu: parseFloat(d.rate_thu) || 0,
+        fri: parseFloat(d.rate_fri) || 0,
+      },
       officeFee: parseFloat(d.office_fee) || 0,
       flatSalary: d.flat_salary ? parseFloat(d.flat_salary) : null,
     }))

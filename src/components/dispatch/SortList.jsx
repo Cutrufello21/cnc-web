@@ -32,14 +32,118 @@ export default function SortList({ deliveryDate }) {
 
   useEffect(() => { loadData() }, [dateStr])
 
+  // Build SHSP sort description from routing rules
+  // dayCol = 'mon','tue','wed','thu','fri' — used to determine zone ownership
+  function buildShspDescription(driverName, stopZips, routingRules, allDriverZips, dayCol, driverNumber) {
+    if (!stopZips || stopZips.size === 0) return driverName.toUpperCase()
+
+    // Determine which zone this driver owns based on routing_rules day assignment
+    // Count how many ZIPs in each zone are assigned to this driver for this day
+    const zoneOwnership = {}
+    const driverRef = driverNumber ? `${driverName}/${driverNumber}` : driverName
+    for (const rule of routingRules) {
+      const assigned = rule[dayCol] || ''
+      const zone = rule.route
+      if (!zone || zone === 'Local' || zone === 'Overflow') continue
+      if (!zoneOwnership[zone]) zoneOwnership[zone] = 0
+      if (assigned.includes(driverName)) zoneOwnership[zone]++
+    }
+    // Driver's base zone = zone where they're assigned the most ZIPs
+    let baseZone = null
+    let baseCount = 0
+    for (const [zone, count] of Object.entries(zoneOwnership)) {
+      if (count > baseCount) { baseZone = zone; baseCount = count }
+    }
+
+    // Map each stop ZIP to its zone
+    const zoneStops = {}
+    const unmappedZips = new Set()
+    for (const zip of stopZips) {
+      const rule = routingRules.find(r => r.zip_code === zip)
+      if (rule) {
+        const zone = rule.route || 'Unknown'
+        if (!zoneStops[zone]) zoneStops[zone] = []
+        zoneStops[zone].push({ zip, city: rule.city || '' })
+      } else {
+        unmappedZips.add(zip)
+      }
+    }
+
+    // Collect route names, city names, and ZIP codes separately
+    const routeParts = [] // base zone + other zone names
+    const cityParts = new Set() // city names (sorted alpha)
+    const zipParts = new Set() // ZIP codes (sorted ascending)
+
+    // Base route name
+    if (baseZone) routeParts.push(baseZone)
+
+    // Check for exclusions from base zone (deduplicated by city name)
+    const exclusionSet = new Set()
+    if (baseZone) {
+      const allBaseZips = routingRules.filter(r => r.route === baseZone).map(r => r.zip_code)
+      for (const bz of allBaseZips) {
+        if (!stopZips.has(bz)) {
+          const otherHasIt = Object.entries(allDriverZips || {}).some(([other, zips]) => other !== driverName && zips.has(bz))
+          if (otherHasIt) {
+            const rule = routingRules.find(r => r.zip_code === bz)
+            const label = rule?.city && rule.city.toLowerCase() !== 'akron' ? rule.city : bz
+            exclusionSet.add(label)
+          }
+        }
+      }
+    }
+
+    // Other named zones — collect city names
+    for (const zone of Object.keys(zoneStops).sort()) {
+      if (zone === baseZone || zone === 'Local' || zone === 'Overflow') continue
+      for (const s of zoneStops[zone]) {
+        if (!s.city || s.city.toLowerCase() === 'akron') zipParts.add(s.zip)
+        else cityParts.add(s.city)
+      }
+    }
+
+    // Overflow → city names (never "Akron", show ZIP instead)
+    if (zoneStops['Overflow']) {
+      for (const s of zoneStops['Overflow']) {
+        if (!s.city || s.city.toLowerCase() === 'akron') zipParts.add(s.zip)
+        else cityParts.add(s.city)
+      }
+    }
+
+    // Local → ZIP codes
+    if (zoneStops['Local']) {
+      for (const s of zoneStops['Local']) zipParts.add(s.zip)
+    }
+
+    // Unmapped → ZIP codes
+    for (const zip of unmappedZips) zipParts.add(zip)
+
+    // Build final: route names → cities (alpha) → ZIPs (ascending)
+    const allParts = [
+      ...routeParts,
+      ...[...cityParts].sort((a, b) => a.localeCompare(b)),
+      ...[...zipParts].sort((a, b) => a.localeCompare(b)),
+    ]
+
+    if (allParts.length === 0) return driverName.toUpperCase()
+
+    let desc = `${driverName.toUpperCase()} — ${allParts.join(', ')}`
+    if (exclusionSet.size > 0) {
+      desc += ` (no ${[...exclusionSet].sort().join(', ')})`
+    }
+    return desc
+  }
+
   async function loadData() {
     setLoading(true)
-    const [sortRes, stopsRes] = await Promise.all([
+    const [sortRes, stopsRes, rulesRes] = await Promise.all([
       supabase.from('sort_list').select('*').eq('delivery_date', dateStr).order('sort_order', { ascending: true }),
-      supabase.from('daily_stops').select('driver_name, pharmacy, city').eq('delivery_date', dateStr),
+      supabase.from('daily_stops').select('driver_name, pharmacy, city, zip').eq('delivery_date', dateStr),
+      supabase.from('routing_rules').select('zip_code, route, city, pharmacy, mon, tue, wed, thu, fri').eq('pharmacy', 'SHSP'),
     ])
 
     const existing = sortRes.data || []
+    const routingRules = rulesRes.data || []
     const result = { SHSP: [], Aultman: [] }
     existing.forEach(r => { if (result[r.pharmacy]) result[r.pharmacy].push(r) })
 
@@ -47,7 +151,11 @@ export default function SortList({ deliveryDate }) {
     const aultmanExists = existing.some(r => r.pharmacy === 'Aultman')
     const shspExists = existing.some(r => r.pharmacy === 'SHSP')
 
-    // Build current city maps from daily_stops for both pharmacies
+    // Determine day column for routing rules lookup
+    const dayOfWeek = new Date(dateStr + 'T12:00:00').getDay()
+    const dayCol = ['sun','mon','tue','wed','thu','fri','sat'][dayOfWeek] || 'mon'
+
+    // Build current city maps from daily_stops for Aultman
     function buildCityMap(pharmacy) {
       const map = {}
       allStops.forEach(s => {
@@ -58,17 +166,35 @@ export default function SortList({ deliveryDate }) {
       return map
     }
 
+    // Build ZIP maps from daily_stops for SHSP
+    function buildZipMap() {
+      const map = {}
+      allStops.forEach(s => {
+        if (s.pharmacy !== 'SHSP') return
+        if (!map[s.driver_name]) map[s.driver_name] = new Set()
+        if (s.zip) map[s.driver_name].add(s.zip.trim())
+      })
+      return map
+    }
+
     for (const pharmacy of ['Aultman', 'SHSP']) {
       const exists = pharmacy === 'Aultman' ? aultmanExists : shspExists
       const cityMap = buildCityMap(pharmacy)
+      const zipMap = pharmacy === 'SHSP' ? buildZipMap() : {}
 
       if (!exists && allStops.length > 0) {
         // First time — insert all rows
         const rows = []
         let order = 0
-        for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
-          const cityList = [...cities].sort().join(', ')
-          const displayText = pharmacy === 'Aultman' ? `${name.toUpperCase()} — ${cityList}` : name.toUpperCase()
+        const driverNames = pharmacy === 'SHSP' ? Object.keys(zipMap) : Object.keys(cityMap)
+        for (const name of driverNames.sort((a, b) => a.localeCompare(b))) {
+          let displayText
+          if (pharmacy === 'Aultman') {
+            const cityList = [...(cityMap[name] || [])].sort().join(', ')
+            displayText = `${name.toUpperCase()} — ${cityList}`
+          } else {
+            displayText = buildShspDescription(name, zipMap[name], routingRules, zipMap, dayCol)
+          }
           rows.push({
             delivery_date: dateStr, pharmacy, driver_name: name,
             display_text: displayText, sort_order: order++,
@@ -85,20 +211,24 @@ export default function SortList({ deliveryDate }) {
         const currentRows = result[pharmacy]
         const existingDrivers = new Set(currentRows.map(r => r.driver_name))
 
-        // Update display_text for existing drivers — only Aultman auto-syncs cities
-        // SHSP display_text is manually editable and never overwritten
+        // Update display_text for existing drivers
         // Rows with manual_override=true are never auto-updated
-        if (pharmacy === 'Aultman') {
-          for (const row of currentRows) {
-            if (row.manual_override) continue
+        for (const row of currentRows) {
+          if (row.manual_override) continue
+          let newText
+          if (pharmacy === 'Aultman') {
             const cities = cityMap[row.driver_name]
             if (!cities) continue
             const cityList = [...cities].sort().join(', ')
-            const newText = `${row.driver_name.toUpperCase()} — ${cityList}`
-            if (row.display_text !== newText) {
-              await apiPost({ action: 'update', id: row.id, display_text: newText })
-              row.display_text = newText
-            }
+            newText = `${row.driver_name.toUpperCase()} — ${cityList}`
+          } else {
+            const zips = zipMap[row.driver_name]
+            if (!zips) continue
+            newText = buildShspDescription(row.driver_name, zips, routingRules, zipMap, dayCol)
+          }
+          if (row.display_text !== newText) {
+            await apiPost({ action: 'update', id: row.id, display_text: newText })
+            row.display_text = newText
           }
         }
 
@@ -106,10 +236,16 @@ export default function SortList({ deliveryDate }) {
         const maxOrder = currentRows.reduce((m, l) => Math.max(m, l.sort_order || 0), 0)
         const newRows = []
         let order = maxOrder + 1
-        for (const [name, cities] of Object.entries(cityMap).sort((a, b) => a[0].localeCompare(b[0]))) {
+        const newDriverSource = pharmacy === 'SHSP' ? Object.entries(zipMap) : Object.entries(cityMap)
+        for (const [name, data] of newDriverSource.sort((a, b) => a[0].localeCompare(b[0]))) {
           if (existingDrivers.has(name)) continue
-          const cityList = [...cities].sort().join(', ')
-          const displayText = pharmacy === 'Aultman' ? `${name.toUpperCase()} — ${cityList}` : name.toUpperCase()
+          let displayText
+          if (pharmacy === 'Aultman') {
+            const cityList = [...data].sort().join(', ')
+            displayText = `${name.toUpperCase()} — ${cityList}`
+          } else {
+            displayText = buildShspDescription(name, data, routingRules, zipMap, dayCol)
+          }
           newRows.push({
             delivery_date: dateStr, pharmacy, driver_name: name,
             display_text: displayText, sort_order: order++,

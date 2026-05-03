@@ -40,18 +40,18 @@ export default function DeliveryMap() {
           .eq('delivery_date', dateStr)
         setStops(data || [])
       } else {
-        let query = supabase.from('orders')
-          .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, date_delivered, cold_chain, lat, lng')
+        let query = supabase.from('daily_stops')
+          .select('order_id, patient_name, address, city, zip, pharmacy, driver_name, delivery_date, cold_chain, lat, lng')
           .not('address', 'is', null).not('lat', 'is', null)
 
         if (timePeriod === 'week') {
           const d = new Date(); d.setDate(d.getDate() - 7)
-          query = query.gte('date_delivered', d.toISOString().split('T')[0])
+          query = query.gte('delivery_date', d.toISOString().split('T')[0])
         } else if (timePeriod === 'month') {
           const d = new Date(); d.setDate(d.getDate() - 30)
-          query = query.gte('date_delivered', d.toISOString().split('T')[0])
+          query = query.gte('delivery_date', d.toISOString().split('T')[0])
         }
-        query = query.order('date_delivered', { ascending: false }).limit(3000)
+        query = query.order('delivery_date', { ascending: false }).limit(3000)
         const { data } = await query
         setStops(data || [])
       }

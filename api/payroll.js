@@ -38,16 +38,18 @@ async function handleGet(req, res) {
       const willCalls = p.will_calls || 0
       const officeFee = parseFloat(d.office_fee) || 0
       const flatSalary = d.flat_salary ? parseFloat(d.flat_salary) : null
-      const rateMth = parseFloat(d.rate_mth) || 0
-      const rateWf = parseFloat(d.rate_wf) || 0
+      const rates = {
+        mon: parseFloat(d.rate_mon) || 0, tue: parseFloat(d.rate_tue) || 0,
+        wed: parseFloat(d.rate_wed) || 0, thu: parseFloat(d.rate_thu) || 0,
+        fri: parseFloat(d.rate_fri) || 0,
+      }
+      const hasRates = Object.values(rates).some(r => r > 0)
 
       let calculatedPay = 0
       if (flatSalary) {
         calculatedPay = flatSalary
-      } else if (rateMth || rateWf) {
-        const mthStops = mon + tue + thu
-        const wfStops = wed + fri
-        calculatedPay = (mthStops * rateMth) + (wfStops * rateWf) + (willCalls * 9)
+      } else if (hasRates) {
+        calculatedPay = (mon * rates.mon) + (tue * rates.tue) + (wed * rates.wed) + (thu * rates.thu) + (fri * rates.fri) + (willCalls * 9)
         if (weekTotal > 0 || willCalls > 0) {
           calculatedPay += officeFee
         } else {

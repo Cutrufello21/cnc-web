@@ -13,7 +13,7 @@ const TABLE_MAP = {
     table: 'drivers',
     columns: {
       driver_name: 'Driver Name', driver_number: 'Driver #', email: 'Email',
-      pharmacy: 'Pharmacy', rate_mth: 'Rate MTH', rate_wf: 'Rate WF',
+      pharmacy: 'Pharmacy', rate_mon: 'Rate Mon', rate_tue: 'Rate Tue', rate_wed: 'Rate Wed', rate_thu: 'Rate Thu', rate_fri: 'Rate Fri',
       office_fee: 'Office Fee', flat_salary: 'Flat Salary', active: 'Active',
     },
   },
@@ -31,7 +31,7 @@ const TABLE_MAP = {
     columns: {
       order_id: 'Order ID', patient_name: 'Name', address: 'Address', city: 'City',
       zip: 'ZIP', pharmacy: 'Pharmacy', driver_name: 'Driver Name',
-      date_delivered: 'Date Delivered', cold_chain: 'Cold Chain', source: 'Source',
+      delivery_date: 'Date Delivered', cold_chain: 'Cold Chain', source: 'Source',
     },
   },
   'Log': {
@@ -57,7 +57,7 @@ const TABLE_MAP = {
 // Computed views from the orders table
 const COMPUTED_TABS = {
   'ZIP Analytics': async () => {
-    const { data } = await supabase.from('orders').select('zip, pharmacy')
+    const { data } = await supabase.from('daily_stops').select('zip, pharmacy')
       .not('zip', 'is', null).not('zip', 'eq', '')
     const counts = {}
     ;(data || []).forEach(r => {
@@ -76,7 +76,7 @@ const COMPUTED_TABS = {
     return { headers: ['ZIP', 'Total Deliveries', 'SHSP', 'Aultman'], data: rows }
   },
   'Patient Analytics': async () => {
-    const { data } = await supabase.from('orders').select('patient_name, pharmacy, zip, cold_chain')
+    const { data } = await supabase.from('daily_stops').select('patient_name, pharmacy, zip, cold_chain')
       .not('patient_name', 'is', null).not('patient_name', 'eq', '')
     const counts = {}
     ;(data || []).forEach(r => {
@@ -93,7 +93,7 @@ const COMPUTED_TABS = {
     return { headers: ['Name', 'Total Deliveries', 'Pharmacy', 'ZIP', 'Cold Chain'], data: rows }
   },
   'Location Intelligence': async () => {
-    const { data } = await supabase.from('orders').select('address, city, zip, pharmacy')
+    const { data } = await supabase.from('daily_stops').select('address, city, zip, pharmacy')
       .not('address', 'is', null).not('address', 'eq', '')
     const counts = {}
     ;(data || []).forEach(r => {

@@ -118,8 +118,8 @@ function processThread(thread) {
   Logger.log(`Routed: ${totalAssigned} assigned, ${unassigned.length} unassigned`);
 
   // Write to Supabase
-  writeDailyStops(deliveryDay, deliveryDate, assigned);
-  writeOrders(deliveryDate, assigned);
+  writeDailyStops(deliveryDay, deliveryDate, assigned, unassigned);
+  writeOrders(deliveryDate, assigned, unassigned);
   writeDispatchLog(deliveryDay, deliveryDate, assigned, unassigned);
   updatePayroll(deliveryDay, deliveryDate, assigned);
 
@@ -159,7 +159,11 @@ function processThread(thread) {
   }
   if ((autoAssignResult?.unassigned || 0) > 0 || unassigned.length > 0) {
     const totalUn = (autoAssignResult?.unassigned || 0) + unassigned.length;
-    emailBody += `Unassigned: ${totalUn}\n\n`;
+    emailBody += `Unassigned: ${totalUn}\n`;
+    unassigned.forEach(o => {
+      emailBody += `  #${o.order_id} — ${o.name}, ${o.address}, ${o.city} ${o.zip} (${o.pharmacy})\n`;
+    });
+    emailBody += '\n';
   }
   emailBody += 'View at: https://cncdelivery.com';
 
@@ -296,7 +300,7 @@ function routeOrders(orders, rules, dayCol) {
 // ============================================
 // SUPABASE WRITES
 // ============================================
-function writeDailyStops(deliveryDay, deliveryDate, assigned) {
+function writeDailyStops(deliveryDay, deliveryDate, assigned, unassigned) {
   // Delete existing stops for this date
   supabaseDelete('daily_stops', `delivery_date=eq.${deliveryDate}`);
 
@@ -319,18 +323,40 @@ function writeDailyStops(deliveryDay, deliveryDate, assigned) {
         notes: o.notes || '',
         dispatch_driver_number: o.trellis_driver,
         assigned_driver_number: driverId,
+        status: 'pending',
       });
     }
+  }
+
+  // Include unassigned orders so they show up in dispatch
+  for (const o of (unassigned || [])) {
+    rows.push({
+      delivery_date: deliveryDate,
+      delivery_day: deliveryDay,
+      driver_name: 'Unassigned',
+      driver_number: null,
+      order_id: o.order_id,
+      patient_name: o.name,
+      address: o.address,
+      city: o.city,
+      zip: o.zip,
+      pharmacy: o.pharmacy,
+      cold_chain: o.cold_chain,
+      notes: o.notes || '',
+      dispatch_driver_number: o.trellis_driver,
+      assigned_driver_number: null,
+      status: 'pending',
+    });
   }
 
   // Insert in batches
   for (let i = 0; i < rows.length; i += 500) {
     supabasePost('daily_stops', rows.slice(i, i + 500));
   }
-  Logger.log(`  daily_stops: ${rows.length} rows`);
+  Logger.log(`  daily_stops: ${rows.length} rows (${(unassigned || []).length} unassigned)`);
 }
 
-function writeOrders(deliveryDate, assigned) {
+function writeOrders(deliveryDate, assigned, unassigned) {
   const rows = [];
   for (const [driverId, orders] of Object.entries(assigned)) {
     const driverName = DRIVERS[driverId] || driverId;
@@ -348,6 +374,22 @@ function writeOrders(deliveryDate, assigned) {
         source: 'Live',
       });
     }
+  }
+
+  // Include unassigned orders
+  for (const o of (unassigned || [])) {
+    rows.push({
+      order_id: o.order_id,
+      patient_name: o.name,
+      address: o.address,
+      city: o.city,
+      zip: o.zip,
+      pharmacy: o.pharmacy,
+      driver_name: 'Unassigned',
+      date_delivered: deliveryDate,
+      cold_chain: o.cold_chain,
+      source: 'Live',
+    });
   }
 
   for (let i = 0; i < rows.length; i += 500) {

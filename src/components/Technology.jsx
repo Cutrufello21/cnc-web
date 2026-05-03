@@ -43,8 +43,9 @@ function useTechScrollTransition() {
       const vh = window.innerHeight
 
       let t
-      if (rect.top >= vh) t = 0
-      else if (rect.top > 0) t = 1 - rect.top / vh
+      // Stay white until the tech section itself enters — don't start early
+      if (rect.top >= vh * 0.3) t = 0
+      else if (rect.top > -vh * 0.2) t = 1 - rect.top / (vh * 0.3)
       else if (rect.bottom >= vh) t = 1
       else if (rect.bottom > 0) t = rect.bottom / vh
       else t = 0

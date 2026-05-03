@@ -17,12 +17,10 @@ import PortalDashboard from './pages/portal/PortalDashboard'
 import PortalDeliveries from './pages/portal/PortalDeliveries'
 import PortalPODRecords from './pages/portal/PortalPODRecords'
 import PortalReports from './pages/portal/PortalReports'
-import DispatchV2Login from './pages/dispatch-v2/DispatchV2Login'
+import PortalOrders from './pages/portal/PortalOrders'
+import PortalPatients from './pages/portal/PortalPatients'
+import PortalPickups from './pages/portal/PortalPickups'
 import DispatchV2Routes from './pages/dispatch-v2/DispatchV2Routes'
-import DispatchV2Drivers from './pages/dispatch-v2/DispatchV2Drivers'
-import DispatchV2Settings from './pages/dispatch-v2/DispatchV2Settings'
-import DispatchV2SortList from './pages/dispatch-v2/DispatchV2SortList'
-import DispatchV2RoutingRules from './pages/dispatch-v2/DispatchV2RoutingRules'
 
 function SiteGate({ children }) {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('site-pass') === '1')
@@ -85,6 +83,9 @@ function App() {
           <Route path="/portal/deliveries" element={<ProtectedRoute role="pharmacy"><PortalDeliveries /></ProtectedRoute>} />
           <Route path="/portal/pod-records" element={<ProtectedRoute role="pharmacy"><PortalPODRecords /></ProtectedRoute>} />
           <Route path="/portal/reports" element={<ProtectedRoute role="pharmacy"><PortalReports /></ProtectedRoute>} />
+          <Route path="/portal/patients" element={<ProtectedRoute role="pharmacy"><PortalPatients /></ProtectedRoute>} />
+          <Route path="/portal/orders" element={<ProtectedRoute role="pharmacy"><PortalOrders /></ProtectedRoute>} />
+          <Route path="/portal/pickups" element={<ProtectedRoute role="pharmacy"><PortalPickups /></ProtectedRoute>} />
           <Route
             path="/dispatch"
             element={
@@ -109,12 +110,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/dispatch-v2" element={<DispatchV2Login />} />
-          <Route path="/dispatch-v2/routes" element={<DispatchV2Routes />} />
-          <Route path="/dispatch-v2/drivers" element={<DispatchV2Drivers />} />
-          <Route path="/dispatch-v2/settings" element={<DispatchV2Settings />} />
-          <Route path="/dispatch-v2/sort-list" element={<DispatchV2SortList />} />
-          <Route path="/dispatch-v2/routing-rules" element={<DispatchV2RoutingRules />} />
+          <Route
+            path="/dispatch-v2"
+            element={
+              <ProtectedRoute role="dispatcher">
+                <DispatchV2Routes />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </AuthProvider>
     </ErrorBoundary>

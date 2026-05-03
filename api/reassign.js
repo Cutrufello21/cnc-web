@@ -84,14 +84,7 @@ export default async function handler(req, res) {
         .eq('order_id', oid)
     }
 
-    // 4. Sync orders table so historical records reflect the final driver
-    try {
-      await supabase.from('orders')
-        .update({ driver_name: toDriverName })
-        .in('order_id', orderIds)
-    } catch (ordSyncErr) {
-      console.error('[reassign orders sync]', ordSyncErr.message)
-    }
+    // daily_stops is the single source of truth — already updated above
 
     return res.status(200).json({
       success: true,
