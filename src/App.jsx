@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
+import { TenantProvider } from './context/TenantContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import LoginPage from './pages/LoginPage'
@@ -72,53 +73,55 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Routes>
-          <Route path="/" element={<SiteGate><HomePage /></SiteGate>} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/support" element={<SupportPage />} />
-          <Route path="/hipaa" element={<HipaaPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/portal" element={<PortalLogin />} />
-          <Route path="/portal/dashboard" element={<ProtectedRoute role="pharmacy"><PortalDashboard /></ProtectedRoute>} />
-          <Route path="/portal/deliveries" element={<ProtectedRoute role="pharmacy"><PortalDeliveries /></ProtectedRoute>} />
-          <Route path="/portal/pod-records" element={<ProtectedRoute role="pharmacy"><PortalPODRecords /></ProtectedRoute>} />
-          <Route path="/portal/reports" element={<ProtectedRoute role="pharmacy"><PortalReports /></ProtectedRoute>} />
-          <Route path="/portal/patients" element={<ProtectedRoute role="pharmacy"><PortalPatients /></ProtectedRoute>} />
-          <Route path="/portal/orders" element={<ProtectedRoute role="pharmacy"><PortalOrders /></ProtectedRoute>} />
-          <Route path="/portal/pickups" element={<ProtectedRoute role="pharmacy"><PortalPickups /></ProtectedRoute>} />
-          <Route
-            path="/dispatch"
-            element={
-              <ProtectedRoute role="dispatcher">
-                <DispatchPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/mobile"
-            element={
-              <ProtectedRoute role="dispatcher">
-                <MobileDispatch />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver"
-            element={
-              <ProtectedRoute role="driver">
-                <DriverPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dispatch-v2"
-            element={
-              <ProtectedRoute role="dispatcher">
-                <DispatchV2Routes />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <TenantProvider>
+          <Routes>
+            <Route path="/" element={<SiteGate><HomePage /></SiteGate>} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/hipaa" element={<HipaaPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/portal" element={<PortalLogin />} />
+            <Route path="/portal/dashboard" element={<ProtectedRoute role="pharmacy"><PortalDashboard /></ProtectedRoute>} />
+            <Route path="/portal/deliveries" element={<ProtectedRoute role="pharmacy"><PortalDeliveries /></ProtectedRoute>} />
+            <Route path="/portal/pod-records" element={<ProtectedRoute role="pharmacy"><PortalPODRecords /></ProtectedRoute>} />
+            <Route path="/portal/reports" element={<ProtectedRoute role="pharmacy"><PortalReports /></ProtectedRoute>} />
+            <Route path="/portal/patients" element={<ProtectedRoute role="pharmacy"><PortalPatients /></ProtectedRoute>} />
+            <Route path="/portal/orders" element={<ProtectedRoute role="pharmacy"><PortalOrders /></ProtectedRoute>} />
+            <Route path="/portal/pickups" element={<ProtectedRoute role="pharmacy"><PortalPickups /></ProtectedRoute>} />
+            <Route
+              path="/dispatch"
+              element={
+                <ProtectedRoute role="dispatcher">
+                  <DispatchPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile"
+              element={
+                <ProtectedRoute role="dispatcher">
+                  <MobileDispatch />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/driver"
+              element={
+                <ProtectedRoute role="driver">
+                  <DriverPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dispatch-v2"
+              element={
+                <ProtectedRoute role="dispatcher">
+                  <DispatchV2Routes />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </TenantProvider>
       </AuthProvider>
     </ErrorBoundary>
   )
