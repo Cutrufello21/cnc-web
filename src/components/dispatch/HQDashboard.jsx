@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { getDeliveryDate } from '../../lib/getDeliveryDate'
+import { useTenant } from '../../context/TenantContext'
 import KPICard from './KPICard'
 import HQDriverProgress from './HQDriverProgress'
 import './HQDashboard.css'
@@ -21,6 +22,21 @@ function fmtDay(dateStr) {
 }
 
 export default function HQDashboard() {
+  const { tenant, isLoading: tenantLoading } = useTenant()
+  const pharmacyOrigins = tenant?.pharmacyOrigins || []
+
+  // dispatch_logs.shsp_orders / aultman_orders are CNC-specific named columns.
+  // Only render historical pharmacy panels (KPI card, 4-week expand, volume
+  // chart pharmacy stacking, dispatch table SHSP/Aultman columns, detail-row
+  // pharmacy split) when the tenant's origins are exactly the legacy CNC
+  // pair. Multi-tenant historical pharmacy tracking requires a schema
+  // migration to dispatch_logs (replace named columns with pharmacy_counts
+  // jsonb). See follow-up issue.
+  const isCncLegacyPair =
+    pharmacyOrigins.length === 2 &&
+    pharmacyOrigins.some(o => o.name === 'SHSP') &&
+    pharmacyOrigins.some(o => o.name === 'Aultman')
+
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tableSort, setTableSort] = useState({ col: null, dir: 'desc' })
@@ -32,6 +48,7 @@ export default function HQDashboard() {
   const channelRef = useRef(null)
 
   useEffect(() => {
+    if (!tenant) return
     loadData()
 
     // Subscribe to realtime daily_stops changes for today
@@ -53,7 +70,8 @@ export default function HQDashboard() {
       clearInterval(liveInterval.current)
       if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenant])
 
   const [liveProgress, setLiveProgress] = useState(null)
   async function loadLiveProgress() {
@@ -68,19 +86,29 @@ export default function HQDashboard() {
     const failed = stops.filter(s => s.status === 'failed').length
     const routeMilesMap = {}
     ;(routes || []).forEach(r => { if (r.route_miles) routeMilesMap[r.driver_name] = r.route_miles })
+    // Bucket stops dynamically by tenant pharmacy origin name. Stops whose
+    // pharmacy doesn't match any configured origin still count toward total
+    // but aren't attributed to a specific origin bucket.
+    const originNames = pharmacyOrigins.map(o => o.name)
     const driverMap = {}
     stops.forEach(s => {
-      if (!driverMap[s.driver_name]) driverMap[s.driver_name] = { total: 0, done: 0, shsp: 0, aultman: 0, lastDelivery: null, miles: 0 }
-      driverMap[s.driver_name].total++
+      if (!driverMap[s.driver_name]) {
+        const byOrigin = {}
+        originNames.forEach(n => { byOrigin[n] = 0 })
+        driverMap[s.driver_name] = { total: 0, done: 0, byOrigin, lastDelivery: null, miles: 0 }
+      }
+      const dm = driverMap[s.driver_name]
+      dm.total++
       if (s.status === 'delivered' || s.status === 'failed') {
-        driverMap[s.driver_name].done++
-        if (s.delivered_at && (!driverMap[s.driver_name].lastDelivery || s.delivered_at > driverMap[s.driver_name].lastDelivery)) {
-          driverMap[s.driver_name].lastDelivery = s.delivered_at
+        dm.done++
+        if (s.delivered_at && (!dm.lastDelivery || s.delivered_at > dm.lastDelivery)) {
+          dm.lastDelivery = s.delivered_at
         }
       }
-      if (s.pharmacy === 'SHSP') driverMap[s.driver_name].shsp++
-      else driverMap[s.driver_name].aultman++
-      driverMap[s.driver_name].miles = routeMilesMap[s.driver_name] || 0
+      if (s.pharmacy && Object.prototype.hasOwnProperty.call(dm.byOrigin, s.pharmacy)) {
+        dm.byOrigin[s.pharmacy]++
+      }
+      dm.miles = routeMilesMap[s.driver_name] || 0
     })
     const activeDrivers = Object.keys(driverMap).length
     const avgPerDriver = activeDrivers ? Math.round(total / activeDrivers) : 0
@@ -139,8 +167,10 @@ export default function HQDashboard() {
       const totalOrders = last30.reduce((s, r) => s + (r.orders_processed || 0), 0)
       const avgOrders = last30.length ? Math.round(totalOrders / last30.length) : 0
       const totalColdChain = last30.reduce((s, r) => s + (r.cold_chain || 0), 0)
-      const shspTotal = last30.reduce((s, r) => s + (r.shsp_orders || 0), 0)
-      const aultmanTotal = last30.reduce((s, r) => s + (r.aultman_orders || 0), 0)
+      // CNC-only historical pharmacy totals — sourced from
+      // dispatch_logs.shsp_orders / aultman_orders (CNC-specific columns).
+      const shspTotal = isCncLegacyPair ? last30.reduce((s, r) => s + (r.shsp_orders || 0), 0) : 0
+      const aultmanTotal = isCncLegacyPair ? last30.reduce((s, r) => s + (r.aultman_orders || 0), 0) : 0
 
       const todayDayName = lastLog?.delivery_day || ''
       const thisWeek = logData.filter(r => r.date >= mondayStr)
@@ -195,20 +225,23 @@ export default function HQDashboard() {
         return { name: d.driver_name, status: isOnRoad ? 'active' : to ? 'timeoff' : 'off', reason: to ? (to.status === 'pending' ? 'Requested' : 'Approved') : null }
       })
 
-      // Weekly pharmacy split trend (Pharmacy Split expand)
+      // Weekly pharmacy split trend (Pharmacy Split expand) — CNC-only.
+      // dispatch_logs.shsp_orders / aultman_orders are CNC-specific columns.
       const pharmWeekly = []
-      for (let w = 0; w < 4; w++) {
-        const wStart = new Date(monday)
-        wStart.setDate(wStart.getDate() - w * 7)
-        const wEnd = new Date(wStart)
-        wEnd.setDate(wEnd.getDate() + 4)
-        const wStartStr = fmtLocal(wStart)
-        const wEndStr = fmtLocal(wEnd)
-        const wLogs = logData.filter(r => r.date >= wStartStr && r.date <= wEndStr)
-        const wShsp = wLogs.reduce((s, r) => s + (r.shsp_orders || 0), 0)
-        const wAult = wLogs.reduce((s, r) => s + (r.aultman_orders || 0), 0)
-        const wTotal = wShsp + wAult
-        pharmWeekly.push({ label: w === 0 ? 'This week' : w === 1 ? 'Last week' : `${MONTHS[wStart.getMonth()]} ${wStart.getDate()}`, shsp: wShsp, aultman: wAult, pct: wTotal > 0 ? Math.round((wShsp / wTotal) * 100) : 0 })
+      if (isCncLegacyPair) {
+        for (let w = 0; w < 4; w++) {
+          const wStart = new Date(monday)
+          wStart.setDate(wStart.getDate() - w * 7)
+          const wEnd = new Date(wStart)
+          wEnd.setDate(wEnd.getDate() + 4)
+          const wStartStr = fmtLocal(wStart)
+          const wEndStr = fmtLocal(wEnd)
+          const wLogs = logData.filter(r => r.date >= wStartStr && r.date <= wEndStr)
+          const wShsp = wLogs.reduce((s, r) => s + (r.shsp_orders || 0), 0)
+          const wAult = wLogs.reduce((s, r) => s + (r.aultman_orders || 0), 0)
+          const wTotal = wShsp + wAult
+          pharmWeekly.push({ label: w === 0 ? 'This week' : w === 1 ? 'Last week' : `${MONTHS[wStart.getMonth()]} ${wStart.getDate()}`, shsp: wShsp, aultman: wAult, pct: wTotal > 0 ? Math.round((wShsp / wTotal) * 100) : 0 })
+        }
       }
 
       const currentWeek = weeklyRes.data?.filter(r => r.week_of === weeklyRes.data[0]?.week_of) || []
@@ -223,10 +256,12 @@ export default function HQDashboard() {
 
       const activeThisWeek = leaderboard.filter(d => d.weekTotal > 0).length
 
+      // CNC-only fields shsp/aultman come from dispatch_logs CNC columns;
+      // omitted for non-CNC tenants (volume chart still renders totals).
       const volumeChart = logData.slice(-14).map(r => ({
         date: r.date, day: r.delivery_day,
         orders: r.orders_processed || 0,
-        shsp: r.shsp_orders || 0, aultman: r.aultman_orders || 0,
+        ...(isCncLegacyPair ? { shsp: r.shsp_orders || 0, aultman: r.aultman_orders || 0 } : {}),
         coldChain: r.cold_chain || 0,
       }))
 
@@ -276,6 +311,7 @@ export default function HQDashboard() {
     finally { setLoading(false) }
   }
 
+  if (tenantLoading || !tenant) return <div className="hq__loading"><div className="dispatch__spinner" />Loading...</div>
   if (loading) return <div className="hq__loading"><div className="dispatch__spinner" />Loading HQ data...</div>
   if (!data) return <div className="hq__loading">Failed to load dashboard</div>
 
@@ -342,18 +378,25 @@ export default function HQDashboard() {
           </div>
           <span className="hq__kpi-sub">{liveProgress ? `${liveProgress.activeDrivers} on road today` : 'Running this week'}</span>
         </div>
-        <div className="hq__kpi hq__kpi--clickable" onClick={() => setExpandedKPI(expandedKPI === 'pharma' ? null : 'pharma')}>
-          <div className="hq__kpi-row">
-            <div className="hq__kpi-icon hq__kpi-icon--amber">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        {/* Pharmacy Split KPI — CNC-only. Sourced from
+            dispatch_logs.shsp_orders / aultman_orders (CNC-specific
+            columns). Multi-tenant historical pharmacy tracking requires a
+            schema migration (replace named columns with pharmacy_counts
+            jsonb). See follow-up issue. */}
+        {isCncLegacyPair && (
+          <div className="hq__kpi hq__kpi--clickable" onClick={() => setExpandedKPI(expandedKPI === 'pharma' ? null : 'pharma')}>
+            <div className="hq__kpi-row">
+              <div className="hq__kpi-icon hq__kpi-icon--amber">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <div className="hq__kpi-content">
+                <span className="hq__kpi-label">Pharmacy Split</span>
+                <span className="hq__kpi-value">{Math.round((kpis.shspTotal / (kpis.shspTotal + kpis.aultmanTotal || 1)) * 100)}%</span>
+              </div>
             </div>
-            <div className="hq__kpi-content">
-              <span className="hq__kpi-label">Pharmacy Split</span>
-              <span className="hq__kpi-value">{Math.round((kpis.shspTotal / (kpis.shspTotal + kpis.aultmanTotal || 1)) * 100)}%</span>
-            </div>
+            <span className="hq__kpi-sub">SHSP {kpis.shspTotal.toLocaleString()} / Aultman {kpis.aultmanTotal.toLocaleString()}</span>
           </div>
-          <span className="hq__kpi-sub">SHSP {kpis.shspTotal.toLocaleString()} / Aultman {kpis.aultmanTotal.toLocaleString()}</span>
-        </div>
+        )}
       </div>
 
       {/* --- WEEK COMPARISON EXPAND --- */}
@@ -440,8 +483,9 @@ export default function HQDashboard() {
         </div>
       )}
 
-      {/* --- PHARMACY SPLIT EXPAND --- */}
-      {expandedKPI === 'pharma' && kpis.pharmWeekly?.length > 0 && (
+      {/* --- PHARMACY SPLIT EXPAND --- CNC-only. dispatch_logs.shsp_orders /
+           aultman_orders are CNC-specific columns. See follow-up issue. */}
+      {isCncLegacyPair && expandedKPI === 'pharma' && kpis.pharmWeekly?.length > 0 && (
         <div className="hq__week-compare">
           <table className="hq__week-compare-table">
             <thead><tr><th>Week</th><th>SHSP</th><th>Aultman</th><th>Split</th></tr></thead>
@@ -478,6 +522,7 @@ export default function HQDashboard() {
         setExpandedRow={setExpandedRow}
         hoveredBar={hoveredBar}
         setHoveredBar={setHoveredBar}
+        isCncLegacyPair={isCncLegacyPair}
       />
     </div>
   )

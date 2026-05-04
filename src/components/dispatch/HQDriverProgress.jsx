@@ -17,6 +17,7 @@ export default function HQDriverProgress({
   setExpandedRow,
   hoveredBar,
   setHoveredBar,
+  isCncLegacyPair = false,
 }) {
   const maxVolume = Math.max(...(volumeChart?.map(d => d.orders) || [1]))
   const maxLeaderboard = leaderboard?.[0]?.weekTotal || 1
@@ -40,8 +41,14 @@ export default function HQDriverProgress({
                 <div className="hq__chart-tooltip">
                   <strong>{hd.day?.slice(0, 3)} {fmtDate(hd.date)}</strong>
                   <span>{hd.orders} total</span>
-                  <span style={{ color: '#4A9EFF' }}>SHSP: {hd.shsp}</span>
-                  <span style={{ color: '#4ADE80' }}>Aultman: {hd.aultman}</span>
+                  {/* CNC-only pharmacy lines — see HQDashboard note re:
+                      dispatch_logs.shsp_orders / aultman_orders. */}
+                  {isCncLegacyPair && (
+                    <>
+                      <span style={{ color: '#4A9EFF' }}>SHSP: {hd.shsp}</span>
+                      <span style={{ color: '#4ADE80' }}>Aultman: {hd.aultman}</span>
+                    </>
+                  )}
                   {hd.coldChain > 0 && <span style={{ color: '#60a5fa' }}>CC: {hd.coldChain}</span>}
                 </div>
               )
@@ -54,8 +61,14 @@ export default function HQDriverProgress({
                 <div className={`hq__bar-col ${isHovered ? 'hq__bar-col--hover' : ''}`} key={i}
                   onMouseEnter={() => setHoveredBar(i)}>
                   <div className="hq__bar-stack" style={{ height: `${(d.orders / maxVolume) * 100}%`, opacity: hoveredBar !== null && !isHovered ? 0.35 : 1 }}>
-                    <div className="hq__bar-segment hq__bar-segment--aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
-                    <div className="hq__bar-segment hq__bar-segment--shsp" style={{ height: `${d.orders ? (d.shsp / d.orders) * 100 : 0}%` }} />
+                    {isCncLegacyPair ? (
+                      <>
+                        <div className="hq__bar-segment hq__bar-segment--aultman" style={{ height: `${d.orders ? (d.aultman / d.orders) * 100 : 0}%` }} />
+                        <div className="hq__bar-segment hq__bar-segment--shsp" style={{ height: `${d.orders ? (d.shsp / d.orders) * 100 : 0}%` }} />
+                      </>
+                    ) : (
+                      <div className="hq__bar-segment hq__bar-segment--shsp" style={{ height: '100%' }} />
+                    )}
                   </div>
                   <span className="hq__bar-val" style={{ fontWeight: isHovered ? 800 : 600 }}>{d.orders}</span>
                   <span className="hq__bar-label">{d.day?.slice(0, 3)}</span>
@@ -68,10 +81,12 @@ export default function HQDriverProgress({
               </div>
             )}
           </div>
-          <div className="hq__chart-legend">
-            <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--shsp" />SHSP</span>
-            <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--aultman" />Aultman</span>
-          </div>
+          {isCncLegacyPair && (
+            <div className="hq__chart-legend">
+              <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--shsp" />SHSP</span>
+              <span className="hq__legend"><span className="hq__legend-dot hq__legend-dot--aultman" />Aultman</span>
+            </div>
+          )}
         </div>
 
         {/* --- DRIVER LEADERBOARD --- */}
@@ -83,8 +98,14 @@ export default function HQDriverProgress({
               const statusClass = driverLive
                 ? (driverLive.done < driverLive.total ? 'hq__driver-dot--active' : 'hq__driver-dot--done')
                 : 'hq__driver-dot--off'
-              const shspPct = driverLive && driverLive.total > 0 ? (driverLive.shsp / maxLeaderboard) * 100 : 0
-              const aultPct = driverLive && driverLive.total > 0 ? (driverLive.aultman / maxLeaderboard) * 100 : 0
+              // CNC-only split bar uses live byOrigin counts. Non-CNC tenants
+              // get a single neutral bar by week total — no dedicated CSS
+              // exists for arbitrary tenant pharmacy palettes today.
+              const shspCount = driverLive?.byOrigin?.SHSP || 0
+              const aultCount = driverLive?.byOrigin?.Aultman || 0
+              const shspPct = driverLive && driverLive.total > 0 ? (shspCount / maxLeaderboard) * 100 : 0
+              const aultPct = driverLive && driverLive.total > 0 ? (aultCount / maxLeaderboard) * 100 : 0
+              const showSplitBar = isCncLegacyPair && driverLive && driverLive.total > 0
               return (
                 <div className="hq__leader" key={d.name}>
                   <span className="hq__leader-rank">{i + 1}</span>
@@ -93,7 +114,7 @@ export default function HQDriverProgress({
                     <span className="hq__leader-name">{d.name}</span>
                   </div>
                   <div className="hq__leader-bar-wrap">
-                    {driverLive && driverLive.total > 0 ? (
+                    {showSplitBar ? (
                       <>
                         <div className="hq__leader-bar hq__leader-bar--shsp" style={{ width: `${shspPct}%` }} />
                         <div className="hq__leader-bar hq__leader-bar--aultman" style={{ width: `${aultPct}%`, position: 'absolute', left: `${shspPct}%` }} />
@@ -124,6 +145,7 @@ export default function HQDriverProgress({
                 setTableSort={setTableSort}
                 expandedRow={expandedRow}
                 setExpandedRow={setExpandedRow}
+                isCncLegacyPair={isCncLegacyPair}
               />
           }
         </div>
@@ -161,16 +183,18 @@ export default function HQDriverProgress({
   )
 }
 
-function DispatchTable({ recentLogs, hasCC, hasUnassigned, tableSort, setTableSort, expandedRow, setExpandedRow }) {
+function DispatchTable({ recentLogs, hasCC, hasUnassigned, tableSort, setTableSort, expandedRow, setExpandedRow, isCncLegacyPair }) {
   const today = new Date().toISOString().split('T')[0]
   const maxOrders = Math.max(...recentLogs.map(l => l.orders_processed || 0), 1)
 
+  // SHSP / Aultman columns sourced from dispatch_logs CNC-specific columns —
+  // hidden for non-CNC tenants. See HQDashboard note re: schema migration.
   const cols = [
     { key: 'delivery_day', label: 'Day', get: l => l.delivery_day, show: true },
     { key: 'date', label: 'Date', get: l => l.date, show: true },
     { key: 'orders_processed', label: 'Orders', get: l => l.orders_processed || 0, show: true },
-    { key: 'shsp_orders', label: 'SHSP', get: l => l.shsp_orders || 0, show: true },
-    { key: 'aultman_orders', label: 'Aultman', get: l => l.aultman_orders || 0, show: true },
+    { key: 'shsp_orders', label: 'SHSP', get: l => l.shsp_orders || 0, show: isCncLegacyPair },
+    { key: 'aultman_orders', label: 'Aultman', get: l => l.aultman_orders || 0, show: isCncLegacyPair },
     { key: 'cold_chain', label: 'CC', get: l => l.cold_chain || 0, show: hasCC },
     { key: 'unassigned_count', label: 'Unassigned', get: l => l.unassigned_count || 0, show: hasUnassigned },
     { key: 'top_driver', label: 'Top Driver', get: l => l.top_driver || '', show: true },
@@ -223,8 +247,8 @@ function DispatchTable({ recentLogs, hasCC, hasUnassigned, tableSort, setTableSo
                     <span>{log.orders_processed}</span>
                   </div>
                 </td>
-                <td className="hq__cell-num">{log.shsp_orders}</td>
-                <td className="hq__cell-num">{log.aultman_orders}</td>
+                {isCncLegacyPair && <td className="hq__cell-num">{log.shsp_orders}</td>}
+                {isCncLegacyPair && <td className="hq__cell-num">{log.aultman_orders}</td>}
                 {hasCC && <td className="hq__cell-num" style={{ color: log.cold_chain > 0 ? '#3b82f6' : undefined }}>{log.cold_chain}</td>}
                 {hasUnassigned && <td className={parseInt(log.unassigned_count) > 0 ? 'hq__cell-warn' : 'hq__cell-num'}>{log.unassigned_count}</td>}
                 <td><strong>{log.top_driver}</strong></td>
@@ -234,17 +258,21 @@ function DispatchTable({ recentLogs, hasCC, hasUnassigned, tableSort, setTableSo
                 <tr key={`${i}-detail`} className="hq__detail-row">
                   <td colSpan={cols.length}>
                     <div className="hq__detail">
-                      <div className="hq__detail-item">
-                        <span className="hq__detail-label">Pharmacy Split</span>
-                        <div className="hq__detail-split">
-                          <div className="hq__detail-split-shsp" style={{ width: `${log.orders_processed ? (log.shsp_orders / log.orders_processed) * 100 : 50}%` }}>
-                            SHSP {log.shsp_orders}
-                          </div>
-                          <div className="hq__detail-split-aultman" style={{ width: `${log.orders_processed ? (log.aultman_orders / log.orders_processed) * 100 : 50}%` }}>
-                            Aultman {log.aultman_orders}
+                      {/* CNC-only Pharmacy Split — see HQDashboard note re:
+                          dispatch_logs.shsp_orders / aultman_orders schema. */}
+                      {isCncLegacyPair && (
+                        <div className="hq__detail-item">
+                          <span className="hq__detail-label">Pharmacy Split</span>
+                          <div className="hq__detail-split">
+                            <div className="hq__detail-split-shsp" style={{ width: `${log.orders_processed ? (log.shsp_orders / log.orders_processed) * 100 : 50}%` }}>
+                              SHSP {log.shsp_orders}
+                            </div>
+                            <div className="hq__detail-split-aultman" style={{ width: `${log.orders_processed ? (log.aultman_orders / log.orders_processed) * 100 : 50}%` }}>
+                              Aultman {log.aultman_orders}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                       <div className="hq__detail-stats">
                         <div className="hq__detail-stat">
                           <span>Cold Chain %</span>
