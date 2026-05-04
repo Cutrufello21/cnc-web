@@ -14,8 +14,9 @@
 // Run: node scripts/test-dual-write.mjs
 
 // ---------- Mock state ----------
-const calls = [] // [{url, body, response}, ...]
+const calls = [] // [{url, body, headers, response}, ...]
 let mockSession = null
+const mockLocalStorage = {} // mirrors browser localStorage.getItem
 const v1ResponseQueue = []
 const v2ResponseQueue = []
 const diffResponseQueue = []
@@ -24,13 +25,14 @@ let PARALLEL_WRITE_ENABLED = false
 
 function mockFetch(url, options) {
   const body = options?.body ? JSON.parse(options.body) : null
+  const headers = options?.headers || {}
   let response
   if (url === '/api/db') response = v1ResponseQueue.shift()
   else if (url === '/api/db-v2') response = v2ResponseQueue.shift()
   else if (url === '/api/db-v2-diff') response = diffResponseQueue.shift()
   if (!response) throw new Error(`No queued response for ${url}`)
 
-  calls.push({ url, body, response })
+  calls.push({ url, body, headers, response })
 
   if (response.throws) return Promise.reject(new Error(response.throws))
 
@@ -45,6 +47,10 @@ const supabase = {
   auth: {
     getSession: () => Promise.resolve({ data: { session: mockSession } }),
   },
+}
+
+const localStorage = {
+  getItem: (key) => mockLocalStorage[key] ?? null,
 }
 
 // ---------- Mirror of src/lib/db.js logic ----------
@@ -62,9 +68,16 @@ function v1Headers() {
 }
 
 async function getJwt() {
+  // Mirrors src/lib/db.js: try Supabase session first, fall back to
+  // legacy 'cnc-token' localStorage key set by /login (LoginPage.jsx).
   try {
     const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
+    if (data?.session?.access_token) return data.session.access_token
+  } catch {
+    // fall through
+  }
+  try {
+    return localStorage.getItem('cnc-token') || null
   } catch {
     return null
   }
@@ -149,6 +162,7 @@ function reset() {
   diffResponseQueue.length = 0
   pendingShadows.length = 0
   mockSession = null
+  for (const k of Object.keys(mockLocalStorage)) delete mockLocalStorage[k]
   PARALLEL_WRITE_ENABLED = false
 }
 
@@ -337,6 +351,54 @@ async function test8_callerNotBlockedByShadow() {
   assert('after flush, diff fired', calls.some(c => c.url === '/api/db-v2-diff'))
 }
 
+async function test9_fallbackToLocalStorage() {
+  console.log("\nTEST 9: null supabase session + cnc-token present → fallback fires shadow")
+  reset()
+  PARALLEL_WRITE_ENABLED = true
+  mockSession = null                                           // /portal-style auth absent
+  mockLocalStorage['cnc-token'] = 'jwt-from-legacy-dispatcher-login'  // /login wrote this
+  v1ResponseQueue.push({ status: 200, body: { success: true, data: [{ id: 1 }] } })
+  v2ResponseQueue.push({ status: 200, body: { success: true, data: [{ id: 2 }] } })
+  diffResponseQueue.push({ status: 200, body: { success: true } })
+
+  await callApi({ table: 'time_off_requests', operation: 'insert', data: {} })
+  await flushShadows()
+
+  assert('v1 fired', calls.some(c => c.url === '/api/db'))
+  assert('v2 fired (used cnc-token fallback)', calls.some(c => c.url === '/api/db-v2'))
+  assert('diff fired', calls.some(c => c.url === '/api/db-v2-diff'))
+
+  const v2Call = calls.find(c => c.url === '/api/db-v2')
+  assert(
+    'v2 Authorization header used cnc-token JWT',
+    v2Call?.headers?.Authorization === 'Bearer jwt-from-legacy-dispatcher-login',
+    `actual: ${v2Call?.headers?.Authorization}`,
+  )
+
+  const diffCall = calls.find(c => c.url === '/api/db-v2-diff')
+  assert(
+    'diff Authorization header used cnc-token JWT',
+    diffCall?.headers?.Authorization === 'Bearer jwt-from-legacy-dispatcher-login',
+    `actual: ${diffCall?.headers?.Authorization}`,
+  )
+}
+
+async function test10_noJwtInEitherPath() {
+  console.log("\nTEST 10: null supabase session + no cnc-token → shadow skips silently")
+  reset()
+  PARALLEL_WRITE_ENABLED = true
+  mockSession = null
+  // mockLocalStorage intentionally empty — neither auth path has a JWT
+  v1ResponseQueue.push({ status: 200, body: { success: true, data: [{ id: 1 }] } })
+
+  await callApi({ table: 'time_off_requests', operation: 'insert', data: {} })
+  await flushShadows()
+
+  assert('v1 fired', calls.some(c => c.url === '/api/db'))
+  assert('v2 did NOT fire', !calls.some(c => c.url === '/api/db-v2'))
+  assert('diff did NOT fire', !calls.some(c => c.url === '/api/db-v2-diff'))
+}
+
 ;(async () => {
   console.log('Phase 2 simulation test: src/lib/db.js dual-write orchestration')
   console.log('================================================================')
@@ -348,6 +410,8 @@ async function test8_callerNotBlockedByShadow() {
   await test6_v1FourHundred()
   await test7_v2Throws()
   await test8_callerNotBlockedByShadow()
+  await test9_fallbackToLocalStorage()
+  await test10_noJwtInEitherPath()
   console.log(`\n${passed} passed, ${failed} failed`)
   process.exit(failed > 0 ? 1 : 0)
 })()

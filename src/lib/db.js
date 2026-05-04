@@ -80,12 +80,38 @@ function v1Headers() {
   }
 }
 
+// JWT lookup spans two storage paths because cnc-web has two login flows:
+//
+//   1. supabase.auth.signInWithPassword() → writes to localStorage under
+//      the storageKey from src/lib/supabase.js ('cnc-auth'). Used by
+//      /portal (PortalLogin.jsx). This is the modern, "right" path.
+//
+//   2. The dispatcher login at /login (LoginPage.jsx) bypasses Supabase's
+//      JS client entirely: it does a raw fetch to
+//        ${SUPABASE_URL}/auth/v1/token?grant_type=password
+//      and stores the returned access_token under localStorage 'cnc-token'
+//      (NOT 'cnc-auth'). This means supabase.auth.getSession() returns
+//      null for every dispatcher session — even though a real Supabase
+//      JWT is sitting in the browser. The fallback below picks up that
+//      JWT so the dual-write shadow can fire from the dispatch portal.
+//
+// Both branches return real Supabase access_tokens that /api/db-v2 and
+// /api/db-v2-diff accept.
+//
+// !!! DO NOT delete the cnc-token fallback as cruft !!!
+// Removing it silently disables the harness for every dispatcher session
+// (the symptom: zero rows land in db_v2_diff from /dispatch UI actions).
+// The fallback can be retired only after LoginPage.jsx is migrated to
+// supabase.auth.signInWithPassword — tracked as a separate ticket.
 async function getJwt() {
-  // Reads from localStorage (Supabase auth client cache, key 'cnc-auth').
-  // Microtask-fast, no network. Returns null when not logged in.
   try {
     const { data } = await supabase.auth.getSession()
-    return data?.session?.access_token || null
+    if (data?.session?.access_token) return data.session.access_token
+  } catch {
+    // fall through to legacy-login localStorage fallback
+  }
+  try {
+    return localStorage.getItem('cnc-token') || null
   } catch {
     return null
   }
