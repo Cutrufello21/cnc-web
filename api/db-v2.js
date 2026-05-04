@@ -40,6 +40,16 @@ import { requireTenantAuth } from './_lib/tenant-auth.js'
 // FK to public.tenants(id). Verified by the post-deploy check SQL, not at
 // request time. Do not flip a table to tenantScoped:false without a
 // considered reason — geocode_cache is the only justified exception today.
+//
+// !!! SYNC NOTICE: this list MUST stay in sync with V2_ELIGIBLE_TABLES
+// in src/lib/db.js. The client wrapper uses that mirrored Set to decide
+// whether to dual-write. Drift modes:
+//   - Table added here but not in src/lib/db.js → wrapper never
+//     dual-writes for it (silent coverage hole in the diff log).
+//   - Table removed here but still in src/lib/db.js → every dual-write
+//     for it logs as v1_only_succeeded with v2_response.error =
+//     'forbidden_table' (loud, recoverable).
+// When editing either list, edit BOTH.
 const ALLOWED_V2 = {
   time_off_requests:      { ops: ['insert', 'update'],                     tenantScoped: true  },
   delivery_confirmations: { ops: ['insert'],                               tenantScoped: true  },
