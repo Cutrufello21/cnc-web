@@ -34,8 +34,8 @@ export default async function handler(req, res) {
       return true
     })
 
-    // Poll response counts
-    const polls = active.filter(a => a.type === 'poll')
+    // Poll + signup response counts (signup needs them for "taken" slot UI on the driver app)
+    const polls = active.filter(a => a.type === 'poll' || a.type === 'signup')
     if (polls.length > 0) {
       const pollIds = polls.map(p => p.id)
       const { data: responses } = await supabase
