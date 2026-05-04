@@ -1,7 +1,10 @@
 import BrandMark from './BrandMark'
+import { useTenant } from '../context/TenantContext'
 import './Footer.css'
 
 export default function Footer() {
+  const { tenant } = useTenant()
+  const legalName = tenant?.legalName || 'CNC Delivery Service'
   return (
     <footer className="footer">
       <div className="container footer__inner">
@@ -35,7 +38,7 @@ export default function Footer() {
         </div>
 
         <div className="footer__bottom">
-          <p>&copy; {new Date().getFullYear()} CNC Delivery Service. All rights reserved. &nbsp;·&nbsp; <a href="/privacy" className="footer__legal-link">Privacy Policy</a> &nbsp;·&nbsp; <a href="/hipaa" className="footer__legal-link">HIPAA & BAA</a></p>
+          <p>&copy; {new Date().getFullYear()} {legalName}. All rights reserved. &nbsp;·&nbsp; <a href="/privacy" className="footer__legal-link">Privacy Policy</a> &nbsp;·&nbsp; <a href="/hipaa" className="footer__legal-link">HIPAA & BAA</a></p>
           <p className="footer__address">
             Akron, Ohio &nbsp;·&nbsp; dom@cncdeliveryservice.com &nbsp;·&nbsp; (330) 634-6260 &nbsp;·&nbsp; cncdelivery.com
           </p>

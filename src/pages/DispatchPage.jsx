@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useTenant } from '../context/TenantContext'
 import { supabase } from '../lib/supabase'
 import useDispatchData from '../hooks/useDispatchData'
 import useDispatchActions from '../hooks/useDispatchActions'
@@ -20,6 +21,9 @@ import './DispatchPage.css'
 
 export default function DispatchPage() {
   const { profile, signOut } = useAuth()
+  const { tenant, isLoading: tenantLoading, error: tenantError } = useTenant()
+  const tenantName = tenant?.displayName || (tenantLoading || tenantError ? '' : 'CNC Delivery')
+  const tenantMonogram = tenantName.trim().split(/\s+/)[0] || ''
   const [view, setView] = useState('routes')
   const [showRouting, setShowRouting] = useState(false)
   const [showSortList, setShowSortList] = useState(false)
@@ -226,7 +230,7 @@ export default function DispatchPage() {
       {/* ── Left Sidebar ──────────────────────────── */}
       <aside className="shell__sidebar">
         <div className="shell__sidebar-brand">
-          <span className="shell__pill">CNC</span>
+          <span className="shell__pill">{tenantMonogram}</span>
           <span className="shell__title">Dispatch</span>
         </div>
 

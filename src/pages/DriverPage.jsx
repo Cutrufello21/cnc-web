@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useTenant } from '../context/TenantContext'
 import { supabase } from '../lib/supabase'
 import StopCard from '../components/driver/StopCard'
 import WeeklyBar from '../components/driver/WeeklyBar'
@@ -13,6 +14,9 @@ import './DriverPage.css'
 
 export default function DriverPage() {
   const { user, profile, signOut } = useAuth()
+  const { tenant, isLoading: tenantLoading, error: tenantError } = useTenant()
+  const tenantName = tenant?.displayName || (tenantLoading || tenantError ? '' : 'CNC Delivery')
+  const tenantMonogram = tenantName.trim().split(/\s+/)[0] || ''
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -270,7 +274,7 @@ export default function DriverPage() {
       <header className="shell__header">
         <div className="container shell__header-inner">
           <div className="shell__brand">
-            <span className="shell__pill">CNC</span>
+            <span className="shell__pill">{tenantMonogram}</span>
             <span className="shell__title">Driver Portal</span>
           </div>
           <div className="shell__user">
