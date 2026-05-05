@@ -10,15 +10,11 @@
 // in the background, AFTER v1 has settled. The user-facing call always
 // returns v1's response; v2/diff failures never surface.
 //
-// === COVERAGE GAP — read before extending ===
-// 30 sites in cnc-web bypass these wrappers and call fetch('/api/db', …)
-// directly (DispatchMap, RoutesView, PortalDashboard, useRouteActions,
-// Pickups, Schedule, etc. — most daily_stops writes). Those will NOT
-// participate in the dual-write harness during Phase 2. Phase 2.5 work
-// (separate session) = migrate them to use this wrapper or add a
-// dbRaw(payload) shim. Until then, the diff log only sees the 45
-// wrapper call sites (~60% of v1 write traffic, missing most
-// daily_stops). Tracked in the cutover plan.
+// === PHASE 2.5 COMPLETE (2026-05-05) ===
+// All cnc-web writes now flow through this module — no direct
+// fetch('/api/db', …) call sites remain. Migration commits on
+// lynrx-multitenant: pilot 1e14873, batch-1 3fa7970,
+// batch-2 d96d3c1, batch-3 da16222. Coverage gap is closed.
 //
 // === V2 WHITELIST SYNC — !!! ===
 // V2_ELIGIBLE_TABLES below MUST stay in sync with ALLOWED_V2 in
