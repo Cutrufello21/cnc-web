@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate } from '../../lib/db'
 
 const STATUS_TABS = [
   { key: 'pending', label: 'Pending' },
@@ -81,14 +82,10 @@ export default function Pickups() {
   async function assign(id, driverName, deliveryDate) {
     if (!driverName || !deliveryDate) return
     const r = requests.find(x => x.id === id)
-    await fetch('/api/db', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table: 'pickup_requests', operation: 'update',
-        data: { driver_name: driverName, delivery_date: deliveryDate, status: 'assigned' },
-        match: { id },
-      }),
-    })
+    await dbUpdate('pickup_requests',
+      { driver_name: driverName, delivery_date: deliveryDate, status: 'assigned' },
+      { id },
+    )
 
     // Notify the driver — push + saved to driver_notifications history
     try {
@@ -114,27 +111,16 @@ export default function Pickups() {
   }
 
   async function unassign(id) {
-    await fetch('/api/db', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table: 'pickup_requests', operation: 'update',
-        data: { driver_name: null, delivery_date: null, status: 'pending' },
-        match: { id },
-      }),
-    })
+    await dbUpdate('pickup_requests',
+      { driver_name: null, delivery_date: null, status: 'pending' },
+      { id },
+    )
     load()
   }
 
   async function cancel(id) {
     if (!confirm('Cancel this pickup request? The pharmacy will see it as cancelled.')) return
-    await fetch('/api/db', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table: 'pickup_requests', operation: 'update',
-        data: { status: 'cancelled' },
-        match: { id },
-      }),
-    })
+    await dbUpdate('pickup_requests', { status: 'cancelled' }, { id })
     load()
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { dbInsert, dbUpdate, dbDelete } from '../../lib/db'
 import PortalShell from '../../components/portal/PortalShell'
 import { downloadPodPdf } from '../../lib/podPdf'
 import { getDeliveryDate } from '../../lib/getDeliveryDate'
@@ -438,17 +439,19 @@ function PODModal({ stop, onClose, onDelete }) {
               if (!confirm(`Delete this stop?\n\n${stop.patient_name || 'Unknown'}\n${stop.address || ''}`)) return
               setDeleting(true)
               try {
-                const token = localStorage.getItem('cnc-token')
-                await fetch('/api/db', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                  body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { status: 'DELETED', deleted_at: new Date().toISOString() }, match: { id: stop.id } }),
-                })
+                await dbUpdate('daily_stops',
+                  { status: 'DELETED', deleted_at: new Date().toISOString() },
+                  { id: stop.id },
+                )
                 if (!String(stop.order_id).startsWith('M')) {
-                  await fetch('/api/db', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ table: 'order_deletions', operation: 'insert', data: { stop_id: String(stop.id), order_number: stop.order_id, patient_name: stop.patient_name || '', driver_name: stop.driver_name || '', authorized_by: 'Portal', deleted_at: new Date().toISOString(), date: stop.delivery_date } }),
+                  await dbInsert('order_deletions', {
+                    stop_id: String(stop.id),
+                    order_number: stop.order_id,
+                    patient_name: stop.patient_name || '',
+                    driver_name: stop.driver_name || '',
+                    authorized_by: 'Portal',
+                    deleted_at: new Date().toISOString(),
+                    date: stop.delivery_date,
                   })
                 }
                 onDelete(stop.id)
@@ -871,12 +874,11 @@ export default function PortalDashboard() {
                           <button
                             className="portal-pod-btn"
                             onClick={async () => {
-                              const token = localStorage.getItem('cnc-token')
                               if (isManual) {
-                                await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ table: 'daily_stops', operation: 'delete', match: { id: stop.id } }) })
+                                await dbDelete('daily_stops', { id: stop.id })
                                 setDeletedStops(prev => prev.filter(s => s.id !== stop.id))
                               } else {
-                                await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { status: 'dispatched', deleted_at: null }, match: { id: stop.id } }) })
+                                await dbUpdate('daily_stops', { status: 'dispatched', deleted_at: null }, { id: stop.id })
                                 setDeletedStops(prev => prev.filter(s => s.id !== stop.id))
                                 setStops(prev => [...prev, { ...stop, status: 'dispatched', deleted_at: null }])
                               }

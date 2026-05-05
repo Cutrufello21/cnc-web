@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { dbInsert, dbUpdate } from '../../lib/db'
 import PortalShell from '../../components/portal/PortalShell'
 
 const REASONS = [
@@ -102,14 +103,7 @@ export default function PortalPickups() {
         requested_by: profile?.email || profile?.id || null,
         status: 'pending',
       }
-      const r = await fetch('/api/db', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: 'pickup_requests', operation: 'insert', data: row }),
-      })
-      if (!r.ok) {
-        const j = await r.json().catch(() => ({}))
-        throw new Error(j.error || `HTTP ${r.status}`)
-      }
+      await dbInsert('pickup_requests', row)
       // Reset form
       setPicked(null); setAddrSearch(''); setAddrResults([])
       setPatient(''); setReason(REASONS[0]); setReasonDetail(''); setUrgency('next_route')
@@ -124,10 +118,7 @@ export default function PortalPickups() {
 
   async function cancel(id) {
     if (!confirm('Cancel this pickup request?')) return
-    await fetch('/api/db', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'pickup_requests', operation: 'update', data: { status: 'cancelled' }, match: { id } }),
-    })
+    await dbUpdate('pickup_requests', { status: 'cancelled' }, { id })
     load()
   }
 
