@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { dbUpdate } from '../../lib/db'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -61,11 +62,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
             const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
             const data = await res.json()
             if (data.lat && data.lng && stop.id) {
-              // Update the stop in Supabase
-              await fetch('/api/db', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { lat: data.lat, lng: data.lng }, match: { id: stop.id } })
-              })
+              await dbUpdate('daily_stops', { lat: data.lat, lng: data.lng }, { id: stop.id })
               updated++
             }
           } catch {}
@@ -87,7 +84,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
         const dateStr = deliveryDate ? `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth()+1).padStart(2,'0')}-${String(deliveryDate.getDate()).padStart(2,'0')}` : null
         if (!dateStr) return
         const targetNum = String(targetDrv['Driver #'])
-        await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { driver_name: toDriver, driver_number: targetNum, assigned_driver_number: targetNum }, match: { order_id: orderId, delivery_date: dateStr } }) })
+        await dbUpdate('daily_stops', { driver_name: toDriver, driver_number: targetNum, assigned_driver_number: targetNum }, { order_id: orderId, delivery_date: dateStr })
         if (fetchDispatchData) fetchDispatchData(selectedDay)
       } catch (e) { console.error('Map move error:', e) }
       finally { setMoving(false) }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { dbUpdate } from '../lib/db'
 
 const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
   .replace(/\bboulevard\b/g, 'blvd').replace(/\bdrive\b/g, 'dr').replace(/\bstreet\b/g, 'st')
@@ -158,7 +159,7 @@ export default function useDispatchData(weekOffset) {
               const results = gdata.results || []
               for (let j = 0; j < results.length; j++) {
                 if (results[j].lat && results[j].lng && batch[j].id) {
-                  fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { lat: results[j].lat, lng: results[j].lng }, match: { id: batch[j].id } }) }).catch(() => {})
+                  dbUpdate('daily_stops', { lat: results[j].lat, lng: results[j].lng }, { id: batch[j].id }).catch(() => {})
                 }
               }
             }

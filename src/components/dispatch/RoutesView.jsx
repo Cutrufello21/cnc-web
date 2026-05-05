@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import { dbUpdate } from '../../lib/db'
 import DriverCard from './DriverCard'
 import WarningBanner from './WarningBanner'
 import DispatchSummary from './DispatchSummary'
@@ -81,7 +82,7 @@ async function handleBatchMove() {
     if (!dateStr) throw new Error('No delivery date')
     const targetNum = String(targetDriver['Driver #'])
     for (const oid of batchSelected) {
-      await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { driver_name: batchTarget, driver_number: targetNum, assigned_driver_number: targetNum }, match: { order_id: oid, delivery_date: dateStr } }) })
+      await dbUpdate('daily_stops', { driver_name: batchTarget, driver_number: targetNum, assigned_driver_number: targetNum }, { order_id: oid, delivery_date: dateStr })
     }
     setMoveToast(`Moved ${batchSelected.size} stops to ${batchTarget}`)
     setBatchSelected(new Set())
@@ -115,21 +116,9 @@ async function handleSwapRoutes() {
     const numA = String(driverA['Driver #'])
     const numB = String(driverB['Driver #'])
     // Use a temp placeholder to avoid collision
-    const res = await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { driver_name: '__SWAP_TEMP__', driver_number: '__TEMP__', assigned_driver_number: '__TEMP__' }, match: { driver_name: nameA, delivery_date: dateStr } })
-    })
-    await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { driver_name: nameA, driver_number: numA, assigned_driver_number: numA }, match: { driver_name: nameB, delivery_date: dateStr } })
-    })
-    await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { driver_name: nameB, driver_number: numB, assigned_driver_number: numB }, match: { driver_name: '__SWAP_TEMP__', delivery_date: dateStr } })
-    })
+    await dbUpdate('daily_stops', { driver_name: '__SWAP_TEMP__', driver_number: '__TEMP__', assigned_driver_number: '__TEMP__' }, { driver_name: nameA, delivery_date: dateStr })
+    await dbUpdate('daily_stops', { driver_name: nameA, driver_number: numA, assigned_driver_number: numA }, { driver_name: nameB, delivery_date: dateStr })
+    await dbUpdate('daily_stops', { driver_name: nameB, driver_number: numB, assigned_driver_number: numB }, { driver_name: '__SWAP_TEMP__', delivery_date: dateStr })
     setSwapSelected(new Set())
     setMoveToast(`Swapped ${nameA} (${stopsA}) ↔ ${nameB} (${stopsB})`)
     fetchDispatchData(selectedDay)

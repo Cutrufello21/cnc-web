@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { dbUpdate } from '../lib/db'
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
 const CALL_IN_ZIPS = new Set([
@@ -497,16 +498,7 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
     })
 
     for (const stopId of selectedStops) {
-      await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table: 'daily_stops',
-          operation: 'update',
-          data: { driver_name: moveTarget },
-          match: { id: stopId },
-        }),
-      })
+      await dbUpdate('daily_stops', { driver_name: moveTarget }, { id: stopId })
     }
 
     // Log each move to dispatch_decisions
@@ -542,16 +534,7 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
     if (!lastMove) return
     try {
       for (const stopInfo of lastMove.stops) {
-        await fetch('/api/db', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            table: 'daily_stops',
-            operation: 'update',
-            data: { driver_name: stopInfo.originalDriver },
-            match: { id: stopInfo.id },
-          }),
-        })
+        await dbUpdate('daily_stops', { driver_name: stopInfo.originalDriver }, { id: stopInfo.id })
       }
       const undoneCount = lastMove.count
       setLastMove(null)

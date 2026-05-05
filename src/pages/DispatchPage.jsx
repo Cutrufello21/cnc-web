@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useTenant } from '../context/TenantContext'
 import { supabase } from '../lib/supabase'
+import { dbInsert, dbUpdate } from '../lib/db'
 import useDispatchData from '../hooks/useDispatchData'
 import useDispatchActions from '../hooks/useDispatchActions'
 import HQDashboard from '../components/dispatch/HQDashboard'
@@ -153,33 +154,19 @@ export default function DispatchPage() {
         const driverInfo = data?.drivers?.find(d => d.name === a.driver_name)
         const driverNumber = a.driver_number || driverInfo?.number || ''
         for (const zip of a.zips) {
-          await fetch('/api/db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'daily_stops', operation: 'update',
-              data: { driver_name: a.driver_name, driver_number: driverNumber, assigned_driver_number: driverNumber },
-              match: { delivery_date: dateStr, zip },
-            }),
-          })
-          await fetch('/api/db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'daily_stops', operation: 'update',
-              data: { driver_name: a.driver_name },
-              match: { delivery_date: dateStr, zip },
-            }),
-          })
+          await dbUpdate('daily_stops',
+            { driver_name: a.driver_name, driver_number: driverNumber, assigned_driver_number: driverNumber },
+            { delivery_date: dateStr, zip },
+          )
+          await dbUpdate('daily_stops',
+            { driver_name: a.driver_name },
+            { delivery_date: dateStr, zip },
+          )
         }
         for (const zip of a.zips) {
-          await fetch('/api/db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'dispatch_decisions', operation: 'insert',
-              data: { delivery_date: dateStr, delivery_day: data?.deliveryDay || '', zip, to_driver: a.driver_name, decision_type: 'ai_suggested', context: a.reasoning || '' },
-            }),
+          await dbInsert('dispatch_decisions', {
+            delivery_date: dateStr, delivery_day: data?.deliveryDay || '', zip,
+            to_driver: a.driver_name, decision_type: 'ai_suggested', context: a.reasoning || '',
           })
         }
         totalMoved += a.stop_count || 0
