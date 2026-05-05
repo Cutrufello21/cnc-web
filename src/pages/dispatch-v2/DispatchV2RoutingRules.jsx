@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbInsert, dbDelete } from '../../lib/db'
 import DispatchV2Shell from '../../components/dispatch-v2/DispatchV2Shell'
 
 export default function DispatchV2RoutingRules() {
@@ -42,20 +43,12 @@ export default function DispatchV2RoutingRules() {
     if (!newRule.zip && !newRule.city) return
     setSaving(true)
     try {
-      await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table: 'routing_rules',
-          operation: 'insert',
-          data: {
-            zip: newRule.zip || null,
-            city: newRule.city || null,
-            driver_name: newRule.driver_name || null,
-            pharmacy: newRule.pharmacy || 'SHSP',
-            priority: parseInt(newRule.priority) || 1,
-          },
-        }),
+      await dbInsert('routing_rules', {
+        zip: newRule.zip || null,
+        city: newRule.city || null,
+        driver_name: newRule.driver_name || null,
+        pharmacy: newRule.pharmacy || 'SHSP',
+        priority: parseInt(newRule.priority) || 1,
       })
       setNewRule({ zip: '', city: '', driver_name: '', pharmacy: 'SHSP', priority: 1 })
       setShowAdd(false)
@@ -69,15 +62,7 @@ export default function DispatchV2RoutingRules() {
 
   async function handleDeleteRule(id) {
     if (!confirm('Delete this routing rule?')) return
-    await fetch('/api/db', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table: 'routing_rules',
-        operation: 'delete',
-        match: { id },
-      }),
-    })
+    await dbDelete('routing_rules', { id })
     await loadRules()
   }
 
