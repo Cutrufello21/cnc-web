@@ -397,7 +397,7 @@ export default function Schedule() {
         onSendOffer={async (driverName, dateStr, pharmacy, shift) => {
           setSaving(`offer-${driverName}|${dateStr}`)
           try {
-            await fetch('/api/db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ table: 'shift_offers', operation: 'upsert', data: { driver_name: driverName, date: dateStr, pharmacy, shift, status: 'pending', offered_by: 'Dom' }, onConflict: 'driver_name,date' }) })
+            await dbUpsert('shift_offers', { driver_name: driverName, date: dateStr, pharmacy, shift, status: 'pending', offered_by: 'Dom' }, 'driver_name,date')
             await fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'push_notify', driverNames: [driverName], title: 'Shift Offered', body: `Dom is offering you a shift on ${new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })} — ${pharmacy} ${shift}. Open the app to respond.` }) })
             showToastMsg(`Shift offered to ${driverName}`)
             loadData()

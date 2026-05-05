@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate } from '../../lib/db'
 import './DriverCard.css'
 
 const PHARMACY_COLORS = {
@@ -302,17 +303,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     const oid = stop['Order ID']
     if (!confirm(`Reopen order ${oid} as active (undo delivery)?`)) return
     try {
-      const res = await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table: 'daily_stops',
-          operation: 'update',
-          data: { status: 'dispatched', delivered_at: null },
-          match: { order_id: oid },
-        }),
-      })
-      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      await dbUpdate('daily_stops', { status: 'dispatched', delivered_at: null }, { order_id: oid })
       setMoveResult(`Order ${oid} reopened`)
       if (onRefresh) setTimeout(onRefresh, 500)
     } catch (err) {

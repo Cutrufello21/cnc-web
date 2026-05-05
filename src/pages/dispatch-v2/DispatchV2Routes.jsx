@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate } from '../../lib/db'
 import DispatchV2Shell from '../../components/dispatch-v2/DispatchV2Shell'
 import useRouteActions from '../../hooks/useRouteActions'
 
@@ -193,16 +194,7 @@ export default function DispatchV2Routes() {
         for (let i = 0; i < result.optimizedOrder.length; i++) {
           const stop = driverStops[result.optimizedOrder[i]]
           if (stop) {
-            await fetch('/api/db', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                table: 'daily_stops',
-                operation: 'update',
-                data: { sort_order: i },
-                match: { id: stop.id },
-              }),
-            })
+            await dbUpdate('daily_stops', { sort_order: i }, { id: stop.id })
           }
         }
         await loadStops(selectedDate)

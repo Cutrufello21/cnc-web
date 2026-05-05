@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { dbDelete, dbInsert } from '../../lib/db'
+import { dbDelete, dbInsert, dbUpdate } from '../../lib/db'
 
 export default function UnassignedZips() {
   const [data, setData] = useState(null)
@@ -65,16 +65,10 @@ export default function UnassignedZips() {
 
       // 2. Assign all current stops with this ZIP to this driver
       const today = new Date().toISOString().split('T')[0]
-      await fetch('/api/db', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          table: 'daily_stops',
-          operation: 'update',
-          data: { driver_name: driverName, driver_number: driver?.driver_number || '' },
-          match: { zip: row.zip, driver_name: 'Unassigned' },
-        }),
-      })
+      await dbUpdate('daily_stops',
+        { driver_name: driverName, driver_number: driver?.driver_number || '' },
+        { zip: row.zip, driver_name: 'Unassigned' },
+      )
 
       setData(prev => prev.filter(x => !(x.zip === row.zip && x.pharmacy === row.pharmacy)))
       setToast(`${row.zip} → ${driverName} (rule created + ${row.count} orders assigned)`)
@@ -145,11 +139,7 @@ export default function UnassignedZips() {
                       onClick={async () => {
                         if (!confirm(`Delete ${d.count} orders for ZIP ${d.zip} (${d.pharmacy})?`)) return
                         for (const o of d.orders) {
-                          await fetch('/api/db', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ table: 'daily_stops', operation: 'update', data: { status: 'DELETED' }, match: { order_id: o.order_id } }),
-                          })
+                          await dbUpdate('daily_stops', { status: 'DELETED' }, { order_id: o.order_id })
                         }
                         setData(prev => prev.filter(x => !(x.zip === d.zip && x.pharmacy === d.pharmacy)))
                       }}

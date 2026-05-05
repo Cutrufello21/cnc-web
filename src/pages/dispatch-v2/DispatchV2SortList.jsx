@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { dbUpdate, dbUpsert } from '../../lib/db'
 import DispatchV2Shell from '../../components/dispatch-v2/DispatchV2Shell'
 
 export default function DispatchV2SortList() {
@@ -61,32 +62,17 @@ export default function DispatchV2SortList() {
       const pharmacyData = sortData[activeTab] || {}
       for (const [driverName, data] of Object.entries(pharmacyData)) {
         if (data.id) {
-          await fetch('/api/db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'sort_lists',
-              operation: 'update',
-              data: { cities: data.cities || '', notes: data.notes || '' },
-              match: { id: data.id },
-            }),
-          })
+          await dbUpdate('sort_lists',
+            { cities: data.cities || '', notes: data.notes || '' },
+            { id: data.id },
+          )
         } else {
-          await fetch('/api/db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              table: 'sort_lists',
-              operation: 'upsert',
-              data: {
-                pharmacy: activeTab,
-                driver_name: driverName,
-                cities: data.cities || '',
-                notes: data.notes || '',
-              },
-              onConflict: 'pharmacy,driver_name',
-            }),
-          })
+          await dbUpsert('sort_lists', {
+            pharmacy: activeTab,
+            driver_name: driverName,
+            cities: data.cities || '',
+            notes: data.notes || '',
+          }, 'pharmacy,driver_name')
         }
       }
       await loadData()
