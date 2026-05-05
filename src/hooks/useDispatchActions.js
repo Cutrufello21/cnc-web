@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTenant } from '../context/TenantContext'
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
 const TEST_MODE = false
@@ -14,6 +15,7 @@ const CALL_IN_ZIPS = new Set([
 ])
 
 export default function useDispatchActions({ data, activeDrivers, setMoveToast, fetchDispatchData, selectedDay, sessionCorrections, sessionStartTime, setSessionFinalMinutes }) {
+  const { tenant } = useTenant()
   const [sendingRoutes, setSendingRoutes] = useState(false)
   const [routesSent, setRoutesSent] = useState(false)
   const [sendingCorrections, setSendingCorrections] = useState(false)
@@ -102,6 +104,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
   }
 
   async function handleSendRoutes() {
+    const tenantId = tenant?.id
     const dateStr0 = data.deliveryDateObj
       ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
       : null
@@ -147,7 +150,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
           const update = { status: 'dispatched', assigned_driver_number: num, driver_number: num }
           // Only set dispatch_driver_number if it's null (wasn't set by Gmail import)
           if (!s.dispatch_driver_number) update.dispatch_driver_number = num
-          supabase.from('daily_stops').update(update).eq('id', s.id).then(() => {})
+          supabase.from('daily_stops').update(update).eq('id', s.id).eq('tenant_id', tenantId).then(() => {})
         }
         fetch('/api/dispatch-log-decision', {
           method: 'POST',

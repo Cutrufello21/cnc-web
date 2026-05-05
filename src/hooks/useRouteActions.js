@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { dbUpdate } from '../lib/db'
+import { useTenant } from '../context/TenantContext'
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
 const CALL_IN_ZIPS = new Set([
@@ -13,6 +14,7 @@ const CALL_IN_ZIPS = new Set([
 const RW_DRIVERS = ['Alex','Josh','Laura','Mark','Mike','Nick','Dom']
 
 export default function useRouteActions({ selectedDate, allStops, grouped, allDrivers, dayName, findDriverEmail, showToast, loadStops, buildDriverEmailHTML }) {
+  const { tenant } = useTenant()
   const [sending, setSending] = useState(false)
   const [siciSent, setSiciSent] = useState(false)
   const [siciSending, setSiciSending] = useState(false)
@@ -35,6 +37,7 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
 
   async function handleSendAll() {
     setSending(true)
+    const tenantId = tenant?.id
     try {
       // Auto-optimize each driver's route before sending
       const { data: sessionData } = await supabase.auth.getSession()
@@ -63,7 +66,7 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
           if (result.optimizedOrder) {
             await Promise.all(result.optimizedOrder.map((origIdx, newIdx) => {
               const stop = driverStops[origIdx]
-              return stop?.id ? supabase.from('daily_stops').update({ sort_order: newIdx }).eq('id', stop.id) : null
+              return stop?.id ? supabase.from('daily_stops').update({ sort_order: newIdx }).eq('id', stop.id).eq('tenant_id', tenantId) : null
             }).filter(Boolean))
             // Save route distance
             if (result.totalDistance) {
@@ -73,6 +76,7 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
                 origin_hospital: driverStops[0]?.pharmacy || 'SHSP',
                 optimized_at: new Date().toISOString(),
                 route_miles: result.totalDistance,
+                tenant_id: tenantId,
               }, { onConflict: 'driver_name,date' })
             }
           }

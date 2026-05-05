@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { dbUpdate } from '../../lib/db'
+import { useTenant } from '../../context/TenantContext'
 import './DriverCard.css'
 
 const PHARMACY_COLORS = {
@@ -22,6 +23,7 @@ const COLUMNS = [
 ]
 
 export default function DriverCard({ driver, inactive = false, allDrivers = [], selectedDay, deliveryDate, onRefresh, onMoveComplete, swapSelected, onSwapToggle, batchSelected, onSelectByZip, onSelectByCity }) {
+  const { tenant } = useTenant()
   const [expanded, setExpanded] = useState(false)
   const [selected, setSelected] = useState(new Set())
   const [reassignTo, setReassignTo] = useState('')
@@ -245,6 +247,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     e.stopPropagation()
     if (optimizing || enriched.length < 2) return
     setOptimizing(true)
+    const tenantId = tenant?.id
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData?.session?.access_token
@@ -269,7 +272,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         for (let i = 0; i < reordered.length; i++) {
           const oid = reordered[i]['Order ID']
           if (oid) {
-            await supabase.from('daily_stops').update({ sort_order: i }).eq('order_id', oid)
+            await supabase.from('daily_stops').update({ sort_order: i }).eq('order_id', oid).eq('tenant_id', tenantId)
           }
         }
         setOptimized(true)
@@ -286,10 +289,11 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   async function handleClearOrder(e) {
     e.stopPropagation()
     if (!confirm(`Reset stop order for ${name}? This will clear all sort positions.`)) return
+    const tenantId = tenant?.id
     try {
       for (const s of enriched) {
         const oid = s['Order ID']
-        if (oid) await supabase.from('daily_stops').update({ sort_order: null }).eq('order_id', oid)
+        if (oid) await supabase.from('daily_stops').update({ sort_order: null }).eq('order_id', oid).eq('tenant_id', tenantId)
       }
       setOptimized(false)
       setMoveResult('Sort order cleared')

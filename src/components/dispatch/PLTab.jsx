@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useTenant } from '../../context/TenantContext'
 
 export default function PLTab({ payrollData }) {
+  const { tenant } = useTenant()
   const [ledger, setLedger] = useState([])
   const [ledgerForm, setLedgerForm] = useState({ type: 'income', description: '', amount: '' })
   const [addingLedger, setAddingLedger] = useState(false)
@@ -27,6 +29,7 @@ export default function PLTab({ payrollData }) {
       description: ledgerForm.description,
       amount,
       running_balance: newBalance,
+      tenant_id: tenant?.id,
     })
     setLedgerForm({ type: 'income', description: '', amount: '' })
     setAddingLedger(false)

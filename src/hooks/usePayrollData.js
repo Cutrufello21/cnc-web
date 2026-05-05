@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useTenant } from '../context/TenantContext'
 
 export default function usePayrollData({ weekOffset, loadSettlements }) {
+  const { tenant } = useTenant()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [reconApproved, setReconApproved] = useState({})
@@ -124,6 +126,7 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
   async function loadPayroll() {
     setLoading(true)
     setEdits({}) // Clear edits when switching weeks
+    const tenantId = tenant?.id
     try {
       // Get target week's Monday (use local date, not UTC)
       const now = new Date()
@@ -263,7 +266,7 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
       // Ensure all non-flat drivers have a payroll row (for will_calls, edits, etc.)
       const newDriverRows = drivers
         .filter(d => !d.isFlat && !payrollByName[d.name])
-        .map(d => ({ week_of: weekOf, driver_name: d.name }))
+        .map(d => ({ week_of: weekOf, driver_name: d.name, tenant_id: tenantId }))
       if (newDriverRows.length > 0) {
         await supabase.from('payroll').insert(newDriverRows)
       }
@@ -422,6 +425,7 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
 
   async function handleApprove() {
     setApproving(true)
+    const tenantId = tenant?.id
     try {
       // 1. Send email to accountant via Google Apps Script webhook
       const weDate = data.weekEnding || new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
@@ -458,9 +462,9 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
           const { data: existing } = await supabase.from('settlements')
             .select('id').eq('week_of', ofWeek).eq('driver_name', plName).single()
           if (existing) {
-            await supabase.from('settlements').update({ cost: pay }).eq('id', existing.id)
+            await supabase.from('settlements').update({ cost: pay }).eq('id', existing.id).eq('tenant_id', tenantId)
           } else {
-            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: plName, revenue: 0, cost: pay, source: 'payroll-auto' })
+            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: plName, revenue: 0, cost: pay, source: 'payroll-auto', tenant_id: tenantId })
           }
         }
       } catch (syncErr) { console.warn('Settlement sync:', syncErr.message) }
@@ -476,6 +480,7 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
           description: `Driver payroll — WE ${weLabel}`,
           amount: -adjustedTotal,
           running_balance: Math.round((currentBal - adjustedTotal) * 100) / 100,
+          tenant_id: tenantId,
         })
       } catch (ledgerErr) { console.warn('Ledger sync:', ledgerErr.message) }
 

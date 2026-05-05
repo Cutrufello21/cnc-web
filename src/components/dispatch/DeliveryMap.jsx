@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useTenant } from '../../context/TenantContext'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './DeliveryMap.css'
@@ -18,6 +19,7 @@ const DRIVER_COLORS = {
 }
 
 export default function DeliveryMap() {
+  const { tenant } = useTenant()
   const mapRef = useRef(null)
   const mapInstance = useRef(null)
   const markersLayer = useRef(null)
@@ -65,6 +67,7 @@ export default function DeliveryMap() {
     if (needGeocode.length === 0) return
 
     let cancelled = false
+    const tenantId = tenant?.id
     async function geocodeBatch() {
       const batch = needGeocode.slice(0, 25)
       try {
@@ -82,7 +85,10 @@ export default function DeliveryMap() {
             batch[i].lat = lat
             batch[i].lng = lng
             const table = timePeriod === 'today' ? 'daily_stops' : 'orders'
-            supabase.from(table).update({ lat, lng }).eq('order_id', batch[i].order_id)
+            // orders table has no tenant_id column (phase-0 didn't add it); only scope daily_stops writes.
+            let q = supabase.from(table).update({ lat, lng }).eq('order_id', batch[i].order_id)
+            if (table === 'daily_stops') q = q.eq('tenant_id', tenantId)
+            q
           }
         }
         if (!cancelled) setStops([...stops])
