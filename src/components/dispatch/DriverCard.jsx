@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { dbUpdate } from '../../lib/db'
+import { DRIVER_EMAILS_ENABLED } from '../../lib/flags'
 import { useTenant } from '../../context/TenantContext'
 import './DriverCard.css'
 
@@ -272,7 +273,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         for (let i = 0; i < reordered.length; i++) {
           const oid = reordered[i]['Order ID']
           if (oid) {
-            await supabase.from('daily_stops').update({ sort_order: i }).eq('order_id', oid).eq('tenant_id', tenantId)
+            // daily_stops has no tenant_id column yet — see useDispatchActions for context.
+            await supabase.from('daily_stops').update({ sort_order: i }).eq('order_id', oid)
           }
         }
         setOptimized(true)
@@ -293,7 +295,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     try {
       for (const s of enriched) {
         const oid = s['Order ID']
-        if (oid) await supabase.from('daily_stops').update({ sort_order: null }).eq('order_id', oid).eq('tenant_id', tenantId)
+        if (oid) await supabase.from('daily_stops').update({ sort_order: null }).eq('order_id', oid)
       }
       setOptimized(false)
       setMoveResult('Sort order cleared')
@@ -320,27 +322,28 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
 
   async function handleSendOne(e) {
     e.stopPropagation()
-    if (!driver.Email) { setMoveResult('No email on file'); return }
     if (!confirm(`Send route to ${name}?`)) return
     setSending(true)
     try {
       const cc = coldChain
       const ccLine = cc > 0 ? ` — ${cc} are cold chain.` : '.'
-      await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({
-          action: 'email',
-          to: driver.Email,
-          subject: `CNC Delivery — ${name} — ${selectedDay}`,
-          html: `<div style="font-family:-apple-system,sans-serif;max-width:500px">
-            <h2 style="color:#0A2463">CNC Delivery</h2>
-            <p>Hi ${name},</p>
-            <p>You have <strong>${stops} stops</strong> for ${selectedDay}${ccLine}</p>
-            <p><a href="https://cncdelivery.com/driver" style="display:inline-block;padding:12px 24px;background:#0A2463;color:white;text-decoration:none;border-radius:8px;font-weight:600">View Your Route</a></p>
-            <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
-          </div>`,
-        }),
-      })
+      if (DRIVER_EMAILS_ENABLED && driver.Email) {
+        await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'email',
+            to: driver.Email,
+            subject: `CNC Delivery — ${name} — ${selectedDay}`,
+            html: `<div style="font-family:-apple-system,sans-serif;max-width:500px">
+              <h2 style="color:#0A2463">CNC Delivery</h2>
+              <p>Hi ${name},</p>
+              <p>You have <strong>${stops} stops</strong> for ${selectedDay}${ccLine}</p>
+              <p><a href="https://cncdelivery.com/driver" style="display:inline-block;padding:12px 24px;background:#0A2463;color:white;text-decoration:none;border-radius:8px;font-weight:600">View Your Route</a></p>
+              <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
+            </div>`,
+          }),
+        })
+      }
 
       // Push to Road Warrior if applicable
       if (RW_DRIVERS.includes(name) && rawDetails.length > 0) {

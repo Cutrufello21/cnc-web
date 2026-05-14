@@ -466,9 +466,11 @@ export default async function handler(req, res) {
         })
       }
 
-      // Save to notification history
+      // Save to notification history (best-effort; never blocks the push)
       const notifRows = (drivers || []).map(d => ({ driver_name: d.driver_name, title, body: body || '', type: 'announcement' }))
-      if (notifRows.length > 0) await supabase.from('driver_notifications').insert(notifRows).catch(() => {})
+      if (notifRows.length > 0) {
+        try { await supabase.from('driver_notifications').insert(notifRows) } catch {}
+      }
 
       return res.status(200).json({ success: true, sent: tokens.length })
     }
@@ -483,6 +485,13 @@ export default async function handler(req, res) {
       if (!ids?.length) return res.status(200).json({ data: [] })
       const { data: reads } = await supabase.from('announcement_reads').select('announcement_id,driver_id').in('announcement_id', ids)
       return res.status(200).json({ data: reads || [] })
+    }
+
+    if (data.action === 'list_poll_responses') {
+      const { announcement_id } = data
+      if (!announcement_id) return res.status(200).json({ data: [] })
+      const { data: rows } = await supabase.from('poll_responses').select('response,driver_id').eq('announcement_id', announcement_id)
+      return res.status(200).json({ data: rows || [] })
     }
 
     if (data.action === 'push_routes') {

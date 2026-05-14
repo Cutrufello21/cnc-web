@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { dbInsert, dbUpdate, dbDelete } from '../../lib/db'
+import { DRIVER_EMAILS_ENABLED } from '../../lib/flags'
 import WeeklyGrid from './WeeklyGrid'
 import './TimeOff.css'
 
@@ -107,24 +108,26 @@ export default function TimeOff() {
       const driver = drivers.find(d => d.driver_name === req.driver_name)
       if (driver) {
         try {
-          const { data: driverData } = await supabase.from('drivers').select('email').eq('driver_name', req.driver_name).single()
-          if (driverData?.email) {
-            const dateStr = new Date(req.date_off + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-            await fetch(APPS_SCRIPT_URL, {
-              method: 'POST',
-              body: JSON.stringify({
-                action: 'email',
-                to: driverData.email,
-                subject: `CNC Delivery — Time Off ${status === 'approved' ? 'Approved' : 'Denied'}`,
-                html: `<div style="font-family:-apple-system,sans-serif;max-width:500px">
-                  <h2 style="color:#0A2463">CNC Delivery</h2>
-                  <p>Hi ${req.driver_name},</p>
-                  <p>Your time off request for <strong>${dateStr}</strong> has been <strong>${status}</strong>.</p>
-                  ${req.reason ? `<p style="color:#6b7280">Reason: ${req.reason}</p>` : ''}
-                  <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
-                </div>`,
-              }),
-            })
+          if (DRIVER_EMAILS_ENABLED) {
+            const { data: driverData } = await supabase.from('drivers').select('email').eq('driver_name', req.driver_name).single()
+            if (driverData?.email) {
+              const dateStr = new Date(req.date_off + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+              await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                  action: 'email',
+                  to: driverData.email,
+                  subject: `CNC Delivery — Time Off ${status === 'approved' ? 'Approved' : 'Denied'}`,
+                  html: `<div style="font-family:-apple-system,sans-serif;max-width:500px">
+                    <h2 style="color:#0A2463">CNC Delivery</h2>
+                    <p>Hi ${req.driver_name},</p>
+                    <p>Your time off request for <strong>${dateStr}</strong> has been <strong>${status}</strong>.</p>
+                    ${req.reason ? `<p style="color:#6b7280">Reason: ${req.reason}</p>` : ''}
+                    <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
+                  </div>`,
+                }),
+              })
+            }
           }
         } catch {}
       }

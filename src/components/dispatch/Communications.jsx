@@ -50,10 +50,12 @@ export default function Communications() {
   useEffect(() => { load() }, [])
 
   async function loadPollResults(id, isSignup) {
-    const { data } = await supabase.from('poll_responses').select('response,driver_id').eq('announcement_id', id)
+    // Service-role fetch — RLS blocks authenticated dispatcher reads on poll_responses
+    const json = await fetch('/api/actions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list_poll_responses', announcement_id: id }) }).then(r => r.json()).catch(() => ({ data: [] }))
+    const data = json.data || []
     const counts = {}
     const bySlot = {}
-    ;(data || []).forEach(r => {
+    data.forEach(r => {
       counts[r.response] = (counts[r.response] || 0) + 1
       if (isSignup) {
         if (!bySlot[r.response]) bySlot[r.response] = []
@@ -61,7 +63,7 @@ export default function Communications() {
         bySlot[r.response].push(drv?.driver_name || `Driver #${r.driver_id}`)
       }
     })
-    setPollResults(prev => ({ ...prev, [id]: { counts, total: (data || []).length, bySlot } }))
+    setPollResults(prev => ({ ...prev, [id]: { counts, total: data.length, bySlot } }))
   }
 
   function openCreate() {
@@ -135,8 +137,27 @@ export default function Communications() {
   }
 
   async function toggleActive(item) {
-    await dbUpdate('announcements', { active: !item.active }, { id: item.id })
-    setItems(prev => prev.map(a => a.id === item.id ? { ...a, active: !a.active } : a))
+    const nextActive = !item.active
+    await dbUpdate('announcements', { active: nextActive }, { id: item.id })
+    setItems(prev => prev.map(a => a.id === item.id ? { ...a, active: nextActive } : a))
+    // When reactivating (false -> true) and the announcement isn't scheduled
+    // for the future, fire the same push notification a fresh announcement
+    // would have triggered. Drivers see it as if it were just sent.
+    if (nextActive && (!item.scheduled_for || new Date(item.scheduled_for) <= new Date())) {
+      fetch('/api/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'announce',
+          announcementId: item.id,
+          title: item.title,
+          body: item.body || '',
+          pharmacy: item.pharmacy,
+          priority: item.priority,
+          targetDrivers: item.target_drivers,
+        }),
+      }).catch(() => {})
+    }
   }
 
   async function handleDelete(item) {

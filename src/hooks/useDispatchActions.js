@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { DRIVER_EMAILS_ENABLED } from '../lib/flags'
 import { useTenant } from '../context/TenantContext'
+import { buildBioTouchCorrectionEmail } from '../lib/biotouchEmail'
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
 const TEST_MODE = false
@@ -43,6 +45,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
       <p style="color:#6b7280;font-size:13px">CNC Delivery</p>
     </div>`
   }
+
 
   function takeSnapshot() {
     const snap = {}
@@ -117,17 +120,21 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     try {
       const drivers = activeDrivers.filter(d => d.Email)
       let sent = 0
-      for (const d of drivers) {
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'email',
-            to: TEST_MODE ? TEST_EMAIL : d.Email,
-            subject: `${TEST_MODE ? '[TEST] ' : ''}CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay}`,
-            html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
-          }),
-        })
-        sent++
+      if (DRIVER_EMAILS_ENABLED) {
+        for (const d of drivers) {
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'email',
+              to: TEST_MODE ? TEST_EMAIL : d.Email,
+              subject: `${TEST_MODE ? '[TEST] ' : ''}CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay}`,
+              html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
+            }),
+          })
+          sent++
+        }
+      } else {
+        sent = drivers.length
       }
       setSentSnapshot(takeSnapshot())
       setRoutesSent(true)
@@ -150,7 +157,12 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
           const update = { status: 'dispatched', assigned_driver_number: num, driver_number: num }
           // Only set dispatch_driver_number if it's null (wasn't set by Gmail import)
           if (!s.dispatch_driver_number) update.dispatch_driver_number = num
-          supabase.from('daily_stops').update(update).eq('id', s.id).eq('tenant_id', tenantId).then(() => {})
+          // daily_stops has no tenant_id column yet (LYN Rx phase-0 didn't reach it).
+          // Filtering on it silently fails the UPDATE — that's the bug that left
+          // every Thursday route stuck at status='pending' and invisible to drivers.
+          // Re-add the tenant scope once the column + backfill ship.
+          const { error: upErr } = await supabase.from('daily_stops').update(update).eq('id', s.id)
+          if (upErr) console.error('[send routes update]', s.id, upErr.message)
         }
         fetch('/api/dispatch-log-decision', {
           method: 'POST',
@@ -214,17 +226,21 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
 
       const driversWithEmail = (data?.drivers || []).filter(d => affected.has(d['Driver Name']) && d.Email)
       let sent = 0
-      for (const d of driversWithEmail) {
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'email',
-            to: TEST_MODE ? TEST_EMAIL : d.Email,
-            subject: `${TEST_MODE ? '[TEST] ' : ''}CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay} (Updated)`,
-            html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
-          }),
-        })
-        sent++
+      if (DRIVER_EMAILS_ENABLED) {
+        for (const d of driversWithEmail) {
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'email',
+              to: TEST_MODE ? TEST_EMAIL : d.Email,
+              subject: `${TEST_MODE ? '[TEST] ' : ''}CNC Delivery — ${d['Driver Name']} — ${data.deliveryDay} (Updated)`,
+              html: buildDriverEmail(d['Driver Name'], d.stops, d.coldChain, data.deliveryDay),
+            }),
+          })
+          sent++
+        }
+      } else {
+        sent = driversWithEmail.length
       }
       for (const c of changes) {
         const driverStops = (data?.drivers || []).find(d => d['Driver Name'] === c.name)?.stopDetails || []
@@ -283,8 +299,9 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
       }
       const did = s.assigned_driver_number
       const driverName = numToName[did] || `Driver #${did}`
-      if (!corrections[did]) corrections[did] = { name: driverName, orderIds: [] }
+      if (!corrections[did]) corrections[did] = { name: driverName, orderIds: [], stops: [] }
       corrections[did].orderIds.push(s.order_id)
+      corrections[did].stops.push({ orderId: s.order_id, zip: s.zip })
     }
     return { corrections, alreadySent, stops, dateStr }
   }
@@ -381,8 +398,8 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
             body: JSON.stringify({
               action: 'email',
               to: 'wfldispatch@biotouchglobal.com',
-              subject: `Assign to Driver ${driverId}`,
-              html: `<pre>${orderIds.join('\n')}</pre>`,
+              subject: `Assign Orders to ${driverId}`,
+              html: buildBioTouchCorrectionEmail(driverId, corrections),
             }),
           })
         } catch (e) {
@@ -462,8 +479,8 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
             body: JSON.stringify({
               action: 'email',
               to: 'wfldispatch@biotouchglobal.com',
-              subject: `Assign to Driver ${driverId}`,
-              html: `<pre>${orderIds.join('\n')}</pre>`,
+              subject: `Assign Orders to ${driverId}`,
+              html: buildBioTouchCorrectionEmail(driverId, corrections),
             }),
           })
         } catch (e) {
@@ -519,8 +536,9 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
       if (!s.assigned_driver_number || !s.order_id) continue
       const did = String(s.assigned_driver_number)
       const driverName = numToName[did] || `Driver #${did}`
-      if (!byDriver[did]) byDriver[did] = { name: driverName, orderIds: [] }
+      if (!byDriver[did]) byDriver[did] = { name: driverName, orderIds: [], stops: [] }
       byDriver[did].orderIds.push(s.order_id)
+      byDriver[did].stops.push({ orderId: s.order_id, zip: s.zip })
     }
 
     if (Object.keys(byDriver).length === 0) {
@@ -543,6 +561,11 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     setForceDriverSelection(null)
     setSendingForceAll(true)
     try {
+      // Restrict the cross-driver ZIP conflict check to the selected drivers
+      // so unrelated/unselected drivers don't poison the unique-ZIP set.
+      const selectedBatch = {}
+      for (const did of selectedDrivers) selectedBatch[did] = byDriver[did]
+
       let sent = 0
       let totalOrders = 0
       const markErrors = []
@@ -555,8 +578,8 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
             body: JSON.stringify({
               action: 'email',
               to: 'wfldispatch@biotouchglobal.com',
-              subject: `Assign to Driver ${driverId}`,
-              html: `<pre>${orderIds.join('\n')}</pre>`,
+              subject: `Assign Orders to ${driverId}`,
+              html: buildBioTouchCorrectionEmail(driverId, selectedBatch),
             }),
           })
         } catch (e) {

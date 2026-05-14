@@ -201,7 +201,7 @@ function PODModal({ stop, onClose, onDelete }) {
     const stopId = String(stop.id || stop.order_id)
     supabase
       .from('delivery_confirmations')
-      .select('gps_distance_feet, geofence_overridden, barcode_scanned, barcode_value, barcode_matched, barcode_overridden, photo_package_url, photo_house_url, signature_url, recipient_name, delivery_note, handed_directly')
+      .select('gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, barcode_overridden, photo_package_url, photo_house_url, signature_url, recipient_name, delivery_note, handed_directly')
       .eq('stop_id', stopId)
       .order('delivered_at', { ascending: false })
       .limit(1)
@@ -268,8 +268,10 @@ function PODModal({ stop, onClose, onDelete }) {
             ? `Verified${confirmation.gps_distance_feet != null ? ` (${Math.round(confirmation.gps_distance_feet)} ft)` : ''}`
             : geoOverridden ? 'Overridden' : 'Not Verified'
           const barcodeScanned = !!confirmation?.barcode_scanned
+          const barcodeOverridden = !!confirmation?.barcode_overridden
           const barcodeMatched = barcodeScanned && confirmation.barcode_matched
-          const barcodeLabel = !barcodeScanned ? 'Not Scanned' : barcodeMatched ? 'Scanned' : 'Mismatch'
+          const barcodePass = !!barcodeMatched
+          const barcodeLabel = barcodeMatched ? 'Scanned' : barcodeOverridden ? 'Overridden' : barcodeScanned ? 'Mismatch' : 'Not Scanned'
           const photosLabel = handedDirectly && photoCount < 2
             ? `${photoCount} Photo${photoCount !== 1 ? 's' : ''} (Handed)`
             : `${photoCount} of 2 min`
@@ -282,13 +284,29 @@ function PODModal({ stop, onClose, onDelete }) {
           return (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
               <span style={geoVerified ? ok : fail}>Geofence: {geoLabel}</span>
-              <span style={barcodeMatched ? ok : fail}>Barcode: {barcodeLabel}</span>
+              <span style={barcodePass ? ok : fail}>Barcode: {barcodeLabel}</span>
               <span style={photosOk ? ok : fail}>Photos: {photosLabel}</span>
               {handedDirectly && <span style={info}>Handed ✓</span>}
               {(sigRequired || sigOk) && <span style={sigOk ? ok : fail}>Signed {sigOk ? '✓' : '✗'}</span>}
             </div>
           )
         })()}
+
+        {/* Driver Note — freeform note left by the driver at delivery */}
+        {confirmation?.delivery_note && (
+          <div style={{
+            display: 'flex', gap: 10, alignItems: 'flex-start',
+            background: 'rgba(96,165,250,0.08)',
+            border: '1px solid rgba(96,165,250,0.25)',
+            borderRadius: 10, padding: '10px 12px', marginBottom: 14,
+          }}>
+            <span style={{ fontSize: 16, lineHeight: 1.2 }}>📝</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--p-text-faint)', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 0.3 }}>Driver Note</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--p-text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{confirmation.delivery_note}</div>
+            </div>
+          </div>
+        )}
 
         {/* Geofence map — house pin vs driver GPS ping */}
         {(() => {
@@ -364,7 +382,7 @@ function PODModal({ stop, onClose, onDelete }) {
             <div><div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--p-text-faint)', textTransform: 'uppercase', marginBottom: 2 }}>Barcode</div><div style={{ fontSize: '0.82rem' }}>
               {confirmation.barcode_matched ? <span style={{ color: '#16a34a', fontWeight: 600 }}>Matched</span>
               : confirmation.barcode_overridden ? <span style={{ color: '#d97706', fontWeight: 600 }}>Overridden</span>
-              : <span>{confirmation.barcode_value || 'Scanned'}</span>}
+              : <span>{confirmation.barcode_scanned || 'Scanned'}</span>}
             </div></div>
           )}
           {confirmation?.recipient_name && (
@@ -488,7 +506,7 @@ function PODModal({ stop, onClose, onDelete }) {
   )
 }
 
-export { PODModal, getPhotoUrls, hasPodEvidence, getStatusClass, getStatusLabel, formatTime }
+export { PODModal, getPhotoUrls, hasPodEvidence, getStatusClass, getStatusLabel, formatTime, evaluateCompliance, ComplianceFlags }
 
 function hasPodEvidence(stop) {
   if (stop.photo_url) return true
@@ -504,6 +522,81 @@ function hasPodEvidence(stop) {
   return false
 }
 
+// Returns { geofence, barcode, photos } each as { state: 'pass'|'fail'|'warn'|'na', label: string }
+function evaluateCompliance(stop, confirmation) {
+  if (stop.status !== 'delivered') return null
+  if (!confirmation) return { geofence: { state: 'na', label: 'No confirmation data' }, barcode: { state: 'na', label: 'No confirmation data' }, photos: { state: 'na', label: 'No confirmation data' } }
+
+  // Geofence
+  let geofence
+  if (confirmation.gps_distance_feet != null && !confirmation.geofence_overridden) {
+    geofence = { state: 'pass', label: `Verified (${Math.round(confirmation.gps_distance_feet)} ft)` }
+  } else if (confirmation.geofence_overridden) {
+    geofence = { state: 'fail', label: 'Overridden by driver' }
+  } else {
+    geofence = { state: 'fail', label: 'Not verified' }
+  }
+
+  // Barcode
+  let barcode
+  if (confirmation.barcode_scanned && confirmation.barcode_matched) {
+    barcode = { state: 'pass', label: 'Scanned & matched' }
+  } else if (confirmation.barcode_overridden) {
+    barcode = { state: 'fail', label: 'Overridden by driver' }
+  } else if (confirmation.barcode_scanned) {
+    barcode = { state: 'fail', label: 'Scanned but mismatch' }
+  } else {
+    barcode = { state: 'fail', label: 'Not scanned' }
+  }
+
+  // Photos
+  const photoUrls = new Set()
+  getPhotoUrls(stop).forEach(u => photoUrls.add(u))
+  if (confirmation.photo_package_url) photoUrls.add(confirmation.photo_package_url)
+  if (confirmation.photo_house_url) photoUrls.add(confirmation.photo_house_url)
+  const count = photoUrls.size
+  const handed = !!confirmation.handed_directly
+  let photos
+  if (count >= 2 || (handed && count >= 1)) {
+    photos = { state: 'pass', label: handed && count < 2 ? `${count} (handed directly)` : `${count} of 2 min` }
+  } else {
+    photos = { state: 'fail', label: `${count} of 2 min` }
+  }
+
+  return { geofence, barcode, photos }
+}
+
+function ComplianceFlags({ checks }) {
+  if (!checks) return <span style={{ color: 'var(--p-text-ghost)' }}>-</span>
+  const colors = {
+    pass: { bg: 'rgba(22,163,74,0.18)', fg: '#16a34a' },
+    fail: { bg: 'rgba(220,38,38,0.18)', fg: '#dc2626' },
+    warn: { bg: 'rgba(217,119,6,0.18)', fg: '#d97706' },
+    na:   { bg: 'rgba(107,114,128,0.18)', fg: '#6B7280' },
+  }
+  const pill = (letter, prefix, c) => {
+    const col = colors[c.state]
+    return (
+      <span
+        title={`${prefix}: ${c.label}`}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: 18, height: 18, borderRadius: 9,
+          fontSize: 10, fontWeight: 700, fontFamily: 'ui-monospace, monospace',
+          background: col.bg, color: col.fg,
+        }}
+      >{letter}</span>
+    )
+  }
+  return (
+    <span style={{ display: 'inline-flex', gap: 4 }}>
+      {pill('G', 'Geofence', checks.geofence)}
+      {pill('B', 'Barcode', checks.barcode)}
+      {pill('P', 'Photos', checks.photos)}
+    </span>
+  )
+}
+
 function TrendIndicator({ current, previous }) {
   if (previous === null || previous === undefined) return null
   if (previous === 0 && current === 0) return <span style={{ color: '#6B7280', fontSize: '0.7rem', marginTop: 2 }}>— same</span>
@@ -517,6 +610,7 @@ function TrendIndicator({ current, previous }) {
 export default function PortalDashboard() {
   const { profile } = useAuth()
   const [stops, setStops] = useState([])
+  const [confirmationsMap, setConfirmationsMap] = useState({})
   const [allDriverStops, setAllDriverStops] = useState([])
   const [lastWeekStops, setLastWeekStops] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -563,6 +657,23 @@ export default function PortalDashboard() {
     const deleted = allStopsToday.filter(s => s.status === 'DELETED')
     if (!todayRes.error) { setStops(pharmacyStops); setDeletedStops(deleted) }
     if (!lastWeekRes.error && lastWeekRes.data) setLastWeekStops(lastWeekRes.data)
+
+    // Batch-fetch compliance data for delivered stops so we can flag mismatches on each row
+    const deliveredIds = pharmacyStops
+      .filter(s => s.status === 'delivered')
+      .map(s => String(s.id || s.order_id))
+      .filter(Boolean)
+    if (deliveredIds.length > 0) {
+      const { data: confs } = await supabase
+        .from('delivery_confirmations')
+        .select('stop_id, gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, barcode_overridden, handed_directly, photo_package_url, photo_house_url, delivery_note')
+        .in('stop_id', deliveredIds)
+      const map = {}
+      ;(confs || []).forEach(c => { if (!map[c.stop_id]) map[c.stop_id] = c })
+      setConfirmationsMap(map)
+    } else {
+      setConfirmationsMap({})
+    }
 
     // Fetch full routes for each driver assigned to this pharmacy today
     const driverNames = [...new Set(pharmacyStops.map(s => s.driver_name).filter(Boolean))]
@@ -786,6 +897,7 @@ export default function PortalDashboard() {
                     <th className="portal-th-sort" onClick={() => toggleSort('zip')}>Zip<SortIcon col="zip" /></th>
                     <th className="portal-th-sort" onClick={() => toggleSort('driver_name')}>Driver<SortIcon col="driver_name" /></th>
                     <th className="portal-th-sort" onClick={() => toggleSort('status')}>Status<SortIcon col="status" /></th>
+                    <th title="Geofence · Barcode · Photos">Checks</th>
                     <th className="portal-th-sort" onClick={() => toggleSort('time')}>Time<SortIcon col="time" /></th>
                     <th>POD</th>
                   </tr>
@@ -793,7 +905,18 @@ export default function PortalDashboard() {
                 <tbody>
                   {filtered.map(stop => (
                     <tr key={stop.id} style={{ cursor: 'pointer' }} onClick={() => setDetailStop(stop)}>
-                      <td>{stop.patient_name || '-'}</td>
+                      <td>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {stop.patient_name || '-'}
+                          {(() => {
+                            const note = confirmationsMap[String(stop.id || stop.order_id)]?.delivery_note
+                            if (!note) return null
+                            return (
+                              <span title={`Driver note: ${note}`} style={{ fontSize: 14, cursor: 'help', lineHeight: 1 }} aria-label="Driver note">📝</span>
+                            )
+                          })()}
+                        </span>
+                      </td>
                       <td>{stop.address || '-'}</td>
                       <td>{stop.city || '-'}</td>
                       <td>{stop.zip || '-'}</td>
@@ -807,6 +930,9 @@ export default function PortalDashboard() {
                           </span>
                         )}
                       </td>
+                      <td>
+                        <ComplianceFlags checks={evaluateCompliance(stop, confirmationsMap[String(stop.id || stop.order_id)])} />
+                      </td>
                       <td>{stop.delivered_at ? formatTime(stop.delivered_at) : (stop.eta ? <span style={{ color: '#60A5FA', fontSize: '0.8rem' }}>{stop.eta}</span> : '-')}</td>
                       <td>
                         {hasPodEvidence(stop) ? (
@@ -819,7 +945,7 @@ export default function PortalDashboard() {
                   ))}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--p-text-faint)', padding: '40px 0' }}>
+                      <td colSpan={9} style={{ textAlign: 'center', color: 'var(--p-text-faint)', padding: '40px 0' }}>
                         No orders match your search.
                       </td>
                     </tr>

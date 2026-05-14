@@ -355,12 +355,14 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   border-bottom: 1px solid var(--p-border);
+  white-space: nowrap;
 }
 
 .portal-table td {
   padding: 10px 14px;
   color: var(--p-text-secondary);
   border-bottom: 1px solid var(--p-border);
+  white-space: nowrap;
 }
 
 .portal-table tr:last-child td {

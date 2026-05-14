@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { supabase } from '../../lib/supabase'
 import PortalShell from '../../components/portal/PortalShell'
 import { getDeliveryDate } from '../../lib/getDeliveryDate'
-import { PODModal, hasPodEvidence, getPhotoUrls, getStatusClass, getStatusLabel, formatTime } from './PortalDashboard'
+import { PODModal, hasPodEvidence, getPhotoUrls, getStatusClass, getStatusLabel, formatTime, evaluateCompliance, ComplianceFlags } from './PortalDashboard'
 
 function daysAgo(n) {
   const d = new Date()
@@ -69,7 +69,7 @@ export default function PortalDeliveries() {
         const slice = ids.slice(i, i + CHUNK)
         const { data: confs } = await supabase
           .from('delivery_confirmations')
-          .select('stop_id, gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, handed_directly')
+          .select('stop_id, gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, barcode_overridden, handed_directly, photo_package_url, photo_house_url, delivery_note')
           .in('stop_id', slice)
         ;(confs || []).forEach(c => { if (!map[c.stop_id]) map[c.stop_id] = c })
       }
@@ -201,6 +201,7 @@ export default function PortalDeliveries() {
                   <th>Zip</th>
                   <th>Driver</th>
                   <th>Status</th>
+                  <th title="Geofence · Barcode · Photos">Checks</th>
                   <th>Time</th>
                   <th>POD</th>
                 </tr>
@@ -222,6 +223,13 @@ export default function PortalDeliveries() {
                         <td>{stop.delivery_date || '-'}</td>
                         <td>
                           {stop.patient_name || '-'}
+                          {(() => {
+                            const note = confirmations[String(stop.id || stop.order_id)]?.delivery_note
+                            if (!note) return null
+                            return (
+                              <span title={`Driver note: ${note}`} style={{ marginLeft: 6, fontSize: 13, cursor: 'help' }} aria-label="Driver note">📝</span>
+                            )
+                          })()}
                           {stop.cold_chain && (
                             <span style={{ marginLeft: 6, fontSize: '0.65rem', color: '#60A5FA', fontWeight: 700, letterSpacing: 0.4 }}>COLD</span>
                           )}
@@ -239,6 +247,9 @@ export default function PortalDeliveries() {
                           <span className={`portal-badge ${getStatusClass(stop.status)}`}>
                             {getStatusLabel(stop.status)}
                           </span>
+                        </td>
+                        <td>
+                          <ComplianceFlags checks={evaluateCompliance(stop, confirmations[String(stop.id || stop.order_id)])} />
                         </td>
                         <td>{formatTime(stop.delivered_at)}</td>
                         <td>

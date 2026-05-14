@@ -8,7 +8,7 @@ async function fetchConfirmation(stop) {
     const stopId = String(stop.id || stop.order_id)
     const { data } = await supabase
       .from('delivery_confirmations')
-      .select('gps_distance_feet, geofence_overridden, barcode_scanned, barcode_value, barcode_matched, barcode_overridden, photo_package_url, photo_house_url, signature_url, recipient_name, delivery_note, handed_directly')
+      .select('gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, barcode_overridden, photo_package_url, photo_house_url, signature_url, recipient_name, delivery_note, handed_directly')
       .eq('stop_id', stopId)
       .order('delivered_at', { ascending: false })
       .limit(1)
@@ -172,7 +172,7 @@ export async function generatePodPdf(stop, confirmation) {
     {
       label: 'Barcode',
       pass: barcodeOk,
-      value: barcodeOk ? 'Matched' : confirmation?.barcode_scanned ? 'Mismatch' : 'Not Scanned',
+      value: barcodeOk ? 'Matched' : confirmation?.barcode_overridden ? 'Overridden' : confirmation?.barcode_scanned ? 'Mismatch' : 'Not Scanned',
     },
     {
       label: 'Photos',
@@ -310,7 +310,7 @@ export async function downloadBulkPodPdf(stops, date) {
     if (ids.length > 0) {
       const { data } = await supabase
         .from('delivery_confirmations')
-        .select('stop_id, gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, handed_directly')
+        .select('stop_id, gps_distance_feet, geofence_overridden, barcode_scanned, barcode_matched, barcode_overridden, handed_directly')
         .in('stop_id', ids)
       ;(data || []).forEach(c => { if (!confirmationByStopId[c.stop_id]) confirmationByStopId[c.stop_id] = c })
     }
@@ -393,8 +393,8 @@ export async function downloadBulkPodPdf(stops, date) {
         },
         {
           label: 'Barcode',
-          pass: barcodeOk,
-          value: barcodeOk ? 'Matched' : confirmation?.barcode_scanned ? 'Mismatch' : 'Not Scanned',
+          pass: barcodeOk || !!confirmation?.barcode_overridden,
+          value: barcodeOk ? 'Matched' : confirmation?.barcode_overridden ? 'Overridden' : confirmation?.barcode_scanned ? 'Mismatch' : 'Not Scanned',
         },
         {
           label: 'Photos',

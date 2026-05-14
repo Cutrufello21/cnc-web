@@ -23,13 +23,13 @@ export default function PLTab({ payrollData }) {
     if (isNaN(amount) || amount <= 0) { setAddingLedger(false); return }
     const lastBalance = ledger.length > 0 ? parseFloat(ledger[0].running_balance) : 0
     const newBalance = ledgerForm.type === 'income' ? lastBalance + amount : lastBalance - amount
+    // company_ledger has no tenant_id column yet — see useDispatchActions for context.
     await supabase.from('company_ledger').insert({
       date: new Date().toISOString().split('T')[0],
       type: ledgerForm.type,
       description: ledgerForm.description,
       amount,
       running_balance: newBalance,
-      tenant_id: tenant?.id,
     })
     setLedgerForm({ type: 'income', description: '', amount: '' })
     setAddingLedger(false)

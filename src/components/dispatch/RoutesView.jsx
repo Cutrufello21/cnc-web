@@ -11,6 +11,7 @@ import WeatherWidget from './WeatherWidget'
 import StopDistribution from './StopDistribution'
 import UnassignedSection from './UnassignedSection'
 import UnassignedZips from './UnassignedZips'
+import { getBioTouchBreakdown } from '../../lib/biotouchEmail'
 
 export default function RoutesView(p) {
 const {
@@ -391,16 +392,20 @@ return (
                     )}
                     <div className="dispatch__callin-table-wrap">
                       <table className="dispatch__callin-table">
-                        <thead><tr><th>Driver</th><th>Driver #</th><th>Orders</th><th>Order IDs</th></tr></thead>
+                        <thead><tr><th>Driver</th><th>Driver #</th><th>Orders</th><th>Zip Codes</th><th>Order #s (shared ZIPs)</th></tr></thead>
                         <tbody>
-                          {Object.entries(combinedPreview.corrections).map(([driverId, { name, orderIds }]) => (
-                            <tr key={driverId}>
-                              <td style={{ fontWeight: 600 }}>{name}</td>
-                              <td>{driverId}</td>
-                              <td>{orderIds.length}</td>
-                              <td style={{ fontSize: '0.75rem', maxWidth: 300, wordBreak: 'break-all' }}>{orderIds.join(', ')}</td>
-                            </tr>
-                          ))}
+                          {Object.entries(combinedPreview.corrections).map(([driverId, { name, orderIds }]) => {
+                            const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, combinedPreview.corrections)
+                            return (
+                              <tr key={driverId}>
+                                <td style={{ fontWeight: 600 }}>{name}</td>
+                                <td>{driverId}</td>
+                                <td>{orderIds.length}</td>
+                                <td style={{ fontSize: '0.78rem' }}>{uniqueZips.length ? uniqueZips.join(', ') : <span style={{ color: '#9CA3AF' }}>—</span>}</td>
+                                <td style={{ fontSize: '0.75rem', maxWidth: 300, wordBreak: 'break-all' }}>{conflictOrderIds.length ? conflictOrderIds.join(', ') : <span style={{ color: '#9CA3AF' }}>—</span>}</td>
+                              </tr>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -482,16 +487,20 @@ return (
                 </p>
                 <div className="dispatch__callin-table-wrap">
                   <table className="dispatch__callin-table">
-                    <thead><tr><th>Driver</th><th>Driver #</th><th>Orders</th><th>Order IDs</th></tr></thead>
+                    <thead><tr><th>Driver</th><th>Driver #</th><th>Orders</th><th>Zip Codes</th><th>Order #s (shared ZIPs)</th></tr></thead>
                     <tbody>
-                      {Object.entries(resendAllPreview.corrections).map(([driverId, { name, orderIds }]) => (
-                        <tr key={driverId}>
-                          <td style={{ fontWeight: 600 }}>{name}</td>
-                          <td>{driverId}</td>
-                          <td>{orderIds.length}</td>
-                          <td style={{ fontSize: '0.75rem', maxWidth: 300, wordBreak: 'break-all' }}>{orderIds.join(', ')}</td>
-                        </tr>
-                      ))}
+                      {Object.entries(resendAllPreview.corrections).map(([driverId, { name, orderIds }]) => {
+                        const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, resendAllPreview.corrections)
+                        return (
+                          <tr key={driverId}>
+                            <td style={{ fontWeight: 600 }}>{name}</td>
+                            <td>{driverId}</td>
+                            <td>{orderIds.length}</td>
+                            <td style={{ fontSize: '0.78rem' }}>{uniqueZips.length ? uniqueZips.join(', ') : <span style={{ color: '#9CA3AF' }}>—</span>}</td>
+                            <td style={{ fontSize: '0.75rem', maxWidth: 300, wordBreak: 'break-all' }}>{conflictOrderIds.length ? conflictOrderIds.join(', ') : <span style={{ color: '#9CA3AF' }}>—</span>}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

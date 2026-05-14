@@ -164,9 +164,22 @@ export default async function handler(req, res) {
         errors.push(`RoutesAPI: ${err2.message}`)
         console.error(`[optimize] ✗ Routes API: ${err2.message}`)
 
-        // ── 3. Fallback: nearest-neighbor ──
-        optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1])
-        method = 'nearest-neighbor'
+        // ── 3. Fallback: OSRM (free, road-based, no auth) ──
+        try {
+          const endLat2 = endPoint ? endPoint[0] : (isRoundTrip ? origin[0] : null)
+          const endLng2 = endPoint ? endPoint[1] : (isRoundTrip ? origin[1] : null)
+          optimizedAll = await osrmFallback(withCoords, origin[0], origin[1], endLat2, endLng2)
+          if (!optimizedAll || optimizedAll.length === 0) throw new Error('OSRM returned no stops')
+          method = 'osrm'
+          console.log(`[optimize] ✓ OSRM: ${optimizedAll.length} stops`)
+        } catch (err3) {
+          errors.push(`OSRM: ${err3.message}`)
+          console.error(`[optimize] ✗ OSRM: ${err3.message}`)
+
+          // ── 4. Last resort: nearest-neighbor ──
+          optimizedAll = nearestNeighbor(withCoords, origin[0], origin[1])
+          method = 'nearest-neighbor'
+        }
       }
     }
 

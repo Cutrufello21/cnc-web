@@ -85,10 +85,10 @@ export default function DeliveryMap() {
             batch[i].lat = lat
             batch[i].lng = lng
             const table = timePeriod === 'today' ? 'daily_stops' : 'orders'
-            // orders table has no tenant_id column (phase-0 didn't add it); only scope daily_stops writes.
-            let q = supabase.from(table).update({ lat, lng }).eq('order_id', batch[i].order_id)
-            if (table === 'daily_stops') q = q.eq('tenant_id', tenantId)
-            q
+            // Neither `orders` nor `daily_stops` has a tenant_id column yet
+            // (LYN Rx phase-0 didn't reach them) — filtering on it silently
+            // nukes the UPDATE. Re-scope once the migration ships.
+            supabase.from(table).update({ lat, lng }).eq('order_id', batch[i].order_id)
           }
         }
         if (!cancelled) setStops([...stops])

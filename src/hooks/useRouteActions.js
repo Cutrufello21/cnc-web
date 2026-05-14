@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { dbUpdate } from '../lib/db'
+import { DRIVER_EMAILS_ENABLED } from '../lib/flags'
 import { useTenant } from '../context/TenantContext'
 
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
@@ -66,17 +67,20 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
           if (result.optimizedOrder) {
             await Promise.all(result.optimizedOrder.map((origIdx, newIdx) => {
               const stop = driverStops[origIdx]
-              return stop?.id ? supabase.from('daily_stops').update({ sort_order: newIdx }).eq('id', stop.id).eq('tenant_id', tenantId) : null
+              // daily_stops has no tenant_id column yet — see useDispatchActions for context.
+              return stop?.id ? supabase.from('daily_stops').update({ sort_order: newIdx }).eq('id', stop.id) : null
             }).filter(Boolean))
             // Save route distance
             if (result.totalDistance) {
+              // driver_routes has no tenant_id column yet — including it in the
+              // payload made PostgREST reject the whole upsert, so optimized
+              // distances were never persisted. Re-add once the column ships.
               await supabase.from('driver_routes').upsert({
                 driver_name: driverName, date: selectedDate,
                 stop_sequence: result.optimizedOrder.map(i => String(driverStops[i]?.id || driverStops[i]?.order_id)),
                 origin_hospital: driverStops[0]?.pharmacy || 'SHSP',
                 optimized_at: new Date().toISOString(),
                 route_miles: result.totalDistance,
-                tenant_id: tenantId,
               }, { onConflict: 'driver_name,date' })
             }
           }
@@ -92,19 +96,21 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
         const driverStops = grouped[driverName]
         if (!driverStops || driverStops.length === 0) continue
 
-        const driverEmail = findDriverEmail(driverName)
-        if (driverEmail) {
-          const html = buildDriverEmailHTML(driverName, driverStops, dayName, selectedDate)
-          await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'email',
-              to: driverEmail,
-              subject: `[CNC Delivery] ${driverName} — ${dayName}`,
-              html: html
-            }),
-            mode: 'no-cors'
-          })
+        if (DRIVER_EMAILS_ENABLED) {
+          const driverEmail = findDriverEmail(driverName)
+          if (driverEmail) {
+            const html = buildDriverEmailHTML(driverName, driverStops, dayName, selectedDate)
+            await fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              body: JSON.stringify({
+                action: 'email',
+                to: driverEmail,
+                subject: `[CNC Delivery] ${driverName} — ${dayName}`,
+                html: html
+              }),
+              mode: 'no-cors'
+            })
+          }
         }
         sentCount++
       }
@@ -181,19 +187,21 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
       }
 
       // a) Build HTML email and send via Apps Script
-      const driverEmail = findDriverEmail(driverName)
-      if (driverEmail) {
-        const html = buildDriverEmailHTML(driverName, driverStops, dayName, selectedDate)
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'email',
-            to: driverEmail,
-            subject: `[CNC Delivery] ${driverName} — ${dayName}`,
-            html: html
-          }),
-          mode: 'no-cors'
-        })
+      if (DRIVER_EMAILS_ENABLED) {
+        const driverEmail = findDriverEmail(driverName)
+        if (driverEmail) {
+          const html = buildDriverEmailHTML(driverName, driverStops, dayName, selectedDate)
+          await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'email',
+              to: driverEmail,
+              subject: `[CNC Delivery] ${driverName} — ${dayName}`,
+              html: html
+            }),
+            mode: 'no-cors'
+          })
+        }
       }
 
       // b) Send to Road Warrior if driver is in RW_DRIVERS
@@ -423,19 +431,21 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
         const driverStops = currentGrouped[driverName]
         if (!driverStops || driverStops.length === 0) continue
 
-        const driverEmail = findDriverEmail(driverName)
-        if (driverEmail) {
-          const html = buildDriverEmailHTML(driverName, driverStops, dayName, selectedDate)
-          await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'email',
-              to: driverEmail,
-              subject: `[CNC Delivery] ${driverName} — ${dayName} (Updated)`,
-              html: html
-            }),
-            mode: 'no-cors'
-          })
+        if (DRIVER_EMAILS_ENABLED) {
+          const driverEmail = findDriverEmail(driverName)
+          if (driverEmail) {
+            const html = buildDriverEmailHTML(driverName, driverStops, dayName, selectedDate)
+            await fetch(APPS_SCRIPT_URL, {
+              method: 'POST',
+              body: JSON.stringify({
+                action: 'email',
+                to: driverEmail,
+                subject: `[CNC Delivery] ${driverName} — ${dayName} (Updated)`,
+                html: html
+              }),
+              mode: 'no-cors'
+            })
+          }
         }
 
         // Send to Road Warrior if applicable

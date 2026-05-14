@@ -266,7 +266,8 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
       // Ensure all non-flat drivers have a payroll row (for will_calls, edits, etc.)
       const newDriverRows = drivers
         .filter(d => !d.isFlat && !payrollByName[d.name])
-        .map(d => ({ week_of: weekOf, driver_name: d.name, tenant_id: tenantId }))
+        // payroll has no tenant_id column yet — see useDispatchActions for context.
+        .map(d => ({ week_of: weekOf, driver_name: d.name }))
       if (newDriverRows.length > 0) {
         await supabase.from('payroll').insert(newDriverRows)
       }
@@ -444,7 +445,32 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
         throw new Error(`Email failed: ${errText}`)
       }
 
-      // 2. Sync payroll costs to settlements table for P&L tracking
+      // 2. Snapshot authoritative pay to the payroll table so the driver app's
+      // Pay History shows exactly what was approved here. Without this, the
+      // driver app falls back to a formula that can't represent split rates
+      // (e.g. Wed=$6.50 vs Fri=$8.35) and overpays/underpays past weeks.
+      try {
+        const weekOf = data._weekOfDate
+        for (const driver of data.drivers) {
+          const pay = getAdjustedPay(driver)
+          const mon = getDayValue(driver, 'Mon')
+          const tue = getDayValue(driver, 'Tue')
+          const wed = getDayValue(driver, 'Wed')
+          const thu = getDayValue(driver, 'Thu')
+          const fri = getDayValue(driver, 'Fri')
+          const willCalls = parseInt(getEditedValue(driver.name, 'Will Calls', driver.willCalls)) || 0
+          // Note: payroll table doesn't have tenant_id yet (phase-0 migration
+          // hasn't reached it). Re-add tenant_id here once the column exists.
+          const row = { week_of: weekOf, driver_name: driver.name, mon, tue, wed, thu, fri, will_calls: willCalls, weekly_pay: pay }
+          if (driver.rowIndex) {
+            await supabase.from('payroll').update(row).eq('id', driver.rowIndex)
+          } else {
+            await supabase.from('payroll').insert(row)
+          }
+        }
+      } catch (payErr) { console.warn('Payroll snapshot:', payErr.message) }
+
+      // 3. Sync payroll costs to settlements table for P&L tracking
       try {
         const weekOf = data.weekOf // "M/D/YYYY"
         const [m, d, y] = weekOf.split('/')
@@ -461,26 +487,27 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
           const plName = nameMap[driver.name] || driver.name
           const { data: existing } = await supabase.from('settlements')
             .select('id').eq('week_of', ofWeek).eq('driver_name', plName).single()
+          // settlements has no tenant_id column yet — see useDispatchActions for context.
           if (existing) {
-            await supabase.from('settlements').update({ cost: pay }).eq('id', existing.id).eq('tenant_id', tenantId)
+            await supabase.from('settlements').update({ cost: pay }).eq('id', existing.id)
           } else {
-            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: plName, revenue: 0, cost: pay, source: 'payroll-auto', tenant_id: tenantId })
+            await supabase.from('settlements').insert({ week_of: ofWeek, driver_name: plName, revenue: 0, cost: pay, source: 'payroll-auto' })
           }
         }
       } catch (syncErr) { console.warn('Settlement sync:', syncErr.message) }
 
-      // Auto-log payroll expense to company ledger
+      // 4. Auto-log payroll expense to company ledger
       try {
         const { data: lastLedger } = await supabase.from('company_ledger').select('running_balance').order('created_at', { ascending: false }).limit(1).single()
         const currentBal = lastLedger ? parseFloat(lastLedger.running_balance) : 0
         const weLabel = data.weekEnding || 'current week'
+        // company_ledger has no tenant_id column yet — see useDispatchActions for context.
         await supabase.from('company_ledger').insert({
           date: new Date().toISOString().split('T')[0],
           type: 'expense',
           description: `Driver payroll — WE ${weLabel}`,
           amount: -adjustedTotal,
           running_balance: Math.round((currentBal - adjustedTotal) * 100) / 100,
-          tenant_id: tenantId,
         })
       } catch (ledgerErr) { console.warn('Ledger sync:', ledgerErr.message) }
 

@@ -30,3 +30,6 @@ dist-ssr
 .vercel
 .env*.local
 .env.vercel
+
+# Local knowledge base for Claude.ai project (do not commit)
+knowledge-base/
