@@ -7,7 +7,7 @@ const TYPES = ['announcement', 'meeting', 'note', 'poll', 'signup', 'update']
 const TYPE_LABELS = { announcement: 'Announcement', meeting: 'Meeting', note: 'Note', poll: 'Poll', signup: 'Sign-Up', update: 'App Update' }
 const TYPE_COLORS = { announcement: '#0A2463', meeting: '#2563eb', note: '#6B7280', poll: '#7c3aed', signup: '#059669', update: '#60A5FA' }
 
-const EMPTY_FORM = { type: 'announcement', title: '', body: '', priority: 'normal', pharmacy: 'all', expires_at: '', poll_options: ['', ''], pinned: false, scheduled_for: '', target_drivers: [] }
+const EMPTY_FORM = { type: 'announcement', title: '', body: '', priority: 'normal', pharmacy: 'all', expires_at: '', poll_options: ['', ''], pinned: false, scheduled_for: '', target_drivers: [], meeting_date: '' }
 
 export default function Communications() {
   const [items, setItems] = useState([])
@@ -85,6 +85,7 @@ export default function Communications() {
       pinned: item.pinned || false,
       scheduled_for: item.scheduled_for ? item.scheduled_for.slice(0, 16) : '',
       target_drivers: item.target_drivers || [],
+      meeting_date: item.meeting_date || '',
     })
     setShowForm(true)
   }
@@ -103,6 +104,12 @@ export default function Communications() {
       pinned: form.pinned,
       scheduled_for: form.scheduled_for ? new Date(form.scheduled_for).toISOString() : null,
       target_drivers: form.target_drivers.length > 0 ? form.target_drivers : null,
+    }
+    // Meeting day for meeting/sign-up items. Drives the driver calendar; for
+    // sign-ups each driver sees their picked slot as the time on this date.
+    // Only attach the key when set so non-meeting posts don't touch the column.
+    if ((form.type === 'meeting' || form.type === 'signup') && form.meeting_date) {
+      payload.meeting_date = form.meeting_date
     }
     try {
       if (editing) {
@@ -140,10 +147,11 @@ export default function Communications() {
     const nextActive = !item.active
     await dbUpdate('announcements', { active: nextActive }, { id: item.id })
     setItems(prev => prev.map(a => a.id === item.id ? { ...a, active: nextActive } : a))
-    // When reactivating (false -> true) and the announcement isn't scheduled
-    // for the future, fire the same push notification a fresh announcement
-    // would have triggered. Drivers see it as if it were just sent.
+    // When reactivating (false -> true) ask before re-broadcasting. Default is
+    // NO push — re-activating an old announcement shouldn't spam drivers.
     if (nextActive && (!item.scheduled_for || new Date(item.scheduled_for) <= new Date())) {
+      const send = confirm('Send a push notification to drivers about this announcement?\n\nClick OK to broadcast. Click Cancel to activate silently.')
+      if (!send) return
       fetch('/api/actions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -229,6 +237,15 @@ export default function Communications() {
               <input type="datetime-local" value={form.expires_at} onChange={e => setForm(prev => ({ ...prev, expires_at: e.target.value }))} />
             </div>
           </div>
+
+          {(form.type === 'meeting' || form.type === 'signup') && (
+            <div className="comms-form-grid">
+              <div className="comms-form-row">
+                <label>Meeting date {form.type === 'signup' && '(shows each driver their picked slot)'}</label>
+                <input type="date" value={form.meeting_date} onChange={e => setForm(prev => ({ ...prev, meeting_date: e.target.value }))} />
+              </div>
+            </div>
+          )}
 
           <div className="comms-form-grid">
             <div className="comms-form-row">

@@ -69,6 +69,9 @@ export default async function handler(req, res) {
 
     if (data.action === 'transfer') {
       const { orderIds, toDriverName, toDriverNumber, fromDriverName, source, deliveryDate } = data
+      // Drivers can opt out of the BioTouch email per-transfer. Defaults to true
+      // (notify) when the flag is absent so older clients keep notifying.
+      const notifyBiotouch = data.notifyBiotouch !== false
       if (!orderIds?.length || !toDriverName || !toDriverNumber) {
         return res.status(400).json({ error: 'Missing transfer data' })
       }
@@ -176,7 +179,7 @@ export default async function handler(req, res) {
       // actually read what moved, not just the raw order_id.
       let emailStatus = 'skipped'
       let emailError = null
-      if (source === 'driver') {
+      if (source === 'driver' && notifyBiotouch) {
         try {
           const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
           const rowsHtml = orderIds.map(oid => {
@@ -473,6 +476,146 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json({ success: true, sent: tokens.length })
+    }
+
+    if (data.action === 'signup_reminders') {
+      // Push two kinds of nudges for a sign-up announcement:
+      //   1) "Your slot: <slot>" to drivers who picked a slot
+      //   2) "Please pick a meeting time" to target drivers who haven't picked
+      // Both groups are deduped against driver_notifications so a re-tap of the
+      // button only reaches drivers who haven't been nudged yet for this ann.
+      const ASK_BODY = 'Please pick a meeting time'
+      const { announcementId } = data
+      if (!announcementId) return res.status(400).json({ error: 'Missing announcementId' })
+
+      const { data: ann } = await supabase.from('announcements').select('id,title,target_drivers').eq('id', announcementId).single()
+      if (!ann) return res.status(404).json({ error: 'Announcement not found' })
+
+      const { data: responses } = await supabase.from('poll_responses').select('driver_id,response').eq('announcement_id', announcementId)
+      const respList = responses || []
+
+      // Determine the universe of target drivers. If the announcement has
+      // explicit target_drivers, use that. Otherwise fall back to all active
+      // drivers.
+      let targetIds = (ann.target_drivers || []).map(x => Number(x)).filter(Boolean)
+      if (targetIds.length === 0) {
+        const { data: allActive } = await supabase.from('drivers').select('id').eq('active', true)
+        targetIds = (allActive || []).map(d => d.id)
+      }
+
+      // Pull driver rows for everyone we might touch (responders + targets).
+      const respondentIds = new Set(respList.map(r => Number(r.driver_id)).filter(Boolean))
+      const allIds = [...new Set([...targetIds, ...respondentIds])]
+      const { data: drivers } = await supabase.from('drivers').select('id,driver_name,push_token').in('id', allIds)
+      const driverById = new Map((drivers || []).map(d => [d.id, d]))
+
+      // Existing nudges for this announcement — used to skip drivers we've
+      // already pushed. Title + body shape uniquely identify our two flavors.
+      const driverNames = (drivers || []).map(d => d.driver_name)
+      const slotBodies = respList.map(r => `Your slot: ${r.response}`)
+      const dedupeBodies = [...new Set([ASK_BODY, ...slotBodies])]
+      let existing = []
+      if (driverNames.length > 0 && dedupeBodies.length > 0) {
+        const { data: rows } = await supabase
+          .from('driver_notifications')
+          .select('driver_name,body')
+          .eq('title', ann.title)
+          .in('driver_name', driverNames)
+          .in('body', dedupeBodies)
+        existing = rows || []
+      }
+      const alreadyNudged = new Set(existing.map(r => `${r.driver_name}|${r.body}`))
+
+      const messages = []
+      const notifRows = []
+      const slot = { sent: 0, alreadyReminded: 0, missing: [] }
+      const ask  = { sent: 0, alreadyAsked: 0,    missing: [] }
+
+      // 1) Slot reminders for respondents
+      for (const r of respList) {
+        const drv = driverById.get(Number(r.driver_id))
+        if (!drv) continue
+        const body = `Your slot: ${r.response}`
+        if (alreadyNudged.has(`${drv.driver_name}|${body}`)) { slot.alreadyReminded++; continue }
+        if (drv.push_token) {
+          messages.push({ to: drv.push_token, sound: 'default', title: ann.title, body, data: { type: 'signup_reminder', announcementId } })
+          slot.sent++
+        } else {
+          slot.missing.push({ driver_name: drv.driver_name, slot: r.response })
+        }
+        notifRows.push({ driver_name: drv.driver_name, title: ann.title, body, type: 'announcement' })
+      }
+
+      // 2) Pick-a-time prompts for target drivers who didn't respond
+      for (const id of targetIds) {
+        if (respondentIds.has(Number(id))) continue
+        const drv = driverById.get(Number(id))
+        if (!drv) continue
+        if (alreadyNudged.has(`${drv.driver_name}|${ASK_BODY}`)) { ask.alreadyAsked++; continue }
+        if (drv.push_token) {
+          messages.push({ to: drv.push_token, sound: 'default', title: ann.title, body: ASK_BODY, data: { type: 'signup_request', announcementId } })
+          ask.sent++
+        } else {
+          ask.missing.push({ driver_name: drv.driver_name })
+        }
+        notifRows.push({ driver_name: drv.driver_name, title: ann.title, body: ASK_BODY, type: 'announcement' })
+      }
+
+      if (messages.length > 0) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(messages),
+        })
+      }
+      if (notifRows.length > 0) {
+        try { await supabase.from('driver_notifications').insert(notifRows) } catch {}
+      }
+
+      return res.status(200).json({
+        success: true,
+        slot,
+        ask,
+        totals: { signedUp: respList.length, unsigned: targetIds.length - respondentIds.size },
+      })
+    }
+
+    if (data.action === 'notify_pick_time') {
+      // Push "Please pick a meeting time" to a specific subset of drivers for
+      // a sign-up announcement. Called when an admin selects which unsigned
+      // drivers should be nudged individually.
+      const ASK_BODY = 'Please pick a meeting time'
+      const { announcementId, driverIds } = data
+      if (!announcementId || !Array.isArray(driverIds) || driverIds.length === 0) {
+        return res.status(400).json({ error: 'Missing announcementId or driverIds' })
+      }
+      const { data: ann } = await supabase.from('announcements').select('id,title').eq('id', announcementId).single()
+      if (!ann) return res.status(404).json({ error: 'Announcement not found' })
+
+      const ids = driverIds.map(x => Number(x)).filter(Boolean)
+      const { data: drivers } = await supabase.from('drivers').select('id,driver_name,push_token').in('id', ids)
+      const messages = []
+      const notifRows = []
+      const missing = []
+      for (const drv of drivers || []) {
+        if (drv.push_token) {
+          messages.push({ to: drv.push_token, sound: 'default', title: ann.title, body: ASK_BODY, data: { type: 'signup_request', announcementId } })
+        } else {
+          missing.push({ driver_name: drv.driver_name })
+        }
+        notifRows.push({ driver_name: drv.driver_name, title: ann.title, body: ASK_BODY, type: 'announcement' })
+      }
+      if (messages.length > 0) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify(messages),
+        })
+      }
+      if (notifRows.length > 0) {
+        try { await supabase.from('driver_notifications').insert(notifRows) } catch {}
+      }
+      return res.status(200).json({ success: true, sent: messages.length, total: ids.length, missing })
     }
 
     if (data.action === 'list_announcements') {
