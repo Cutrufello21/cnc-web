@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
-import { dbUpdate } from '../../lib/db'
+import { dbUpdate, dbDelete } from '../../lib/db'
 import DriverCard from './DriverCard'
 import WarningBanner from './WarningBanner'
 import DispatchSummary from './DispatchSummary'
@@ -11,6 +11,7 @@ import WeatherWidget from './WeatherWidget'
 import StopDistribution from './StopDistribution'
 import UnassignedSection from './UnassignedSection'
 import UnassignedZips from './UnassignedZips'
+import UploadOrdersModal from './UploadOrdersModal'
 import { getBioTouchBreakdown } from '../../lib/biotouchEmail'
 
 export default function RoutesView(p) {
@@ -47,6 +48,8 @@ const [showMap, setShowMap] = useState(false)
 const [batchSelected, setBatchSelected] = useState(new Set())
 const [batchMoving, setBatchMoving] = useState(false)
 const [batchTarget, setBatchTarget] = useState('')
+const [showUpload, setShowUpload] = useState(false)
+const [clearing, setClearing] = useState(false)
 
 // Build a flat list of all stops across all active drivers for batch selection
 const allStopsFlat = activeDrivers.flatMap(d => (d.stopDetails || []).map(s => ({ ...s, _driverName: d['Driver Name'], _driverNum: d['Driver #'] })))
@@ -91,6 +94,30 @@ async function handleBatchMove() {
     fetchDispatchData(selectedDay)
   } catch (err) { setMoveToast(`Error: ${err.message}`) }
   finally { setBatchMoving(false) }
+}
+
+// Wipe every stop for the selected delivery day — used to redo a bad upload.
+async function handleClearDay() {
+  const dateStr = data.deliveryDateObj
+    ? `${data.deliveryDateObj.getFullYear()}-${String(data.deliveryDateObj.getMonth()+1).padStart(2,'0')}-${String(data.deliveryDateObj.getDate()).padStart(2,'0')}`
+    : null
+  if (!dateStr) return
+  const dayLabel = data.deliveryDay || selectedDay
+  const loadedCount = totalStops + (data.unassigned?.length || 0)
+  if (loadedCount === 0) { setMoveToast('No orders to clear for this day'); return }
+  setMoreOpen(false)
+  if (!confirm(`Clear ALL orders for ${dayLabel}, ${dateStr}?\n\nThis permanently deletes every stop for that day (assigned + unassigned, ~${loadedCount}). This cannot be undone.`)) return
+  setClearing(true)
+  try {
+    const deleted = await dbDelete('daily_stops', { delivery_date: dateStr })
+    const n = Array.isArray(deleted) ? deleted.length : loadedCount
+    setMoveToast(`Cleared ${n} order${n !== 1 ? 's' : ''} for ${dayLabel}`)
+    fetchDispatchData(selectedDay)
+  } catch (err) {
+    setMoveToast(`Clear error: ${err.message}`)
+  } finally {
+    setClearing(false)
+  }
 }
 
 function toggleSwapSelect(driverName) {
@@ -207,6 +234,13 @@ return (
                 )}
               </div>
               <div className="dispatch__tools-right">
+                <button
+                  className="dispatch__day dispatch__day--routing"
+                  onClick={() => setShowUpload(true)}
+                  title="Upload next-day orders CSV"
+                >
+                  Upload CSV
+                </button>
                 <button
                   className={`dispatch__day dispatch__day--routing ${showMap ? 'dispatch__day--routing-active' : ''}`}
                   onClick={() => { setShowMap(!showMap); setShowSortList(false); setShowRouting(false); setShowUnassigned(false) }}
@@ -347,6 +381,14 @@ return (
                       >
                         {sendingForceAll ? 'Sending...' : forceAllSent ? 'Force Sent' : 'Force Send All'}
                         <span className="dispatch__more-desc">Full order list for selected drivers to WFL</span>
+                      </button>
+                      <button
+                        className="dispatch__more-item dispatch__more-item--danger"
+                        onClick={handleClearDay}
+                        disabled={clearing}
+                      >
+                        {clearing ? 'Clearing...' : 'Clear This Day'}
+                        <span className="dispatch__more-desc">Delete all stops for this day — use to redo a bad upload</span>
                       </button>
                     </div>
                   )}
@@ -685,6 +727,15 @@ return (
               <RecentLog logs={data.recentLogs} />
             )}
             </>}
+
+      {/* Manual CSV upload */}
+      {showUpload && (
+        <UploadOrdersModal
+          deliveryDateObj={data.deliveryDateObj}
+          onClose={() => setShowUpload(false)}
+          onUploaded={() => fetchDispatchData(selectedDay)}
+        />
+      )}
 
       {/* Batch selection action bar */}
       {batchSelected.size > 0 && (

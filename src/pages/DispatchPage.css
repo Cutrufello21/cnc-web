@@ -376,6 +376,8 @@
 .dispatch__more-item:hover:not(:disabled) { background: #F3F4F6; }
 .dispatch__more-item:disabled { opacity: 0.5; cursor: not-allowed; }
 .dispatch__more-desc { font-size: 11px; font-weight: 400; color: #9BA5B4; margin-top: 2px; }
+.dispatch__more-item--danger { color: #DC2626; margin-top: 4px; border-top: 1px solid #F0F2F7; border-radius: 0 0 8px 8px; }
+.dispatch__more-item--danger:hover:not(:disabled) { background: #FEF2F2; }
 
 /* ── Toast ─────────────────────────────────────────── */
 .dispatch__move-toast {

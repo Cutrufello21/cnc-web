@@ -67,6 +67,7 @@ const V2_ELIGIBLE_TABLES = new Set([
   'geocode_cache',
   'address_corrections',
   'pickup_requests',
+  'patient_notes',
 ])
 
 function v1Headers() {

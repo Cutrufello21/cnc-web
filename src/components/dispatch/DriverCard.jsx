@@ -3,6 +3,8 @@ import { supabase } from '../../lib/supabase'
 import { dbUpdate } from '../../lib/db'
 import { DRIVER_EMAILS_ENABLED } from '../../lib/flags'
 import { useTenant } from '../../context/TenantContext'
+import { fetchPatientNotes, normalizePatientKey } from '../../lib/patientNotes'
+import PatientNoteModal from '../PatientNoteModal'
 import './DriverCard.css'
 
 const PHARMACY_COLORS = {
@@ -56,6 +58,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   }
   const [optimizing, setOptimizing] = useState(false)
   const [optimized, setOptimized] = useState(false)
+  const [patientNotes, setPatientNotes] = useState(new Map())
+  const [noteTarget, setNoteTarget] = useState(null) // { patientName, initialNote, lastEditedBy, lastEditedAt }
 
   const name = driver['Driver Name'] || '—'
   const id = driver['Driver #'] || driver['Driver Number'] || driver['Driver ID'] || ''
@@ -87,6 +91,17 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const otherDrivers = allDrivers.filter((d) =>
     d['Driver Name'] !== name && d.tabName
   )
+
+  // Bulk-load patient notes whenever this card's stops change (and only when expanded).
+  useEffect(() => {
+    if (!expanded || rawDetails.length === 0) return
+    let cancelled = false
+    const names = rawDetails.map(s => s.Name || s.name).filter(Boolean)
+    fetchPatientNotes(names).then(map => {
+      if (!cancelled) setPatientNotes(map)
+    })
+    return () => { cancelled = true }
+  }, [expanded, rawDetails])
 
   // Enrich details with display fields
   const enriched = useMemo(() => rawDetails.map(stop => {
@@ -317,6 +332,37 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     }
   }
 
+  // Inline-edit a single field on a stop's daily_stops row.
+  async function handleFieldEdit(stop, field, value) {
+    const stopId = stop._stopId
+    if (!stopId) {
+      setMoveResult('Error: missing stop id')
+      return
+    }
+    const patch = { [field]: value }
+    // Side-effects for status transitions so the pharmacy portal shows
+    // a sensible time (or clears it) immediately.
+    if (field === 'status') {
+      if (value === 'delivered' && !stop.delivered_at) patch.delivered_at = new Date().toISOString()
+      if (value === 'dispatched') patch.delivered_at = null
+    }
+    try {
+      await dbUpdate('daily_stops', patch, { id: stopId })
+      setMoveResult(`Updated ${field} → ${value}`)
+      if (onRefresh) setTimeout(onRefresh, 300)
+    } catch (err) {
+      setMoveResult(`Error: ${err.message}`)
+    }
+  }
+
+  const PHARMACY_OPTIONS = ['SHSP', 'Aultman', 'Both']
+  const STATUS_OPTIONS = [
+    { value: 'dispatched', label: 'Active' },
+    { value: 'delivered',  label: 'Delivered' },
+    { value: 'failed',     label: 'Failed' },
+    { value: 'attempted',  label: 'Attempted' },
+  ]
+
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
   const RW_DRIVERS = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
 
@@ -429,6 +475,25 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           </div>
         )}
       </div>
+
+      {noteTarget && (
+        <PatientNoteModal
+          patientName={noteTarget.patientName}
+          initialNote={noteTarget.initialNote}
+          lastEditedBy={noteTarget.lastEditedBy}
+          lastEditedAt={noteTarget.lastEditedAt}
+          onClose={() => setNoteTarget(null)}
+          onSaved={(row) => {
+            const key = normalizePatientKey(noteTarget.patientName)
+            setPatientNotes(prev => {
+              const next = new Map(prev)
+              if (row) next.set(key, row)
+              else next.delete(key)
+              return next
+            })
+          }}
+        />
+      )}
 
       {expanded && enriched.length > 0 && (
         <div className="dcard__stops">
@@ -561,28 +626,89 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                       ) : (orderId || '—')}
                     </td>
                     <td>
-                      {stop._packageCount > 1 ? (
-                        <span title={stop._consolidatedNames?.join(', ')}>
-                          {stop['Name'] || '—'}
-                          {stop._consolidatedNames?.length > 1 && <span className="dcard__multi-name"> +{stop._consolidatedNames.length - 1}</span>}
-                        </span>
-                      ) : (stop['Name'] || '—')}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {stop._packageCount > 1 ? (
+                          <span title={stop._consolidatedNames?.join(', ')}>
+                            {stop['Name'] || '—'}
+                            {stop._consolidatedNames?.length > 1 && <span className="dcard__multi-name"> +{stop._consolidatedNames.length - 1}</span>}
+                          </span>
+                        ) : (stop['Name'] || '—')}
+                        {(() => {
+                          const pname = stop['Name'] || ''
+                          if (!pname) return null
+                          const noteRow = patientNotes.get(normalizePatientKey(pname))
+                          const hasNote = !!noteRow?.note
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setNoteTarget({
+                                  patientName: pname,
+                                  initialNote: noteRow?.note || '',
+                                  lastEditedBy: noteRow?.updated_by || '',
+                                  lastEditedAt: noteRow?.updated_at || '',
+                                })
+                              }}
+                              title={hasNote ? `Note: ${noteRow.note}` : 'Add patient note'}
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                padding: 0, fontSize: 14, lineHeight: 1,
+                                opacity: hasNote ? 1 : 0.35,
+                              }}
+                            >
+                              {hasNote ? '📝' : '✎'}
+                            </button>
+                          )
+                        })()}
+                      </span>
                     </td>
                     <td className="dcard__cell-addr">{stop['Address'] || '—'}</td>
                     <td style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByCity?.(stop['City']) }} title={`Select all ${stop['City']} stops`}>{stop['City'] || '—'}</td>
                     <td className="dcard__cell-zip" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByZip?.(stop['Zip Code'] || stop['ZIP']) }} title={`Select all ${stop['Zip Code'] || stop['ZIP']} stops`}>{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td className="dcard__cell-notes">{stop._flagsDisplay}</td>
-                    <td className="dcard__cell-pharma">{stop['Pharmacy'] || '—'}</td>
+                    <td className="dcard__cell-pharma">
+                      <select
+                        value={PHARMACY_OPTIONS.includes(stop['Pharmacy']) ? stop['Pharmacy'] : ''}
+                        onChange={(e) => handleFieldEdit(stop, 'pharmacy', e.target.value)}
+                        title="Change pharmacy"
+                        style={{
+                          background: 'transparent', border: '1px solid transparent',
+                          padding: '2px 4px', borderRadius: 4, font: 'inherit',
+                          color: 'inherit', cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      >
+                        {!PHARMACY_OPTIONS.includes(stop['Pharmacy']) && (
+                          <option value="">{stop['Pharmacy'] || '—'}</option>
+                        )}
+                        {PHARMACY_OPTIONS.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="dcard__cell-status">
-                      {stop._status === 'delivered' ? (
-                        <button className="dcard__reopen" onClick={() => handleReopen(stop)} title="Reopen as active">
-                          ✓ Reopen
-                        </button>
-                      ) : stop._status === 'failed' ? (
-                        <button className="dcard__reopen dcard__reopen--failed" onClick={() => handleReopen(stop)} title="Reopen as active">
-                          ✗ Reopen
-                        </button>
-                      ) : null}
+                      <select
+                        value={stop._status || 'dispatched'}
+                        onChange={(e) => handleFieldEdit(stop, 'status', e.target.value)}
+                        title="Change status"
+                        style={{
+                          background: 'transparent', border: '1px solid transparent',
+                          padding: '2px 4px', borderRadius: 4, font: 'inherit',
+                          color: stop._status === 'delivered' ? '#16a34a'
+                               : stop._status === 'failed' || stop._status === 'attempted' ? '#dc2626'
+                               : 'inherit',
+                          fontWeight: stop._status && stop._status !== 'dispatched' ? 600 : 400,
+                          cursor: 'pointer',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(0,0,0,0.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      >
+                        {STATUS_OPTIONS.map(o => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
                 )

@@ -72,6 +72,7 @@ const ALLOWED_V2 = {
   geocode_cache:          { ops: ['upsert'],                               tenantScoped: false },
   address_corrections:    { ops: ['insert'],                               tenantScoped: true  },
   pickup_requests:        { ops: ['insert', 'update', 'upsert', 'delete'], tenantScoped: true  },
+  patient_notes:          { ops: ['upsert', 'delete'],                     tenantScoped: true  },
 }
 
 function fail(res, status, error, message) {

@@ -14,7 +14,7 @@ const ALLOWED = {
   mileage_log: ['upsert'],
   address_notes: ['upsert'],
   order_deletions: ['insert'],
-  drivers: ['update'],
+  drivers: ['insert', 'update'],
   routing_rules: ['insert', 'update', 'upsert', 'delete'],
   schedule_overrides: ['insert', 'update', 'upsert'],
   shift_offers: ['insert', 'update', 'upsert'],
@@ -25,6 +25,7 @@ const ALLOWED = {
   geocode_cache: ['upsert'],
   address_corrections: ['insert'],
   pickup_requests: ['insert', 'update', 'upsert', 'delete'],
+  patient_notes: ['upsert', 'delete'],
 }
 
 // Generic DB write proxy — all client-side writes route through here

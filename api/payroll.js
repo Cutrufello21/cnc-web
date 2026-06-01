@@ -117,12 +117,25 @@ async function handlePost(req, res) {
     const { error } = await supabase.from('payroll').update({ [col]: updateVal }).eq('id', driverRow)
     if (error) throw error
 
-    // Recalculate week_total if a day column was updated
-    if (['mon', 'tue', 'wed', 'thu', 'fri'].includes(col)) {
-      const { data: row } = await supabase.from('payroll').select('mon,tue,wed,thu,fri').eq('id', driverRow).single()
+    // Any edit to a day count or will_calls also re-snapshots week_total +
+    // weekly_pay so the driver app's Pay History stays in sync with what
+    // dispatch sees live. Without this, weekly_pay only updates on Approve &
+    // Send, leaving stale values after any post-approval correction.
+    // (e.g., Adam was paid $1,282 but driver app showed $980.50 because his
+    // Fri count was edited after the original approval.)
+    if (['mon', 'tue', 'wed', 'thu', 'fri', 'will_calls'].includes(col)) {
+      const { data: row } = await supabase.from('payroll')
+        .select('mon,tue,wed,thu,fri,will_calls,driver_name')
+        .eq('id', driverRow).single()
       if (row) {
         const total = (row.mon || 0) + (row.tue || 0) + (row.wed || 0) + (row.thu || 0) + (row.fri || 0)
-        await supabase.from('payroll').update({ week_total: total }).eq('id', driverRow)
+        const { data: driverRec } = await supabase.from('drivers')
+          .select('flat_salary,office_fee,will_call_rate,rate_mon,rate_tue,rate_wed,rate_thu,rate_fri')
+          .eq('driver_name', row.driver_name).single()
+        const weeklyPay = computeWeeklyPay(row, driverRec)
+        await supabase.from('payroll')
+          .update({ week_total: total, weekly_pay: weeklyPay })
+          .eq('id', driverRow)
       }
     }
 
@@ -131,4 +144,29 @@ async function handlePost(req, res) {
     console.error('[payroll POST]', err.message)
     return res.status(500).json({ error: err.message })
   }
+}
+
+// Mirror of getAdjustedPay in src/hooks/usePayrollData.js — kept identical so
+// the snapshot equals what the dispatcher sees in the payroll grid.
+function computeWeeklyPay(row, driver) {
+  if (!driver) return 0
+  const mon = row.mon || 0, tue = row.tue || 0, wed = row.wed || 0, thu = row.thu || 0, fri = row.fri || 0
+  const wc = row.will_calls || 0
+  const total = mon + tue + wed + thu + fri
+  const flatSalary = parseFloat(driver.flat_salary) || 0
+  const officeFee = parseFloat(driver.office_fee) || 0
+  const wcRate = parseFloat(driver.will_call_rate) || 9
+  let pay = 0
+  if (flatSalary > 0) {
+    pay = (total > 0 || wc > 0) ? flatSalary : 0
+  } else {
+    const rm = parseFloat(driver.rate_mon) || 0
+    const rt = parseFloat(driver.rate_tue) || 0
+    const rw = parseFloat(driver.rate_wed) || 0
+    const rh = parseFloat(driver.rate_thu) || 0
+    const rf = parseFloat(driver.rate_fri) || 0
+    pay = mon * rm + tue * rt + wed * rw + thu * rh + fri * rf + wc * wcRate
+    if (total > 0 || wc > 0) pay += officeFee
+  }
+  return Math.round(pay * 100) / 100
 }

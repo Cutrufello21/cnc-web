@@ -78,9 +78,45 @@ export default async function handler(req, res) {
 
   const delivery_day = getDayName(delivery_date)
 
+  // Apply routing rules at import time so rule-matched orders land on a driver
+  // (anything without a rule stays 'Unassigned' for the Unassigned ZIPs tool).
+  // routing_rules holds one row per zip+pharmacy with a per-weekday column
+  // (mon/tue/.../fri) whose value is "DriverName/ID" (or just "DriverName").
+  const dayCol = delivery_day.slice(0, 3).toLowerCase() // 'mon', 'tue', ...
+  const ruleMap = {} // zip -> [{ pharmacy, name, number }]
+  try {
+    const { data: rulesData } = await supabase
+      .from('routing_rules')
+      .select(`zip_code, pharmacy, ${dayCol}`)
+    for (const r of (rulesData || [])) {
+      const raw = (r[dayCol] || '').trim()
+      if (!raw) continue
+      const zip = String(r.zip_code || '').trim()
+      if (!zip) continue
+      const name = (raw.includes('/') ? raw.split('/')[0] : raw).trim()
+      const number = raw.includes('/') ? raw.split('/')[1].trim() : ''
+      if (!name || /^[-—–\s]+$/.test(name) || name.toLowerCase() === 'unassigned') continue
+      ;(ruleMap[zip] ||= []).push({ pharmacy: (r.pharmacy || '').trim(), name, number })
+    }
+  } catch { /* routing rules optional — fall back to Unassigned */ }
+
+  // Resolve the driver for a stop from its zip + pharmacy. Only match a rule
+  // for the SAME pharmacy (or a pharmacy-agnostic rule). Never fall back to a
+  // different pharmacy's rule — 39 zips serve both SHSP and Aultman, so a
+  // cross-pharmacy guess would mis-route. No match → stays Unassigned.
+  function resolveDriver(zip, pharm) {
+    const list = ruleMap[zip]
+    if (!list || !list.length) return null
+    const p = (pharm || '').toLowerCase()
+    return list.find(r => r.pharmacy && r.pharmacy.toLowerCase() === p)
+      || list.find(r => !r.pharmacy)
+      || null
+  }
+
   // Build insert rows
   const insertRows = []
   let skipped = 0
+  let assigned = 0
 
   for (const row of rows) {
     const patientName = (row[colMap.patient_name] || '').trim()
@@ -102,9 +138,19 @@ export default async function handler(req, res) {
     const rawZip = colMap.zip !== undefined ? (row[colMap.zip] || '').trim() : ''
     const cleanZip = /^\d{5}(-\d{4})?$/.test(rawZip) ? rawZip : ''
 
+    // Match a routing rule for this zip+pharmacy on the delivery day.
+    const ruleDriver = cleanZip ? resolveDriver(cleanZip.slice(0, 5), pharmacy) : null
+    if (ruleDriver) assigned++
+
     insertRows.push({
       delivery_date,
       delivery_day,
+      // driver_name is NOT NULL on daily_stops. If a routing rule matches the
+      // zip+day we assign that driver; otherwise it starts 'Unassigned' (the
+      // sentinel the dispatch view buckets unassigned stops under).
+      driver_name: ruleDriver ? ruleDriver.name : 'Unassigned',
+      driver_number: ruleDriver ? (ruleDriver.number || null) : null,
+      assigned_driver_number: ruleDriver ? (ruleDriver.number || null) : null,
       patient_name: patientName,
       address,
       city: colMap.city !== undefined ? (row[colMap.city] || '').trim() : '',
@@ -113,8 +159,11 @@ export default async function handler(req, res) {
       pharmacy,
       cold_chain: isCold,
       status: 'pending',
-      phone: colMap.phone !== undefined ? (row[colMap.phone] || '').trim() : null,
-      delivery_note: colMap.notes !== undefined ? (row[colMap.notes] || '').trim() : null,
+      // No `phone` column on daily_stops — fold any phone into the note instead.
+      delivery_note: [
+        colMap.notes !== undefined ? (row[colMap.notes] || '').trim() : '',
+        colMap.phone !== undefined && (row[colMap.phone] || '').trim() ? `Phone: ${(row[colMap.phone] || '').trim()}` : '',
+      ].filter(Boolean).join(' · ') || null,
     })
   }
 
@@ -140,6 +189,8 @@ export default async function handler(req, res) {
     success: true,
     inserted,
     skipped,
+    assigned,
+    unassigned: inserted - assigned,
     delivery_date,
     pharmacy,
   })

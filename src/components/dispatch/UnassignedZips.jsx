@@ -54,19 +54,20 @@ export default function UnassignedZips() {
     setAssigning(key)
     try {
       const driver = drivers.find(d => d.driver_name === driverName)
-      // 1. Create routing rule
+      const driverNum = driver?.driver_number || ''
+      // 1. Create routing rule. routing_rules has per-weekday columns
+      //    (mon..fri) holding "Name/ID" — not driver_name/driver_number.
+      const driverVal = driverNum ? `${driverName}/${driverNum}` : driverName
       await dbInsert('routing_rules', [{
         zip_code: row.zip,
         pharmacy: row.pharmacy,
-        driver_name: driverName,
-        driver_number: driver?.driver_number || '',
         city: row.city,
+        mon: driverVal, tue: driverVal, wed: driverVal, thu: driverVal, fri: driverVal,
       }])
 
-      // 2. Assign all current stops with this ZIP to this driver
-      const today = new Date().toISOString().split('T')[0]
+      // 2. Assign all current unassigned stops with this ZIP to this driver
       await dbUpdate('daily_stops',
-        { driver_name: driverName, driver_number: driver?.driver_number || '' },
+        { driver_name: driverName, driver_number: driverNum, assigned_driver_number: driverNum },
         { zip: row.zip, driver_name: 'Unassigned' },
       )
 

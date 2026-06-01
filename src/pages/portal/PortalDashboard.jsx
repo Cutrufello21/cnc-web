@@ -5,6 +5,8 @@ import { dbInsert, dbUpdate, dbDelete } from '../../lib/db'
 import PortalShell from '../../components/portal/PortalShell'
 import { downloadPodPdf } from '../../lib/podPdf'
 import { getDeliveryDate } from '../../lib/getDeliveryDate'
+import { fetchPatientNotes, normalizePatientKey } from '../../lib/patientNotes'
+import PatientNoteModal from '../../components/PatientNoteModal'
 
 /* ── ETA helpers ─────────────────────────────────── */
 
@@ -618,6 +620,8 @@ export default function PortalDashboard() {
   const [detailStop, setDetailStop] = useState(null)
   const [deletedStops, setDeletedStops] = useState([])
   const [showDeleted, setShowDeleted] = useState(false)
+  const [patientNotes, setPatientNotes] = useState(new Map())
+  const [noteTarget, setNoteTarget] = useState(null)
 
   const [summaryStatus, setSummaryStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
 
@@ -719,6 +723,15 @@ export default function PortalDashboard() {
     const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
   }, [loadData])
+
+  // Bulk-load patient notes whenever today's stops change
+  useEffect(() => {
+    const names = stops.map(s => s.patient_name).filter(Boolean)
+    if (names.length === 0) { setPatientNotes(new Map()); return }
+    let cancelled = false
+    fetchPatientNotes(names).then(map => { if (!cancelled) setPatientNotes(map) })
+    return () => { cancelled = true }
+  }, [stops])
 
   // Build ETA map for pending stops
   const etaMap = useMemo(
@@ -915,6 +928,33 @@ export default function PortalDashboard() {
                               <span title={`Driver note: ${note}`} style={{ fontSize: 14, cursor: 'help', lineHeight: 1 }} aria-label="Driver note">📝</span>
                             )
                           })()}
+                          {stop.patient_name && (() => {
+                            const noteRow = patientNotes.get(normalizePatientKey(stop.patient_name))
+                            const hasNote = !!noteRow?.note
+                            return (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setNoteTarget({
+                                    patientName: stop.patient_name,
+                                    initialNote: noteRow?.note || '',
+                                    lastEditedBy: noteRow?.updated_by || '',
+                                    lastEditedAt: noteRow?.updated_at || '',
+                                  })
+                                }}
+                                title={hasNote ? `Patient note: ${noteRow.note}` : 'Add patient note'}
+                                style={{
+                                  background: 'none', border: 'none', cursor: 'pointer',
+                                  padding: 0, fontSize: 14, lineHeight: 1,
+                                  color: hasNote ? '#60A5FA' : 'var(--p-text-ghost)',
+                                  opacity: hasNote ? 1 : 0.7,
+                                }}
+                              >
+                                {hasNote ? '🗒️' : '✎'}
+                              </button>
+                            )
+                          })()}
                         </span>
                       </td>
                       <td>{stop.address || '-'}</td>
@@ -961,6 +1001,25 @@ export default function PortalDashboard() {
       {!loading && stops.length === 0 && <div className="portal-empty">No deliveries found for today.</div>}
 
       {podStop && <PODModal stop={podStop} onClose={() => setPodStop(null)} />}
+
+      {noteTarget && (
+        <PatientNoteModal
+          patientName={noteTarget.patientName}
+          initialNote={noteTarget.initialNote}
+          lastEditedBy={noteTarget.lastEditedBy}
+          lastEditedAt={noteTarget.lastEditedAt}
+          onClose={() => setNoteTarget(null)}
+          onSaved={(row) => {
+            const key = normalizePatientKey(noteTarget.patientName)
+            setPatientNotes(prev => {
+              const next = new Map(prev)
+              if (row) next.set(key, row)
+              else next.delete(key)
+              return next
+            })
+          }}
+        />
+      )}
 
       {/* Deleted Orders Section */}
       {isAdmin && deletedStops.length > 0 && (

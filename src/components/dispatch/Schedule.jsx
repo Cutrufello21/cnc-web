@@ -314,6 +314,9 @@ export default function Schedule() {
           <button className="ops__nav-btn" onClick={() => setWindowOffset(w => w - 1)}>&#8249; Prev</button>
           {windowOffset !== 0 && <button className="ops__nav-btn ops__nav-btn--today" onClick={() => setWindowOffset(0)}>Today</button>}
           <button className="ops__nav-btn" onClick={() => setWindowOffset(w => w + 1)}>Next &#8250;</button>
+          <button className="ops__builder-btn" onClick={() => setShowBuilder(b => !b)}>
+            {showBuilder ? 'Close Master' : 'Master Schedule'}
+          </button>
           <button className="ops__builder-btn" onClick={() => { setShowAudit(!showAudit); if (!audit && !showAudit) loadAudit() }}>
             {showAudit ? 'Close Audit' : 'Rules Audit'}
           </button>
@@ -380,8 +383,18 @@ export default function Schedule() {
         />
       )}
 
-      {/* Week Grids */}
-      <ScheduleWeekGrid
+      {/* Master Schedule (recurring weekly pattern → driver_schedule table) */}
+      {showBuilder && (
+        <ScheduleBuilder
+          drivers={drivers}
+          schedule={schedule}
+          saving={saving}
+          onToggle={handleBuilderToggle}
+        />
+      )}
+
+      {/* Week Grids — date-specific overrides → schedule_overrides table */}
+      {!showBuilder && <ScheduleWeekGrid
         weeks={weeks}
         drivers={drivers}
         schedule={schedule}
@@ -404,7 +417,7 @@ export default function Schedule() {
           } catch (err) { showToastMsg(`Error: ${err.message}`, true) }
           finally { setSaving(null) }
         }}
-      />
+      />}
     </div>
   )
 }

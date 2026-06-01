@@ -88,43 +88,29 @@ export default function Drivers() {
         active: true,
       })
 
-      // 2. Create auth account if email + password provided
+      // 2. Create auth account if email + password provided.
+      // Uses /api/create-driver-account (admin API, email_confirm=true) so the
+      // driver can log in immediately without a verification email.
       if (newDriver.email && newDriver.password) {
-        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-        const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+        const { data: session } = await supabase.auth.getSession()
+        const jwt = session?.session?.access_token || localStorage.getItem('cnc-token')
 
-        // Create user via admin API through Apps Script or direct signup
-        const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        const createRes = await fetch('/api/create-driver-account', {
           method: 'POST',
-          headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+          },
           body: JSON.stringify({
             email: newDriver.email,
             password: newDriver.password,
-            data: { full_name: newDriver.driver_name, role: 'driver' },
+            full_name: newDriver.driver_name,
+            driver_number: newDriver.driver_number,
           }),
         })
-        const signupData = await signupRes.json()
-
-        if (signupRes.ok && signupData.id) {
-          // Update profile
-          const { data: session } = await supabase.auth.getSession()
-          if (session?.session?.access_token) {
-            await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${signupData.id}`, {
-              method: 'PATCH',
-              headers: {
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${session.session.access_token}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal',
-              },
-              body: JSON.stringify({
-                role: 'driver',
-                full_name: newDriver.driver_name,
-                driver_id: newDriver.driver_number,
-                driver_number: newDriver.driver_number,
-              }),
-            })
-          }
+        if (!createRes.ok) {
+          const errBody = await createRes.json().catch(() => ({}))
+          throw new Error(errBody?.error || `Auth account creation failed (${createRes.status})`)
         }
       }
 

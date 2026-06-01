@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { fetchPatientNotes, normalizePatientKey } from '../../lib/patientNotes'
+import PatientNoteModal from '../PatientNoteModal'
 import './Orders.css'
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -30,6 +32,8 @@ export default function Orders() {
   const [sortDir, setSortDir] = useState('asc')
   const [filters, setFilters] = useState({ drivers: [], sources: [], years: [], cities: [] })
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [patientNotes, setPatientNotes] = useState(new Map())
+  const [noteTarget, setNoteTarget] = useState(null)
   const searchRef = useRef(null)
 
   useEffect(() => {
@@ -42,6 +46,15 @@ export default function Orders() {
   }, [])
 
   useEffect(() => { loadOrders() }, [page, search, driver, pharmacy, zip, coldchain, source, year, month, city, dateFrom, dateTo])
+
+  // Bulk-load patient notes whenever the displayed page changes
+  useEffect(() => {
+    const names = (data?.orders || []).map(o => o.patient_name).filter(Boolean)
+    if (names.length === 0) { setPatientNotes(new Map()); return }
+    let cancelled = false
+    fetchPatientNotes(names).then(map => { if (!cancelled) setPatientNotes(map) })
+    return () => { cancelled = true }
+  }, [data?.orders])
 
   async function loadOrders() {
     setLoading(true)
@@ -253,6 +266,25 @@ export default function Orders() {
         <div className="ord__loading"><div className="dispatch__spinner" />Loading orders...</div>
       )}
 
+      {noteTarget && (
+        <PatientNoteModal
+          patientName={noteTarget.patientName}
+          initialNote={noteTarget.initialNote}
+          lastEditedBy={noteTarget.lastEditedBy}
+          lastEditedAt={noteTarget.lastEditedAt}
+          onClose={() => setNoteTarget(null)}
+          onSaved={(row) => {
+            const key = normalizePatientKey(noteTarget.patientName)
+            setPatientNotes(prev => {
+              const next = new Map(prev)
+              if (row) next.set(key, row)
+              else next.delete(key)
+              return next
+            })
+          }}
+        />
+      )}
+
       {!loading && data && (
         <>
           <div className="ord__table-wrap">
@@ -270,10 +302,38 @@ export default function Orders() {
               <tbody>
                 {orders.map((o, i) => {
                   const cc = o.cold_chain
+                  const noteRow = patientNotes.get(normalizePatientKey(o.patient_name || ''))
+                  const hasNote = !!noteRow?.note
                   return (
                     <tr key={i} className={cc ? 'ord__row--cold' : ''}>
                       <td className="ord__cell-id">{o.order_id}</td>
-                      <td className="ord__cell-name">{o.patient_name}</td>
+                      <td className="ord__cell-name">
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {o.patient_name}
+                          {o.patient_name && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setNoteTarget({
+                                  patientName: o.patient_name,
+                                  initialNote: noteRow?.note || '',
+                                  lastEditedBy: noteRow?.updated_by || '',
+                                  lastEditedAt: noteRow?.updated_at || '',
+                                })
+                              }}
+                              title={hasNote ? `Note: ${noteRow.note}` : 'Add patient note'}
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                padding: 0, fontSize: 14, lineHeight: 1,
+                                opacity: hasNote ? 1 : 0.35,
+                              }}
+                            >
+                              {hasNote ? '📝' : '✎'}
+                            </button>
+                          )}
+                        </span>
+                      </td>
                       <td className="ord__cell-addr">{o.address}</td>
                       <td>{o.city}</td>
                       <td className="ord__cell-zip">{o.zip}</td>

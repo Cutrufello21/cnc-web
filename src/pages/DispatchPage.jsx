@@ -25,7 +25,13 @@ export default function DispatchPage() {
   const { tenant, isLoading: tenantLoading, error: tenantError } = useTenant()
   const tenantName = tenant?.displayName || (tenantLoading || tenantError ? '' : 'CNC Delivery')
   const tenantMonogram = tenantName.trim().split(/\s+/)[0] || ''
-  const [view, setView] = useState('routes')
+  const [view, _setView] = useState(() => {
+    try { return localStorage.getItem('dispatch:view') || 'routes' } catch { return 'routes' }
+  })
+  const setView = (v) => {
+    try { localStorage.setItem('dispatch:view', v) } catch {}
+    _setView(v)
+  }
   const [showRouting, setShowRouting] = useState(false)
   const [showSortList, setShowSortList] = useState(false)
   const [showUnassigned, setShowUnassigned] = useState(false)
