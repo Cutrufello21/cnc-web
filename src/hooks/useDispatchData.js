@@ -2,6 +2,20 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { dbUpdate } from '../lib/db'
 
+// Matches the driver app's utils/helpers.js normalizeAddr exactly so
+// address_notes lookups (driver-written) line up with dispatcher-side addresses.
+function normalizeAddrKey(addr) {
+  let a = (addr || '').trim().toLowerCase()
+  if (!a) return ''
+  a = a.replace(/\bdr\b/g, 'drive').replace(/\bst\b/g, 'street').replace(/\bave\b/g, 'avenue')
+    .replace(/\brd\b/g, 'road').replace(/\bln\b/g, 'lane').replace(/\bct\b/g, 'court')
+    .replace(/\bblvd\b/g, 'boulevard').replace(/\bpkwy\b/g, 'parkway').replace(/\bpl\b/g, 'place')
+    .replace(/\bcir\b/g, 'circle').replace(/\bhwy\b/g, 'highway').replace(/\bter\b/g, 'terrace')
+    .replace(/\btrl\b/g, 'trail')
+  a = a.replace(/\s*(suite|ste|apt|apartment|unit|#|bldg|building)\s*[a-z0-9-]*\s*$/g, '')
+  return a.replace(/[^a-z0-9]/g, '')
+}
+
 const normalizeAddr = (a) => (a || '').toLowerCase().trim().replace(/\s+/g, ' ')
   .replace(/\bboulevard\b/g, 'blvd').replace(/\bdrive\b/g, 'dr').replace(/\bstreet\b/g, 'st')
   .replace(/\bavenue\b/g, 'ave').replace(/\broad\b/g, 'rd').replace(/\blane\b/g, 'ln')
@@ -62,6 +76,8 @@ function consolidateStops(rawDetails) {
       primary._packageCount = group.length
       primary._coldChain = group.some(s => s._coldChain)
       primary['Cold Chain'] = primary._coldChain ? 'Yes' : ''
+      primary._isOutlier = group.some(s => s._isOutlier)
+      primary._outlierReason = group.find(s => s._isOutlier)?._outlierReason || ''
       primary.Notes = group.map(s => s.Notes).filter(Boolean).join(' | ')
       primary._consolidatedOrderIds = group.map(s => s['Order ID'])
       primary._consolidatedNames = group.map(s => s.Name)
@@ -71,7 +87,7 @@ function consolidateStops(rawDetails) {
   return consolidated
 }
 
-function groupStopsByDriver(stops) {
+function groupStopsByDriver(stops, addressNotesMap = new Map()) {
   const driverStops = {}
   stops.forEach(s => {
     if (!driverStops[s.driver_name]) {
@@ -80,12 +96,15 @@ function groupStopsByDriver(stops) {
     const ds = driverStops[s.driver_name]
     ds.stops++
     if (s.cold_chain) ds.coldChain++
+    const noteKey = `${s.driver_name}::${normalizeAddrKey(s.address)}`
     ds.stopDetails.push({
       'Order ID': s.order_id, Name: s.patient_name,
       Address: s.address, City: s.city, ZIP: s.zip,
       Pharmacy: s.pharmacy, 'Cold Chain': s.cold_chain ? 'Yes' : '',
       _coldChain: s.cold_chain, _ccEdited: s.cc_edited || false, Notes: s.notes || '',
       _status: s.status || 'dispatched', _stopId: s.id,
+      _isOutlier: !!s.is_outlier, _outlierReason: s.outlier_reason || '',
+      _driverNote: addressNotesMap.get(noteKey) || '',
       lat: s.lat, lng: s.lng,
       order_id: s.order_id, patient_name: s.patient_name,
       address: s.address, city: s.city, zip: s.zip,
@@ -134,12 +153,19 @@ export default function useDispatchData(weekOffset) {
       const deliveryDay = day || getDeliveryDay(weekOffset)
       const { deliveryDate, monday, dateStr } = getDeliveryDate(deliveryDay, weekOffset)
 
-      const [driversRes, routingRes, logsRes, stopsRes] = await Promise.all([
+      const [driversRes, routingRes, logsRes, stopsRes, addressNotesRes] = await Promise.all([
         supabase.from('drivers').select('*').eq('active', true).order('driver_name'),
         supabase.from('routing_rules').select('*'),
         supabase.from('dispatch_logs').select('*').order('date', { ascending: false }).limit(7),
         supabase.from('daily_stops').select('*').eq('delivery_date', dateStr),
+        supabase.from('address_notes').select('driver_name, address, note'),
       ])
+
+      const addressNotesMap = new Map()
+      for (const n of (addressNotesRes.data || [])) {
+        if (!n.driver_name || !n.address || !n.note) continue
+        addressNotesMap.set(`${n.driver_name}::${normalizeAddrKey(n.address)}`, n.note)
+      }
 
       const drivers = (driversRes.data || []).filter(d => d.driver_name)
       const routingRules = routingRes.data || []
@@ -200,7 +226,7 @@ export default function useDispatchData(weekOffset) {
         }
       })
 
-      const driverStops = groupStopsByDriver(stops)
+      const driverStops = groupStopsByDriver(stops, addressNotesMap)
 
       const WEEKDAYS = new Set(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'])
       const recentLogs = (logsRes.data || [])

@@ -112,6 +112,9 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       _hasColdChain: hasColdChain,
       _hasSigRequired: (stop.Notes || stop.notes || '').toLowerCase().includes('signature'),
       _ccEdited: stop._ccEdited || false,
+      _isOutlier: !!stop._isOutlier,
+      _outlierReason: stop._outlierReason || '',
+      _driverNote: stop._driverNote || '',
       _flagsDisplay: [hasColdChain ? '❄️' : '', (stop.Notes || stop.notes || '').toLowerCase().includes('signature') ? '✍️' : '', stop._ccEdited ? '✏️' : ''].filter(Boolean).join(' '),
     }
   }), [rawDetails])
@@ -666,7 +669,47 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                     <td className="dcard__cell-addr">{stop['Address'] || '—'}</td>
                     <td style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByCity?.(stop['City']) }} title={`Select all ${stop['City']} stops`}>{stop['City'] || '—'}</td>
                     <td className="dcard__cell-zip" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByZip?.(stop['Zip Code'] || stop['ZIP']) }} title={`Select all ${stop['Zip Code'] || stop['ZIP']} stops`}>{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
-                    <td className="dcard__cell-notes">{stop._flagsDisplay}</td>
+                    <td className="dcard__cell-notes">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+                        {stop._flagsDisplay && <span>{stop._flagsDisplay}</span>}
+                        {stop._isOutlier && (
+                          <span
+                            title={stop._outlierReason || 'Outlier'}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              background: '#fef3c7', color: '#92400e',
+                              fontSize: 11, fontWeight: 600,
+                              padding: '2px 6px', borderRadius: 4,
+                              maxWidth: 220,
+                            }}
+                          >
+                            🚩
+                            {stop._outlierReason && (
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {stop._outlierReason}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {stop._driverNote && (
+                          <span
+                            title={stop._driverNote}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              background: '#eef2ff', color: '#4338ca',
+                              fontSize: 11, fontWeight: 500,
+                              padding: '2px 6px', borderRadius: 4,
+                              maxWidth: 220,
+                            }}
+                          >
+                            📝
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {stop._driverNote}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="dcard__cell-pharma">
                       <select
                         value={PHARMACY_OPTIONS.includes(stop['Pharmacy']) ? stop['Pharmacy'] : ''}
