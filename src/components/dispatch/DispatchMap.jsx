@@ -53,20 +53,30 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
 
     async function batchGeocode() {
       let updated = 0
-      // Process in parallel batches of 10
-      for (let i = 0; i < missing.length; i += 10) {
-        const batch = missing.slice(i, i + 10)
-        await Promise.all(batch.map(async (stop) => {
-          const addr = `${stop.address || stop.Address}, ${stop.city || stop.City || ''}, OH ${stop.zip || stop.ZIP || ''}`
-          try {
-            const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
-            const data = await res.json()
-            if (data.lat && data.lng && stop.id) {
-              await dbUpdate('daily_stops', { lat: data.lat, lng: data.lng }, { id: stop.id })
+      for (let i = 0; i < missing.length; i += 50) {
+        const batch = missing.slice(i, i + 50)
+        try {
+          const res = await fetch('/api/geocode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              addresses: batch.map(s => ({
+                address: s.address || s.Address || '',
+                city: s.city || s.City || '',
+                zip: s.zip || s.ZIP || '',
+              })),
+            }),
+          })
+          const data = await res.json()
+          const results = data?.results || []
+          await Promise.all(results.map(async (r, idx) => {
+            const stop = batch[idx]
+            if (r?.lat && r?.lng && stop?.id) {
+              await dbUpdate('daily_stops', { lat: r.lat, lng: r.lng }, { id: stop.id })
               updated++
             }
-          } catch {}
-        }))
+          }))
+        } catch {}
       }
       if (updated > 0 && fetchDispatchData) fetchDispatchData(selectedDay)
     }
