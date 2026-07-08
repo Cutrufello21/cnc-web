@@ -270,19 +270,23 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData?.session?.access_token
+      const driverRecord = allDrivers.find(d => (d.driver_name || d.name) === name)
+      const hasHome = driverRecord?.home_lat && driverRecord?.home_lng
+      const body = {
+        stops: enriched.map(s => ({
+          address: s.Address || s.address || '',
+          city: s.City || s.city || '',
+          zip: s['Zip Code'] || s.ZIP || s.zip || '',
+          coldChain: !!s._hasColdChain,
+          sigRequired: !!s._hasSigRequired,
+        })),
+        pharmacy: pharmacy || 'SHSP',
+      }
+      if (hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          stops: enriched.map(s => ({
-            address: s.Address || s.address || '',
-            city: s.City || s.city || '',
-            zip: s['Zip Code'] || s.ZIP || s.zip || '',
-            coldChain: !!s._hasColdChain,
-            sigRequired: !!s._hasSigRequired,
-          })),
-          pharmacy: pharmacy || 'SHSP',
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (data.optimizedOrder) {
@@ -677,7 +681,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                             title={stop._outlierReason || 'Outlier'}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 4,
-                              background: '#fef3c7', color: '#92400e',
+                              background: '#fee2e2', color: '#dc2626',
                               fontSize: 11, fontWeight: 600,
                               padding: '2px 6px', borderRadius: 4,
                               maxWidth: 220,

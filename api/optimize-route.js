@@ -277,7 +277,7 @@ async function routeOptimizationSolve(stops, origin, endPoint, isOneWay, isRound
       globalEndTime: globalEnd,
     },
     searchMode: 'CONSUME_ALL_AVAILABLE_TIME',
-    timeout: '15s',
+    timeout: '30s',
   }
 
   // Try with traffic first, fall back without if it errors
@@ -290,7 +290,7 @@ async function routeOptimizationSolve(stops, origin, endPoint, isOneWay, isRound
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(45000),
       }
     )
 

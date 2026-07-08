@@ -250,6 +250,9 @@ export default function useDispatchData(weekOffset) {
         drivers: drivers.map(d => ({
           'Driver Name': d.driver_name,
           'Driver #': d.driver_number,
+          driver_name: d.driver_name,
+          home_lat: d.home_lat,
+          home_lng: d.home_lng,
           Pharmacy: d.pharmacy || '',
           is_admin: !!d.is_admin,
           shift: shiftMap[d.driver_name] || d.shift || 'AM',

@@ -175,19 +175,23 @@ export default function DispatchV2Routes() {
     try {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData?.session?.access_token
+      const driverRecord = allDrivers.find(d => (d.driver_name || d.name) === driverName)
+      const hasHome = driverRecord?.home_lat && driverRecord?.home_lng
+      const body = {
+        stops: driverStops.map(s => ({
+          address: s.address,
+          city: s.city,
+          zip: s.zip,
+          coldChain: s.cold_chain,
+        })),
+        pharmacy: driverStops[0]?.pharmacy || 'SHSP',
+        driverName: driverName,
+      }
+      if (hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          stops: driverStops.map(s => ({
-            address: s.address,
-            city: s.city,
-            zip: s.zip,
-            coldChain: s.cold_chain,
-          })),
-          pharmacy: driverStops[0]?.pharmacy || 'SHSP',
-          driverName: driverName,
-        }),
+        body: JSON.stringify(body),
       })
       const result = await res.json()
       if (result.optimizedOrder) {
