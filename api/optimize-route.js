@@ -6,6 +6,7 @@ import { createSign } from 'crypto'
 import ZIP_COORDS from '../src/lib/zipCoords.js'
 import { supabase } from './_lib/supabase.js'
 import { requireAuth } from './_lib/auth.js'
+import { buildCacheKey } from './_lib/normalizeAddress.js'
 
 // Try all possible env var names for the API key
 const GOOGLE_API_KEY = process.env.GOOGLE_ROUTES_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_API_KEY
@@ -510,11 +511,11 @@ function nearestNeighbor(stops, startLat, startLng) {
 // ═══ GEOCODING ═══
 
 async function geocodeStops(stops) {
-  const keys = stops.map(s => `${(s.address || '').toLowerCase().trim()}|${(s.city || '').toLowerCase().trim()}|${(s.zip || '').trim()}`)
+  const keys = stops.map(s => buildCacheKey(s.address, s.city, s.zip))
 
   const { data: cached } = await supabase.from('geocode_cache').select('cache_key, lat, lng').in('cache_key', keys)
   const cache = new Map()
-  for (const r of (cached || [])) cache.set(r.cache_key, [r.lat, r.lng])
+  for (const r of (cached || [])) if (r.lat && r.lng) cache.set(r.cache_key, [r.lat, r.lng])
 
   const results = stops.map((s, i) => {
     const base = { index: i, address: s.address || '', city: s.city || '', zip: s.zip || '', coldChain: !!s.coldChain }
@@ -539,7 +540,7 @@ async function geocodeStops(stops) {
           const loc = data.results?.[0]?.geometry?.location
           if (loc) {
             r.lat = loc.lat; r.lng = loc.lng; r.geocodeMethod = 'google'; r._geo = false
-            supabase.from('geocode_cache').upsert({ cache_key: key, lat: loc.lat, lng: loc.lng }, { onConflict: 'cache_key' }).then(() => {})
+            supabase.from('geocode_cache').upsert({ cache_key: key, lat: loc.lat, lng: loc.lng, failed_at: null }, { onConflict: 'cache_key' }).then(() => {})
             return
           }
         } catch {}
@@ -552,7 +553,7 @@ async function geocodeStops(stops) {
         const match = data?.result?.addressMatches?.[0]
         if (match?.coordinates) {
           r.lat = match.coordinates.y; r.lng = match.coordinates.x; r.geocodeMethod = 'census'; r._geo = false
-          supabase.from('geocode_cache').upsert({ cache_key: key, lat: r.lat, lng: r.lng }, { onConflict: 'cache_key' }).then(() => {})
+          supabase.from('geocode_cache').upsert({ cache_key: key, lat: r.lat, lng: r.lng, failed_at: null }, { onConflict: 'cache_key' }).then(() => {})
           return
         }
       } catch {}

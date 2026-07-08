@@ -1,12 +1,16 @@
 import { supabase } from './_lib/supabase.js'
 import { requireAuth } from './_lib/auth.js'
+import { buildCacheKey } from './_lib/normalizeAddress.js'
 
 // POST /api/geocode
-// Body: { addresses: [{ address, city, zip }, ...] }
+// Body: { addresses: [{ address, city, zip }, ...], force?: boolean }
 // Returns: { results: [{ address, city, zip, lat, lng, source }, ...] }
 
+// Skip re-querying vendors for addresses that failed within this window.
+const FAILED_RETRY_DAYS = 30
+
 export default async function handler(req, res) {
-  if (req.method === 'HEAD') return res.status(200).end() // Health check for offline detection
+  if (req.method === 'HEAD') return res.status(200).end()
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   const user = await requireAuth(req, res, { allowApiSecret: true })
@@ -24,80 +28,83 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'addresses array required' })
   }
 
-  // Cap at 100 to prevent abuse
   const batch = addresses.slice(0, 100)
-  const results = []
+  const cacheKeys = batch.map(a => buildCacheKey(a.address, a.city, a.zip))
+  const results = new Array(batch.length).fill(null)
   const toGeocode = []
 
-  // Step 1: Check Supabase cache (skip if force=true to re-geocode with Google)
-  const cacheKeys = batch.map(a => buildCacheKey(a.address, a.city, a.zip))
-
   const cacheMap = new Map()
+  const failedCutoff = new Date(Date.now() - FAILED_RETRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
+
   if (!force) {
     const { data: cached } = await supabase
       .from('geocode_cache')
-      .select('cache_key, lat, lng')
+      .select('cache_key, lat, lng, failed_at')
       .in('cache_key', cacheKeys)
 
     for (const row of (cached || [])) {
-      cacheMap.set(row.cache_key, { lat: row.lat, lng: row.lng })
+      cacheMap.set(row.cache_key, row)
     }
   }
 
-  // Sort into cached vs uncached
   for (let i = 0; i < batch.length; i++) {
     const a = batch[i]
     const key = cacheKeys[i]
     const hit = cacheMap.get(key)
-    if (hit) {
-      results.push({ ...a, lat: hit.lat, lng: hit.lng, source: 'cache' })
-    } else {
-      toGeocode.push({ ...a, _idx: i, _key: key })
-      results.push(null) // placeholder
+
+    if (hit?.lat && hit?.lng) {
+      results[i] = { ...a, lat: hit.lat, lng: hit.lng, source: 'cache' }
+      continue
     }
+    if (hit?.failed_at && hit.failed_at > failedCutoff) {
+      results[i] = { ...a, lat: null, lng: null, source: 'cache-failed' }
+      continue
+    }
+    toGeocode.push({ ...a, _idx: i, _key: key })
   }
 
-  // Step 2: Batch geocode uncached — Google first, Census fallback
   if (toGeocode.length > 0) {
     const googleResults = await batchGeocodeGoogle(toGeocode)
+    const missed = toGeocode.filter(a => !googleResults.has(a._key))
+    const censusResults = missed.length > 0 ? await batchGeocodeCensus(missed) : new Map()
 
-    // Collect any that Google missed for Census fallback
-    const googleMissed = toGeocode.filter(a => !googleResults.has(a._key))
-    const censusResults = googleMissed.length > 0 ? await batchGeocodeCensus(googleMissed) : new Map()
-
-    // Step 3: Save new results to Supabase cache
-    const toInsert = []
+    const toUpsert = []
     for (const g of toGeocode) {
       const result = googleResults.get(g._key) || censusResults.get(g._key)
-      const source = googleResults.has(g._key) ? 'google' : censusResults.has(g._key) ? 'census' : 'none'
       if (result) {
+        const source = googleResults.has(g._key) ? 'google' : 'census'
         results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: result.lat, lng: result.lng, source }
-        toInsert.push({
+        toUpsert.push({
           cache_key: g._key,
           address: g.address,
           city: g.city,
           zip: g.zip,
           lat: result.lat,
           lng: result.lng,
+          failed_at: null,
         })
       } else {
         results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: null, lng: null, source: 'none' }
+        toUpsert.push({
+          cache_key: g._key,
+          address: g.address,
+          city: g.city,
+          zip: g.zip,
+          lat: null,
+          lng: null,
+          failed_at: new Date().toISOString(),
+        })
       }
     }
 
-    if (toInsert.length > 0) {
-      await supabase
-        .from('geocode_cache')
-        .upsert(toInsert, { onConflict: 'cache_key' })
+    if (toUpsert.length > 0) {
+      await supabase.from('geocode_cache').upsert(toUpsert, { onConflict: 'cache_key' })
     }
   }
 
-  // Return full array preserving indices — nulls become {lat:null,lng:null} so client index mapping stays correct
-  return res.status(200).json({ results: results.map(r => r || { lat: null, lng: null, source: 'none' }) })
-}
-
-function buildCacheKey(address, city, zip) {
-  return `${(address || '').toLowerCase().trim()}|${(city || '').toLowerCase().trim()}|${(zip || '').trim()}`
+  return res.status(200).json({
+    results: results.map(r => r || { lat: null, lng: null, source: 'none' }),
+  })
 }
 
 async function batchGeocodeGoogle(addresses) {
@@ -137,9 +144,6 @@ async function batchGeocodeGoogle(addresses) {
 
 async function batchGeocodeCensus(addresses) {
   const results = new Map()
-
-  // Census Bureau single-address endpoint (their batch endpoint requires CSV upload)
-  // Process in parallel with concurrency limit
   const CONCURRENCY = 5
   const chunks = []
   for (let i = 0; i < addresses.length; i += CONCURRENCY) {
