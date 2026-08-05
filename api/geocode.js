@@ -4,7 +4,11 @@ import { buildCacheKey } from './_lib/normalizeAddress.js'
 
 // POST /api/geocode
 // Body: { addresses: [{ address, city, zip }, ...], force?: boolean }
-// Returns: { results: [{ address, city, zip, lat, lng, source }, ...] }
+// Returns: { results: [{ address, city, zip, lat, lng, source, location_type, partial_match }, ...] }
+//
+// location_type + partial_match come from Google's response and let the
+// client detect low-confidence hits (e.g. a misspelled street that fell
+// back to city-level coords). They're null for census / cache-failed / none.
 
 // Skip re-querying vendors for addresses that failed within this window.
 const FAILED_RETRY_DAYS = 30
@@ -39,7 +43,7 @@ export default async function handler(req, res) {
   if (!force) {
     const { data: cached } = await supabase
       .from('geocode_cache')
-      .select('cache_key, lat, lng, failed_at')
+      .select('cache_key, lat, lng, failed_at, location_type, partial_match')
       .in('cache_key', cacheKeys)
 
     for (const row of (cached || [])) {
@@ -53,11 +57,18 @@ export default async function handler(req, res) {
     const hit = cacheMap.get(key)
 
     if (hit?.lat && hit?.lng) {
-      results[i] = { ...a, lat: hit.lat, lng: hit.lng, source: 'cache' }
+      results[i] = {
+        ...a,
+        lat: hit.lat,
+        lng: hit.lng,
+        source: 'cache',
+        location_type: hit.location_type || null,
+        partial_match: hit.partial_match ?? null,
+      }
       continue
     }
     if (hit?.failed_at && hit.failed_at > failedCutoff) {
-      results[i] = { ...a, lat: null, lng: null, source: 'cache-failed' }
+      results[i] = { ...a, lat: null, lng: null, source: 'cache-failed', location_type: null, partial_match: null }
       continue
     }
     toGeocode.push({ ...a, _idx: i, _key: key })
@@ -73,7 +84,9 @@ export default async function handler(req, res) {
       const result = googleResults.get(g._key) || censusResults.get(g._key)
       if (result) {
         const source = googleResults.has(g._key) ? 'google' : 'census'
-        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: result.lat, lng: result.lng, source }
+        const location_type = result.location_type || null
+        const partial_match = result.partial_match ?? null
+        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: result.lat, lng: result.lng, source, location_type, partial_match }
         toUpsert.push({
           cache_key: g._key,
           address: g.address,
@@ -82,9 +95,11 @@ export default async function handler(req, res) {
           lat: result.lat,
           lng: result.lng,
           failed_at: null,
+          location_type,
+          partial_match,
         })
       } else {
-        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: null, lng: null, source: 'none' }
+        results[g._idx] = { address: g.address, city: g.city, zip: g.zip, lat: null, lng: null, source: 'none', location_type: null, partial_match: null }
         toUpsert.push({
           cache_key: g._key,
           address: g.address,
@@ -93,6 +108,8 @@ export default async function handler(req, res) {
           lat: null,
           lng: null,
           failed_at: new Date().toISOString(),
+          location_type: null,
+          partial_match: null,
         })
       }
     }
@@ -103,7 +120,7 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({
-    results: results.map(r => r || { lat: null, lng: null, source: 'none' }),
+    results: results.map(r => r || { lat: null, lng: null, source: 'none', location_type: null, partial_match: null }),
   })
 }
 
@@ -130,6 +147,8 @@ async function batchGeocodeGoogle(addresses) {
           results.set(a._key, {
             lat: match.geometry.location.lat,
             lng: match.geometry.location.lng,
+            location_type: match.geometry.location_type || null,
+            partial_match: match.partial_match === true,
           })
         }
       } catch (err) {

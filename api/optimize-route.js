@@ -513,15 +513,26 @@ function nearestNeighbor(stops, startLat, startLng) {
 async function geocodeStops(stops) {
   const keys = stops.map(s => buildCacheKey(s.address, s.city, s.zip))
 
-  const { data: cached } = await supabase.from('geocode_cache').select('cache_key, lat, lng').in('cache_key', keys)
+  // Include failed_at so we respect the same 30-day retry guard that
+  // /api/geocode uses — otherwise every optimize call re-bills Google for
+  // addresses we already know don't resolve.
+  const { data: cached } = await supabase.from('geocode_cache').select('cache_key, lat, lng, failed_at').in('cache_key', keys)
+  const FAILED_RETRY_DAYS = 30
+  const failedCutoff = new Date(Date.now() - FAILED_RETRY_DAYS * 24 * 60 * 60 * 1000).toISOString()
   const cache = new Map()
-  for (const r of (cached || [])) if (r.lat && r.lng) cache.set(r.cache_key, [r.lat, r.lng])
+  const knownFailed = new Set()
+  for (const r of (cached || [])) {
+    if (r.lat && r.lng) cache.set(r.cache_key, [r.lat, r.lng])
+    else if (r.failed_at && r.failed_at > failedCutoff) knownFailed.add(r.cache_key)
+  }
 
   const results = stops.map((s, i) => {
     const base = { index: i, address: s.address || '', city: s.city || '', zip: s.zip || '', coldChain: !!s.coldChain }
     if (s.lat && s.lng) return { ...base, lat: s.lat, lng: s.lng, geocodeMethod: 'app' }
     const c = cache.get(keys[i])
     if (c) return { ...base, lat: c[0], lng: c[1], geocodeMethod: 'cache' }
+    // Known-bad address inside the retry window — skip vendors, straight to ZIP.
+    if (knownFailed.has(keys[i])) return { ...base, lat: null, lng: null, _geo: true, _s: s, _skipVendors: true }
     return { ...base, lat: null, lng: null, _geo: true, _s: s }
   })
 
@@ -532,31 +543,37 @@ async function geocodeStops(stops) {
       const addr = `${s.address || ''}, ${s.city || ''}, OH ${s.zip || ''}`
       const key = keys[m.index]
 
-      // Google Geocoding
-      if (GOOGLE_GEOCODE_KEY) {
+      if (!m._skipVendors) {
+        // Google Geocoding
+        if (GOOGLE_GEOCODE_KEY) {
+          try {
+            const resp = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${GOOGLE_GEOCODE_KEY}`, { signal: AbortSignal.timeout(5000) })
+            const data = await resp.json()
+            const loc = data.results?.[0]?.geometry?.location
+            if (loc) {
+              r.lat = loc.lat; r.lng = loc.lng; r.geocodeMethod = 'google'; r._geo = false
+              supabase.from('geocode_cache').upsert({ cache_key: key, lat: loc.lat, lng: loc.lng, failed_at: null }, { onConflict: 'cache_key' }).then(() => {})
+              return
+            }
+          } catch {}
+        }
+
+        // Census
         try {
-          const resp = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${GOOGLE_GEOCODE_KEY}`, { signal: AbortSignal.timeout(5000) })
+          const resp = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(addr)}&benchmark=Public_AR_Current&format=json`, { signal: AbortSignal.timeout(8000) })
           const data = await resp.json()
-          const loc = data.results?.[0]?.geometry?.location
-          if (loc) {
-            r.lat = loc.lat; r.lng = loc.lng; r.geocodeMethod = 'google'; r._geo = false
-            supabase.from('geocode_cache').upsert({ cache_key: key, lat: loc.lat, lng: loc.lng, failed_at: null }, { onConflict: 'cache_key' }).then(() => {})
+          const match = data?.result?.addressMatches?.[0]
+          if (match?.coordinates) {
+            r.lat = match.coordinates.y; r.lng = match.coordinates.x; r.geocodeMethod = 'census'; r._geo = false
+            supabase.from('geocode_cache').upsert({ cache_key: key, lat: r.lat, lng: r.lng, failed_at: null }, { onConflict: 'cache_key' }).then(() => {})
             return
           }
         } catch {}
-      }
 
-      // Census
-      try {
-        const resp = await fetch(`https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(addr)}&benchmark=Public_AR_Current&format=json`, { signal: AbortSignal.timeout(8000) })
-        const data = await resp.json()
-        const match = data?.result?.addressMatches?.[0]
-        if (match?.coordinates) {
-          r.lat = match.coordinates.y; r.lng = match.coordinates.x; r.geocodeMethod = 'census'; r._geo = false
-          supabase.from('geocode_cache').upsert({ cache_key: key, lat: r.lat, lng: r.lng, failed_at: null }, { onConflict: 'cache_key' }).then(() => {})
-          return
-        }
-      } catch {}
+        // Both vendors failed — mark this key so future calls (here and in
+        // /api/geocode) skip Google/Census for the next 30 days.
+        supabase.from('geocode_cache').upsert({ cache_key: key, address: s.address, city: s.city, zip: s.zip, lat: null, lng: null, failed_at: new Date().toISOString() }, { onConflict: 'cache_key' }).then(() => {})
+      }
 
       // ZIP center
       const zip = String(s.zip || '').trim()
@@ -569,5 +586,5 @@ async function geocodeStops(stops) {
     }))
   }
 
-  return results.map(r => { const { _geo, _s, ...c } = r; return c })
+  return results.map(r => { const { _geo, _s, _skipVendors, ...c } = r; return c })
 }
