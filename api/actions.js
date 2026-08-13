@@ -4,6 +4,26 @@ import { parseBody } from './_lib/sheets.js'
 import { supabase } from './_lib/supabase.js'
 import { requireAuth } from './_lib/auth.js'
 
+// Apps Script webhook — POST to /exec returns a 302 into script.googleusercontent.com.
+// When Node fetch auto-follows that redirect the POST is downgraded to a GET, the
+// follow-up hits a URL that only accepts POST, and we get an HTTP 404 back even
+// though doPost already ran and sent the email. Result: drivers saw scary
+// "Apps Script HTTP 404" alerts and re-tapped Delete/Send, double-emailing
+// BioTouch. Setting redirect:'manual' stops the auto-follow; a 200 or 302
+// on the initial response both mean the script accepted and processed the
+// POST, so both count as success.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
+async function sendViaAppsScript(payload) {
+  const r = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    redirect: 'manual',
+    body: JSON.stringify(payload),
+  })
+  // 200 OK or 302 (redirect to script.googleusercontent) both mean doPost ran.
+  if (r.ok || r.status === 302) return { ok: true, status: r.status }
+  return { ok: false, status: r.status, error: `Apps Script HTTP ${r.status}` }
+}
+
 // Push notification helper — sends push + saves to DB
 async function notifyDriver(driverName, title, body, type = 'general') {
   try {
@@ -53,13 +73,9 @@ export default async function handler(req, res) {
       if (!to || !subject) return res.status(400).json({ error: 'Missing to or subject' })
 
       try {
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
-        const r = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: JSON.stringify({ action: 'email', to, subject, html }),
-        })
+        const r = await sendViaAppsScript({ action: 'email', to, subject, html })
         if (!r.ok) {
-          return res.status(502).json({ error: `Apps Script HTTP ${r.status}` })
+          return res.status(502).json({ error: r.error })
         }
         return res.status(200).json({ success: true, to, subject, via: 'apps_script' })
       } catch (e) {
@@ -181,7 +197,6 @@ export default async function handler(req, res) {
       let emailError = null
       if (source === 'driver' && notifyBiotouch) {
         try {
-          const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
           const rowsHtml = orderIds.map(oid => {
             const s = stopDetails.find(x => String(x.order_id) === String(oid)) || {}
             const esc = (v) => String(v || '').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
@@ -195,17 +210,14 @@ export default async function handler(req, res) {
             </table>
             <p style="color:#64748b;font-size:12px;margin-top:12px">Sent by CNC Driver app · ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</p>
           `
-          const r = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'email',
-              to: 'wfldispatch@biotouchglobal.com',
-              subject: `Assign ${orderIds.length} Order${orderIds.length > 1 ? 's' : ''} to Driver ${toDriverNumber}`,
-              html,
-            }),
+          const r = await sendViaAppsScript({
+            action: 'email',
+            to: 'wfldispatch@biotouchglobal.com',
+            subject: `Assign ${orderIds.length} Order${orderIds.length > 1 ? 's' : ''} to Driver ${toDriverNumber}`,
+            html,
           })
           if (!r.ok) {
-            emailError = `Apps Script HTTP ${r.status}`
+            emailError = r.error
             emailStatus = 'failed'
           } else {
             emailStatus = 'sent'
@@ -362,9 +374,27 @@ export default async function handler(req, res) {
         const dStops = (byDriver[driverName] || []).sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
         if (!dStops.length) continue
 
-        const rows = dStops.map((s, i) => `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.sort_order ?? i + 1}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.patient_name || ''}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.address || ''}, ${s.city || ''}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.pharmacy || ''}</td></tr>`).join('')
+        // Split by pharmacy so each driver sees SHSP and Aultman stops as
+        // visually distinct sections. 44320 (and ~38 other ZIPs) serves both
+        // pharmacies — a single mixed table makes it too easy to mistake one
+        // pharmacy's stop for the other's.
+        const sections = []
+        const groups = new Map()
+        for (const s of dStops) {
+          const key = (s.pharmacy || 'Other').trim() || 'Other'
+          if (!groups.has(key)) groups.set(key, [])
+          groups.get(key).push(s)
+        }
+        const order = ['SHSP', 'Aultman', ...[...groups.keys()].filter(k => k !== 'SHSP' && k !== 'Aultman')]
+        for (const pharm of order) {
+          const list = groups.get(pharm)
+          if (!list?.length) continue
+          const headerBg = pharm === 'Aultman' ? '#B45309' : '#0A2463'
+          const rows = list.map((s, i) => `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${i + 1}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.patient_name || ''}</td><td style="padding:4px 8px;border-bottom:1px solid #eee">${s.address || ''}, ${s.city || ''} ${s.zip || ''}</td></tr>`).join('')
+          sections.push(`<h3 style="margin:20px 0 6px;color:${headerBg}">${pharm} Stops (${list.length})</h3><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr style="background:${headerBg};color:#fff"><th style="padding:6px 8px;text-align:left">#</th><th style="padding:6px 8px;text-align:left">Patient</th><th style="padding:6px 8px;text-align:left">Address</th></tr></thead><tbody>${rows}</tbody></table>`)
+        }
 
-        const html = `<h2>Your Route — ${dateStr}</h2><p>${dStops.length} stops</p><table style="border-collapse:collapse;width:100%;font-size:14px"><thead><tr style="background:#0A2463;color:#fff"><th style="padding:6px 8px;text-align:left">#</th><th style="padding:6px 8px;text-align:left">Patient</th><th style="padding:6px 8px;text-align:left">Address</th><th style="padding:6px 8px;text-align:left">Rx</th></tr></thead><tbody>${rows}</tbody></table><p style="margin-top:16px;color:#888;font-size:12px">Sent from CNC Dispatch</p>`
+        const html = `<h2>Your Route — ${dateStr}</h2><p>${dStops.length} stops total</p>${sections.join('')}<p style="margin-top:16px;color:#888;font-size:12px">Sent from CNC Dispatch</p>`
 
         await transporter.sendMail({
           from: `"CNC Delivery" <${gmailUser}>`,
