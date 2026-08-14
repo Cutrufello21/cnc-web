@@ -47,6 +47,7 @@ export default function Payroll() {
     loadPayroll, loadInsights, showToast, handleEdit, getEditedValue,
     hasEdits, saveEdit, buildPayrollHtml, handleApprove,
     getDayValue, getAdjustedTotal, getAdjustedPay, getPerStopShadow,
+    resyncFromDailyStops, resyncing,
   } = usePayrollData({ weekOffset, loadSettlements })
 
   if (loading) return <div className="pay__loading"><div className="dispatch__spinner" />Loading payroll...</div>
@@ -77,6 +78,19 @@ export default function Payroll() {
             <span className="pay__grand-label">Total Payroll</span>
             <span className="pay__grand-value">${adjustedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
           </div>
+          <button
+            onClick={resyncFromDailyStops}
+            disabled={resyncing}
+            title="Recount stops from daily_stops and rewrite this week's payroll snapshot. Use when driver app shows wrong pay history. No email sent."
+            style={{
+              padding: '10px 16px', fontSize: 13, fontWeight: 600,
+              color: '#0B1E3D', background: '#fff', border: '1px solid #D8DDE7',
+              borderRadius: 10, cursor: resyncing ? 'wait' : 'pointer',
+              opacity: resyncing ? 0.6 : 1, marginRight: 8,
+            }}
+          >
+            {resyncing ? 'Resyncing…' : '↻ Re-sync from delivery data'}
+          </button>
           <button className={`pay__approve ${approved ? 'pay__approve--done' : ''}`} onClick={handleApprove} disabled={approving || approved}>
             {approved ? 'Approved' : approving ? 'Approving...' : 'Approve & Send'}
           </button>

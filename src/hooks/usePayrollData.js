@@ -445,30 +445,29 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
         throw new Error(`Email failed: ${errText}`)
       }
 
-      // 2. Snapshot authoritative pay to the payroll table so the driver app's
-      // Pay History shows exactly what was approved here. Without this, the
-      // driver app falls back to a formula that can't represent split rates
-      // (e.g. Wed=$6.50 vs Fri=$8.35) and overpays/underpays past weeks.
+      // 2. Snapshot authoritative pay via the server-side resync endpoint.
+      // Replaces the previous client-side loop whose try/catch swallowed every
+      // error — drivers saw "Pending" or stale values for weeks the snapshot
+      // silently failed on. The endpoint counts daily_stops fresh, applies the
+      // same per-day-rate calc, and returns per-driver success/failure so any
+      // problem is visible here.
       try {
         const weekOf = data._weekOfDate
-        for (const driver of data.drivers) {
-          const pay = getAdjustedPay(driver)
-          const mon = getDayValue(driver, 'Mon')
-          const tue = getDayValue(driver, 'Tue')
-          const wed = getDayValue(driver, 'Wed')
-          const thu = getDayValue(driver, 'Thu')
-          const fri = getDayValue(driver, 'Fri')
-          const willCalls = parseInt(getEditedValue(driver.name, 'Will Calls', driver.willCalls)) || 0
-          // Note: payroll table doesn't have tenant_id yet (phase-0 migration
-          // hasn't reached it). Re-add tenant_id here once the column exists.
-          const row = { week_of: weekOf, driver_name: driver.name, mon, tue, wed, thu, fri, will_calls: willCalls, weekly_pay: pay }
-          if (driver.rowIndex) {
-            await supabase.from('payroll').update(row).eq('id', driver.rowIndex)
-          } else {
-            await supabase.from('payroll').insert(row)
-          }
+        const syncRes = await fetch('/api/payroll-resync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ week_of: weekOf }),
+        })
+        const syncBody = await syncRes.json()
+        if (!syncRes.ok) {
+          showToast(`Payroll snapshot failed: ${syncBody.error || syncRes.statusText}`, true)
+        } else if (syncBody.failed > 0) {
+          const names = (syncBody.errors || []).map(e => e.driver).join(', ')
+          showToast(`Payroll snapshot: ${syncBody.failed} driver(s) failed (${names})`, true)
         }
-      } catch (payErr) { console.warn('Payroll snapshot:', payErr.message) }
+      } catch (payErr) {
+        showToast(`Payroll snapshot error: ${payErr.message}`, true)
+      }
 
       // 3. Sync payroll costs to settlements table for P&L tracking
       try {
@@ -570,11 +569,42 @@ export default function usePayrollData({ weekOffset, loadSettlements }) {
     return Math.round(pay * 100) / 100
   }
 
+  // Manual force-resync for the currently viewed week — same endpoint Approve
+  // uses, but no email. Lets dispatch realign any week's payroll snapshot with
+  // daily_stops without re-sending the accountant email.
+  const [resyncing, setResyncing] = useState(false)
+  async function resyncFromDailyStops() {
+    if (!data?._weekOfDate) return
+    setResyncing(true)
+    try {
+      const res = await fetch('/api/payroll-resync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ week_of: data._weekOfDate }),
+      })
+      const body = await res.json()
+      if (!res.ok) {
+        showToast(`Resync failed: ${body.error || res.statusText}`, true)
+      } else if (body.failed > 0) {
+        const names = (body.errors || []).map(e => e.driver).join(', ')
+        showToast(`Resync: ${body.synced} ok, ${body.failed} failed (${names})`, true)
+      } else {
+        showToast(`Resynced ${body.synced} driver(s) from delivery data`)
+      }
+      await loadPayroll()
+    } catch (err) {
+      showToast(`Resync error: ${err.message}`, true)
+    } finally {
+      setResyncing(false)
+    }
+  }
+
   return {
     data, loading, reconApproved, edits, saving, approved, approving,
     toast, insights, loadingInsights, expandedDriver, setExpandedDriver,
     loadPayroll, loadInsights, showToast, handleEdit, getEditedValue,
     hasEdits, saveEdit, buildPayrollHtml, handleApprove,
     getDayValue, getAdjustedTotal, getAdjustedPay, getPerStopShadow,
+    resyncFromDailyStops, resyncing,
   }
 }
