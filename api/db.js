@@ -26,6 +26,10 @@ const ALLOWED = {
   address_corrections: ['insert'],
   pickup_requests: ['insert', 'update', 'upsert', 'delete'],
   patient_notes: ['upsert', 'delete'],
+  address_outliers: ['upsert', 'delete'],
+  patient_pinned_photos: ['insert', 'delete'],
+  dismissed_pod_photos: ['insert', 'delete'],
+  patient_pod_reviewed: ['insert', 'delete'],
 }
 
 // Generic DB write proxy — all client-side writes route through here
