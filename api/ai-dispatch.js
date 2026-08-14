@@ -248,7 +248,7 @@ Rules:
 - Aultman stops stay with Aultman pharmacy drivers
 - Drivers marked "Both" can take either pharmacy
 - Flag anything unusual: unbalanced loads, ZIPs with no historical precedent, cold chain concentration
-- Every ZIP in the input MUST appear in exactly one driver's assignment
+- ONLY assign a ZIP when you have direct support: a matching ROUTING RULE for the day, a strong HISTORICAL pattern (a driver appears ≥2× for that ZIP on this weekday), or one of DOM'S MANUAL/FINAL decisions. If none of those apply, LEAVE THE ZIP OUT of every driver's assignment list and add it to \`flags\` with reason "no rule or history" so Dom can decide manually. Do NOT guess based on load balance or geography alone.
 Return valid JSON only. No explanation outside the JSON.`
 
     // Summarize stops by ZIP for a compact prompt
@@ -319,7 +319,7 @@ Return ONE object per driver (not per stop). Each driver gets a list of ZIPs the
   }
 }
 
-Every ZIP must be assigned to exactly one driver. Every stop must be covered. Do not leave any ZIP unassigned.`
+Only include ZIPs you can back with a routing rule, a strong historical pattern (≥2 occurrences for that driver on this weekday), or one of Dom's manual/final decisions. Every other ZIP MUST be omitted from all assignments and added to \`flags\` with reason "no rule or history" — those will remain Unassigned so Dom can decide.`
 
     const client = new Anthropic({ apiKey })
     const response = await client.messages.create({
