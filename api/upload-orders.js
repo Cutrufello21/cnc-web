@@ -7,6 +7,23 @@ function getDayName(dateStr) {
   return days[new Date(dateStr + 'T12:00:00').getDay()]
 }
 
+// Must match the driver app's patientAddressKey() in utils/helpers.js so
+// flags written from the driver app resolve to the same row here.
+function patientAddressKey(name, address) {
+  const n = String(name || '').toLowerCase().replace(/[,.:]/g, '').split(/\s+/).filter(Boolean).sort().join(' ')
+  let a = String(address || '').trim().toLowerCase()
+  if (!a) return ''
+  a = a.replace(/\bdr\b/g, 'drive').replace(/\bst\b/g, 'street').replace(/\bave\b/g, 'avenue')
+    .replace(/\brd\b/g, 'road').replace(/\bln\b/g, 'lane').replace(/\bct\b/g, 'court')
+    .replace(/\bblvd\b/g, 'boulevard').replace(/\bpkwy\b/g, 'parkway').replace(/\bpl\b/g, 'place')
+    .replace(/\bcir\b/g, 'circle').replace(/\bhwy\b/g, 'highway').replace(/\bter\b/g, 'terrace')
+    .replace(/\btrl\b/g, 'trail')
+  a = a.replace(/\s*(suite|ste|apt|apartment|unit|#|bldg|building)\s*[a-z0-9-]*\s*$/g, '')
+  a = a.replace(/[^a-z0-9]/g, '')
+  if (!n || !a) return ''
+  return `${n}|${a}`
+}
+
 // Auto-detect column mapping from headers
 // Trellis CSVs have Origin* (pharmacy) and Dest* (recipient) pairs — must prefer Dest*.
 function detectColumns(headers) {
@@ -169,6 +186,26 @@ export default async function handler(req, res) {
 
   if (insertRows.length === 0) {
     return res.status(400).json({ error: 'No valid rows to insert after parsing' })
+  }
+
+  // Carry forward persistent outlier flags — same patient+address from a prior
+  // delivery comes back pre-flagged so the driver doesn't have to re-mark it.
+  const keys = [...new Set(insertRows.map(r => patientAddressKey(r.patient_name, r.address)).filter(Boolean))]
+  if (keys.length > 0) {
+    const { data: persisted } = await supabase
+      .from('address_outliers')
+      .select('patient_key, reason')
+      .in('patient_key', keys)
+    if (persisted && persisted.length > 0) {
+      const flagMap = new Map(persisted.map(p => [p.patient_key, p.reason]))
+      for (const r of insertRows) {
+        const k = patientAddressKey(r.patient_name, r.address)
+        if (k && flagMap.has(k)) {
+          r.is_outlier = true
+          r.outlier_reason = flagMap.get(k)
+        }
+      }
+    }
   }
 
   // Insert in batches of 500

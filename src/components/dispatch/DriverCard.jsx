@@ -4,6 +4,7 @@ import { dbUpdate } from '../../lib/db'
 import { DRIVER_EMAILS_ENABLED } from '../../lib/flags'
 import { useTenant } from '../../context/TenantContext'
 import { fetchPatientNotes, normalizePatientKey } from '../../lib/patientNotes'
+import { normalizeCity } from '../../lib/normalizeCity'
 import PatientNoteModal from '../PatientNoteModal'
 import './DriverCard.css'
 
@@ -13,6 +14,11 @@ const PHARMACY_COLORS = {
   Both: { bg: '#f0fdf4', text: '#16a34a', label: 'BOTH' },
   ADMIN: { bg: '#0A2463', text: '#ffffff', label: 'ADMIN' },
   PM: { bg: '#FEE2E2', text: '#EF4444', label: 'PM' },
+}
+
+function csvEscape(v) {
+  const s = v == null ? '' : String(v)
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
 const COLUMNS = [
@@ -109,6 +115,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
     const hasColdChain = cc && cc.toLowerCase() !== 'no' && cc.toLowerCase() !== 'n' && cc.trim() !== ''
     return {
       ...stop,
+      City: normalizeCity(stop['City'] || stop.city),
       _hasColdChain: hasColdChain,
       _hasSigRequired: (stop.Notes || stop.notes || '').toLowerCase().includes('signature'),
       _ccEdited: stop._ccEdited || false,
@@ -272,6 +279,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
       const token = sessionData?.session?.access_token
       const driverRecord = allDrivers.find(d => (d.driver_name || d.name) === name)
       const hasHome = driverRecord?.home_lat && driverRecord?.home_lng
+      const pref = driverRecord?.route_end_preference
+      const useHome = pref === 'home' || (pref == null && hasHome)
       const body = {
         stops: enriched.map(s => ({
           address: s.Address || s.address || '',
@@ -282,7 +291,7 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
         })),
         pharmacy: pharmacy || 'SHSP',
       }
-      if (hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
+      if (useHome && hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -373,6 +382,34 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
   const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxw2xx2atYfnEfGzCaTmkDShmt96D1JsLFSckScOndB94RV2IGev63fpS7Ndc0GqSHWWQ/exec'
   const RW_DRIVERS = ['Alex', 'Josh', 'Laura', 'Mark', 'Mike', 'Nick', 'Dom', 'Nicholas']
 
+  function handleExportCsv(e) {
+    e.stopPropagation()
+    if (enriched.length === 0) return
+    const header = ['#', 'Order ID', 'Patient', 'Address', 'City', 'ZIP', 'Pharmacy', 'Cold Chain', 'Signature', 'Status', 'Notes', 'Outlier Reason']
+    const rows = enriched.map((s, i) => [
+      i + 1,
+      s._packageCount > 1 ? (s._consolidatedOrderIds || []).join(' | ') : (s['Order ID'] || ''),
+      s['Name'] || '',
+      s['Address'] || '',
+      s['City'] || '',
+      s['Zip Code'] || s['ZIP'] || '',
+      s['Pharmacy'] || '',
+      s._hasColdChain ? 'Yes' : '',
+      s._hasSigRequired ? 'Yes' : '',
+      s._status || 'dispatched',
+      s['Notes'] || s.notes || '',
+      s._outlierReason || '',
+    ])
+    const csv = [header, ...rows].map(r => r.map(csvEscape).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    const safeName = (name || 'driver').replace(/[^a-z0-9]+/gi, '_')
+    a.download = `route_${safeName}_${dateStr || 'today'}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleSendOne(e) {
     e.stopPropagation()
     if (!confirm(`Send route to ${name}?`)) return
@@ -452,6 +489,20 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
           <span className="dcard__id">#{id}</span>
         </div>
         <div className="dcard__header-right">
+          {stops > 0 && (
+            <button
+              onClick={handleExportCsv}
+              title="Export this route as CSV"
+              style={{
+                background: '#f1f5f9', color: '#334155',
+                border: '1px solid #e2e8f0', borderRadius: 6,
+                padding: '2px 8px', fontSize: 11, fontWeight: 600,
+                cursor: 'pointer', letterSpacing: 0.3,
+              }}
+            >
+              CSV
+            </button>
+          )}
           <span
             className="dcard__pharmacy"
             style={{ background: pharma.bg, color: pharma.text }}
@@ -671,8 +722,8 @@ export default function DriverCard({ driver, inactive = false, allDrivers = [], 
                       </span>
                     </td>
                     <td className="dcard__cell-addr">{stop['Address'] || '—'}</td>
-                    <td style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByCity?.(stop['City']) }} title={`Select all ${stop['City']} stops`}>{stop['City'] || '—'}</td>
-                    <td className="dcard__cell-zip" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByZip?.(stop['Zip Code'] || stop['ZIP']) }} title={`Select all ${stop['Zip Code'] || stop['ZIP']} stops`}>{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
+                    <td style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByCity?.(stop['City'], stop['Pharmacy']) }} title={`Select all ${stop['City']} stops for ${stop['Pharmacy'] || 'this pharmacy'}`}>{stop['City'] || '—'}</td>
+                    <td className="dcard__cell-zip" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); onSelectByZip?.(stop['Zip Code'] || stop['ZIP'], stop['Pharmacy']) }} title={`Select all ${stop['Zip Code'] || stop['ZIP']} stops for ${stop['Pharmacy'] || 'this pharmacy'}`}>{stop['Zip Code'] || stop['ZIP'] || '—'}</td>
                     <td className="dcard__cell-notes">
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
                         {stop._flagsDisplay && <span>{stop._flagsDisplay}</span>}
