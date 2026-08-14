@@ -13,8 +13,9 @@ import Drivers from '../components/dispatch/Drivers'
 import Schedule from '../components/dispatch/Schedule'
 import Communications from '../components/dispatch/Communications'
 import PODRecords from '../components/dispatch/PODRecords'
+import PatientPodLibrary from '../components/dispatch/PatientPodLibrary'
+import Outliers from '../components/dispatch/Outliers'
 import RoutesView from '../components/dispatch/RoutesView'
-import Pickups from '../components/dispatch/Pickups'
 import ThemeToggle from '../components/ThemeToggle'
 import BrandMark from '../components/BrandMark'
 import './DashboardShell.css'
@@ -234,9 +235,10 @@ export default function DispatchPage() {
               ['routes', 'Routes', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.19M15 6h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3.19"/><rect x="5" y="14" width="4" height="4" rx="2"/><rect x="15" y="14" width="4" height="4" rx="2"/><path d="M9 18h6"/><path d="M3 6l3-3h12l3 3"/></svg>],
             ]},
             { label: 'Records', items: [
-              ['pickups', 'Pickups', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"/><polyline points="9 6 3 12 9 18"/><path d="M14 4v16"/></svg>],
               ['pod', 'POD', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M3 17l4-4 3 3 5-5 6 5"/></svg>],
+              ['podlibrary', 'POD Library', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 14V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8"/><circle cx="9" cy="10" r="1.5"/><polyline points="4 17 8 13 12 17"/><path d="M18 17l2 2 4-4"/></svg>],
               ['orders', 'Orders', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>],
+              ['outliers', 'Outliers', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="22" x2="4" y2="15"/><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/></svg>],
             ]},
             { label: 'Team', items: [
               ['drivers', 'Drivers', <svg key="i" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>],
@@ -283,10 +285,11 @@ export default function DispatchPage() {
         {view === 'analytics' && <Analytics />}
         {view === 'orders' && <Orders />}
         {view === 'pod' && <PODRecords />}
+        {view === 'podlibrary' && <PatientPodLibrary />}
+        {view === 'outliers' && <Outliers />}
         {view === 'drivers' && <Drivers />}
         {view === 'timeoff' && <Schedule />}
         {view === 'comms' && <Communications />}
-        {view === 'pickups' && <Pickups />}
 
         {view === 'routes' && <RoutesView data={data} loading={loading} error={error} selectedDay={selectedDay} weekOffset={weekOffset} setWeekOffset={setWeekOffset} showRouting={showRouting} setShowRouting={setShowRouting} showSortList={showSortList} setShowSortList={setShowSortList} showUnassigned={showUnassigned} setShowUnassigned={setShowUnassigned} zipSearch={zipSearch} setZipSearch={setZipSearch} handleDayChange={handleDayChange} fetchDispatchData={fetchDispatchData} handleMoveComplete={handleMoveComplete} handleUndo={handleUndo} moveToast={moveToast} setMoveToast={setMoveToast} lastMove={lastMove} undoing={undoing} dismissedWarnings={dismissedWarnings} setDismissedWarnings={setDismissedWarnings} totalStops={totalStops} totalColdChain={totalColdChain} allActiveDrivers={allActiveDrivers} activeDrivers={activeDrivers} inactiveDrivers={inactiveDrivers} sendingRoutes={sendingRoutes} routesSent={routesSent} handleSendRoutes={handleSendRoutes} sentSnapshot={sentSnapshot} resending={resending} handleResendChanges={handleResendChanges} sendingCorrections={sendingCorrections} correctionsSent={correctionsSent} handleSendCorrections={handleSendCorrections} sendingResendCorrections={sendingResendCorrections} handleResendCorrections={handleResendCorrections} sendingForceAll={sendingForceAll} forceAllSent={forceAllSent} handleForceSendAll={handleForceSendAll} sendingCallIns={sendingCallIns} callInsSent={callInsSent} callInPreview={callInPreview} handlePreviewCallIns={handlePreviewCallIns} handleConfirmCallIns={handleConfirmCallIns} correctionPreview={correctionPreview} setCorrectionPreview={setCorrectionPreview} handlePreviewCorrections={handlePreviewCorrections} handleConfirmCorrections={handleConfirmCorrections} handlePreviewAndReview={handlePreviewAndReview} combinedPreview={combinedPreview} setCombinedPreview={setCombinedPreview} resendAllPreview={resendAllPreview} setResendAllPreview={setResendAllPreview} handleConfirmResendAll={handleConfirmResendAll} forceDriverSelection={forceDriverSelection} setForceDriverSelection={setForceDriverSelection} handleForceSendSelected={handleForceSendSelected} sessionCorrections={sessionCorrections} sessionStartTime={sessionStartTime} sessionFinalMinutes={sessionFinalMinutes} routesSent={routesSent} aiLoading={aiLoading} aiResult={aiResult} setAiResult={setAiResult} aiApplying={aiApplying} handleAiSuggest={handleAiSuggest} handleAiApply={handleAiApply}/>}
       </main>
