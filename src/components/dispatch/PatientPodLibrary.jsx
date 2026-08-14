@@ -231,8 +231,20 @@ export default function PatientPodLibrary() {
       return req
     }
 
+    // Surface pin-only patients (have a reference pin but no delivered POD
+    // photos yet, e.g. driver captured a reference before their first stop).
+    // Without this they'd be invisible in the library.
+    async function fetchPinnedPatients() {
+      let req = supabase
+        .from('patient_pinned_photos')
+        .select('patient_key, patient_name')
+      if (q.length >= 2) req = req.ilike('patient_name', `%${q}%`)
+      return req
+    }
+
     const t = setTimeout(async () => {
-      let { data, error } = await fetchOnce()
+      let [stopsRes, pinsRes] = await Promise.all([fetchOnce(), fetchPinnedPatients()])
+      let { data, error } = stopsRes
       // Cold-start race: first request on a fresh page load occasionally comes
       // back empty with no error before the Supabase client fully warms up.
       // Retry once after a beat if we got nothing back.
@@ -261,6 +273,11 @@ export default function PatientPodLibrary() {
             driver: r.driver_name, orderId: r.order_id,
           })
         }
+      }
+      for (const p of (pinsRes?.data || [])) {
+        if (!p.patient_key || map.has(p.patient_key)) continue
+        const zip = String(p.patient_key).split('|')[1] || ''
+        map.set(p.patient_key, { key: p.patient_key, name: p.patient_name || '', zip, photos: [] })
       }
       // Sort by name A-Z (case-insensitive) since patient_name may vary in casing.
       const sorted = Array.from(map.values()).sort((a, b) =>
