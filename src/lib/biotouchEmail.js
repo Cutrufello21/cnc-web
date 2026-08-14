@@ -2,15 +2,31 @@
 // and fall back to specific order IDs for ZIPs shared with another driver
 // in the same batch (so BioTouch can't ambiguously reassign a ZIP that
 // belongs to two drivers). Orders missing a ZIP always go by order ID.
+//
+// `allDriverZips` (optional): map of driverNumber → iterable of ZIPs for
+// every driver in the day's dispatch, not just those in `allCorrections`.
+// A driver whose assignments already match dispatch won't appear in
+// `allCorrections`, but their ZIPs still conflict — passing this map ensures
+// shared ZIPs get listed by order ID instead of telling BioTouch to move the
+// whole ZIP.
 
-export function getBioTouchBreakdown(driverId, allCorrections) {
+export function getBioTouchBreakdown(driverId, allCorrections, allDriverZips) {
   const myStops = allCorrections[driverId]?.stops || []
   const otherZips = new Set()
   for (const [otherId, info] of Object.entries(allCorrections)) {
-    if (otherId === driverId) continue
+    if (String(otherId) === String(driverId)) continue
     for (const s of (info.stops || [])) {
       const z = s.zip ? String(s.zip).slice(0, 5) : ''
       if (z) otherZips.add(z)
+    }
+  }
+  if (allDriverZips) {
+    for (const [otherId, zips] of Object.entries(allDriverZips)) {
+      if (String(otherId) === String(driverId)) continue
+      for (const z of zips) {
+        const norm = z ? String(z).slice(0, 5) : ''
+        if (norm) otherZips.add(norm)
+      }
     }
   }
   const myByZip = {}
@@ -31,8 +47,8 @@ export function getBioTouchBreakdown(driverId, allCorrections) {
   return { uniqueZips, conflictOrderIds: [...conflictOrders, ...noZipOrders] }
 }
 
-export function buildBioTouchCorrectionEmail(driverId, allCorrections) {
-  const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, allCorrections)
+export function buildBioTouchCorrectionEmail(driverId, allCorrections, allDriverZips) {
+  const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, allCorrections, allDriverZips)
   const parts = []
   if (uniqueZips.length) parts.push(`<p style="margin:0 0 8px 0"><b>Zip codes:</b> ${uniqueZips.join(', ')}</p>`)
   if (conflictOrderIds.length) parts.push(`<p style="margin:0"><b>Order #s:</b> ${conflictOrderIds.join(', ')}</p>`)

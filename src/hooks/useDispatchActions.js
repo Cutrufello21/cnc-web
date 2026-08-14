@@ -283,9 +283,15 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     activeDrivers.forEach(d => { if (d['Driver #']) numToName[String(d['Driver #'])] = d['Driver Name'] })
 
     const corrections = {}
+    const allDriverZips = {}
     let alreadySent = 0
     for (const s of (stops || [])) {
       if (!s.assigned_driver_number) continue
+      const did = String(s.assigned_driver_number)
+      if (s.zip) {
+        if (!allDriverZips[did]) allDriverZips[did] = new Set()
+        allDriverZips[did].add(String(s.zip).slice(0, 5))
+      }
       const needsCorrection =
         !s.dispatch_driver_number ||
         String(s.dispatch_driver_number) !== String(s.assigned_driver_number)
@@ -297,25 +303,24 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
         alreadySent++
         continue
       }
-      const did = s.assigned_driver_number
       const driverName = numToName[did] || `Driver #${did}`
       if (!corrections[did]) corrections[did] = { name: driverName, orderIds: [], stops: [] }
       corrections[did].orderIds.push(s.order_id)
       corrections[did].stops.push({ orderId: s.order_id, zip: s.zip })
     }
-    return { corrections, alreadySent, stops, dateStr }
+    return { corrections, alreadySent, stops, dateStr, allDriverZips }
   }
 
   async function handlePreviewCorrections(forceAll) {
-    const { corrections, alreadySent } = await calcCorrections(!forceAll)
+    const { corrections, alreadySent, allDriverZips } = await calcCorrections(!forceAll)
     if (Object.keys(corrections).length === 0) {
       setMoveToast(alreadySent > 0 ? `No new corrections — ${alreadySent} already sent` : 'No corrections needed — all assignments match')
       return
     }
     if (forceAll) {
-      setResendAllPreview({ corrections, alreadySent })
+      setResendAllPreview({ corrections, alreadySent, allDriverZips })
     } else {
-      setCorrectionPreview({ corrections, alreadySent, forceAll })
+      setCorrectionPreview({ corrections, alreadySent, forceAll, allDriverZips })
     }
   }
 
@@ -327,7 +332,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
 
   async function handlePreviewAndReview() {
     // Load both corrections and call-ins at once
-    const { corrections, alreadySent } = await calcCorrections(true)
+    const { corrections, alreadySent, allDriverZips } = await calcCorrections(true)
 
     // Call-ins
     let callIns = []
@@ -351,7 +356,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
       return
     }
 
-    setCombinedPreview({ corrections, alreadySent, callIns })
+    setCombinedPreview({ corrections, alreadySent, callIns, allDriverZips })
   }
 
   async function handleConfirmCorrections() {
@@ -365,18 +370,19 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
     }
   }
 
-  async function handleSendCorrections(confirmed, passedCorrections) {
+  async function handleSendCorrections(confirmed, passedCorrections, passedAllDriverZips) {
     if (!confirmed && !confirm('Send correction emails for reassigned stops?')) return
     setSendingCorrections(true)
     try {
-      let corrections, alreadySent, stops, dateStr
+      let corrections, alreadySent, stops, dateStr, allDriverZips
       if (passedCorrections) {
         corrections = passedCorrections
         alreadySent = 0
+        allDriverZips = passedAllDriverZips
         const dd = data.deliveryDateObj
         dateStr = dd ? `${dd.getFullYear()}-${String(dd.getMonth()+1).padStart(2,'0')}-${String(dd.getDate()).padStart(2,'0')}` : ''
       } else {
-        ({ corrections, alreadySent, stops, dateStr } = await calcCorrections(true))
+        ({ corrections, alreadySent, stops, dateStr, allDriverZips } = await calcCorrections(true))
       }
 
       if (Object.keys(corrections).length === 0) {
@@ -399,7 +405,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
               action: 'email',
               to: 'wfldispatch@biotouchglobal.com',
               subject: `Assign Orders to ${driverId}`,
-              html: buildBioTouchCorrectionEmail(driverId, corrections),
+              html: buildBioTouchCorrectionEmail(driverId, corrections, allDriverZips),
             }),
           })
         } catch (e) {
@@ -456,7 +462,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
   async function handleResendCorrections(confirmed) {
     setSendingResendCorrections(true)
     try {
-      const { corrections, alreadySent, stops, dateStr } = await calcCorrections(false)
+      const { corrections, alreadySent, stops, dateStr, allDriverZips } = await calcCorrections(false)
 
       const driverCount = Object.keys(corrections).length
       const totalOrders = Object.values(corrections).reduce((n, arr) => n + arr.orderIds.length, 0)
@@ -480,7 +486,7 @@ export default function useDispatchActions({ data, activeDrivers, setMoveToast, 
               action: 'email',
               to: 'wfldispatch@biotouchglobal.com',
               subject: `Assign Orders to ${driverId}`,
-              html: buildBioTouchCorrectionEmail(driverId, corrections),
+              html: buildBioTouchCorrectionEmail(driverId, corrections, allDriverZips),
             }),
           })
         } catch (e) {
