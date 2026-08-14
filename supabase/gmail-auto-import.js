@@ -36,11 +36,27 @@ const FLOATING_DRIVERS = new Set(['59197', '59170']); // Brad, Kasey
 // ============================================
 // MAIN — runs on schedule
 // ============================================
-function checkForNewOrders() {
+function checkForNewOrders(opts) {
+  opts = opts || {};
+
+  // Only run 6-9pm ET (18:00-20:59). testRun({force:true}) bypasses this.
+  const hourEt = parseInt(Utilities.formatDate(new Date(), 'America/New_York', 'HH'), 10);
+  if (!opts.force && (hourEt < 18 || hourEt >= 21)) {
+    Logger.log(`Outside 6-9pm ET window (hour=${hourEt}), skipping`);
+    return;
+  }
+
+  // Once per day: stop firing after the first successful import.
+  const props = PropertiesService.getScriptProperties();
+  const todayEt = Utilities.formatDate(new Date(), 'America/New_York', 'yyyy-MM-dd');
+  if (!opts.force && props.getProperty('lastProcessedDate') === todayEt) {
+    Logger.log(`Already processed today (${todayEt}), skipping`);
+    return;
+  }
+
   const label = GmailApp.getUserLabelByName('CNC-Processed');
   if (!label) GmailApp.createLabel('CNC-Processed');
 
-  // Search for unprocessed Trellis emails from today
   const query = `subject:"${ORDER_EMAIL_SUBJECT}" has:attachment newer_than:1d -label:CNC-Processed`;
   const threads = GmailApp.search(query, 0, 5);
 
@@ -51,18 +67,23 @@ function checkForNewOrders() {
 
   Logger.log(`Found ${threads.length} new Trellis email(s)`);
 
+  let processedAny = false;
   for (const thread of threads) {
     try {
       processThread(thread);
-      // Mark as processed
       const processedLabel = GmailApp.getUserLabelByName('CNC-Processed');
       thread.addLabel(processedLabel);
+      processedAny = true;
     } catch (err) {
       Logger.log(`Error processing thread: ${err.message}`);
-      // Send error notification
       MailApp.sendEmail(NOTIFY_EMAIL, 'CNC Auto-Import Error',
         `Failed to process Trellis email: ${err.message}\n\nCheck Apps Script logs for details.`);
     }
+  }
+
+  if (processedAny) {
+    props.setProperty('lastProcessedDate', todayEt);
+    Logger.log(`Marked ${todayEt} as processed — no more runs today`);
   }
 }
 
@@ -539,21 +560,18 @@ function supabaseDelete(table, filter) {
 // TRIGGER SETUP — run once
 // ============================================
 function setupTrigger() {
-  // Remove existing triggers
   ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
 
-  // Check every 15 minutes between 5 PM and 10 PM
   ScriptApp.newTrigger('checkForNewOrders')
     .timeBased()
-    .everyMinutes(15)
+    .everyMinutes(5)
     .create();
 
-  Logger.log('Trigger installed: checkForNewOrders every 15 minutes');
-  Logger.log('Emails matching "' + ORDER_EMAIL_SUBJECT + '" will be auto-processed');
-  Logger.log('Processed emails get labeled "CNC-Processed" to avoid re-import');
+  Logger.log('Trigger installed: checkForNewOrders every 5 minutes');
+  Logger.log('Function guards limit real work to 6-9pm ET and stop after the first successful import each day');
 }
 
-// Manual test
+// Manual test — bypasses the hour window AND the once-per-day guard
 function testRun() {
-  checkForNewOrders();
+  checkForNewOrders({ force: true });
 }
