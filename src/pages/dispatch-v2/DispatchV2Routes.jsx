@@ -177,6 +177,8 @@ export default function DispatchV2Routes() {
       const token = sessionData?.session?.access_token
       const driverRecord = allDrivers.find(d => (d.driver_name || d.name) === driverName)
       const hasHome = driverRecord?.home_lat && driverRecord?.home_lng
+      const pref = driverRecord?.route_end_preference
+      const useHome = pref === 'home' || (pref == null && hasHome)
       const body = {
         stops: driverStops.map(s => ({
           address: s.address,
@@ -187,7 +189,7 @@ export default function DispatchV2Routes() {
         pharmacy: driverStops[0]?.pharmacy || 'SHSP',
         driverName: driverName,
       }
-      if (hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
+      if (useHome && hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
       const res = await fetch('/api/optimize-route', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

@@ -50,6 +50,9 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
         try {
           const driverRecord = allDrivers.find(d => (d.driver_name || d.name) === driverName)
           const hasHome = driverRecord?.home_lat && driverRecord?.home_lng
+          // Driver-controlled endpoint: 'home' | 'pharmacy' | null (unset → default to home when we have coords).
+          const pref = driverRecord?.route_end_preference
+          const useHome = pref === 'home' || (pref == null && hasHome)
           const body = {
             stops: driverStops.map(s => ({
               address: s.address, city: s.city, zip: s.zip,
@@ -57,7 +60,7 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
             })),
             pharmacy: driverStops[0]?.pharmacy || 'SHSP',
           }
-          if (hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
+          if (useHome && hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
           const res = await fetch('/api/optimize-route', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
@@ -179,11 +182,56 @@ export default function useRouteActions({ selectedDate, allStops, grouped, allDr
   async function handleSendDriverRoute(driverName) {
     setSendingDriver(driverName)
     try {
-      const driverStops = grouped[driverName]
+      let driverStops = grouped[driverName]
       if (!driverStops || driverStops.length === 0) {
         showToast(`No stops for ${driverName}`)
         setSendingDriver('')
         return
+      }
+
+      // Auto-optimize so the route uses this driver's home as the endpoint.
+      // Mirrors the loop body in handleSendAll — kept inline so the two paths
+      // don't diverge; refactor to a helper if we grow a third caller.
+      if (driverStops.length >= 2) {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const token = sessionData?.session?.access_token
+          const driverRecord = allDrivers.find(d => (d.driver_name || d.name) === driverName)
+          const hasHome = driverRecord?.home_lat && driverRecord?.home_lng
+          const pref = driverRecord?.route_end_preference
+          const useHome = pref === 'home' || (pref == null && hasHome)
+          const body = {
+            stops: driverStops.map(s => ({
+              address: s.address, city: s.city, zip: s.zip,
+              coldChain: s.cold_chain, lat: s.lat, lng: s.lng,
+            })),
+            pharmacy: driverStops[0]?.pharmacy || 'SHSP',
+          }
+          if (useHome && hasHome) { body.endLat = driverRecord.home_lat; body.endLng = driverRecord.home_lng }
+          const res = await fetch('/api/optimize-route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+            body: JSON.stringify(body),
+          })
+          const result = await res.json()
+          if (result.optimizedOrder) {
+            await Promise.all(result.optimizedOrder.map((origIdx, newIdx) => {
+              const stop = driverStops[origIdx]
+              return stop?.id ? supabase.from('daily_stops').update({ sort_order: newIdx }).eq('id', stop.id) : null
+            }).filter(Boolean))
+            if (result.totalDistance) {
+              await supabase.from('driver_routes').upsert({
+                driver_name: driverName, date: selectedDate,
+                stop_sequence: result.optimizedOrder.map(i => String(driverStops[i]?.id || driverStops[i]?.order_id)),
+                origin_hospital: driverStops[0]?.pharmacy || 'SHSP',
+                optimized_at: new Date().toISOString(),
+                route_miles: result.totalDistance,
+              }, { onConflict: 'driver_name,date' })
+            }
+            // Reorder locally so the email/RW payloads below reflect the optimized sequence
+            driverStops = result.optimizedOrder.map((origIdx, newIdx) => ({ ...driverStops[origIdx], sort_order: newIdx }))
+          }
+        } catch (e) { console.error(`Auto-optimize ${driverName} failed:`, e) }
       }
 
       // a) Build HTML email and send via Apps Script

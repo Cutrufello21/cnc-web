@@ -253,6 +253,7 @@ export default function useDispatchData(weekOffset) {
           driver_name: d.driver_name,
           home_lat: d.home_lat,
           home_lng: d.home_lng,
+          route_end_preference: d.route_end_preference,
           Pharmacy: d.pharmacy || '',
           is_admin: !!d.is_admin,
           shift: shiftMap[d.driver_name] || d.shift || 'AM',
