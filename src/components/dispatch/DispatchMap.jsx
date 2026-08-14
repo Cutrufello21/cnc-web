@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
 import { dbUpdate } from '../../lib/db'
+import { normalizeCity } from '../../lib/normalizeCity'
 
 mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN
 
@@ -41,7 +42,46 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
   const [moving, setMoving] = useState(false)
   const [mapSearch, setMapSearch] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
+  const [selectedStops, setSelectedStops] = useState(new Set())
+  const [batchTarget, setBatchTarget] = useState('')
+  const [batchMoving, setBatchMoving] = useState(false)
+  const openPopupRef = useRef(null)
   const geocodedRef = useRef(false)
+
+  function toggleStopSelection(oid) {
+    if (!oid) return
+    setSelectedStops(prev => {
+      const next = new Set(prev)
+      if (next.has(oid)) next.delete(oid)
+      else next.add(oid)
+      return next
+    })
+  }
+
+  function clearSelection() {
+    setSelectedStops(new Set())
+    setBatchTarget('')
+  }
+
+  async function handleBatchMove() {
+    if (!batchTarget || selectedStops.size === 0 || batchMoving) return
+    const targetDrv = (drivers || []).find(d => d['Driver Name'] === batchTarget)
+    if (!targetDrv) return
+    if (!confirm(`Move ${selectedStops.size} stops to ${batchTarget}?`)) return
+    setBatchMoving(true)
+    try {
+      const dateStr = deliveryDate ? `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth()+1).padStart(2,'0')}-${String(deliveryDate.getDate()).padStart(2,'0')}` : null
+      if (!dateStr) return
+      const targetNum = String(targetDrv['Driver #'])
+      for (const oid of selectedStops) {
+        await dbUpdate('daily_stops', { driver_name: batchTarget, driver_number: targetNum, assigned_driver_number: targetNum }, { order_id: oid, delivery_date: dateStr })
+      }
+      setSelectedStops(new Set())
+      setBatchTarget('')
+      if (fetchDispatchData) fetchDispatchData(selectedDay)
+    } catch (e) { console.error('Batch map move error:', e) }
+    finally { setBatchMoving(false) }
+  }
 
   // Auto-geocode stops missing lat/lng when map opens
   useEffect(() => {
@@ -142,6 +182,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
     markersRef.current.forEach(m => m.remove())
     markersRef.current = []
     markerMetaRef.current = []
+    if (openPopupRef.current) { openPopupRef.current.remove(); openPopupRef.current = null }
 
     const bounds = new mapboxgl.LngLatBounds()
     let hasPoints = false
@@ -180,7 +221,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
               <strong style="font-size:13px">${stop.patient_name || stop.Name || '—'}</strong>
             </div>
             <div style="color:#374151;margin-bottom:2px">${stop.address || stop.Address || ''}</div>
-            <div style="color:#6b7280;font-size:11px">${stop.city || stop.City || ''}, ${stop.zip || stop.ZIP || ''}</div>
+            <div style="color:#6b7280;font-size:11px">${normalizeCity(stop.city || stop.City) || ''}, ${stop.zip || stop.ZIP || ''}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
               <span style="color:${color};font-weight:600;font-size:11px">${name}</span>
               ${isCold ? '<span style="background:#dbeafe;color:#2563eb;font-weight:600;font-size:10px;padding:1px 6px;border-radius:4px">Cold Chain</span>' : ''}
@@ -195,10 +236,19 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
 
         const marker = new mapboxgl.Marker({ element: el })
           .setLngLat([lng, lat])
-          .setPopup(popup)
           .addTo(mapRef.current)
 
-        el.addEventListener('click', () => {
+        el.addEventListener('click', (e) => {
+          if (e.shiftKey || e.metaKey || e.ctrlKey) {
+            e.preventDefault()
+            e.stopPropagation()
+            toggleStopSelection(oid)
+            return
+          }
+          if (popup.isOpen()) { popup.remove(); openPopupRef.current = null; return }
+          if (openPopupRef.current) openPopupRef.current.remove()
+          popup.setLngLat([lng, lat]).addTo(mapRef.current)
+          openPopupRef.current = popup
           if (onStopClick) onStopClick(stop, name)
         })
 
@@ -259,7 +309,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
     let hasMatch = false
     markerMetaRef.current.forEach(m => {
       const addr = (m.stop.address || m.stop.Address || '').toLowerCase()
-      const city = (m.stop.city || m.stop.City || '').toLowerCase()
+      const city = normalizeCity(m.stop.city || m.stop.City).toLowerCase()
       const zip = (m.stop.zip || m.stop.ZIP || '').toLowerCase()
       const name = (m.stop.patient_name || m.stop.Name || '').toLowerCase()
       const isMatch = addr.includes(q) || city.includes(q) || zip.includes(q) || name.includes(q)
@@ -286,6 +336,96 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
     }
   }, [mapSearch])
 
+  // Batch selection: highlight selected markers with a ring
+  useEffect(() => {
+    markerMetaRef.current.forEach(m => {
+      const oid = m.stop.order_id || m.stop['Order ID']
+      if (selectedStops.has(oid)) {
+        m.el.style.boxShadow = '0 0 0 3px #f59e0b, 0 0 0 6px rgba(245,158,11,0.35), 0 2px 6px rgba(0,0,0,0.25)'
+        m.el.style.zIndex = '20'
+      } else {
+        m.el.style.boxShadow = '0 0 0 1px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.25)'
+      }
+    })
+  }, [selectedStops, plotCount, mapSearch])
+
+  // Shift-drag box-select: replace default box-zoom with rectangular marker selection
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !containerRef.current) return
+    const map = mapRef.current
+    const container = containerRef.current
+    map.boxZoom.disable()
+
+    let start = null
+    let boxEl = null
+
+    const onMove = (e) => {
+      if (!start || !boxEl) return
+      const rect = container.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      const left = Math.min(start.x, x), top = Math.min(start.y, y)
+      const w = Math.abs(x - start.x), h = Math.abs(y - start.y)
+      boxEl.style.left = left + 'px'
+      boxEl.style.top = top + 'px'
+      boxEl.style.width = w + 'px'
+      boxEl.style.height = h + 'px'
+    }
+
+    const onUp = (e) => {
+      if (!start) return
+      const rect = container.getBoundingClientRect()
+      const x = e.clientX - rect.left, y = e.clientY - rect.top
+      const minX = Math.min(start.x, x), maxX = Math.max(start.x, x)
+      const minY = Math.min(start.y, y), maxY = Math.max(start.y, y)
+      if (boxEl && boxEl.parentNode) boxEl.parentNode.removeChild(boxEl)
+      boxEl = null
+      start = null
+      map.dragPan.enable()
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      if ((maxX - minX) < 5 && (maxY - minY) < 5) return
+      const additions = []
+      markerMetaRef.current.forEach(m => {
+        const p = map.project([m.lng, m.lat])
+        if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) {
+          const oid = m.stop.order_id || m.stop['Order ID']
+          if (oid) additions.push(oid)
+        }
+      })
+      if (!additions.length) return
+      setSelectedStops(prev => {
+        const next = new Set(prev)
+        additions.forEach(id => next.add(id))
+        return next
+      })
+    }
+
+    const onDown = (e) => {
+      if (!e.shiftKey) return
+      // Ignore drags that start on a marker element
+      if (e.target && e.target !== container && e.target.closest && e.target.closest('.mapboxgl-marker')) return
+      e.preventDefault()
+      const rect = container.getBoundingClientRect()
+      start = { x: e.clientX - rect.left, y: e.clientY - rect.top }
+      boxEl = document.createElement('div')
+      boxEl.style.cssText = `position:absolute;left:${start.x}px;top:${start.y}px;width:0;height:0;border:2px dashed #f59e0b;background:rgba(245,158,11,0.15);pointer-events:none;z-index:100;border-radius:2px;`
+      container.appendChild(boxEl)
+      map.dragPan.disable()
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    }
+
+    container.addEventListener('mousedown', onDown)
+    return () => {
+      container.removeEventListener('mousedown', onDown)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      if (boxEl && boxEl.parentNode) boxEl.parentNode.removeChild(boxEl)
+      if (map && map.boxZoom) map.boxZoom.enable()
+    }
+  }, [mapReady])
+
   // Search results for dropdown
   const searchResults = useMemo(() => {
     const q = mapSearch.trim().toLowerCase()
@@ -293,7 +433,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
     return markerMetaRef.current
       .filter(m => {
         const addr = (m.stop.address || m.stop.Address || '').toLowerCase()
-        const city = (m.stop.city || m.stop.City || '').toLowerCase()
+        const city = normalizeCity(m.stop.city || m.stop.City).toLowerCase()
         const zip = (m.stop.zip || m.stop.ZIP || '').toLowerCase()
         const name = (m.stop.patient_name || m.stop.Name || '').toLowerCase()
         return addr.includes(q) || city.includes(q) || zip.includes(q) || name.includes(q)
@@ -483,7 +623,7 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
                     {m.stop.patient_name || m.stop.Name || '—'}
                   </div>
                   <div style={{ fontSize: 10, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {m.stop.address || m.stop.Address || ''}, {m.stop.city || m.stop.City || ''} {m.stop.zip || m.stop.ZIP || ''}
+                    {m.stop.address || m.stop.Address || ''}, {normalizeCity(m.stop.city || m.stop.City) || ''} {m.stop.zip || m.stop.ZIP || ''}
                   </div>
                   <div style={{ fontSize: 9, color: m.color, fontWeight: 600, marginTop: 1 }}>{m.driverName}</div>
                 </div>
@@ -532,6 +672,72 @@ export default function DispatchMap({ drivers, onStopClick, onMoveStop, selected
           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', fontWeight: 500, marginTop: 2, letterSpacing: '0.05em' }}>DRIVERS</div>
         </div>
       </div>
+
+      {/* Batch selection bar — bottom center */}
+      {selectedStops.size > 0 && (() => {
+        const selectedDetails = []
+        for (const meta of markerMetaRef.current) {
+          const oid = meta.stop.order_id || meta.stop['Order ID']
+          if (oid && selectedStops.has(oid)) selectedDetails.push({ stop: meta.stop, driverName: meta.driverName, color: meta.color })
+        }
+        return (
+        <div style={{
+          position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', flexDirection: 'column', gap: 6, zIndex: 10,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)',
+          borderRadius: 10, padding: '8px 12px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+          maxWidth: 520, minWidth: 380,
+        }}>
+          {selectedDetails.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 168, overflowY: 'auto', paddingRight: 4 }}>
+              {selectedDetails.map(({ stop, driverName, color }, i) => (
+                <div key={(stop.order_id || stop['Order ID'] || i) + '-' + i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#fff', lineHeight: 1.35 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {stop.patient_name || stop.Name || '—'}
+                    </div>
+                    <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {stop.address || stop.Address || ''} · {normalizeCity(stop.city || stop.City) || ''} {stop.zip || stop.ZIP || ''}
+                    </div>
+                  </div>
+                  <span style={{ color, fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{driverName}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: '#fff', fontSize: 12, fontWeight: 600, letterSpacing: '0.02em' }}>
+            {selectedStops.size} stop{selectedStops.size !== 1 ? 's' : ''} selected
+          </span>
+          <select value={batchTarget} onChange={e => setBatchTarget(e.target.value)} style={{
+            padding: '6px 10px', fontSize: 12, borderRadius: 6, border: 'none',
+            background: 'rgba(255,255,255,0.15)', color: '#fff', fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+          }}>
+            <option value="" style={{ color: '#000' }}>Move to…</option>
+            {driverNames.map(n => (
+              <option key={n} value={n} style={{ color: '#000' }}>{n}</option>
+            ))}
+          </select>
+          <button onClick={handleBatchMove} disabled={!batchTarget || batchMoving} style={{
+            padding: '6px 14px', fontSize: 12, fontWeight: 700, borderRadius: 6, border: 'none',
+            background: batchTarget && !batchMoving ? '#f59e0b' : 'rgba(255,255,255,0.1)',
+            color: batchTarget && !batchMoving ? '#fff' : 'rgba(255,255,255,0.5)',
+            cursor: batchTarget && !batchMoving ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+          }}>
+            {batchMoving ? 'Moving…' : 'Move'}
+          </button>
+          <button onClick={clearSelection} style={{
+            padding: '6px 10px', fontSize: 12, borderRadius: 6, border: 'none',
+            background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontFamily: 'inherit',
+          }}>
+            Clear
+          </button>
+          </div>
+        </div>
+        )
+      })()}
     </div>
   )
 }
