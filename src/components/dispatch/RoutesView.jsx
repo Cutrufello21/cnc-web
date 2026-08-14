@@ -13,6 +13,7 @@ import UnassignedSection from './UnassignedSection'
 import UnassignedZips from './UnassignedZips'
 import UploadOrdersModal from './UploadOrdersModal'
 import { getBioTouchBreakdown } from '../../lib/biotouchEmail'
+import { normalizeCityKey } from '../../lib/normalizeCity'
 
 export default function RoutesView(p) {
 const {
@@ -54,8 +55,12 @@ const [clearing, setClearing] = useState(false)
 // Build a flat list of all stops across all active drivers for batch selection
 const allStopsFlat = activeDrivers.flatMap(d => (d.stopDetails || []).map(s => ({ ...s, _driverName: d['Driver Name'], _driverNum: d['Driver #'] })))
 
-function selectByZip(zip) {
-  const ids = allStopsFlat.filter(s => (s.zip || s.ZIP || s['Zip Code'] || s['ZIP']) === zip).map(s => s.order_id || s['Order ID']).filter(Boolean)
+function selectByZip(zip, pharmacy) {
+  const normPh = (pharmacy || '').toUpperCase()
+  const ids = allStopsFlat
+    .filter(s => (s.zip || s.ZIP || s['Zip Code'] || s['ZIP']) === zip)
+    .filter(s => !normPh || ((s.pharmacy || s.Pharmacy || s['Pharmacy']) || '').toUpperCase() === normPh)
+    .map(s => s.order_id || s['Order ID']).filter(Boolean)
   setBatchSelected(prev => {
     const allAlready = ids.every(id => prev.has(id))
     const next = new Set(prev)
@@ -64,9 +69,13 @@ function selectByZip(zip) {
   })
 }
 
-function selectByCity(city) {
-  const norm = (city || '').toUpperCase()
-  const ids = allStopsFlat.filter(s => ((s.city || s.City || s['City']) || '').toUpperCase() === norm).map(s => s.order_id || s['Order ID']).filter(Boolean)
+function selectByCity(city, pharmacy) {
+  const norm = normalizeCityKey(city)
+  const normPh = (pharmacy || '').toUpperCase()
+  const ids = allStopsFlat
+    .filter(s => normalizeCityKey(s.city || s.City || s['City']) === norm)
+    .filter(s => !normPh || ((s.pharmacy || s.Pharmacy || s['Pharmacy']) || '').toUpperCase() === normPh)
+    .map(s => s.order_id || s['Order ID']).filter(Boolean)
   setBatchSelected(prev => {
     const allAlready = ids.every(id => prev.has(id))
     const next = new Set(prev)
@@ -437,7 +446,7 @@ return (
                         <thead><tr><th>Driver</th><th>Driver #</th><th>Orders</th><th>Zip Codes</th><th>Order #s (shared ZIPs)</th></tr></thead>
                         <tbody>
                           {Object.entries(combinedPreview.corrections).map(([driverId, { name, orderIds }]) => {
-                            const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, combinedPreview.corrections)
+                            const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, combinedPreview.corrections, combinedPreview.allDriverZips)
                             return (
                               <tr key={driverId}>
                                 <td style={{ fontWeight: 600 }}>{name}</td>
@@ -482,8 +491,9 @@ return (
                   {Object.keys(combinedPreview.corrections).length > 0 && (
                     <button className="dispatch__callin-confirm" disabled={sendingCorrections} onClick={async () => {
                       const corr = combinedPreview.corrections
+                      const adz = combinedPreview.allDriverZips
                       setCombinedPreview(null)
-                      await handleSendCorrections(true, corr)
+                      await handleSendCorrections(true, corr, adz)
                     }}>
                       {sendingCorrections ? 'Sending...' : 'Send Corrections Only'}
                     </button>
@@ -500,10 +510,11 @@ return (
                   {(Object.keys(combinedPreview.corrections).length > 0 || combinedPreview.callIns.length > 0) && (
                     <button className="dispatch__callin-confirm" style={{ background: '#0A2463' }} disabled={sendingCorrections || sendingCallIns} onClick={async () => {
                       const corr = Object.keys(combinedPreview.corrections).length > 0 ? combinedPreview.corrections : null
+                      const adz = combinedPreview.allDriverZips
                       const ci = combinedPreview.callIns.length > 0 ? combinedPreview.callIns : null
                       setCombinedPreview(null)
                       const tasks = []
-                      if (corr) tasks.push(handleSendCorrections(true, corr))
+                      if (corr) tasks.push(handleSendCorrections(true, corr, adz))
                       if (ci) tasks.push(handleConfirmCallIns(ci))
                       await Promise.all(tasks)
                     }}>
@@ -532,7 +543,7 @@ return (
                     <thead><tr><th>Driver</th><th>Driver #</th><th>Orders</th><th>Zip Codes</th><th>Order #s (shared ZIPs)</th></tr></thead>
                     <tbody>
                       {Object.entries(resendAllPreview.corrections).map(([driverId, { name, orderIds }]) => {
-                        const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, resendAllPreview.corrections)
+                        const { uniqueZips, conflictOrderIds } = getBioTouchBreakdown(driverId, resendAllPreview.corrections, resendAllPreview.allDriverZips)
                         return (
                           <tr key={driverId}>
                             <td style={{ fontWeight: 600 }}>{name}</td>
