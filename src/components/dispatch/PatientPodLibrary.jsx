@@ -298,6 +298,31 @@ export default function PatientPodLibrary() {
     setPins(data || [])
   }, [])
 
+  // Unpin a reference photo. `hard` also removes the underlying file from
+  // the POD storage bucket — only meaningful for driver-captured references
+  // (source='driver'), since admin pins point at real POD photos that other
+  // records also reference. Guarded by confirm.
+  async function deletePin(pin, hard) {
+    if (savingPin) return
+    const label = hard ? `Delete this reference photo entirely? This removes the file from storage.` : `Unpin this reference photo?`
+    if (!confirm(label)) return
+    setSavingPin(true)
+    try {
+      await supabase.from('patient_pinned_photos').delete().eq('id', pin.id)
+      if (hard) {
+        // photo_url looks like ".../storage/v1/object/public/POD/pod/{stopId}/{ts}_ref.jpg"
+        const marker = '/storage/v1/object/public/POD/'
+        const i = String(pin.photo_url || '').indexOf(marker)
+        const path = i >= 0 ? pin.photo_url.slice(i + marker.length) : null
+        if (path) await supabase.storage.from('POD').remove([path])
+      }
+      await loadPins(selected)
+      setReloadTick(t => t + 1)
+    } finally {
+      setSavingPin(false)
+    }
+  }
+
   useEffect(() => { loadPins(selected) }, [selected, loadPins])
 
   const activePatient = patients.find(p => p.key === selected)
@@ -514,10 +539,16 @@ export default function PatientPodLibrary() {
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-700)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Pinned for driver ({pins.length}/3)</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
-                  {pins.map(pin => (
-                    <div key={pin.id} style={{ border: '2px solid #f59e0b', borderRadius: 10, overflow: 'hidden', background: 'var(--gray-100)' }}>
+                  {pins.map(pin => {
+                    const isDriverPin = pin.source === 'driver'
+                    return (
+                    <div key={pin.id} style={{ position: 'relative', border: '2px solid #f59e0b', borderRadius: 10, overflow: 'hidden', background: 'var(--gray-100)' }}>
                       <img src={pin.photo_url} alt="" onClick={() => setFullscreen(pin.photo_url)} style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', cursor: 'zoom-in' }} />
-                      <div style={{ padding: 8 }}>
+                      {/* Origin badge — helps admin distinguish driver-captured refs from admin-pinned POD shots. */}
+                      <div style={{ position: 'absolute', top: 6, left: 6, background: isDriverPin ? 'rgba(59,130,246,0.92)' : 'rgba(0,0,0,0.6)', color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        {isDriverPin ? `Driver · ${pin.pinned_by || 'unknown'}` : 'Admin'}
+                      </div>
+                      <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <input
                           type="text"
                           placeholder="Caption (e.g. front door)"
@@ -525,9 +556,29 @@ export default function PatientPodLibrary() {
                           onBlur={e => updateNote(pin.id, e.target.value)}
                           style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--gray-200)', background: 'var(--white)', color: 'var(--gray-900)', fontSize: 12 }}
                         />
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            onClick={() => deletePin(pin, false)}
+                            disabled={savingPin}
+                            style={{ flex: 1, padding: '5px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6, border: '1px solid var(--gray-200)', background: 'transparent', color: 'var(--gray-700)', cursor: savingPin ? 'not-allowed' : 'pointer' }}
+                            title="Remove pin — keeps the photo file in storage"
+                          >
+                            Unpin
+                          </button>
+                          {isDriverPin ? (
+                            <button
+                              onClick={() => deletePin(pin, true)}
+                              disabled={savingPin}
+                              style={{ flex: 1, padding: '5px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6, border: '1px solid #dc2626', background: 'transparent', color: '#dc2626', cursor: savingPin ? 'not-allowed' : 'pointer' }}
+                              title="Delete photo and file entirely — driver reference captures only"
+                            >
+                              Delete
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               </div>
             ) : null}
