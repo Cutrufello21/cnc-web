@@ -55,12 +55,22 @@ const [clearing, setClearing] = useState(false)
 // Build a flat list of all stops across all active drivers for batch selection
 const allStopsFlat = activeDrivers.flatMap(d => (d.stopDetails || []).map(s => ({ ...s, _driverName: d['Driver Name'], _driverNum: d['Driver #'] })))
 
+// Consolidated rows show one entry per address but represent multiple packages.
+// The batch selection must expand to every underlying order_id so a multi-package
+// stop moves as one unit — otherwise the primary package's siblings get orphaned
+// on the source driver when the batch is transferred.
+function expandOrderIds(s) {
+  return s._consolidatedOrderIds && s._consolidatedOrderIds.length > 0
+    ? s._consolidatedOrderIds
+    : [s.order_id || s['Order ID']]
+}
+
 function selectByZip(zip, pharmacy) {
   const normPh = (pharmacy || '').toUpperCase()
   const ids = allStopsFlat
     .filter(s => (s.zip || s.ZIP || s['Zip Code'] || s['ZIP']) === zip)
     .filter(s => !normPh || ((s.pharmacy || s.Pharmacy || s['Pharmacy']) || '').toUpperCase() === normPh)
-    .map(s => s.order_id || s['Order ID']).filter(Boolean)
+    .flatMap(expandOrderIds).filter(Boolean)
   setBatchSelected(prev => {
     const allAlready = ids.every(id => prev.has(id))
     const next = new Set(prev)
@@ -75,7 +85,7 @@ function selectByCity(city, pharmacy) {
   const ids = allStopsFlat
     .filter(s => normalizeCityKey(s.city || s.City || s['City']) === norm)
     .filter(s => !normPh || ((s.pharmacy || s.Pharmacy || s['Pharmacy']) || '').toUpperCase() === normPh)
-    .map(s => s.order_id || s['Order ID']).filter(Boolean)
+    .flatMap(expandOrderIds).filter(Boolean)
   setBatchSelected(prev => {
     const allAlready = ids.every(id => prev.has(id))
     const next = new Set(prev)
